@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 import { createSandboxIntermediaryAdapter } from "@/lib/music/marketplace/partner-adapters"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireMarketplaceAccount(request)
   if (!authResult.success) return authResult.response
-  const { user, supabase } = authResult.auth
-  const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+  const { userId, supabase } = authResult.account
+  const flags = await resolveMusicMarketplaceFlags(supabase, userId)
   if (!flags.music_marketplace_investor_portal_enabled)
     return jsonError({
       status: 404,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("music_marketplace_investor_partner_accounts")
     .select("id, partner_id, partner_account_id, status, eligibility_scope, kyc_status, sanctions_status, tax_profile_status, accreditation_status, jurisdiction, investor_type, expires_at, observed_at")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("observed_at", { ascending: false })
     .limit(20)
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
 
   // Sandbox eligibility preview only — no raw KYC docs stored.
   const sandbox = createSandboxIntermediaryAdapter()
-  const sandboxEligibility = await sandbox.getEligibility(`sandbox-${user.id}`)
+  const sandboxEligibility = await sandbox.getEligibility(`sandbox-${userId}`)
 
   return NextResponse.json({
     data: data || [],

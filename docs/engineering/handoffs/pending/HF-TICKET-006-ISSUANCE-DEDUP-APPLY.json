@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-TICKET-006-ISSUANCE-DEDUP-APPLY",
+  "task_id": "TICKET-006",
+  "from_agent": "ticketing",
+  "to_agent": "release",
+  "status": "pending",
+  "created_at": "2026-09-27T22:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "summary": "TICKET-006 closed the three items TICKET-005 recorded as still open after the wave-35 claim/complete fix — partial issuance repair, resume deduplication, and the completion alert — and all three rely on database-enforced keys that exist only in an authored, never-applied migration. supabase/migrations/20260927120000_ticketing_issuance_slot_dedup.sql (SHA-256 b1afcbb00b025ddce4147e406b36a05f03e13995ac31a3f08d1ac1e462b6ea80) adds three nullable columns — tickets.issuance_slot, ticket_analytics_events.dedupe_key, ticket_sales.issuance_alerted_at — and two partial UNIQUE indexes over them, with a planned manifest at docs/engineering/migration-validation/20260927120000_ticketing_issuance_slot_dedup.json. Until it is applied, the deployed code keeps the pre-existing behaviour it was written to replace: 'a ticket is never issued twice for one purchase' rests on an application read, a resumed delivery re-emits funnel metrics, and the completion alert fires once per Stripe retry. CP-051 forbids this lane from applying it, and the database lane reports local Postgres cannot start (disk at 6.7 GiB free), so there is no isolated evidence either.",
+  "working_set": [
+    "supabase/migrations/20260927120000_ticketing_issuance_slot_dedup.sql",
+    "docs/engineering/migration-validation/20260927120000_ticketing_issuance_slot_dedup.json"
+  ],
+  "completed": [
+    "Read the three open items off the TICKET-005 STATE.md record and confirmed each against the code: issueTicketsForOrder returned as soon as any ticket existed for the order, ticket_analytics_events had no unique key of any kind, and the order-confirmed alert had no durable marker (OptimizedNotificationService.createNotification has no idempotency handling, so the idempotency_key in the notification metadata deduped nothing).",
+    "Authored the additive migration: three nullable columns with no default, two partial UNIQUE indexes, and COMMENT ON COLUMN documenting the invariant each key protects. Every partial predicate excludes all pre-existing rows, so both indexes build over an empty set — the apply cannot fail on data and needs no CONCURRENTLY. No backfill on any key, for the same reason the completion marker had none: a historical admission has no provable issuance position and a historical metric row cannot be proven to be the first emission of a key.",
+    "Wrote the application to depend on the constraint rather than on a read: a duplicate position is absorbed as a 23505, the pre-check is explicitly an optimization that tolerates an unreadable read, and the alert is claimed with a compare-and-set that requires issuance_status = 'issued' AND issuance_alerted_at IS NULL.",
+    "Certified the behaviour locally: __tests__/ticketing/issuance-repair-dedup-alert.test.ts (19 cases) and __tests__/ticketing/issuance-slot-dedup-migration-contract.test.ts (19 cases), including that the tests fail when the issuance-slot constraint, the analytics dedupe key, the alert compare-and-set, or the partial-issuance mark is inverted.",
+    "Recorded the planned manifest with a layered plan, a pre-apply lineage check, the operator duplicate probes (GROUP BY order_id, issuance_slot HAVING count(*) > 1 and the dedupe_key equivalent), and manual-apply-pending status under CP-051."
+  ],
+  "next_steps": [
+    "Run the migration exactly once against an approved staging target (supabase migration up or a targeted psql apply under CP-051) — do not reset, force-replay, or db push --include-all.",
+    "Run the Layer 0 preflight first: confirm tickets.issuance_slot, ticket_analytics_events.dedupe_key and ticket_sales.issuance_alerted_at are all absent and both indexes absent. A target that already has one of them is a partially applied copy of this file, not a pre-apply lineage.",
+    "Run the postflight queries from the manifest, and in particular confirm BOTH duplicate probes return zero rows: SELECT order_id, issuance_slot, count(*) FROM tickets WHERE issuance_slot IS NOT NULL GROUP BY 1,2 HAVING count(*) > 1 and the dedupe_key equivalent. Also confirm the row counts of tickets and ticket_analytics_events are unchanged by the apply.",
+    "Run the Layer 3 runtime probe from the manifest: drive one paid checkout.session.completed whose issuance dies between two admissions, let Stripe retry, and confirm the retry inserts only the missing slot, sets issuance_status = 'issued', leaves exactly one row per (order, event_name) in ticket_analytics_events, and produces exactly one order-confirmed notification. Then clear completed_at to force a further resume and confirm the alert does not repeat.",
+    "Attach staging (then production) postflight evidence to the manifest and advance its status."
+  ],
+  "blockers": [
+    "CP-051 forbids the authoring lane from applying, resetting, replaying, or pushing a migration, so no isolated or staging evidence exists from this task.",
+    "No local Postgres: the database lane reports supabase start cannot bring up postgres on this box (disk at 6.7 GiB free), so the catalog and duplicate probes cannot be run locally either.",
+    "Hosted certification is a separate open item: this task closed the local code and schema contract only, and claims no hosted evidence."
+  ],
+  "verification": [
+    "PASS: node scripts/ci/check-active-migration-chain.mjs — active migration chain has no duplicate policy creations (317 files scanned).",
+    "PASS: npm run check:migration-validation — the new migration scanned with its planned manifest, zero failures.",
+    "PASS: npx vitest run __tests__/ticketing/ — 19 files, 187 tests passed (was 17 files, 149 tests).",
+    "PASS: npx tsc -p <scoped tsconfig over lib/ticketing/{issuance,finalize,analytics,db-errors}.ts + app/api/ticketing/webhook/route.ts> — no errors in the scoped files; the only diagnostics are 6 pre-existing ones in the untouched lib/services/optimized-notification-service.ts, pulled in transitively.",
+    "PASS: focused npx eslint over the 8 changed/added TypeScript files — exit 0.",
+    "PASS: git diff --check over the working set — exit 0.",
+    "NOT RUN: supabase db lint / supabase db reset / any hosted apply — forbidden by CP-051 and unavailable locally."
+  ],
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "Run migration 20260927120000_ticketing_issuance_slot_dedup.sql exactly once against an approved staging target under CP-051, confirm both postflight duplicate probes return zero rows, and attach the evidence to its manifest."
+}

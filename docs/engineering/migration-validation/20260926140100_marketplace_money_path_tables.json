@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926140100_marketplace_money_path_tables.sql",
+  "taskId": "DB-011",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "309f219e1528f66886a3bd31801b41f94b7e5b9bfdbce448216e320bf2818a1d",
+  "contractTestSha256": "b664004491849adf9ffcd44f13d01fe3407fa8e5ff1286aabdd08f6163841131",
+  "owner": "database",
+  "reviewer": "security-marketplace",
+  "domains": ["marketplace", "payments", "authorization"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "The two money-path items of HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED, selected from the 46 blocking items that supabase/tests/db011_marketplace_local_only_disposition.mjs classifies out of the 66 surface items of the 17 archived local_only_unapplied marketplace migrations. Both are reproduced from the archive with the consumer column contract read out of the code rather than guessed. public.marketplace_payment_events comes from archive 20260728000011 lines 45-79; public.marketplace_fee_rules from the whole of archive 20260728000010. Consumer evidence: lib/marketplace/webhook-processor.ts:57-63 inserts (provider_event_id, event_type, processing_status, attempts), :93-95 updates (processing_status, processed_at) filtered by provider_event_id, :101-105 updates (processing_status, last_error); lib/marketplace/fee-calculator.ts:51-57 selects exactly id, version, percentage_fee, fixed_fee_cents, minimum_fee_cents, maximum_fee_cents, scope, listing_kind_scope, description filtered on is_active, effective_from and effective_until, and is called with a service-role client from app/api/marketplace/checkout/route.ts:352-357 and from app/api/marketplace/admin/fee-rules/route.ts:53,100,127. Both callers being service-role is what makes the archive's no-public-read design correct rather than a bug. Executed evidence: supabase/tests/db011_marketplace_money_path.harness.sh, ALL CHECKS PASSED.",
+    "evidenceArtifact": "static-review:DB-011-MARKETPLACE-MONEY-PATH-2026-09-26 (migration SHA-256 309f219e1528f66886a3bd31801b41f94b7e5b9bfdbce448216e320bf2818a1d)"
+  },
+  "assumptions": [
+    "The archive is the right source for these two tables. The archived migrations carry status local_only_unapplied in supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/MANIFEST.csv, which is why the chain lacks them, and the archived DDL is the only complete column contract that exists. Where a live target already has the table from a raw Management API apply, this file's `if not exists` makes the create a no-op and the postflight is what decides whether the live column set matches.",
+    "marketplace_payment_events must have NO policy. Its authorization design in the archive is 'RLS enabled, no policy, service role only', which is strictly stronger than any policy this lane could write, because the service role bypasses RLS. The contract test asserts the ABSENCE of policies as a violation condition, so a future well-meaning read policy is caught rather than welcomed.",
+    "The fee-rule admin gate reads public.profiles.role. profiles IS in the active chain and does carry role, so the policy resolves. The gate is reproduced verbatim rather than re-derived, and the contract test asserts the compiled predicate still references profiles, because a policy that degraded to `auth.uid() is not null` would hand every signed-in user the whole fee schedule.",
+    "The seeded default fee rule must be INACTIVE. The archive inserts it with is_active = false and the harness asserts 0 active rules immediately after apply, because a migration that starts charging a fee on apply is a money incident, not a schema change.",
+    "The webhook idempotency guarantee rests entirely on the unique constraint on provider_event_id. The harness proves it behaviourally by inserting the same provider_event_id twice and requiring the second insert to be refused; the migration's own DO block raises if the unique index is absent."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm neither table exists, or if it does, dump its column list, policies and indexes and compare against this file. Then count rows in public.marketplace_orders and public.marketplace_listings to size the FK-free nature of the new tables (neither references the other, so no lock ordering concern).",
+    "Layer 1 (apply, single run, operator): one transaction. CREATE TABLE IF NOT EXISTS marketplace_payment_events with its two indexes and RLS enabled and no policy; CREATE TABLE IF NOT EXISTS marketplace_fee_rules with RLS enabled, the admin policy, the updated_at trigger and the single inactive default row; then a DO block raising unless RLS is on both tables and the unique index on provider_event_id exists. CREATE TABLE IF NOT EXISTS takes ACCESS EXCLUSIVE briefly but rewrites nothing because the table does not exist; if it does exist on the target the statement is a no-op and takes only a catalog lock.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db011_marketplace_money_path_contract.sql; expect zero violation rows and exactly one summary row marketplace_money_path_ready. Then as a real caller, confirm a signed-in non-admin reads 0 fee rules and that inserting a duplicate provider_event_id is refused. Re-run the Supabase security advisor and confirm neither new table appears as unprotected RLS in a way that matters: marketplace_payment_events intentionally has no policy and is service-role only, so its advisor entry is expected and must be read against that design, not counted as a new finding.",
+    "Layer 3 (runtime certification, marketplace): after the tables exist, confirm the Stripe webhook route reaches them. lib/marketplace/webhook-processor.ts is the only writer and is invoked from the marketplace webhook route; if that route is not enabled at launch, this migration is still correct but its value is deferred. The external-fulfilment surface (the remaining 36 blocking items) is a separate product decision and is not started here."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT to_regclass('public.marketplace_payment_events') AS payment_events, to_regclass('public.marketplace_fee_rules') AS fee_rules",
+      "SELECT c.relname, a.attname FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname IN ('marketplace_payment_events','marketplace_fee_rules') AND a.attnum > 0 AND NOT a.attisdropped ORDER BY 1,2",
+      "SELECT count(*) FROM public.marketplace_orders",
+      "SELECT count(*) FROM public.marketplace_listings"
+    ],
+    "expectedAffectedRows": "Two new relations and one inserted row: the inactive default fee rule. No existing row is read or written, because neither table exists on a reconciled target.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 2000,
+    "statementTimeoutMs": 30000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). One transaction. Safe to apply with no product change: lib/marketplace/webhook-processor.ts and lib/marketplace/fee-calculator.ts already contain fallbacks (FALLBACK_SNAPSHOT for fees, a throw-and-mark-failed path for webhooks), so a target without these tables behaves as it does today and a target with them behaves better. There is no ordering dependency between this migration and any code change.",
+    "resumeCursor": "Supabase migration version 20260926140100",
+    "idempotency": "Everything is `if not exists` / `drop ... if exists` / `on conflict do nothing`, so a second apply succeeds. ONE KNOWN PROPERTY, measured rather than assumed: marketplace_fee_rules has no natural unique key, so `on conflict do nothing` never fires and a second apply inserts a SECOND inactive default row. The harness measures this (1 row -> 2 rows on the second apply) and the contract test reports `duplicate_default_fee_rule` when more than one exists, so a duplicated seed is a visible violation rather than a silent drift. The fix, if an operator re-applies, is a single forward DELETE, not an edit to this file."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement, no backfill, no batch. The only inserted row is the inactive default fee rule. There is no partial-application state: the file is one transaction and its own post-condition raises if the asserted state is unreachable."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "marketplace_payment_events: primary key on id, unique (provider_event_id), and a CHECK on processing_status restricting it to received/processing/processed/failed/ignored. Loosening that CHECK would let a webhook claim a status the processor never handles, so the contract test asserts the CHECK still exists.",
+      "marketplace_fee_rules: CHECK on scope ('all','general','artist','venue','organization') and on listing_kind_scope ('physical','service','external'), plus a foreign key created_by references auth.users(id) on delete set null. All reproduced from the archive.",
+      "marketplace_payment_events deliberately has NO foreign key to any other relation. That is what lets the webhook claim be written before the order is read, which is the ordering the processor depends on."
+    ],
+    "indexes": [
+      "idx_marketplace_payment_events_provider_id on (provider_event_id) - redundant with the unique constraint and kept because the archive has it; the unique index already serves this predicate.",
+      "idx_marketplace_payment_events_status_time on (processing_status, received_at desc) - serves the admin overview's status-bucketed read in app/api/marketplace/admin/overview/route.ts.",
+      "No index is added to marketplace_fee_rules. The only read is lib/marketplace/fee-calculator.ts:51-57, which filters is_active = true and orders by effective_from desc over a table expected to hold a handful of versioned rows. If an operator finds this scanning a large table, the fix is a partial index on (effective_from desc) where is_active, in a follow-up migration."
+    ],
+    "validationPlan": "supabase/tests/db011_marketplace_money_path_contract.sql returns violation rows only, plus one summary row marketplace_money_path_ready emitted only when no violation exists, so an unapplied target cannot pass vacuously. It asserts 10 properties: RLS enabled on both tables; every archived column present, including the six the fee calculator selects; marketplace_payment_events has NO policy; the fee-rule admin policy exists and is FOR ALL; that policy's compiled predicate still references profiles; a unique index on provider_event_id exists; the processing_status CHECK exists; the default rule is not active; there is exactly one default rule; and the updated_at trigger is attached. The behavioural half is supabase/tests/db011_marketplace_money_path.harness.sh, which reproduces Supabase's default table grants so the assertions measure RLS rather than a missing GRANT, proves anon, authenticated and a signed-in caller all read 0 payment_events rows, proves a non-admin reads 0 fee rules while an admin-profile caller reads 1, proves a duplicate provider_event_id is refused, and runs three negative controls (a read policy added to the service-role-only table, the admin policy removed, the default rule activated), each of which must make the postflight report it."
+  },
+  "recovery": {
+    "rollback": "DROP TABLE IF EXISTS public.marketplace_fee_rules; DROP TABLE IF EXISTS public.marketplace_payment_events; - issued as a later forward migration, never as an edit to this file. Both tables are new and referenced by no chain foreign key, so dropping them removes nothing that existed before this migration. Rolling back returns the marketplace to today's behaviour, in which lib/marketplace/fee-calculator.ts falls back to FALLBACK_SNAPSHOT and lib/marketplace/webhook-processor.ts has no idempotency claim at all - so rolling back the payment_events table re-opens double-fulfilment and should be paired with disabling the Stripe webhook route rather than done alone.",
+    "forwardFix": "Any correction is a new additive migration with a higher version. The two most likely are (a) a partial index on marketplace_fee_rules (effective_from desc) where is_active, if the fee read is measured as slow, and (b) a unique constraint that makes the default seed genuinely idempotent, for example on (version) where description like 'Default platform fee%', which would also let `on conflict do nothing` do its job."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db011_marketplace_money_path_contract.sql",
+      "SELECT count(*) AS payment_event_policies FROM pg_policies WHERE schemaname='public' AND tablename='marketplace_payment_events'",
+      "SELECT count(*) AS active_fee_rules FROM public.marketplace_fee_rules WHERE is_active",
+      "SELECT indexdef FROM pg_indexes WHERE schemaname='public' AND tablename='marketplace_payment_events' ORDER BY indexname",
+      "SELECT pg_get_expr(polqual, polrelid) AS fee_rule_admin_gate FROM pg_policy WHERE polname='marketplace_fee_rules_admin_manage'"
+    ]
+  },
+  "verificationOwner": "security-marketplace reviewer for the service-role-only webhook claim and the admin fee gate; release/ops operator for the staging apply, the postflight and the duplicate-claim probe; marketplace lane for whether external fulfilment (the other 36 blocking items) is a launch surface at all",
+  "evidence": [
+    "supabase/tests/db011_marketplace_money_path.harness.sh - executed on a throwaway PostgreSQL 16.15 cluster, ALL CHECKS PASSED. Measured, not asserted: anon reads 0 marketplace_payment_events rows, authenticated reads 0, a signed-in caller reads 0; a non-admin authenticated caller reads 0 marketplace_fee_rules; the same row promoted to role='admin' reads 1, so the gate is a gate and not a blanket denial; anon INSERT into marketplace_fee_rules is refused; a second insert with the same provider_event_id is refused by the unique index; 0 fee rules are active immediately after apply; and the updated_at trigger stamps.",
+    "Three negative controls all fire, and the postflight returns to green after they are undone, so the postflight is proven able to fail rather than only able to pass.",
+    "The harness reproduces Supabase's default table grants to anon and authenticated AFTER the first apply, and says why: without them `set role anon; select ...` fails with a GRANT error and the run measures the grant instead of the policy. An earlier revision of this harness did exactly that and reported four false failures.",
+    "The harness asserts its own pre-state (neither table exists) and the fixture's own post-state (three roles, public.profiles, public.marketplace_touch_updated_at()), and the trigger function is copied from the active chain at 20260410120000_marketplace_core.sql:210 rather than invented, so a different trigger body cannot make the harness prove something the deployment does not do.",
+    "The duplicate-seed property on a second apply is measured (1 -> 2 rows) and pinned by the contract test as a violation, rather than being left as an unstated sharp edge.",
+    "LOCAL EMULATION ONLY: PostgreSQL 16.15, a throwaway cluster in a temp dir, a minimal auth/roles bootstrap, and the chain's own trigger function. Not Supabase, not a hosted project, not a chain replay, no `supabase db reset` (CP-051). No money moves and no Stripe call is made.",
+    "Not proven here, and required before this is launch-grade: that the Stripe webhook route is actually enabled and reaches lib/marketplace/webhook-processor.ts, the real default-privilege state of anon on the hosted project, and the hosted security-advisor result."
+  ],
+  "exceptions": []
+}

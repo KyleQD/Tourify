@@ -1,0 +1,35 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-TICKET-006-DATABASE-TYPES",
+  "task_id": "TICKET-006",
+  "from_agent": "ticketing",
+  "to_agent": "database",
+  "status": "pending",
+  "created_at": "2026-09-27T22:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "summary": "TICKET-006 authored migration 20260927120000_ticketing_issuance_slot_dedup.sql, which adds three columns to the active chain: tickets.issuance_slot (integer, nullable), ticket_analytics_events.dedupe_key (text, nullable), ticket_sales.issuance_alerted_at (timestamptz, nullable). lib/database.types.ts is not in the ticketing working set and is not owned by this lane, so it has not been regenerated. This adds to drift that already exists: the TICKET-005 wave-35 migration 20260926130000_ticketing_webhook_completion_marker.sql added ticket_stripe_webhook_events.completed_at and .attempts, which the committed types also do not carry. The ticketing code does not currently need the generated types to compile — the issuance, analytics and finalize clients are typed as `from: (table: string) => any` — so this is a contract-completeness item, not a build break. Regenerate once the migration is applied (see HF-TICKET-006-ISSUANCE-DEDUP-APPLY for the apply, which is release's).",
+  "working_set": [
+    "lib/database.types.ts",
+    "supabase/migrations/20260927120000_ticketing_issuance_slot_dedup.sql"
+  ],
+  "completed": [
+    "Recorded the exact three columns the migration adds, with types and nullability, so regeneration does not have to re-derive them from the SQL.",
+    "Confirmed no ticketing file depends on the generated Row types for these three columns, so the drift is additive and non-breaking: lib/ticketing/issuance.ts, lib/ticketing/analytics.ts and lib/ticketing/finalize.ts all write through an untyped PostgREST client interface.",
+    "Confirmed the pre-existing drift this extends: rg for completed_at/attempts in lib/database.types.ts finds no ticket_stripe_webhook_events entry, so check:database-types was already failing for the wave-35 migration before TICKET-006."
+  ],
+  "next_steps": [
+    "After HF-TICKET-006-ISSUANCE-DEDUP-APPLY applies the migration to a target, run npm run generate:database-types with the same SUPABASE_TYPE_SOURCE used for the target and commit the regenerated lib/database.types.ts.",
+    "Include ticket_stripe_webhook_events.completed_at and .attempts in that regeneration, so the wave-35 completion marker and this task's three keys land in one regeneration rather than two.",
+    "Re-run npm run check:database-types against the same type source and confirm the drift is closed."
+  ],
+  "blockers": [
+    "The migration is authored and never applied, so there is no schema to generate types from; regeneration must follow the apply.",
+    "The database lane reports supabase start cannot bring up postgres on this box (disk at 6.7 GiB free), so local generation is unavailable."
+  ],
+  "verification": [
+    "PASS: npx tsc -p <scoped tsconfig over the ticketing lib and webhook route> — no type errors attributable to the three ungenerated columns.",
+    "NOT RUN: npm run generate:database-types and npm run check:database-types — both require a live type source, which is unavailable locally and belongs to this receiving lane."
+  ],
+  "accepting_task_id": "DB-008",
+  "completion_condition": "Regenerate lib/database.types.ts from a target that has 20260927120000 applied, covering tickets.issuance_slot, ticket_analytics_events.dedupe_key, ticket_sales.issuance_alerted_at and the wave-35 ticket_stripe_webhook_events.completed_at/.attempts, and confirm npm run check:database-types is clean against that type source."
+}

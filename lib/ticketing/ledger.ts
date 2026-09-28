@@ -115,13 +115,22 @@ export async function writeSaleLedger(params: WriteSaleLedgerParams): Promise<vo
   // Fallback if upsert on partial unique index is unsupported
   if (error) {
     for (const row of rows) {
-      const { data: existing } = await supabase
+      const { data: existing, error: readError } = await supabase
         .from('financial_transactions')
         .select('id')
         .eq('idempotency_key', row.idempotency_key)
         .maybeSingle()
+      // Unavailable reads must fail closed: never infer "row absent" from an
+      // unreachable pre-check, and never let a failed write look recorded.
+      if (readError)
+        throw new Error(`Sale ledger pre-check failed: ${readError.message || 'read unavailable'}`)
       if (existing?.id) continue
-      await supabase.from('financial_transactions').insert(row)
+      const { error: insertError } = await supabase.from('financial_transactions').insert(row)
+      if (insertError) {
+        if (String(insertError.code) === '23505' || String(insertError.message || '').includes('duplicate'))
+          continue // already recorded by a concurrent writer — no-op
+        throw new Error(insertError.message || 'Failed to record sale ledger')
+      }
     }
   }
 }
@@ -141,15 +150,20 @@ export async function writeRefundLedger(params: {
     ? `ticket_refund:${params.orderId}:${params.ticketId}`
     : `ticket_refund:${params.orderId}:full`
 
-  const { data: existing } = await params.supabase
+  const { data: existing, error: readError } = await params.supabase
     .from('financial_transactions')
     .select('id')
     .eq('idempotency_key', key)
     .maybeSingle()
 
+  // Fail closed on unavailable data: an unreachable pre-check must never be
+  // read as "no refund recorded" because that would allow a duplicate insert.
+  if (readError)
+    throw new Error(`Refund ledger pre-check failed: ${readError.message || 'read unavailable'}`)
+
   if (existing?.id) return
 
-  await params.supabase.from('financial_transactions').insert({
+  const { error: insertError } = await params.supabase.from('financial_transactions').insert({
     org_id: params.orgId,
     event_id: params.eventId,
     type: 'expense',
@@ -165,4 +179,13 @@ export async function writeRefundLedger(params: {
     ticket_id: params.ticketId ?? null,
     idempotency_key: key,
   })
+
+  // Concurrent replay safety: the schema's partial unique index on
+  // financial_transactions(idempotency_key) means a racing duplicate insert
+  // is a normal duplicate acknowledgement, not a failure.
+  if (insertError) {
+    if (String(insertError.code) === '23505' || String(insertError.message || '').includes('duplicate'))
+      return
+    throw new Error(insertError.message || 'Failed to record refund')
+  }
 }

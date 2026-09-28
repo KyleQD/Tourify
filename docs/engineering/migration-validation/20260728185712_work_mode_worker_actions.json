@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728185712_work_mode_worker_actions.sql",
+  "taskId": "GEN-12-B",
+  "status": "planned",
+  "owner": "work-mode",
+  "reviewer": "security-data",
+  "domains": ["work-mode", "workforce", "audit"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with worker and non-worker personas",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm public.employment_assignments and public.work_mode_publications exist",
+      "Count confirmed/active assignments with check_in_out permission",
+      "Record grants and RLS state for both dependency tables"
+    ],
+    "expectedAffectedRows": "No existing rows are updated; two empty append-only tables, four indexes, and four policies are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "The migration is additive and rerunnable; guarded tables, indexes, and policies converge objects",
+    "resumeCursor": "not applicable; no backfill",
+    "idempotency": "Tables and indexes use IF NOT EXISTS; policies are created only when absent"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant or legacy row is inferred, mapped, or backfilled"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "one acknowledgement per assignment and publication",
+      "one result per user client request id",
+      "check-in action allowlist",
+      "context must be a JSON object",
+      "foreign keys preserve assignment and publication evidence"
+    ],
+    "indexes": [
+      "work_mode_publication_ack_user_created_idx",
+      "work_mode_publication_ack_assignment_idx",
+      "work_mode_check_in_assignment_occurred_idx",
+      "work_mode_check_in_user_occurred_idx"
+    ],
+    "validationPlan": "Verify own-assignment select/insert succeeds, cross-user and unpermitted inserts fail, and duplicate client request ids converge"
+  },
+  "recovery": {
+    "rollback": "Disable FEATURE_WORK_MODE_WORKER_ACTIONS; preserve append-only evidence and leave additive tables in place",
+    "forwardFix": "Apply a reviewed additive policy, constraint, or indexing migration"
+  },
+  "postflight": {
+    "queries": [
+      "Verify RLS and FORCE RLS on both new tables",
+      "Verify authenticated has SELECT and INSERT only and anon has no grants",
+      "Verify two policies per table",
+      "Verify worker insert succeeds and cross-user insert fails",
+      "Verify duplicate client_request_id is rejected"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

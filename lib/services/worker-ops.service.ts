@@ -98,14 +98,14 @@ export async function getWorkerOpsDashboard(args: {
     eventIds.length > 0
       ? supabase
           .from("tasks")
-          .select("id, event_id, title, name, status, due_date, priority, assignee_id, assigned_to")
-          .or(`assignee_id.eq.${userId},assigned_to.eq.${userId}`)
+          .select("id, event_id, title, status, due_date, priority, assigned_to")
+          .eq("assigned_to", userId)
           .in("event_id", eventIds)
           .limit(50)
       : supabase
           .from("tasks")
-          .select("id, event_id, title, name, status, due_date, priority, assignee_id, assigned_to")
-          .or(`assignee_id.eq.${userId},assigned_to.eq.${userId}`)
+          .select("id, event_id, title, status, due_date, priority, assigned_to")
+          .eq("assigned_to", userId)
           .limit(50),
     staffMemberIds.length > 0
       ? supabase
@@ -155,7 +155,7 @@ export async function getWorkerOpsDashboard(args: {
     tasks: (tasksResult.data ?? []).map((row: any) => ({
       id: row.id,
       eventId: row.event_id ?? null,
-      title: row.title || row.name || "Task",
+      title: row.title || "Task",
       status: row.status ?? null,
       dueDate: row.due_date ?? null,
       priority: row.priority ?? null,

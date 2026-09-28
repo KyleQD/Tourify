@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-DB-009-MARKETPLACE-TYPE-AND-RPC-SURFACE",
+  "task_id": "MKT-004",
+  "from_agent": "marketplace",
+  "to_agent": "database",
+  "status": "consumed",
+  "created_at": "2026-09-25T00:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree)",
+  "summary": "The marketplace lane hit two additive schema/type-surface gaps it cannot fix under its ownership boundary, plus one ledger-grade primitive request. marketplace_checkout_attempts and marketplace_external_listings are absent from both supabase/migrations/ and lib/database.types.ts, so the P0 checkout idempotency path cannot succeed on any environment built from the active chain. Separately, app/api/marketplace/delivery/[orderItemId]/route.ts records downloads with a privileged compare-and-swap because marketplace_entitlements has no buyer update policy and no increment RPC exists. No migration was authored or applied (CP-051) and no type file was edited.",
+  "working_set": [
+    "supabase/migrations/",
+    "lib/database.types.ts",
+    "packages/api-contracts (if a checkout-attempt type is contract-owned)"
+  ],
+  "completed": [
+    "Confirmed marketplace_checkout_attempts is referenced at app/api/marketplace/checkout/route.ts:99, :154, :464 and lib/marketplace/webhook-processor.ts:369, is absent from supabase/migrations/, and is recorded local_only_unapplied at supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/MANIFEST.csv:257 (source 20260728000011).",
+    "Confirmed marketplace_external_listings is referenced at lib/marketplace/feed-attachment.ts:192 and :318, app/api/marketplace/listings/import-external/route.ts:164 and app/api/marketplace/listings/[id]/redirect/route.ts:40, is absent from supabase/migrations/, and is recorded local_only_unapplied at MANIFEST.csv:249 (source 20260728000003).",
+    "Confirmed neither relation exists in lib/database.types.ts, so both produce missing-relation type errors in the marketplace lane's own files.",
+    "Verified the checkout route fails closed on the missing relation rather than silently proceeding: lib/marketplace/schema-readiness.ts:8 matches PGRST205 and app/api/marketplace/checkout/route.ts:105-112 returns 503 schema_not_ready.",
+    "Consumed 2026-09-26 by the database lane. All four next_steps are dispositioned; see the disposition array and HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED."
+  ],
+  "next_steps": [
+    "Reconcile marketplace_checkout_attempts (archive 20260728000011) into the active chain additively with its idempotency_key uniqueness constraint intact, because the P0 checkout money path depends on it; the marketplace lane cannot certify checkout until this table exists.",
+    "Reconcile marketplace_external_listings (archive 20260728000003) into the active chain so the dead-CTA redirect and external-listing import paths can be certified.",
+    "Regenerate lib/database.types.ts from the reconciled chain so the missing-relation errors in the marketplace files clear; the marketplace lane will not edit the type surface or suppress the errors.",
+    "Add a single-statement buyer-scoped marketplace_entitlements download-increment RPC (increment download_count, set last_downloaded_at, enforce status = 'active' and download_count < max_downloads, return the updated row) so app/api/marketplace/delivery/[orderItemId]/route.ts:89-120 can drop the privileged compare-and-swap and close its SEC-109 replace_with_rpc reviewed-debt entry."
+  ],
+  "blockers": [
+    "Marketplace checkout, external-listing import, and dead-CTA redirect cannot be certified on any environment built from the active chain while these two relations are missing; the routes fail closed with schema_not_ready.",
+    "MKT-008 download counting is concurrency-safe but not ledger-grade: the compare-and-swap at app/api/marketplace/delivery/[orderItemId]/route.ts:89-120 cannot double-count or lose a count, but two simultaneous legitimate downloads make one buyer receive 409 instead of their file."
+  ],
+  "verification": [
+    "rg over supabase/migrations/ for the create-table statements of marketplace_checkout_attempts and marketplace_external_listings returns no matches; both resolve only under supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/.",
+    "Type-surface probe over lib/database.types.ts reports PRESENT for marketplace_orders, marketplace_order_items, marketplace_entitlements, marketplace_payout_ledger, marketplace_storefronts, marketplace_listings, marketplace_listing_variants, marketplace_moderation_queue, marketplace_service_milestones, marketplace_integrations; MISSING for marketplace_checkout_attempts and marketplace_external_listings.",
+    "No full-repository typecheck was run: the control plane measured npm run typecheck at 68m18s with 1,384 errors across 407 files, so no typecheck result is claimed from this lane."
+  ],
+  "consumed_at": "2026-09-26T00:00:00.000Z",
+  "consumed_by": "HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED",
+  "disposition": [
+    "marketplace_checkout_attempts -> CAPTURED as 20260926120000_marketplace_checkout_idempotency_and_guest_checkout.sql. Not migrated as archived: the archived 20260728000011 has no guest_email and app/api/marketplace/checkout/route.ts:467 writes it. The migration also adds the six P6 guest-checkout columns to marketplace_orders that the same route inserts at :377, which the archived 20260728000014 defines; without them the route fails one step later than the handoff predicted.",
+    "marketplace_external_listings -> CAPTURED as 20260926120100_marketplace_external_listing_surface.sql, together with marketplace_external_clicks (referenced at app/api/marketplace/listings/[id]/redirect/route.ts) and the four marketplace_listings columns the redirect route needs (20260728000001). The archived DDL public-read policy was replaced with a column-limited view because a USING predicate cannot exclude canonical_url.",
+    "marketplace_entitlements buyer-scoped increment RPC -> AUTHORED as public.record_marketplace_entitlement_download(uuid,text,timestamptz) in 20260926120200. SECURITY DEFINER, search_path pinned, EXECUTE revoked from PUBLIC and anon. Replaces the service-role compare-and-swap. The route switch and the SEC-109 retirement belong to the marketplace lane and are recorded in HF-DB-011.",
+    "CP-016 regeneration is NOT a database-lane action. The gate it depends on now passes: node supabase/tests/db008_chain_contract_replay.mjs --check reports 0 contract columns without chain provenance, so regeneration would add coverage and remove none. Regeneration itself still needs a live target, which this lane does not have."
+  ]
+}

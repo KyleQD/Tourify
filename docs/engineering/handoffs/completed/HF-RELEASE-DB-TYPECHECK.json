@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "id": "HF-RELEASE-DB-TYPECHECK",
+  "task_id": "RELEASE-005",
+  "from_agent": "release",
+  "to_agent": "database",
+  "status": "completed",
+  "created_at": "2026-09-25T20:19:07Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The required `Lint And Build` check on PR #14 fails for a reason the release lane does not own: `tsc --noEmit` reports 1,384 primary diagnostics across 407 distinct files, and the dominant classes are generated-database-type drift plus three database objects that exist in no migration and no generated type. `Database Types` failed earlier in the same CI run at `supabase start`, so `check:migration-chain` and `check:database-types` never ran. Both failures are consistent with one root cause: the generated Supabase type surface is not in sync with the migration chain. The release gate is failing correctly and must not be bypassed.",
+  "working_set": [
+    "types/database.types.ts",
+    "supabase/migrations/",
+    "lib/services/staff-management.service.ts",
+    "lib/services/staff-job-board.service.ts",
+    ".github/workflows/ci.yml"
+  ],
+  "completed": [
+    "Read-only diagnosis captured in docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md section (ii).",
+    "Extracted the exact CI job log (gh run view --job 106861310047 --log, 7,271 lines) and characterised all 1,384 diagnostics: TS2339 x495, TS2769 x265, TS2322 x180, TS2589 x163, TS2345 x161, TS18047 x26.",
+    "Confirmed the three named objects are absent from the generated type union: `venue_crew_members`, `venue_team_contractors`, and `get_staff_dashboard_stats` all fail TS2345 against the generated Supabase `from()`/RPC unions.",
+    "Confirmed the release-side pipeline configuration is NOT the cause: ci.yml step 11 runs `npm run typecheck` = `NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit` on a 4-core/16GB ubuntu-latest runner; the step completed normally and the log contains zero occurrences of heap-out-of-memory, FATAL ERROR, ENOMEM, Killed, or SIGKILL.",
+    "ACTIONED, AND THE THREE NAMED OBJECTS WERE DELIBERATELY NOT MIGRATED. (1) The release diagnosis is confirmed and refined: the generated contract is not merely out of sync, it is out of sync in BOTH directions. Forward: the chain creates 9 relations and 16 callables the types omit. Backward: the types declare columns the chain does not create. (2) venue_crew_members, venue_team_contractors and get_staff_dashboard_stats remain absent from the active chain and were NOT re-created. Re-creating them would resurrect a surface that lib/admin/workforce-identity-map.ts (canonicalDestination organization_people, duplicateRisk high) and 20260823070000_staff_members_canonical_roster.sql (VEN-103 marks venue_team_members LEGACY) exist to retire. The release lane's stated preference, \"decide whether the migration is missing or the service code is orphaned and should be removed/rewired\", resolves to orphaned: lib/venue/staff-management.service.ts and lib/services/staff-management.service.ts have zero importers and lib/services/staff-job-board.service.ts is referenced only from docs/staff-management-backend-setup.md. (3) `types/database.types.ts` was NOT regenerated and NOT hand-edited. No generated file was touched in this wave. (4) `npm run check:database-types` still cannot run: it needs a live target, Docker is unavailable on this machine, and the chain replay it depends on previously aborted at 20260413200000_port_missing_tables.sql with SQLSTATE 42501. That abort class is now fixed across all ten affected migrations, so the next local-stack run is the first real test of that gate."
+  ],
+  "next_steps": [
+    "The 15 skipped release-gate steps stay blocked on `Lint And Build`, which stays blocked on typecheck. Two of the three database-owned root causes are now closed at the source: the chain replays clean under a non-owner role, and the migration-chain / migration-validation / migration-ledger gates are all green again (302 active migrations).",
+    "The remaining blocker is the 128-object contract gap, decomposed in docs/engineering/database-type-inventory-2026-09-25.json and routed to 23 handoffs. Release should expect the typecheck to fall from 1,384 but NOT to reach zero in one step.",
+    "RELEASE-006's deterministic typecheck/build criterion still cannot be observed until a full `npm run typecheck` is run on a 16GB runner after the clusters land. The database lane claims no typecheck result."
+  ],
+  "blockers": [
+    "`Database Types` job failed at `supabase start` (run 35761777731, job 106861311050) before `check:migration-chain` or `check:database-types` could run; the reason for that failure was not investigated by this lane.",
+    "Because the whole release gate is sequenced after `Typecheck`, PR #14 has NO production-build evidence: the `Build` step (`npm run build:vercel`) was skipped. RELEASE-006's deterministic typecheck/build criterion cannot be observed on d2176904 until typecheck passes.",
+    "The release lane did not run local typecheck: full `npm run typecheck` and full `next build` are prohibited in this concurrent multi-lane lane."
+  ],
+  "verification": [
+    "gh api repos/KyleQD/Tourify/actions/jobs/106861310047 -> step 11 `Typecheck` failure, 17:38:34Z -> 18:46:52Z (68m18s); steps 12-27 all `skipped`.",
+    "gh run view --repo KyleQD/Tourify --job 106861310047 --log -> 1,384 `error TS...` lines across 407 files; OOM keyword search returned 0 matches.",
+    "gh api repos/KyleQD/Tourify/actions/jobs/106861311050 -> `Database Types` step 6 `Start local Supabase` failure; steps 7-8 skipped.",
+    "gh pr view 14 -> mergeStateStatus BLOCKED; `Lint And Build` and `Database Types` are both required checks on main and both FAILURE."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-pr14-check-triage-2026-09-25.md",
+  "resolved_at": "2026-09-25T21:45:00.000Z",
+  "consumed_by": "database (DB-008, Wave 33)"
+}

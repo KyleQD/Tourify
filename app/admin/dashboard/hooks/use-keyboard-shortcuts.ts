@@ -169,15 +169,14 @@ export function useKeyboardShortcuts() {
       modifier: 'cmd',
       description: 'New item',
       action: () => {
-        // Context-aware new item creation
-        if (pathname.includes('/tours')) {
-          router.push('/admin/dashboard/tours/new')
-        } else if (pathname.includes('/events')) {
-          router.push('/admin/dashboard/events/new')
+        // Context-aware new item creation (P2-19: canonical targets —
+        // /tours/new and /events/new never existed and 404'd)
+        if (pathname.includes('/events')) {
+          router.push('/admin/dashboard/events/create')
         } else if (pathname.includes('/artists')) {
           router.push('/admin/dashboard/artists/new')
         } else {
-          router.push('/admin/dashboard/tours/new')
+          router.push('/admin/dashboard/tours/builder')
         }
       },
       category: 'actions',

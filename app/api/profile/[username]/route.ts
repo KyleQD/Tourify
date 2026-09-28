@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
-import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
 import { getCustomProfileDesignState } from '@/lib/profile/custom-profile-layout'
+import { buildGeneralPublicIdentity } from '@/lib/profile/general-public-profile'
 
 export async function GET(
   request: NextRequest,
@@ -22,15 +22,18 @@ export async function GET(
       supabase = await createClient()
     }
 
-    // First, try to find the profile by username in the main profiles table
-    let lookupMethod: 'username' | 'custom_url' = 'username'
-
-    let { data: profile, error: profileError } = await supabase
+    // First, try to find the profile by username in the main profiles table.
+    // DB-008 / Wave 35: `profiles.custom_url` is in no active migration and in no
+    // generated contract, and the previous `custom_url` fallback could therefore
+    // never match a row. It is removed rather than repointed: the primary lookup
+    // below already resolves the canonical public handle (`profiles.username`), so
+    // a second lookup on the same value is dead code, and keeping it poisoned both
+    // PostgREST selects on the non-existent column.
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(`
         id,
         username,
-        custom_url,
         full_name,
         bio,
         avatar_url,
@@ -42,6 +45,9 @@ export async function GET(
         metadata,
         instagram,
         twitter,
+        show_email,
+        show_phone,
+        show_location,
         is_verified,
         followers_count,
         following_count,
@@ -52,43 +58,11 @@ export async function GET(
       .eq('username', username)
       .single()
 
-    // If not found, try matching the custom_url instead
     if (profileError || !profile) {
-      lookupMethod = 'custom_url'
-
-      ;({ data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          custom_url,
-          full_name,
-          bio,
-          avatar_url,
-          cover_image,
-          location,
-          website,
-          profile_data,
-          social_links,
-          metadata,
-          instagram,
-          twitter,
-          is_verified,
-          followers_count,
-          following_count,
-          posts_count,
-          created_at,
-          updated_at
-        `)
-        .eq('custom_url', username)
-        .single())
-
-      if (profileError || !profile) {
-        return NextResponse.json(
-          { error: 'Profile not found' },
-          { status: 404 }
-        )
-      }
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      )
     }
 
 
@@ -132,104 +106,23 @@ export async function GET(
       } catch (error) {
       }
 
-      // Get view count (mock data for now)
-      stats.views = Math.floor(Math.random() * 10000) + 1000
     }
 
-    const baseProfileData = ((profile as any).profile_data || {}) as Record<string, any>
-    const baseSocialLinks = ((profile as any).social_links || {}) as Record<string, any>
-
-    // Base profile shape that we will enrich per account type
-    let accountType: 'general' | 'artist' | 'venue' | 'organization' = 'general'
-    let authorProfileId: string = profile.id
-    const ownerUserId: string = profile.id
+    const publicIdentity = buildGeneralPublicIdentity(profile)
+    const baseProfileData = publicIdentity.profileData
+    // `/profile/:username` always represents the General identity. Artist, Venue,
+    // and Organization brands have their own canonical public routes.
+    const accountType = publicIdentity.accountType
+    const authorProfileId = publicIdentity.authorProfileId
+    const ownerUserId = publicIdentity.ownerUserId
     let profileData: any = {
-      ...baseProfileData,
-      name: profile.full_name,
-      bio: profile.bio,
-      location: profile.location,
-      website: profile.website
+      ...publicIdentity.profileData,
     }
     let socialLinks: Record<string, any> = {
-      ...baseSocialLinks,
-      website: profile.website || baseSocialLinks.website || null,
-      instagram: (profile as any).instagram || baseSocialLinks.instagram || null,
-      twitter: (profile as any).twitter || baseSocialLinks.twitter || null
+      ...publicIdentity.socialLinks,
+      instagram: (profile as any).instagram || publicIdentity.socialLinks.instagram || null,
+      twitter: (profile as any).twitter || publicIdentity.socialLinks.twitter || null
     }
-
-    // Attempt to detect specialized profiles
-    try {
-      // Artist
-      const { data: artist, error: artistError } = await supabase
-        .from('artist_profiles')
-        .select('id,artist_name,url_slug,bio,genres,social_links,settings,created_at,updated_at')
-        .eq('user_id', profile.id)
-        .limit(1)
-        .single()
-
-      if (!artistError && artist) {
-        const capabilities = extractCreatorCapabilitiesV1(artist.settings)
-        accountType = 'artist'
-        authorProfileId = artist.id
-        profileData = {
-          artist_name: artist.artist_name,
-          url_slug: artist.url_slug,
-          bio: artist.bio ?? profile.bio,
-          genre: Array.isArray(artist.genres) && artist.genres.length > 0 ? artist.genres[0] : undefined,
-          creator_type: capabilities.creatorType,
-          service_offerings: capabilities.serviceOfferings,
-          products_for_sale: capabilities.productsForSale,
-          credentials: capabilities.credentials,
-          work_highlights: capabilities.workHighlights,
-          available_for_hire: capabilities.availableForHire,
-          collaboration_interest: capabilities.collaborationInterest,
-          website: profile.website,
-          ...artist.social_links
-        }
-        socialLinks = {
-          website: profile.website,
-          ...(artist.social_links || {})
-        }
-      }
-    } catch (e) {
-      // Table may not exist; ignore
-    }
-
-    if (accountType === 'general') {
-      try {
-        // Venue by user
-        const { data: venue, error: venueError } = await supabase
-          .from('venue_profiles')
-          .select('id,venue_name,description,address,city,state,country,capacity,venue_types,social_links,created_at')
-          .eq('user_id', profile.id)
-          .limit(1)
-          .single()
-
-        if (!venueError && venue) {
-          accountType = 'venue'
-          authorProfileId = venue.id
-          profileData = {
-            venue_name: venue.venue_name,
-            bio: venue.description ?? profile.bio,
-            location: [venue.city, venue.state].filter(Boolean).join(', '),
-            capacity: venue.capacity,
-            venue_types: venue.venue_types,
-            website: profile.website,
-          }
-          socialLinks = {
-            website: profile.website,
-            ...(venue.social_links || {})
-          }
-          // Map some venue stats if not present
-          stats.events = stats.events || 0
-        }
-      } catch (e) {
-        // Ignore if table missing
-      }
-    }
-
-    // General profiles stay General. Organization brands resolve via /organization/{slug}.
-    // Do not rewrite this response to organization when the user also owns an org.
 
     profileData = {
       ...baseProfileData,
@@ -237,7 +130,7 @@ export async function GET(
       profile_experience: baseProfileData.profile_experience || profileData.profile_experience
     }
     socialLinks = {
-      ...baseSocialLinks,
+      ...publicIdentity.socialLinks,
       ...socialLinks
     }
 
@@ -326,7 +219,7 @@ export async function GET(
       cover_image: resolvedCoverImage,
       verified: profile.is_verified,
       bio: profile.bio,
-      location: profile.location,
+      location: publicIdentity.location,
       social_links: socialLinks,
       stats,
       created_at: profile.created_at,

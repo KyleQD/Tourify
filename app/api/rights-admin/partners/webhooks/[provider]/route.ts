@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { hashPayload, verifyPartnerWebhookSignature } from "@/lib/music/rights-admin/partner-adapters"
+import { hashPayload } from "@/lib/music/rights-admin/partner-adapters"
+import { isUniqueViolation, verifyPrefixedDigestSignature } from "@/lib/integrations/webhook-security"
 import { reconcileExternalRecord } from "@/lib/music/rights-admin/external-record-reconciliation"
+import { auditFeatureUnavailable, isAuditFeatureApproved } from "@/lib/config/audit-feature-gates"
 
 export const dynamic = "force-dynamic"
 
@@ -9,11 +11,18 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ provider: string }> },
 ) {
+  if (!isAuditFeatureApproved("advanced_webhooks"))
+    return auditFeatureUnavailable("advanced_webhooks")
+
+  let supabase: any = null
+  let claimedEventId: string | null = null
+  let routeProviderId: string | null = null
   try {
     const { provider } = await context.params
     const providerId = provider?.trim()
     if (!providerId)
       return NextResponse.json({ error: "provider required" }, { status: 400 })
+    routeProviderId = providerId
 
     const bodyText = await request.text()
     const signature = request.headers.get("x-tourify-partner-signature")
@@ -23,30 +32,31 @@ export async function POST(
     const allowUnsigned = process.env.MUSIC_RIGHTS_ADMIN_WEBHOOK_ALLOW_UNSIGNED === "true"
 
     let signatureVerified = false
-    if (secret && signature) {
-      signatureVerified = verifyPartnerWebhookSignature({ rawBody: bodyText, signature, secret })
+    if (secret) {
+      // A configured secret is a hard requirement: an absent or invalid
+      // signature is a rejected delivery, never a processing pass. The digest
+      // comparison is constant-time.
+      signatureVerified = verifyPrefixedDigestSignature({ rawBody: bodyText, signature, secret })
       if (!signatureVerified)
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     } else if (!allowUnsigned) {
       return NextResponse.json({ error: "Webhook not configured" }, { status: 503 })
     }
 
-    const payload = JSON.parse(bodyText || "{}") as Record<string, unknown>
-    const externalEventId = String(payload.id || payload.event_id || "")
-    const eventType = String(payload.type || payload.event_type || "")
+    let payload: Record<string, unknown>
+    try {
+      const parsed = JSON.parse(bodyText || "{}")
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid payload")
+      payload = parsed as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: "Invalid event payload" }, { status: 400 })
+    }
+    const externalEventId = String(payload.id || payload.event_id || "").trim()
+    const eventType = String(payload.type || payload.event_type || "").trim()
     if (!externalEventId || !eventType)
       return NextResponse.json({ error: "Invalid event payload" }, { status: 400 })
 
-    const supabase = createServiceRoleClient()
-    const { data: existing } = await supabase
-      .from("music_rights_admin_partner_events")
-      .select("id")
-      .eq("provider", providerId)
-      .eq("external_event_id", externalEventId)
-      .maybeSingle()
-    if (existing)
-      return NextResponse.json({ data: { id: existing.id, idempotent: true } })
-
+    supabase = createServiceRoleClient()
     const { data: stored, error } = await supabase
       .from("music_rights_admin_partner_events")
       .insert({
@@ -55,13 +65,16 @@ export async function POST(
         event_type: eventType,
         payload,
         payload_hash: hashPayload(payload),
-        status: signatureVerified || allowUnsigned ? "verified" : "received",
+        status: signatureVerified ? "verified" : "received",
       })
       .select("id")
       .single()
 
+    if (isUniqueViolation(error))
+      return NextResponse.json({ data: { providerEventId: externalEventId, idempotent: true } })
     if (error)
       return NextResponse.json({ error: "Event persistence failed" }, { status: 500 })
+    claimedEventId = externalEventId
 
     if (eventType === "registration.status" && typeof payload.external_id === "string") {
       const fields = reconcileExternalRecord([{
@@ -70,7 +83,7 @@ export async function POST(
         externalValue: payload.status,
         authority: "external",
       }])
-      await supabase.from("music_rights_external_records").insert({
+      const { error: externalRecordError } = await supabase.from("music_rights_external_records").insert({
         provider_code: providerId,
         external_id: payload.external_id,
         record_type: "registration_status",
@@ -78,22 +91,33 @@ export async function POST(
         payload: { ...payload, reconciliation: fields },
         effective_at: new Date().toISOString(),
       })
-      await supabase.from("music_rights_admin_outbox").insert({
+      if (externalRecordError) throw new Error("External record persistence failed")
+      const { error: outboxError } = await supabase.from("music_rights_admin_outbox").insert({
         event_type: "registration.reconciled",
         aggregate_id: stored.id,
         payload: { providerEventId: externalEventId, fields },
         idempotency_key: `reg-reconcile-${externalEventId}`,
       })
+      if (outboxError) throw new Error("Rights event persistence failed")
     }
 
-    await supabase
+    const { error: completionError } = await supabase
       .from("music_rights_admin_partner_events")
       .update({ processed_at: new Date().toISOString(), status: "processed" })
       .eq("id", stored.id)
+    if (completionError) throw new Error("Event completion persistence failed")
 
     return NextResponse.json({ data: { id: stored.id, processed: true, signatureVerified } })
-  } catch (error) {
-    console.error("[music-rights-admin-webhook]", error)
+  } catch {
+    if (supabase && claimedEventId) {
+      const { error: failureError } = await supabase
+        .from("music_rights_admin_partner_events")
+        .update({ status: "rejected" })
+        .eq("provider", routeProviderId)
+        .eq("external_event_id", claimedEventId)
+      if (failureError) console.error("[music-rights-admin-webhook] failed to record failure", { kind: "internal_error" })
+    }
+    console.error("[music-rights-admin-webhook]", { kind: "internal_error" })
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 })
   }
 }

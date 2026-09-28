@@ -1,0 +1,233 @@
+{
+  "schema_version": "1.0",
+  "id": "VENUE-001",
+  "title": "Audit Venue workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "venue",
+  "created_at": "2026-09-09T06:17:40.040Z",
+  "updated_at": "2026-09-10T23:02:41.300Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Venue area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: venue identity, public profiles, bookings, venue operations, and venue kit",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/venue/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The venue default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/venue/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/venue/BASELINE.md: what the venue area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/venue/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task VENUE-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/venue/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/venue/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/venue/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "npm run agents:context -- --task VENUE-001: bounded context generated with current SHA equal to base SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+      "npm run agents:validate: validated 17 agents, 69 tasks, 0 errors; one unrelated RELEASE-001 warning",
+      "npx vitest run __tests__/venue/booking-lifecycle.test.ts: 1 file passed, 6 tests passed"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T23:02:41.300Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Audit complete and final control-plane/lifecycle verification passed. The venue baseline, 28 triaged gaps, 13 prioritized questions, state, and backlog are recorded; booking lifecycle evidence remains intact and no production or migration files were changed in this slice.",
+    "completed": [
+      "Read startup protocol: INDEX.md, CHARTER.md, STATE.md, VENUE-001.json",
+      "Read domain working set: venue agent directory, generated maps, work-packets",
+      "Read named references: DEVELOPMENT_WORKFLOW.md, PROJECT_STATE.md, SYSTEM_MAP.md, DEPENDENCY_MAP.md, DECISIONS.md, registry.yaml, DEVELOPMENT_BACKLOG.md",
+      "Read legacy .agents/venue-pages-builder/ (INVENTORY.md, PROGRESS.md, TASK_LOG.md)",
+      "Analyzed 70+ venue web routes, 45+ API handlers, 32 venue-prefixed DB tables, 30+ functions, 100+ components",
+      "Produced BASELINE.md with real path references",
+      "Produced GAPS.md: 28 items triaged (7 missing, 5 incomplete, 16 improve)",
+      "Produced QUESTIONS.md: 13 prioritized questions (3 P1, 6 P2, 4 P3) with build/fix/drop guidance",
+      "Updated STATE.md with durable facts and current focus",
+      "Updated BACKLOG.md with candidate task records derived from gaps"
+    ],
+    "next_steps": [
+      "Await product-owner answers to VENUE-Q01 through VENUE-Q13; create follow-up task records only in a later explicitly scoped task",
+      "Hosted migration/RLS/backfill/grant/index acceptance remains a separate gated release concern and was intentionally not applied",
+      "Wait for product owner answers on Q1-Q13 before creating implementation tasks"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T12:00:00.000Z",
+        "summary": "Audit complete. 28 gaps found (7 missing, 5 incomplete, 16 improve). 13 questions prioritized P1-P3. Top 5 questions: (1) Apply staged venues/RBAC RLS baseline [P1, security], (2) Standardize venue API authorization [P1, security], (3) Document and test booking lifecycle state machine [P1, correctness], (4) Consolidate venue component trees [P2, debt], (5) Create venue test strategy and coverage [P2, quality]. Cross-domain blockers: Q1 blocks venue + admin auth; Q5 blocks qa regression; Q7 blocks design-system contract patterns. No production code modified.",
+        "evidence_paths": [
+          "docs/engineering/agents/venue/BASELINE.md",
+          "docs/engineering/agents/venue/GAPS.md",
+          "docs/engineering/agents/venue/QUESTIONS.md",
+          "docs/engineering/agents/venue/STATE.md",
+          "docs/engineering/agents/venue/BACKLOG.md"
+        ],
+        "scope_expansions": [
+          {
+            "path": ".agents/venue-pages-builder/",
+            "reason": "Legacy specialist ledger referenced by scope; read for baseline evidence (INVENTORY.md, PROGRESS.md, TASK_LOG.md)"
+          }
+        ]
+      },
+      {
+        "at": "2026-09-10T23:02:41.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded completion slice: regenerated the VENUE-001 context packet, verified the control plane with 0 errors, and verified the canonical booking lifecycle contract with 6/6 focused tests. Server-side venue/organization authorization and booking lifecycle behavior were preserved; no production code, component-tree cleanup, or migrations were changed.",
+        "changed_paths": [
+          "docs/engineering/tasks/completed/VENUE-001.json"
+        ],
+        "evidence_paths": [
+          "docs/engineering/agents/venue/CHARTER.md",
+          "docs/engineering/agents/venue/STATE.md",
+          "docs/engineering/agents/venue/BOOKING_LIFECYCLE.md",
+          "docs/engineering/agents/venue/GAPS.md",
+          "docs/engineering/agents/venue/QUESTIONS.md",
+          "lib/venue/booking-lifecycle.ts",
+          "__tests__/venue/booking-lifecycle.test.ts",
+          "docs/engineering/tasks/completed/VENUE-001.json"
+        ],
+        "verification": [
+          "npm run agents:context -- --task VENUE-001 — SHA drift: none",
+          "npm run agents:validate — 17 agents, 69 tasks, 0 errors; one unrelated RELEASE-001 warning",
+          "npx vitest run __tests__/venue/booking-lifecycle.test.ts — 1 file passed, 6 tests passed"
+        ],
+        "blockers": [
+          "Hosted migration/RLS/backfill/grant/index acceptance remains outside this read-only audit slice and was not applied."
+        ],
+        "next_steps": [
+          "Await product-owner answers to VENUE-Q01 through VENUE-Q13; create follow-up task records only in a later explicitly scoped task.",
+          "Preserve the server-side venue/organization authorization boundary and booking lifecycle contract in follow-up work.",
+          "Keep VENUE-002 RLS work and component-tree cleanup out of this task."
+        ],
+        "scope_expansions": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "question_list": [
+    {
+      "id": "VENUE-Q01",
+      "priority": "P1",
+      "gap_refs": ["GAPS-1", "GAPS-2"],
+      "question": "Apply the staged venues/RBAC RLS baseline through the gated pipeline?",
+      "resolution": "Fix - security hardening for venue authorization"
+    },
+    {
+      "id": "VENUE-Q02",
+      "priority": "P1",
+      "gap_refs": ["GAPS-2", "GAPS-3", "GAPS-4", "GAPS-10"],
+      "question": "Standardize venue API authorization to one wrapper pattern?",
+      "resolution": "Fix - shared assertVenueAccess wrapper"
+    },
+    {
+      "id": "VENUE-Q03",
+      "priority": "P1",
+      "gap_refs": ["GAPS-9", "GAPS-10", "GAPS-11"],
+      "question": "What is the venue booking lifecycle state machine?",
+      "resolution": "Build - document states and write regression tests"
+    },
+    {
+      "id": "VENUE-Q04",
+      "priority": "P2",
+      "gap_refs": ["GAPS-12", "GAPS-13", "GAPS-14", "GAPS-15"],
+      "question": "Consolidate venue components into one tree?",
+      "resolution": "Fix - deduplicate components and delete dead routes"
+    },
+    {
+      "id": "VENUE-Q05",
+      "priority": "P2",
+      "gap_refs": ["GAPS-5", "GAPS-6", "GAPS-7", "GAPS-8"],
+      "question": "What testing strategy and coverage targets apply to venue?",
+      "resolution": "Build - venue test plan (API, RLS, lifecycle, components)"
+    },
+    {
+      "id": "VENUE-Q06",
+      "priority": "P2",
+      "gap_refs": ["GAPS-16", "GAPS-17", "GAPS-18"],
+      "question": "Adopt React Query on venue dashboards?",
+      "resolution": "Fix - migrate venue dashboard data fetching"
+    },
+    {
+      "id": "VENUE-Q07",
+      "priority": "P2",
+      "gap_refs": ["GAPS-19", "GAPS-20", "GAPS-21"],
+      "question": "What venue API contract strategy to adopt?",
+      "resolution": "Build - Zod contracts + collapse duplicate search"
+    },
+    {
+      "id": "VENUE-Q08",
+      "priority": "P2",
+      "gap_refs": ["GAPS-25"],
+      "question": "How should venue kit work end-to-end?",
+      "resolution": "Build or drop - define kit mutation/export behavior"
+    },
+    {
+      "id": "VENUE-Q09",
+      "priority": "P2",
+      "gap_refs": ["GAPS-17"],
+      "question": "How should public venue profiles handle caching?",
+      "resolution": "Fix - add ISR with auth-aware variants"
+    },
+    {
+      "id": "VENUE-Q10",
+      "priority": "P3",
+      "gap_refs": ["GAPS-28"],
+      "question": "What mobile venue surfaces are needed?",
+      "resolution": "Build or drop - decide web vs mobile venue ops"
+    },
+    {
+      "id": "VENUE-Q11",
+      "priority": "P3",
+      "gap_refs": ["GAPS-26", "GAPS-27"],
+      "question": "What notification routing do venues need?",
+      "resolution": "Fix - verify end-to-end venue notifications"
+    },
+    {
+      "id": "VENUE-Q12",
+      "priority": "P3",
+      "gap_refs": ["GAPS-22", "GAPS-23"],
+      "question": "Should venue identity bridge be consolidated with profile system?",
+      "resolution": "Fix or drop - verify active usage"
+    },
+    {
+      "id": "VENUE-Q13",
+      "priority": "P3",
+      "gap_refs": ["GAPS-21"],
+      "question": "Add rate limiting to venue API routes?",
+      "resolution": "Fix - evaluate abuse resistance for public read routes"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { ArrowLeft, ArrowRight, Loader2, MapPin, Upload } from 'lucide-react'
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, MapPin, Upload } from 'lucide-react'
 import {
   GROUND_SIZE_PRESETS,
   assertGroundSizeWithinLimit,
@@ -75,6 +75,7 @@ interface SiteMapCreateSheetProps {
   tourId?: string
   eventLabel?: string | null
   isCreating?: boolean
+  errorMessage?: string | null
   onSubmit: () => void | Promise<void>
 }
 
@@ -100,6 +101,7 @@ export function SiteMapCreateSheet({
   tourId,
   eventLabel,
   isCreating,
+  errorMessage,
   onSubmit,
 }: SiteMapCreateSheetProps) {
   const [step, setStep] = useState<1 | 2>(1)
@@ -114,6 +116,7 @@ export function SiteMapCreateSheet({
 
   const nameInvalid = nameTouched && !form.name.trim()
   const canContinue = Boolean(form.name.trim())
+  const hasScope = Boolean(eventId || tourId)
 
   const preview = useMemo(() => {
     try {
@@ -164,14 +167,14 @@ export function SiteMapCreateSheet({
         <div className="rounded-lg border border-teal-500/20 bg-teal-500/5 px-3 py-2 text-xs text-teal-100/90">
           <div className="flex items-center gap-2">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
-            {eventId || tourId ? (
+            {hasScope ? (
               <span>
                 Scoped to {eventLabel || (eventId ? 'selected event' : 'tour')}
                 {tourId && !eventId ? ' (tour)' : ''}
               </span>
             ) : (
               <span>
-                No event linked — create now and attach an event later if needed.
+                Select an event or tour in Logistics before creating a site map.
               </span>
             )}
           </div>
@@ -289,7 +292,7 @@ export function SiteMapCreateSheet({
             <div className="flex justify-end gap-2 pt-1">
               <Button
                 type="button"
-                disabled={!canContinue || Boolean(preview.error)}
+                disabled={!hasScope || !canContinue || Boolean(preview.error)}
                 className="bg-teal-500 text-slate-950 hover:bg-teal-400"
                 onClick={() => setStep(2)}
               >
@@ -354,6 +357,13 @@ export function SiteMapCreateSheet({
               World: {preview.world ? `${preview.world.width}×${preview.world.height} units` : '—'} · Ground: {preview.label}
             </div>
 
+            {errorMessage ? (
+              <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-100" role="alert">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
+                <span>{errorMessage}</span>
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between gap-2 pt-1">
               <Button
                 type="button"
@@ -367,7 +377,7 @@ export function SiteMapCreateSheet({
               </Button>
               <Button
                 type="button"
-                disabled={isCreating || !canContinue || Boolean(preview.error)}
+                disabled={isCreating || !hasScope || !canContinue || Boolean(preview.error)}
                 className="bg-amber-500 text-slate-950 hover:bg-amber-400"
                 onClick={() => void onSubmit()}
               >

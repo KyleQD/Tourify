@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823221100_venues_add_identity_columns.sql",
+  "taskId": "DB-002",
+  "status": "staging_validated",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": [
+    "venues",
+    "schema",
+    "rls"
+  ],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": "Post-apply staging inspection: venues identity columns present with chain-original types, unique slug index, baseline venues policies apply cleanly (task DB-002 evidence)"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "information_schema.columns probe for venues identity-column presence (slug, account_id, created_by)",
+      "pg_indexes probe for venues_slug_key uniqueness"
+    ],
+    "expectedAffectedRows": "DDL only — zero persisted rows changed; nullable columns added, no backfill",
+    "artifact": "Chain + validation scans clean; column/index name collision review across active chain; app-write review (venues inserts write name/city/capacity, never these columns)"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional DDL: three ADD COLUMN IF NOT EXISTS + partial unique index IF NOT EXISTS; retry-safe",
+    "resumeCursor": "supabase migration version 20260823221100",
+    "idempotency": "ADD COLUMN IF NOT EXISTS and CREATE UNIQUE INDEX IF NOT EXISTS converge on re-run; column-level REFERENCES uses ADD COLUMN (no ADD CONSTRAINT)"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill — auth-scope columns stay NULL (service-role managed); ownership is never fabricated"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "account_id uuid references auth.users(id) on delete set null (chain-original type from 20250818120000_admin_staffing_core.sql)",
+      "created_by uuid references auth.users(id) on delete set null (chain-original type)",
+      "slug text nullable — venues_public_read publishes rows with non-null slug; NULL defaults to closed"
+    ],
+    "indexes": [
+      "venues_slug_key: partial unique index on venues(slug) WHERE slug IS NOT NULL (restores chain-original UNIQUE slug semantics)"
+    ],
+    "validationPlan": "Confirm columns + index exist after apply; confirm DELETE SET NULL FK semantics; re-apply venues/RBAC RLS baseline and confirm policies exist; run anon/owner RLS probes"
+  },
+  "recovery": {
+    "rollback": "Drop the unique index and the three nullable columns (no data loss — columns carry no backfilled values)",
+    "forwardFix": "DB-003 reconciliation absorbs this migration into the authoritative chain; slug uniqueness/ownership semantics evolve there"
+  },
+  "postflight": {
+    "queries": [
+      "information_schema.columns: venues has slug, account_id, created_by with expected data_type",
+      "pg_indexes: venues_slug_key exists and is unique/partial",
+      "pg_policies: venues_public_read + venues_owner_write exist after re-applying 20260823210100"
+    ],
+    "artifact": "Post-apply information_schema + pg_indexes + pg_policies probes; results recorded in task DB-002 evidence",
+    "securityAdvisorArtifact": "Not run as separate artifact — RLS posture verified via pg_policies probes after baseline re-apply (DB-002 evidence)",
+    "performanceAdvisorArtifact": "Not applicable — two DDL migrations; no hot-path plan changes at apply"
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": "Reviewed against production-shaped staging and applied via Management API (HTTP 201) on 2026-09-09 prior to re-applying the venues/RBAC baseline. Post-apply: venues has slug (text), account_id (uuid), created_by (uuid), all nullable; venues_slug_key unique partial index present.",
+    "staging": "Applied via Management API (HTTP 201) on 2026-09-09. Postflight: slug/account_id/created_by columns present with chain-original types (text / uuid / uuid, nullable, no defaults); venues_slug_key = CREATE UNIQUE INDEX venues_slug_key ON public.venues USING btree (slug) WHERE (slug IS NOT NULL). Baseline 20260823210100 then applied cleanly (HTTP 201). Probe rows rolled back — zero residue.",
+    "production": null
+  },
+  "exceptions": []
+}

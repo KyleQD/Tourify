@@ -1,0 +1,86 @@
+[
+  {
+    "referenceId": "ADM-REF-001",
+    "domain": "Admin authorization and commands",
+    "strategy": "extend",
+    "canonicalSource": "Authenticated acting-context and capability command wrappers",
+    "sourcePaths": [
+      "lib/auth/org-command.ts",
+      "lib/auth/acting-context.ts",
+      "lib/auth/admin-capabilities.ts"
+    ],
+    "reusePaths": [
+      "app/api/admin"
+    ],
+    "invariants": [
+      "Organization and actor context come from trusted server state.",
+      "Every mutation declares capability, target, validation, idempotency, audit, and stable errors."
+    ],
+    "lastVerifiedCommit": "ddf3b43d482900c6f7c6d8356e122f59885224c6",
+    "sourceSha256": "dc260b7bf7d67952fd9c75a20391bd89ebe164c3ab61b2df5dc4ab21f874603b"
+  },
+  {
+    "referenceId": "ADM-REF-002",
+    "domain": "Canonical events and tours",
+    "strategy": "extend",
+    "canonicalSource": "events_v2, canonical tour access, and persisted plan/publication services",
+    "sourcePaths": [
+      "lib/admin/event-access.service.ts",
+      "lib/admin/tour-access.service.ts",
+      "lib/admin/publication-transactional-publish.service.ts"
+    ],
+    "reusePaths": [
+      "app/api/admin/events",
+      "app/api/admin/tours"
+    ],
+    "invariants": [
+      "events_v2 IDs are canonical.",
+      "Legacy event identifiers are exposed only through the governed migration mapping."
+    ],
+    "lastVerifiedCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
+    "sourceSha256": "368304ced5c5ce7860c64ebf8d91ffd74dd278b705da02df6b27f9c5a10b3519"
+  },
+  {
+    "referenceId": "ADM-REF-003",
+    "domain": "Admin interface states",
+    "strategy": "reuse",
+    "canonicalSource": "Shared Admin page header and explicit loading, empty, error, and permission states",
+    "sourcePaths": [
+      "app/admin/dashboard/components/admin-page-header.tsx",
+      "app/admin/dashboard/components/admin-empty-state.tsx",
+      "app/admin/dashboard/components/admin-error-card.tsx",
+      "app/admin/dashboard/components/admin-page-skeleton.tsx"
+    ],
+    "reusePaths": [
+      "app/admin/dashboard",
+      "components/admin"
+    ],
+    "invariants": [
+      "Live Admin UI contains no mock or synthetic operational data.",
+      "Every surface provides accessible loading, empty, error, denied, success, and recovery behavior as applicable."
+    ],
+    "lastVerifiedCommit": "0916235bb440b9e3187d79ec76ba9d6ab3d9ab69",
+    "sourceSha256": "104be97ccdfddd00faf1b39dbb20eb14db8c6042eb0602c1251d3ec4518d6961"
+  },
+  {
+    "referenceId": "ADM-REF-004",
+    "domain": "Admin audit control plane",
+    "strategy": "extend",
+    "canonicalSource": "Validated Admin registry, immutable evidence, and generated presentation views",
+    "sourcePaths": [
+      "lib/admin/audit-registry-contracts.ts",
+      "scripts/audit/admin-workflow-registry.ts",
+      "docs/admin-audit/README.md"
+    ],
+    "reusePaths": [
+      "docs/admin-audit/registry",
+      "docs/admin-audit/evidence"
+    ],
+    "invariants": [
+      "No status is promoted by historical narrative claims.",
+      "Generated views are reproducible and never hand-edited."
+    ],
+    "lastVerifiedCommit": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
+    "sourceSha256": "8a02ab439f4269387521b42e29cbf09108767e6eabae11402143ddfe60ba1f0b"
+  }
+]

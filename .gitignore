@@ -12,6 +12,7 @@ apps/mobile/node_modules/
 /build
 
 # debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -37,6 +38,7 @@ logs/
 .demo.pid
 
 # local test and audit artifacts
+screenshot-*.png
 test-results/
 playwright-report/
 artifacts/
@@ -45,6 +47,16 @@ audit-artifacts/
 docs/audits/*.json
 docs/audits/persona-reports/
 docs/audits/flow-notes/*.json
+# DB-008 chain-contract replay reports. The harness writes them to the repo root
+# by default (supabase/tests/db008_chain_contract_replay.mjs) and regenerates
+# them from the chain, so they are output rather than source. Durable evidence
+# belongs under docs/engineering/verification/, per the convention above.
+db008-contract-replay*.json
 
 # macOS
 .DS_Store
+
+.bob/mcp.json
+
+# Supabase credentials (local only)
+.env.supabase.local

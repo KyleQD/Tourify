@@ -1,0 +1,33 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-HIER-001-DATABASE-IDENTITY-MIGRATION",
+  "task_id": "ADMIN-HIER-001",
+  "from_agent": "admin",
+  "to_agent": "database",
+  "status": "pending",
+  "accepting_task_id": "DB-008",
+  "completion_condition": "Database reviews and, only in a proven isolated environment, applies the additive identity seed twice; it returns evidence that ten principals remain pending, existing rows are unchanged, and credentials, memberships, RLS, revokes, and platform privileges are unchanged.",
+  "created_at": "2026-09-28T00:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "summary": "Transfer ownership of isolated-database execution and hosted ledger evidence for the hierarchical Admin identity seed to the canonical Database agent.",
+  "working_set": [
+    "supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql",
+    "docs/engineering/migration-validation/20260928001035_seed_hierarchical_admin_agent_identities.json",
+    "__tests__/admin/hierarchical-agent-identities-migration.test.ts"
+  ],
+  "completed": [
+    "Authored the migration through the Supabase CLI without applying it.",
+    "Static tests prove pending-only identities, hierarchy metadata, idempotent conflict behavior, and absence of credentials or privilege changes.",
+    "The planned migration-validation manifest passes."
+  ],
+  "next_steps": [
+    "Database performs isolated apply-twice and postflight checks when DB-008 has a proven target."
+  ],
+  "blockers": [
+    "DB-008 has not yet proven the isolated or hosted database target required for execution evidence."
+  ],
+  "verification": [
+    "PASS: npm run check:migration-validation -- supabase/migrations/20260928001035_seed_hierarchical_admin_agent_identities.sql",
+    "PASS: npx vitest run __tests__/admin/hierarchical-agent-identities-migration.test.ts"
+  ]
+}

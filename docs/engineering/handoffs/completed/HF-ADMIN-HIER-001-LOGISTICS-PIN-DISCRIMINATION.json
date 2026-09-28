@@ -1,0 +1,58 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-HIER-001-LOGISTICS-PIN-DISCRIMINATION",
+  "task_id": "ADMIN-HIER-001",
+  "from_agent": "admin",
+  "to_agent": "admin-logistics",
+  "status": "completed",
+  "accepting_task_id": "ADMIN-026",
+  "completion_condition": "__tests__/admin/site-map-route-capability-migration.test.ts asserts the site-map activity route's GET and POST capability gates from per-handler slices rather than from the whole file; a deliberate re-inversion of app/api/admin/logistics/site-maps/[id]/activity/route.ts is demonstrated to turn that test red with the shared worktree byte-identical before and after; the six sibling routes in the same it.each table keep their existing whole-file assertions; and npm run agents:validate -- --strict is green.",
+  "created_at": "2026-09-28T01:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "summary": "Route one non-discriminating test assertion to the agent that actually owns the file. ADMIN-021 recorded this finding as 'Routed to admin-governance'; that routing is corrected here, because the file resolves to admin-logistics by segment default and was never cross-segment.",
+  "finding": {
+    "file": "__tests__/admin/site-map-route-capability-migration.test.ts",
+    "lines": "45, 52-56",
+    "what_is_wrong": "The it.each table asserts, for every route in migratedRoutes, that the whole file matches /withAdminCapability\\(\\s*[\"']logistics\\.view[\"']/. Lines 52-56 then add, for the activity route only, that the whole file matches /withAdminCapability\\(\\s*[\"']logistics\\.manage[\"']/. Neither assertion is bounded to a handler. Before ADMIN-021 the activity route was GET on logistics.manage and POST on logistics.view, so the file contained both literals; after the repair it is GET on logistics.view and POST on logistics.manage, so the file still contains both literals. The pair is satisfied by both arrangements and by any future arrangement containing both strings anywhere in the file, including a comment or an import.",
+    "why_it_matters": "This is the most plausible reason the ADMIN-016 migration proof reported the route as migrated without noticing the inversion. A proof that cannot distinguish the two gate arrangements is not evidence for the ordering it claims to have verified, and this is the same non-discrimination class the ADMIN-021 lane identified in the sibling pin."
+  },
+  "not_an_open_hole": "Re-inversion is not unguarded today. The POST expectation in __tests__/admin/admin-route-capability-matrix.test.ts:347-348 is tightly bound, __tests__/admin/admin-registry-guard-proof.test.ts compares the declared per-method gate against route source and goes red on a flip, and __tests__/admin/site-map-activity-capability.test.ts proves the behavioural split. This removes a redundant-but-misleading assertion; it does not close an open hole, and it must not be reported as one.",
+  "routing_correction": {
+    "previously_recorded_target": "admin-governance (ADMIN-021 progress.next_steps, item 2)",
+    "correct_target": "admin-logistics",
+    "evidence": "resolveAdminSegmentOwner('__tests__/admin/site-map-route-capability-migration.test.ts') returns { owner: 'admin-logistics', shared: false, include: '__tests__/admin/site-map-' } from docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml:143.",
+    "consequence_if_it_had_gone_to_admin_governance": "admin-governance does not own this path. Holding it in an active task's working_set would be rejected by control-plane-validation.mjs:283 with 'Admin path __tests__/admin/site-map-route-capability-migration.test.ts belongs to admin-logistics, not admin-governance', and admitting it would have required a new shared: entry, which is the exact mechanism DOMAIN-039 tells this program not to reach for when a second cross-segment edit is needed.",
+    "implication_for_the_record": "ADMIN-021's statement that this was 'a second cross-segment file ... out of bounds for this lane under DOMAIN-039' is incorrect on the ownership half. It was inside admin-logistics' own segment. The file was not fixed; it was routed to the wrong owner."
+  },
+  "not_done_here_and_why": "The admin agent does not edit the file. admin-logistics owns the segment, ADMIN-026 is its record, and this handoff plus that record is the durable routing. No test, route, or registry file was modified by the admin agent.",
+  "working_set": [
+    "__tests__/admin/site-map-route-capability-migration.test.ts"
+  ],
+  "completed": [
+    "The assertion was read and shown to be satisfied by both the inverted and the corrected gate arrangement.",
+    "The segment owner was resolved programmatically rather than inferred, and the earlier routing was corrected in the admin state, in ADMIN-026, and here.",
+    "ADMIN-026 was created as a blocked, non-activated record so this handoff has a real accepting task.",
+    "ADMIN-026 replaced both whole-file capability assertions on the activity route with per-handler slices, so completion_condition clauses 1 and 2 are met.",
+    "Clause 2 demonstrated, not argued: an os.tmpdir() vitest root runs the real test file against a mirrored app/api/admin/logistics tree. Un-inverted mirror 28/28 green as a harness sanity check; GET-flipped mirror red with 'GET: expected withAdminCapability(\"logistics.view\") inside the GET handler' as the first failure; the PRISTINE file 27/27 green on the same fully re-inverted route, which is the defect in one command.",
+    "app/api/admin/logistics/site-maps/[id]/activity/route.ts was read and never written. sha256 ecea840076cf386cbf5045105dc590a22ac0b4b842c99a4e119cf044ab72ce53 before and after.",
+    "Clause 3 verified by diff, not by intent: 0 added or removed lines in the nine-entry resource-routes table or its it.each body.",
+    "Clause 4: npm run agents:validate -- --strict -> 0 warnings, 0 errors."
+  ],
+  "next_steps": [
+    "None for this handoff. The residual weakness in the same class is the DOMAIN-039 pin in __tests__/admin/admin-route-capability-matrix.test.ts, whose GET slice still runs to end-of-file. That file is under another lane's lease, was not touched here, and its GET half is reported as a finding in ADMIN-026's final checkpoint and in the admin-logistics STATE.md."
+  ],
+  "blockers": [],
+  "verification": [
+    "resolveAdminSegmentOwner on the path returns admin-logistics, shared: false.",
+    "npm run agents:validate -- --strict -> 0 warnings, 0 errors with ADMIN-026 indexed.",
+    "npx vitest run __tests__/admin/site-map-route-capability-migration.test.ts -> 28 passed (27 before).",
+    "Negative control, mirrored route, edited file: 2 failed / 26 passed, first failure 'GET: expected withAdminCapability(\"logistics.view\") inside the GET handler' at the migratedRoutes activity row.",
+    "Negative control, mirrored route, PRISTINE file: 27 passed, 0 failed. The whole-file pair does not discriminate the inversion; the per-handler pin does.",
+    "npx tsc -p /tmp/admin-026/tsconfig.admin026-slice.json --noEmit -> exit 0 (scoped slice, not the full-repo gate; the repo tsconfig excludes **/__tests__/** so no full-repo typecheck ever covered this file).",
+    "npx eslint __tests__/admin/site-map-route-capability-migration.test.ts -> exit 0.",
+    "npx vitest run on admin-route-capability-matrix, admin-registry-guard-proof, site-map-activity-capability and this file together -> 57 passed (57); routesWithoutResourceBoundary still 48 and the leased proof file not edited.",
+    "HEAD 16fb834f before and after; nothing committed, nothing pushed."
+  ],
+  "resolved_at": "2026-09-28T02:48:00.000Z",
+  "actual_change": "One file, 173 insertions and 34 deletions against its own pre-change copy, in exactly three places, all inside __tests__/admin/site-map-route-capability-migration.test.ts. (1) Two module-level additions: handlerSlice(), which ends a handler slice at the next /^export /m declaration rather than at end-of-file, and activityCapabilityFailures(), which asserts GET logistics.view and POST logistics.manage from those slices and returns method-tagged failure messages. (2) The migratedRoutes it.each callback branches: the activity route asserts the per-handler pin, the other six rows keep the byte-identical whole-file expect(source).toMatch(/withAdminCapability\\(\\s*[\"']logistics\\.view[\"']/), and the whole-file manage branch that previously applied only to the activity route is removed because the per-handler POST assertion supersedes it. (3) One new it() negative control that writes two re-inverted arrangements to an os.tmpdir() mirror, proves the pin rejects them, records that the superseded whole-file form is still satisfied by the inverted source, and asserts the live file is unchanged. The route, the registry, and every other table in the file are untouched; the nine-entry resource-routes table, the eight-entry taskLayerMeasurementIssueRoutes table, the publish-work-mode, zones and bulk-assign its are byte-identical."
+}

@@ -1,0 +1,48 @@
+{
+  "schema_version": "world-quality-model-v0.1",
+  "description": "Draft-only heuristic for prioritizing review and surfacing corpus quality. It never grants publication or playback eligibility.",
+  "weights": {
+    "confidence": 0.30,
+    "source_authority": 0.25,
+    "source_diversity": 0.20,
+    "metadata_completeness": 0.15,
+    "provenance_integrity": 0.10
+  },
+  "authority_weights": {
+    "intergovernmental_cultural_institution": 1.00,
+    "national_cultural_institution": 0.98,
+    "government_cultural_institution": 0.96,
+    "first_party_museum": 0.96,
+    "first_party_music_institution": 0.95,
+    "local_history_institution": 0.93,
+    "city_museum": 0.92,
+    "national_archive_metadata": 0.92,
+    "academic_research": 0.92,
+    "first_party_artist_archive": 0.90,
+    "first_party_manufacturer_archive": 0.90,
+    "first_party_label": 0.88,
+    "government_cultural_information": 0.88,
+    "cultural_institution": 0.88,
+    "first_party_artist": 0.86,
+    "japan_public_interest_editorial": 0.84,
+    "local_editorial_archive": 0.80,
+    "music_history_editorial": 0.78,
+    "music_industry_editorial": 0.76,
+    "local_newspaper": 0.74,
+    "community_music_metadata": 0.72,
+    "community_structured_data": 0.70
+  },
+  "readiness_bands": {
+    "strong_basis": 0.88,
+    "solid_basis": 0.80,
+    "developing": 0.70,
+    "thin": 0.00
+  },
+  "sensitive_relations": ["originated_in", "evolved_from", "influenced_by"],
+  "rules": [
+    "quality score is an editorial prioritization heuristic only",
+    "no score can change review_status or publication_status",
+    "two source keys from the same host count as one source domain",
+    "current popularity, event activity, radio availability, and playback rights are excluded from historical quality scores"
+  ]
+}

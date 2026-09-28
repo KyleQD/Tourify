@@ -1,0 +1,132 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMVIEW-WORK-001",
+  "title": "Review Admin workforce route readability and navigation",
+  "status": "blocked",
+  "execution_state": "queued_postlaunch",
+  "priority": "P2",
+  "owner_agent": "admin-workforce",
+  "outcome_id": "MAINTENANCE-DEBT",
+  "deliverable_class": "maintenance",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:18:00.000Z",
+  "updated_at": "2026-09-28T00:18:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (629 entries); successor split from ADMVIEW-001 without implementation",
+  "goal": "Complete the responsive readability and navigation review for Admin hiring, onboarding, staffing, and workforce routes.",
+  "scope": {
+    "in": [
+      "Dashboard-shell application, job-posting, onboarding-reset, and team redirects",
+      "/admin/dashboard/applications, candidates, hiring, jobs, onboarding, payroll, roster, and staff route families"
+    ],
+    "out": [
+      "Non-workforce Admin routes",
+      "Canonical workforce services or non-Admin product surfaces",
+      "New WFC implementation paths reserved by CP-103"
+    ]
+  },
+  "working_set": [
+    "app/admin/(dashboard-shell)/applications/page.tsx",
+    "app/admin/(dashboard-shell)/job-postings/new/page.tsx",
+    "app/admin/(dashboard-shell)/reset-onboarding/page.tsx",
+    "app/admin/(dashboard-shell)/teams/[jobId]/page.tsx",
+    "app/admin/dashboard/applications/**",
+    "app/admin/dashboard/candidates/page.tsx",
+    "app/admin/dashboard/hiring/**",
+    "app/admin/dashboard/jobs/**",
+    "app/admin/dashboard/onboarding/page.tsx",
+    "app/admin/dashboard/payroll/page.tsx",
+    "app/admin/dashboard/roster/page.tsx",
+    "app/admin/dashboard/staff/page.tsx",
+    "__tests__/admin/admview-workforce-readability.test.tsx"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/tasks/completed/ADMVIEW-001.json",
+    "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md",
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "docs/engineering/DECISIONS.md#cp-103--wfc-lane-paths-are-partitioned-against-admview-001-work-005-and-each-other-before-any-lane-activates",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The MAINTENANCE-DEBT program is activated and the Admin dispatcher selects this collision-free route family after checking CP-103 leases.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "MAINTENANCE-DEBT has not been activated.",
+      "dependency_task_ids": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Every workforce route and reachable panel has a route-matrix disposition and phone, tablet, desktop, and 200% zoom evidence.",
+      "owner": "admin-workforce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Record identity, status, and actions do not overlap or disappear on narrow screens.",
+      "owner": "admin-workforce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Workforce data tables retain semantic headers, keyboard-reachable links, and mobile access to essential fields.",
+      "owner": "admin-workforce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Repeated information is reduced without removing the authoritative detail or an existing action.",
+      "owner": "admin-workforce",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Focused tests, lint, feature verification, Admin audit checks, and control-plane validation are recorded.",
+      "owner": "admin-workforce",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-workforce",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/admview-workforce-readability.test.tsx",
+          "npx eslint <touched workforce Admin files>",
+          "npm run verify:feature -- --changed",
+          "npm run check:admin-audit",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created from the exact workforce rows in the ADMVIEW-001 route matrix; the partial phone review of hiring remains preserved in the predecessor. CP-103 exclusions remain authoritative.",
+    "completed": [],
+    "next_steps": [
+      "Wait for MAINTENANCE-DEBT activation, recheck CP-103 leases, then resume the preserved hiring evidence within only the named route files."
+    ],
+    "blockers": [
+      "MAINTENANCE-DEBT is not active."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

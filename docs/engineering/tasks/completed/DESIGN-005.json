@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-005",
+  "title": "Retire venue alert-dialog primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:31.208Z",
+  "updated_at": "2026-09-11T19:46:10.193Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/alert-dialog.tsx to components/ui/alert-dialog.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/alert-dialog.tsx",
+      "components/ui/alert-dialog.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/alert-dialog.tsx",
+    "components/ui/alert-dialog.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical overlay / dialog preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/alert-dialog|@/components/venue/ui/alert-dialog\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/alert-dialog.tsx components/ui/alert-dialog.tsx",
+      "git diff --check -- components/venue/ui/alert-dialog.tsx components/ui/alert-dialog.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded source audit across app/, components/, hooks/, lib/, apps/, __tests__, and scripts found 0 consumers of components/venue/ui/alert-dialog.tsx and 0 exact venue-twin import references.",
+      "The canonical shared primitive has 31 live consumer files; app/venue/components/venue-team.tsx already imports components/ui/alert-dialog.tsx, so no consumer migration is required in this task.",
+      "components/venue/ui/alert-dialog.tsx and components/ui/alert-dialog.tsx are byte-identical: both are 141 lines and both have SHA-256 2ede53a17b342a8265b924563f08d352dc7358a91585b0332b3d4a055b692407.",
+      "Public/export parity is exact: AlertDialog, AlertDialogPortal, AlertDialogOverlay, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, and AlertDialogCancel are exported by both files.",
+      "Disposition: components/ui/alert-dialog.tsx is keep/canonical; all audited consumers are already migrated to it; components/venue/ui/alert-dialog.tsx is retire-later compatibility debt with no live consumers. No approved external dependency was found.",
+      "Focused ESLint passed for both primitive files.",
+      "Focused git diff check passed for both primitive files and docs/engineering.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:10.193Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the alert-dialog consumer and parity audit. All live consumers already use the canonical shared primitive; the venue twin is an exact, unused duplicate and is retained as retire-later compatibility debt.",
+    "completed": [
+      "Audited source consumers of components/venue/ui/alert-dialog.tsx across the bounded application and test paths; found zero consumers and no approved external dependency.",
+      "Inventoried 31 live canonical consumers, including app/venue/components/venue-team.tsx, confirming the venue surface is already on components/ui/alert-dialog.tsx.",
+      "Confirmed byte-level and public/export parity between the venue twin and components/ui/alert-dialog.tsx.",
+      "Recorded keep/canonical, migrate/already migrated, and retire-later dispositions without changing venue behavior or deleting compatibility files.",
+      "Ran the required focused checks and control-plane validation successfully."
+    ],
+    "next_steps": [
+      "Retain components/venue/ui/alert-dialog.tsx until a separately authorized cleanup action removes retire-later compatibility debt.",
+      "If cleanup is authorized later, re-run the bounded zero-use and parity checks before deleting the venue twin."
+    ],
+    "blockers": [
+      "Compatibility-file deletion is explicitly out of scope for this audit pass; the venue twin remains retained despite complete zero-use and parity evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:31:17.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded alert-dialog audit. Zero venue-twin consumers were found; 31 consumers already use the canonical shared primitive. The two files are byte-identical with matching public exports. Recorded canonical keep, already-migrated consumer, and retire-later venue-twin dispositions.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-005.json"
+        ],
+        "verification": [
+          "Bounded venue-twin consumer audit: 0 consumers",
+          "Canonical consumer inventory: 31 files",
+          "Byte comparison and SHA-256 parity",
+          "Focused ESLint: passed",
+          "Focused git diff check: passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Retire-later compatibility-file deletion was not authorized in this pass."
+        ],
+        "next_steps": [
+          "Preserve the venue twin until a separately authorized cleanup task revalidates zero-use evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:10.193Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the alert-dialog consumer and parity audit. All live consumers already use the canonical shared primitive; the venue twin is an exact, unused duplicate and is retained as retire-later compatibility debt.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

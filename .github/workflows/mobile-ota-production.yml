@@ -59,10 +59,12 @@ jobs:
         if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
           cache-dependency-path: "apps/mobile/package-lock.json"
 
+      - name: Install pinned npm
+        run: npm install --global npm@11.17.0
       - name: Install mobile dependencies
         if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
         working-directory: apps/mobile
@@ -103,10 +105,15 @@ jobs:
           path: apps/mobile/ota-update-result.json
 
       - name: Optional release webhook notification
-        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true' && secrets.MOBILE_RELEASE_WEBHOOK_URL != ''
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
         env:
           WEBHOOK_URL: ${{ secrets.MOBILE_RELEASE_WEBHOOK_URL }}
         run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "No release webhook configured."
+            exit 0
+          fi
+
           curl -sS -X POST "$WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d "{\"platform\":\"ios\",\"lane\":\"ota-production\",\"sha\":\"${GITHUB_SHA}\",\"message\":\"${{ steps.release_note.outputs.message }}\"}"

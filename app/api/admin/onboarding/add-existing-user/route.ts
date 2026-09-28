@@ -18,11 +18,34 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient()
-    const { data: existingUser } = await supabase
+
+    // `profiles` has no `phone` column in the active migration chain or in the
+    // generated contract (`lib/database.types.ts`), so selecting it made PostgREST
+    // reject the whole read. The canonical phone for a user lives in
+    // auth.users metadata, which this cookie-scoped client cannot read, so the
+    // phone is taken from the request payload rather than a phantom column read.
+    const { data: existingUser, error: profileError } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone')
+      .select('id, full_name, email')
       .eq('id', userId)
       .maybeSingle()
+
+    // Fail closed. Previously the read error was discarded, `existingUser` was
+    // always null, and the insert still succeeded — writing a fabricated
+    // "Existing User" name and an empty email into the staffing record.
+    if (profileError) {
+      return NextResponse.json(
+        { success: false, error: 'Unable to resolve the requested user profile' },
+        { status: 502 }
+      )
+    }
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { success: false, error: 'No profile exists for the requested user_id' },
+        { status: 404 }
+      )
+    }
 
     const { data, error } = await supabase
       .from('staff_onboarding_candidates')
@@ -31,7 +54,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         name: existingUser?.full_name || 'Existing User',
         email: existingUser?.email || '',
-        phone: existingUser?.phone || body.phone || null,
+        phone: body.phone || null,
         position,
         department,
         status: 'in_progress',

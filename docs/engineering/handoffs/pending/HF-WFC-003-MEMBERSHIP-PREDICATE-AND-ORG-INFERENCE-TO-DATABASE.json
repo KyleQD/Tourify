@@ -1,0 +1,105 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-003-MEMBERSHIP-PREDICATE-AND-ORG-INFERENCE-TO-DATABASE",
+  "task_id": "WFC-003",
+  "from_agent": "organization",
+  "to_agent": "database",
+  "status": "accepted",
+  "created_at": "2026-09-26T16:12:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "for_tasks": [
+    "WORK-102",
+    "WFC-005",
+    "WFC-006",
+    "DB-014"
+  ],
+  "decision_record": [
+    "CP-102",
+    "CP-104"
+  ],
+  "dirty_state_caveat": "Read-only in every file named below. Nothing in lib/admin/**, lib/auth/** or lib/services/** was modified by WFC-003 in this pass. The worktree was already dirty with live work from ADMIN-012, WFC-007, DB-013, DESIGN-033 and others; all of it was preserved untouched. Nothing was committed.",
+  "summary": "A self-correction plus a measured security finding. WFC-003's first delivery claimed that 'three existing implementations enforce the active-membership predicate' and that a fourth expression in the contract means 'a route guard, a migration validation query, and a test all agree by construction'. Re-measured across lib/admin/**, lib/auth/** and the workforce services: ELEVEN org_members read sites, FOUR enforce status = 'active' and SEVEN do not. One of the seven is the workforce authority boundary itself, and two more infer the ORGANIZATION from membership ordering, which the contract's own ratified rule forbids.",
+  "the_overstatement_being_withdrawn": {
+    "claim": "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md section 2.3, first delivery: 'The rule above is not this task's invention. Three existing implementations already enforce it, and the contract pins all three ... so a route guard, a migration validation query, and a test all agree by construction.'",
+    "reality": "Four enforce it: public.is_org_member (20260821180438:106-120), public.has_perm (same file:122-151), resolveEffectiveAdminCapabilities (lib/auth/admin-capabilities.ts:452-453), loadMembership (lib/auth/admin-context.ts:169-182). Seven do not, listed below. The claim that they 'all agree by construction' was never true for the code outside the four.",
+    "why_it_matters": "A contract that overstates a security invariant is worse than one that is silent, because the next lane verifies against it and is misled. This is the same discipline as the CP-104 correction block: report the correction against your own task's premise.",
+    "now": "WORKFORCE_MEMBERSHIP_PREDICATE in types/vendor-identity-contract.ts, with the gap list DERIVED by the test from the source tree and compared to the record. Both directions alarm, so neither a new drift nor a fix can land silently."
+  },
+  "the_seven_sites": {
+    "method": "Every `.from('org_members')` that SELECTs, in lib/admin/**, lib/auth/** and lib/services/admin-workforce*.ts. A site counts as enforcing only when a membership `status` appears within +/-10 lines of the read; `error.status` is a property access and does not count. Writes are not predicate implementations and are excluded.",
+    "gaps": [
+      {
+        "site": "lib/admin/workforce-authority.service.ts:68",
+        "severity": "highest",
+        "what": "isOrgMember() does `.from(\"org_members\").select(\"org_id\").eq(\"org_id\", orgId).eq(\"user_id\", userId).maybeSingle()` and requireWorkforceOrgAccess treats the row's EXISTENCE as membership.",
+        "consequence": "An org_members row with status 'invited' or 'revoked' passes the workforce authority gate. This is the function every workforce mutation routes through.",
+        "owner": "WORK-102"
+      },
+      {
+        "site": "lib/admin/resolve-authorized-org.ts:94",
+        "severity": "high",
+        "what": "Service-client read of EVERY org the user has a row for, no status filter; the result becomes directlyAuthorizedOrgIds at :114 and feeds resolveExplicitAuthorizedOrgId at :126-131.",
+        "consequence": "A revoked member's organization is an authorized organization. The returned client is the SERVICE client (:85), so subsequent reads in that scope also bypass RLS.",
+        "note": "This file is in WFC-003's own recorded working set. It is named here rather than edited because the fix changes a live logistics authorization path used by many routes, which is a cross-domain change and not a contract lane's to make unilaterally.",
+        "owner": "work / admin"
+      },
+      {
+        "site": "lib/admin/tour-access.service.ts:65",
+        "severity": "high",
+        "what": "`.select(\"org_id\")` with no status filter; requireTourAccess consumes it.",
+        "owner": "admin"
+      },
+      {
+        "site": "lib/admin/event-access.service.ts:66",
+        "severity": "high",
+        "what": "`.select(\"org_id\")` with no status filter; requireEventAccess consumes it.",
+        "owner": "admin"
+      },
+      {
+        "site": "lib/admin/workspace-scope.ts:85",
+        "severity": "medium",
+        "what": "`.select(\"role\")` with no status filter; reads a role string for a revoked member.",
+        "owner": "admin"
+      },
+      {
+        "site": "lib/services/admin-workforce-people.service.ts:92",
+        "severity": "medium",
+        "what": "`.from(\"org_members\").select(\"user_id, role\").eq(\"org_id\", args.employerEntityId)` with no status filter.",
+        "owner": "work"
+      },
+      {
+        "site": "lib/admin/calendar/aggregate.ts:1014",
+        "severity": "high",
+        "what": "resolveCalendarOrgId does `.select(\"org_id\").eq(\"user_id\", userId).limit(1).maybeSingle()` and returns that org_id at :1019.",
+        "consequence": "It infers the ORGANIZATION from membership ORDERING. Contract section 4.3 rule 1 is ratified from lib/admin/resolve-authorized-org.ts:72-76, whose own doc comment says 'It never infers an organization from membership ordering, which is ambiguous for multi-org admins.' A multi-org user with one revoked membership gets the wrong organization, and nothing fails closed.",
+        "owner": "work / admin"
+      }
+    ],
+    "also_a_gap": "lib/admin/tour-event-operations.service.ts:752 - listUserOrgIds() has no status filter, and resolveAuthorizedOrgId at :774 does `if (memberships[0]) return memberships[0]`, the same membership-ordering inference as calendar/aggregate.ts. It sits inside the same +/-10 window as a `error.status` property access, which is why a naive status grep misclassifies it; the recorded list is derived with that exclusion."
+  },
+  "the_related_finding": {
+    "what": "lib/admin/workforce-authority.service.ts:201-216 scopes a staff_members row by falling back to 'is this row's user_id an active member of the acting organization', and then WRITES the inferred org_id onto the row ('self-heal', :208-216).",
+    "why_it_is_a_contract_issue": "That is membership-as-ownership. The contract's section 4.3 rule 1 forbids inferring an organization from anything but a proven key, and 20260821031214:10-28 set the precedent for what provable means: entity_type='org' AND an organizations row, both conditions together. Membership satisfies neither.",
+    "position_taken": "The derivation is classified `bridge` in WORKFORCE_ORGANIZATION_KEY_ALIASES as 'staff_members.user_id -> org_members.org_id', which means resolveWorkforceOrganizationKey QUARANTINES a record whose only key is that derivation. It is not ratified. WFC-004 owns whether it is ever a permissible backfill source; WORK-102 owns the service.",
+    "not_a_fix_requested_here": "WFC-003 created no table, edited no service, and did not change the inference. The classification exists so the contract and the code can be compared without either pretending the other agrees."
+  },
+  "what_each_receiver_should_do": {
+    "WORK-102": "Add `status = 'active'` to the org_members read in lib/admin/workforce-authority.service.ts:68, and remove or gate the org_id inference + self-heal write at :201-216. Both are in your file and your task's remit. Do not add a second membership table: org_members plus has_perm is the whole model.",
+    "work / admin": "Decide one way for the five remaining sites: either every org_members read filters on status = 'active' in the query, or each consumer asserts on the returned status. Either is acceptable; a mixture that leaves one site unexamined is not. For calendar/aggregate.ts:1013-1019 and tour-event-operations.service.ts:751-775 the fix is NOT just a status filter - the membership-ordering inference has to go, because it is wrong for a multi-org user regardless of status.",
+    "DB-014": "This is the same SHAPE as the staff_performance_metrics instance recorded in the CP-104 correction block, one level up: a correct fail-closed predicate in the database and a fail-open reimplementation of the same rule in the service layer. Worth recording as evidence that enumerating database-side controls is not sufficient.",
+    "WFC-005 / WFC-006": "When you build DepartmentManagementLookup, gate on has_perm(uid, org_id, 'workforce.manage') AND an ACTIVE org_members row (contract section 2.3), and do not infer activity from staff_members.status."
+  },
+  "verification": [
+    "PASS: npx vitest run __tests__/admin/workforce-identity-contract.test.ts - 65 passed. The derived gap list is compared to WORKFORCE_MEMBERSHIP_PREDICATE.notEnforcedBy by exact site, and every recorded gap is re-verified to point at a real org_members SELECT.",
+    "PASS: a dedicated test asserts that isOrgMember's function body contains no membership status token, so the highest-severity gap cannot be downgraded to a style note without turning the suite red.",
+    "NOT CLAIMED: no runtime, hosted, or cross-tenant denial evidence. Nothing here was executed against a database; every claim is a claim about source text, cited to file:line."
+  ],
+  "evidence_document": "docs/engineering/tasks/active/WFC-003.json",
+  "contract": "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md sections 1.2c, 2.3a, and ambiguities 23-25",
+  "next_action": "WORK-102 fixes its own authority service; work/admin triage the remaining five read sites and the two membership-ordering inferences; WFC-003 re-runs the focused suite and updates the recorded gap list when a site is fixed.",
+  "accepting_task_id": "DB-008",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": [
+    "Preserved recipient 3 of 3 from multi-recipient handoff HF-WFC-003-MEMBERSHIP-PREDICATE-AND-ORG-INFERENCE: work, admin, database."
+  ]
+}

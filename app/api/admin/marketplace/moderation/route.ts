@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/server"
+import { withPlatformAdmin } from "@/lib/auth/api-auth"
 
 const updateQueueSchema = z.object({
   id: z.string().uuid(),
@@ -19,18 +19,8 @@ const moderationQuerySchema = z.object({
 
 export const dynamic = "force-dynamic"
 
-export async function GET(request: NextRequest) {
+export const GET = withPlatformAdmin(async (request: NextRequest, { supabase }) => {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-
     const parsedQuery = moderationQuerySchema.safeParse({
       status: request.nextUrl.searchParams.get("status") || undefined,
       q: request.nextUrl.searchParams.get("q") || undefined,
@@ -83,20 +73,10 @@ export async function GET(request: NextRequest) {
     console.error("Unexpected moderation GET error", error)
     return NextResponse.json({ error: "Unexpected moderation error" }, { status: 500 })
   }
-}
+})
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withPlatformAdmin(async (request: NextRequest, { user, supabase }) => {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-
     const payload = updateQueueSchema.parse(await request.json())
     const { data, error } = await supabase
       .from("marketplace_moderation_queue")
@@ -118,4 +98,4 @@ export async function PATCH(request: NextRequest) {
     console.error("Unexpected moderation PATCH error", error)
     return NextResponse.json({ error: "Unexpected moderation error" }, { status: 500 })
   }
-}
+})

@@ -8,6 +8,7 @@ import {
   getEventWorkflowContext,
   recordEventTaskAudit,
 } from '@/lib/events/event-task-workflow'
+import { sendWorkforceActivityNotification } from '@/lib/rebuild/workforce-activity-notify'
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
@@ -41,6 +42,13 @@ export async function PATCH(
       const validated = updateTaskSchema.parse(body)
       const { threadId } = await getEventWorkflowContext({ supabase, reference, userId: user.id })
 
+      const { data: existingTask } = await supabase
+        .from('workflow_tasks')
+        .select('id, title, status, created_by')
+        .eq('id', taskId)
+        .eq('thread_id', threadId)
+        .maybeSingle()
+
       const { data, error } = await supabase
         .from('workflow_tasks')
         .update(validated)
@@ -63,6 +71,24 @@ export async function PATCH(
         taskId,
         metadata: validated,
       })
+
+      if (existingTask?.status !== 'done' && data.status === 'done') {
+        const recipientUserId = existingTask.created_by !== user.id
+          ? existingTask.created_by
+          : reference.ownerUserId !== user.id ? reference.ownerUserId : null
+        if (recipientUserId) {
+          await sendWorkforceActivityNotification({
+            recipientUserId,
+            actorUserId: user.id,
+            type: 'workflow_task_completed',
+            title: 'Task completed',
+            content: `${existingTask.title || data.title || 'An event task'} was marked complete.`,
+            sourceType: 'workflow_task',
+            sourceId: taskId,
+            link: `/admin/dashboard/events/${eventParam}?tab=tasks`,
+          }).catch((notifyError) => console.warn('[event tasks PATCH] completion notification failed', notifyError))
+        }
+      }
 
       return NextResponse.json({ success: true, task: data, source: 'workflow_tasks' })
     } catch (err) {

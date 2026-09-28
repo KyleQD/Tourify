@@ -2,6 +2,7 @@
 
 import { Loader2, Zap } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // =============================================================================
 // NOTE: For more advanced loading screens with animations and brand integration,
@@ -132,9 +133,7 @@ export function LoadingSkeleton({ className = '', width = 'w-full', height = 'h-
   width?: string
   height?: string 
 }) {
-  return (
-    <div className={`bg-slate-700 rounded animate-pulse ${width} ${height} ${className}`} />
-  )
+  return <Skeleton className={`bg-slate-700 ${width} ${height} ${className}`} />
 }
 
 // Loading dots animation

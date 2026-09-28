@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
     const { user, supabase } = authResult
 
 
-    // Get the user's profile
+    // Get the user's profile.
+    // DB-008 / Wave 35: `verified` is not a `profiles` column — the canonical flag
+    // is `is_verified` (see 20250120250000 and lib/database.types.ts). Naming the
+    // phantom column made PostgREST reject the entire select, so this settings read
+    // answered 404 and the settings profile form could never load.
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(`
@@ -22,7 +26,7 @@ export async function GET(request: NextRequest) {
         profile_data,
         avatar_url,
         cover_image,
-        verified,
+        is_verified,
         bio,
         location,
         social_links,

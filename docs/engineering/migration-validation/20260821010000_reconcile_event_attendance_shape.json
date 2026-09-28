@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821010000_reconcile_event_attendance_shape.sql",
+  "taskId": "TICKETING-EVENT-ATTENDANCE-SHAPE",
+  "status": "planned",
+  "owner": "ticketing-platform",
+  "reviewer": "security-data",
+  "domains": ["ticketing", "events", "auth", "rbac"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "fresh local Supabase schema plus existing event_attendance rows",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count public.event_attendance rows and confirm event_id/user_id uniqueness",
+      "Confirm existing event_attendance rows reference legacy public.events records",
+      "Confirm no existing event_table column or polymorphic attendance unique key"
+    ],
+    "expectedAffectedRows": "Existing attendance rows receive event_table = events; no attendance rows are deleted or rewritten",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Add the compatibility column with a deterministic legacy default, replace only the legacy uniqueness key, and create the validated polymorphic check and index",
+    "resumeCursor": "Supabase migration version 20260821010000",
+    "idempotency": "Column, named constraint, check, and index are guarded or deterministically replaced; reruns preserve attendance rows"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Existing attendance rows use the legacy events table by definition; unexpected event_table values are rejected by the validated check"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "event_attendance_event_table_check is created NOT VALID then validated",
+      "legacy unique(event_id, user_id) is replaced with unique(event_id, user_id, event_table)"
+    ],
+    "indexes": ["idx_event_attendance_event_table"],
+    "validationPlan": "Verify legacy attendance reads, events_v2 upsert compatibility, unrelated-user denial, and the complete migration chain"
+  },
+  "recovery": {
+    "rollback": "Use a reviewed forward migration; do not remove event_table or collapse attendance records",
+    "forwardFix": "Resolve any unexpected event-table values, validate the named check, and rerun the unified guest-list migration"
+  },
+  "postflight": {
+    "queries": [
+      "Verify event_table is non-null and constrained to artist_events, events, or events_v2",
+      "Verify the polymorphic unique key and event-table index",
+      "Verify the unified guest-list migration can create its event_attendance constraint and functions"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

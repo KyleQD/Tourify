@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Database } from '@/lib/database.types'
+import { Database, type Json } from '@/lib/database.types'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useAuth } from '@/contexts/auth-context'
 import { readAccountFromSearch } from '@/lib/navigation/account-context-url'
@@ -11,6 +11,10 @@ import {
   normalizeSocialLinksForStorage,
   validateSocialField
 } from '@/lib/artist/profile-social-validation'
+import { privacySettingsToPublicProfileFlag } from '@/lib/artist/profile-visibility'
+import { buildArtistStats, type ArtistStatsCounts } from '@/lib/artist/artist-stats'
+import { appendEpkPhotoItem, toMarketplaceListingInsert } from '@/lib/artist/artist-content'
+import { readEpkPhotoItems } from '@/lib/public-artist/artist-epk-media'
 import {
   buildCreatorCapabilitiesV1,
   serializeCapabilityList
@@ -23,6 +27,12 @@ export interface PublicProfileIdentity {
   username: string | null
   location: string | null
   website: string | null
+  /**
+   * DB-008: verification is read from the artist account
+   * (`accounts.is_verified`), the same source the public artist page uses, since
+   * `artist_profiles.verification_status` is not in the active chain.
+   */
+  isVerified: boolean
 }
 
 interface ArtistProfile {
@@ -32,33 +42,26 @@ interface ArtistProfile {
   url_slug?: string | null
   bio: string | null
   genres: string[] | null
-  social_links: Record<string, string> | null
-  verification_status: string
-  account_tier: string
-  settings: Record<string, any> | null
+  /**
+   * Both are Json documents in the contract; readers narrow before use.
+   * DB-008: `verification_status` and `account_tier` are deliberately absent -
+   * they exist only in the legacy `migrations/` tree and `types/database.types.ts`,
+   * never in the Supabase active chain or in `lib/database.types.ts`. Public
+   * verification is read from `accounts.is_verified` instead (see
+   * lib/public-artist/get-public-artist-profile.ts).
+   */
+  social_links: Json | null
+  settings: Json | null
   created_at: string
   updated_at: string
 }
 
-interface ArtistStats {
-  totalRevenue: number
-  totalFans: number
-  totalStreams: number
-  engagementRate: number
-  monthlyListeners: number
-  totalTracks: number
-  totalEvents: number
-  totalCollaborations: number
-  // New stats from content
-  musicCount: number
-  videoCount: number
-  photoCount: number
-  blogCount: number
-  eventCount: number
-  merchandiseCount: number
-  totalPlays: number
-  totalViews: number
-}
+/**
+ * Dashboard stat shape. The canonical derivation lives in
+ * `lib/artist/artist-stats.ts` (DB-008: the legacy
+ * `get_enhanced_artist_stats` RPC is not in the active migration chain).
+ */
+type ArtistStats = ArtistStatsCounts
 
 interface ArtistContextType {
   // User & Profile
@@ -204,12 +207,20 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     }
 
     const row = data as Record<string, unknown>
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('is_verified')
+      .eq('owner_user_id', userId)
+      .eq('account_type', 'artist')
+      .maybeSingle()
+
     setPublicProfile({
       avatar_url: (row.avatar_url as string | null) ?? null,
       cover_image: (row.cover_image as string | null) ?? null,
       username: (row.username as string | null) ?? null,
       location: (row.location as string | null) ?? null,
-      website: (row.website as string | null) ?? null
+      website: (row.website as string | null) ?? null,
+      isVerified: Boolean(account?.is_verified)
     })
   }
 
@@ -323,12 +334,17 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         artistName = user.email.split('@')[0]
       }
 
-      // First try to use the SQL function to ensure artist profile exists
+      // DB-008: `ensure_artist_profile` is not created by the active migration
+      // chain; `create_artist_account(p_user_id, p_artist_name, ...)` is the
+      // routine the chain does declare and it is the same operation.
       const { data: rpcData, error: rpcError } = await supabase
-        .rpc('ensure_artist_profile', { target_user_id: userId })
+        .rpc('create_artist_account', {
+          p_user_id: userId,
+          p_artist_name: artistName || 'Artist',
+        })
 
       if (rpcError) {
-        console.log('RPC function not available, creating profile manually:', rpcError)
+        console.log('create_artist_account unavailable, creating profile manually:', rpcError)
         
         // Fallback: Create profile manually
         const { error: insertError } = await supabase
@@ -339,8 +355,6 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
             bio: null,
             genres: [],
             social_links: {},
-            verification_status: 'unverified',
-            account_tier: 'pro',
             settings: {}
           })
 
@@ -428,125 +442,85 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
   const loadArtistStats = async (userId: string) => {
     try {
       console.log('📊 Loading artist stats for user:', userId)
-      
-      // Attempt optimized RPC first for aggregated stats
-      try {
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_enhanced_artist_stats', { artist_user_id: userId as any })
 
-        if (!rpcError && rpcData) {
-          const s = rpcData as Record<string, any>
-          const enhancedStats: ArtistStats = {
-            totalRevenue: Number(s.total_revenue) || 0,
-            totalFans: Number(s.total_fans) || 0,
-            totalStreams: Number(s.total_streams) || 0,
-            engagementRate: Number(s.engagement_rate) || 0,
-            monthlyListeners: Number(s.monthly_listeners) || 0,
-            totalTracks: Number(s.total_tracks) || 0,
-            totalEvents: Number(s.total_events) || 0,
-            totalCollaborations: Number(s.total_collaborations) || 0,
-            musicCount: Number(s.music_count) || 0,
-            videoCount: Number(s.video_count) || 0,
-            photoCount: Number(s.photo_count) || 0,
-            blogCount: Number(s.blog_count) || 0,
-            eventCount: Number(s.event_count) || 0,
-            merchandiseCount: Number(s.merchandise_count) || 0,
-            totalPlays: Number(s.total_plays) || 0,
-            totalViews: Number(s.total_views) || 0
-          }
+      // DB-008: `get_enhanced_artist_stats`, `artist_photos`, `artist_videos` and
+      // `artist_merchandise` are not created by the active migration chain, so the
+      // previous RPC + table reads always failed and the dashboard showed zeros.
+      // Every count now comes from an in-chain relation; see lib/artist/artist-stats.ts.
+      const [
+        tracksResult,
+        eventsResult,
+        blogResult,
+        epkResult,
+        merchResult,
+        collabResult,
+        financialResult,
+        profileResult,
+        postResult,
+      ] = await Promise.all([
+        supabase
+          .from('artist_music')
+          .select('id, stats')
+          .eq('user_id', userId)
+          .eq('is_public', true)
+          .eq('is_visible', true)
+          .eq('moderation_status', 'approved')
+          .eq('rights_confirmed', true),
+        supabase
+          .from('events')
+          .select('id', { count: 'exact', head: true })
+          .eq('artist_id', userId)
+          .eq('status', 'published'),
+        supabase
+          .from('artist_blog_posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('status', 'published'),
+        supabase
+          .from('artist_epk_settings')
+          .select('id, settings')
+          .eq('user_id', userId)
+          .eq('is_public', true)
+          .order('updated_at', { ascending: false })
+          .limit(1),
+        supabase
+          .from('marketplace_listings')
+          .select('id', { count: 'exact', head: true })
+          .eq('seller_user_id', userId),
+        supabase
+          .from('collaboration_projects')
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', userId),
+        supabase
+          .from('artist_financial_transactions')
+          .select('amount, type')
+          .eq('user_id', userId)
+          .in('type', ['income', 'royalty', 'merchandise', 'event']),
+        supabase.from('profiles').select('followers_count').eq('id', userId).maybeSingle(),
+        supabase
+          .from('posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId),
+      ])
 
-          setStats(enhancedStats)
-          console.log('✅ Enhanced artist stats loaded via RPC')
-          return
-        }
-      } catch (rpcErr) {
-        console.log('ℹ️ Enhanced stats RPC unavailable, falling back to basic counts:', rpcErr)
-      }
+      const tracks = (tracksResult.data || []) as Array<{ stats?: unknown }>
+      const epkRow = (epkResult.data || [])[0] as { settings?: unknown } | undefined
+      const financialRows = (financialResult.data || []) as Array<{ amount?: number | null }>
 
-      // Fallback: get basic counts from the tables directly (parallel)
-      try {
-        const [
-          { count: musicCount },
-          { count: videoCount },
-          { count: photoCount },
-          { count: blogCount },
-          { count: eventCount },
-        ] = await Promise.all([
-          supabase
-            .from('artist_music')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('is_public', true),
-          supabase
-            .from('artist_videos')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('is_public', true),
-          supabase
-            .from('artist_photos')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('is_public', true),
-          supabase
-            .from('artist_blog_posts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('status', 'published'),
-          supabase
-            .from('events')
-            .select('*', { count: 'exact', head: true })
-            .eq('artist_id', userId),
-        ])
+      const stats = buildArtistStats({
+        followerCount: profileResult.data?.followers_count ?? 0,
+        tracks,
+        events: eventsResult.count ?? 0,
+        blogCount: blogResult.count ?? 0,
+        photoCount: readEpkPhotoItems(epkRow || {}).length,
+        merchandiseCount: merchResult.count ?? 0,
+        collaborationCount: collabResult.count ?? 0,
+        revenue: financialRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+        postCount: postResult.count ?? 0,
+      })
 
-        console.log('📊 Basic counts loaded:', { musicCount, videoCount, photoCount, blogCount, eventCount })
-
-        const basicStats: ArtistStats = {
-          musicCount: musicCount || 0,
-          videoCount: videoCount || 0,
-          photoCount: photoCount || 0,
-          blogCount: blogCount || 0,
-          eventCount: eventCount || 0,
-          merchandiseCount: 0,
-          totalPlays: 0,
-          totalViews: 0,
-          totalTracks: musicCount || 0,
-          totalEvents: eventCount || 0,
-          totalFans: 0,
-          engagementRate: 0,
-          totalRevenue: 0,
-          totalStreams: 0,
-          monthlyListeners: 0,
-          totalCollaborations: 0
-        }
-        
-        setStats(basicStats)
-        console.log('✅ Artist stats loaded successfully')
-        
-      } catch (tableError) {
-        console.log('⚠️ Artist content tables not available, using default stats:', tableError)
-        
-        const defaultStats: ArtistStats = {
-          totalRevenue: 0,
-          totalFans: 0,
-          totalStreams: 0,
-          engagementRate: 0,
-          monthlyListeners: 0,
-          totalTracks: 0,
-          totalEvents: 0,
-          totalCollaborations: 0,
-          musicCount: 0,
-          videoCount: 0,
-          photoCount: 0,
-          blogCount: 0,
-          eventCount: 0,
-          merchandiseCount: 0,
-          totalPlays: 0,
-          totalViews: 0
-        }
-        
-        setStats(defaultStats)
-      }
-      
+      setStats(stats)
+      console.log('✅ Artist stats loaded successfully')
     } catch (error) {
       console.error('Error loading artist stats:', error)
       // Keep default stats on error
@@ -703,23 +677,25 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           break
 
         case 'video':
-          const { data: videoData, error: videoError } = await supabase
-            .from('artist_videos')
-            .insert(contentData)
-            .select()
-            .single()
-          if (videoError) throw videoError
-          result = videoData
-          break
+          // DB-008: there is no in-chain artist video relation. `artist_videos`
+          // only exists in out-of-chain bootstrap SQL, so the previous insert
+          // always failed. Fail loudly instead of writing to a missing table.
+          throw new Error(
+            'Artist video content is not available: no artist video store exists in the active schema.'
+          )
 
         case 'photo':
-          const { data: photoData, error: photoError } = await supabase
-            .from('artist_photos')
-            .insert(contentData)
-            .select()
-            .single()
-          if (photoError) throw photoError
-          result = photoData
+          // DB-008: `artist_photos` is not in the active chain. The canonical
+          // artist media store is the EPK document (see lib/artist/artist-content.ts).
+          const photoResult = await appendEpkPhotoItem(supabase as unknown as Parameters<typeof appendEpkPhotoItem>[0], {
+            userId: user.id,
+            artistProfileId: profile.id,
+            url: String(data.url || data.image_url || ''),
+            caption: (data.caption || data.title || '') as string | null,
+            isHero: data.isHero === true,
+          })
+          if (!photoResult.ok) throw new Error(photoResult.error || 'Failed to add photo')
+          result = { id: photoResult.itemId, user_id: user.id, artist_profile_id: profile.id, ...data }
           break
 
         case 'blog':
@@ -747,9 +723,12 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           break
 
         case 'merchandise':
+          // DB-008: `artist_merchandise` is not in the active chain. The canonical
+          // merch surface is `marketplace_listings` (same mapping the marketplace
+          // backfill route uses).
           const { data: merchData, error: merchError } = await supabase
-            .from('artist_merchandise')
-            .insert(contentData)
+            .from('marketplace_listings')
+            .insert(toMarketplaceListingInsert(data, user.id))
             .select()
             .single()
           if (merchError) throw merchError
@@ -839,6 +818,9 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         ...normalizedSocial,
       }
 
+      // `artist_profiles.settings` is Json in the contract; the document below is
+      // assembled from untyped profile input, so it is narrowed once here rather
+      // than at every leaf.
       const settings = {
         professional: {
           location,
@@ -864,6 +846,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           privacy_settings: profileData.privacy_settings || 'public',
           preferred_contact: profileData.preferred_contact || 'email'
         },
+        public_profile: privacySettingsToPublicProfileFlag(profileData.privacy_settings),
         capabilities_v1: buildCreatorCapabilitiesV1({
           creatorType: profileData.creator_type || profileData.music_style,
           serviceOfferings: profileData.service_offerings || profileData.equipment,
@@ -883,8 +866,8 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           artist_name: artistName,
           bio: bio || '',
           genres,
-          social_links: socialLinks,
-          settings,
+          social_links: socialLinks as Json,
+          settings: settings as unknown as Json,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
@@ -922,8 +905,8 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
               artist_name: artistName,
               bio: bio || '',
               genres,
-              social_links: socialLinks,
-              settings,
+              social_links: socialLinks as Json,
+              settings: settings as unknown as Json,
               updated_at: new Date().toISOString()
             }
           : prev
@@ -1008,7 +991,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         prev
           ? {
               ...prev,
-              social_links: socialLinks,
+              social_links: socialLinks as Json,
               updated_at: new Date().toISOString(),
             }
           : prev

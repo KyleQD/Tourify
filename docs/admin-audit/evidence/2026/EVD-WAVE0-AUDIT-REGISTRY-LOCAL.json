@@ -1,0 +1,27 @@
+{
+  "evidenceId": "EVD-WAVE0-AUDIT-REGISTRY-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:09:27-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "/Users/kyledaley/.nvm/versions/node/v20.20.2/bin/node --import tsx scripts/audit/admin-workflow-registry.ts --check --require-workbook",
+  "sha256": null,
+  "findingIds": [
+    "AOA-001",
+    "AOA-004",
+    "AOA-005",
+    "AOA-008",
+    "AOA-009",
+    "AOA-010",
+    "AOA-011",
+    "AOA-014"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Local registry validation passed for 79 findings, 362 specification tasks, 20 workflows, 18 launch gates, the generated views, and the workbook manifest. Local evidence is intentionally not attached to a CI launch gate."
+}

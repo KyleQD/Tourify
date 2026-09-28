@@ -24,7 +24,8 @@ test.describe("Flow 3 — Staff hiring", () => {
   test("staff scheduling tab loads without dashboard fatal error", async ({ page }) => {
     await page.goto("/admin/dashboard/staff?tab=scheduling")
     await expect(page.locator("body")).not.toContainText("Error Loading Dashboard", { timeout: 8_000 })
-    await expect(page.locator("body")).toContainText(/Scheduling & Shifts|Venue required/, { timeout: 8_000 })
+    await expect(page.locator("body")).toContainText(/Scheduling & Shifts/, { timeout: 8_000 })
+    await expect(page.locator("body")).not.toContainText("Venue required")
   })
 
   test("applications page loads", async ({ page }) => {

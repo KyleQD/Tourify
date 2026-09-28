@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "id": "DISC-001",
+  "title": "Audit Discover workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "discover",
+  "created_at": "2026-09-09T06:17:41.084Z",
+  "updated_at": "2026-09-09T06:17:41.084Z",
+  "completed_at": "2026-09-09",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Discover area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: search, discovery, world data, directories, news, and recommendations",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/discover/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The discover default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/discover/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/discover/BASELINE.md: what the discover area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/discover/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task DISC-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/discover/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/discover/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/discover/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "agents:validate 2026-09-09: 17 agents, 21 tasks validated, 0 errors, 9 pre-existing SHA warnings (generated maps). Evidence: docs/engineering/agents/discover/BASELINE.md, GAPS.md, QUESTIONS.md"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Baseline audit complete. Produced BASELINE.md, GAPS.md, QUESTIONS.md; updated STATE.md and BACKLOG.md.",
+    "completed": [
+      "Read startup protocol, domain files, generated maps, and all named references",
+      "Read all discover source files (pages, API routes, lib, components, tests, mobile)",
+      "Produced BASELINE.md documenting search/discover/world/news systems and FTS infrastructure",
+      "Produced GAPS.md with 8 triaged gaps (search consolidation, FTS underutilization, rate limiting, API contracts, world access, test coverage, mobile parity, world search perf)",
+      "Produced QUESTIONS.md with 15 prioritized owner questions",
+      "Updated STATE.md and BACKLOG.md",
+      "Appended checkpoint to task record"
+    ],
+    "next_steps": [
+      "Await owner answers to QUESTIONS.md; convert each /gap decision into a follow-up task record"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T06:17:41Z",
+        "summary": "Baseline audit complete. Expanded working set to read all discover source files on evidence (search endpoints, discover lib, world history/globe, news components, mobile discover). Key findings: 4+ search implementations (WS-2.3 consolidation needed); 10+ tables with global_search_vector but legacy ILIKE still in use (WS-3.2); rate limiting only on legacy search (WS-1.3); no Zod contracts; world tables service-role only. Produced BASELINE.md, GAPS.md (8 gaps), QUESTIONS.md (15 questions). Only wrote to docs/engineering/agents/discover/ and DISC-001.json; no production code changed.",
+        "next": "Run npm run agents:validate (0 errors required); finalize verification evidence; await owner decisions on QUESTIONS.md."
+      }
+    ]
+  },
+  "handoffs": []
+}

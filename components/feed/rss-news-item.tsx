@@ -14,6 +14,10 @@ import {
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
 import { useState } from 'react'
+import {
+  normalizeExternalHttpUrl,
+  toPlainText,
+} from '@/lib/news/text-sanitize'
 
 interface RSSNewsItemProps {
   item: {
@@ -45,24 +49,31 @@ function getSourceGradient(source: string) {
   return SOURCE_COLORS[source] || 'from-gray-500 to-slate-500'
 }
 
-function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, '').replace(/&[^;]+;/g, ' ').trim()
-}
-
 export function RSSNewsItem({ item, onBookmark, isBookmarked = false }: RSSNewsItemProps) {
   const [imageError, setImageError] = useState(false)
   const gradient = getSourceGradient(item.source)
 
+  /**
+   * `item.link` is a publisher-controlled value from a third-party RSS document.
+   * `window.open('javascript:...')` would execute in this page's origin, so the
+   * link is validated to an absolute http(s) URL once per render and the
+   * click/share handlers refuse to navigate when it is absent. (DISC-XSS-001 /
+   * residual risk recorded in HF-DISC-002-NEWSELF-FETCH-SSRF.)
+   */
+  const safeLink = normalizeExternalHttpUrl(item.link)
+
   function handleExternalLink() {
-    window.open(item.link, '_blank', 'noopener,noreferrer')
+    if (!safeLink) return
+    window.open(safeLink, '_blank', 'noopener,noreferrer')
   }
 
   async function handleShare() {
+    if (!safeLink) return
     try {
       if (navigator.share) {
-        await navigator.share({ title: item.title, text: item.description, url: item.link })
+        await navigator.share({ title: item.title, text: item.description, url: safeLink })
       } else {
-        await navigator.clipboard.writeText(item.link)
+        await navigator.clipboard.writeText(safeLink)
       }
     } catch {
       // User cancelled or API unavailable
@@ -113,7 +124,7 @@ export function RSSNewsItem({ item, onBookmark, isBookmarked = false }: RSSNewsI
 
             {item.description && (
               <p className="mb-2 line-clamp-2 text-xs leading-relaxed text-slate-400 md:text-sm">
-                {stripHtml(item.description)}
+                {toPlainText(item.description)}
               </p>
             )}
 
@@ -133,6 +144,7 @@ export function RSSNewsItem({ item, onBookmark, isBookmarked = false }: RSSNewsI
             size="sm"
             variant="ghost"
             onClick={handleShare}
+            disabled={!safeLink}
             className="h-8 text-slate-500 hover:text-white"
           >
             <Share2 className="h-3.5 w-3.5" />
@@ -155,6 +167,8 @@ export function RSSNewsItem({ item, onBookmark, isBookmarked = false }: RSSNewsI
             size="sm"
             variant="outline"
             onClick={handleExternalLink}
+            disabled={!safeLink}
+            title={safeLink ? 'Open the publisher page' : 'This feed provided no usable link'}
             className="h-8 border-white/10 text-xs text-slate-300 hover:bg-white/10 hover:text-white"
           >
             <ExternalLink className="mr-1 h-3 w-3" />

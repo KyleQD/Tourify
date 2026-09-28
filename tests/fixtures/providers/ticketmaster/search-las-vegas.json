@@ -1,0 +1,76 @@
+{
+  "_embedded": {
+    "events": [
+      {
+        "id": "vvG1zZ9sExample1",
+        "name": "Example Band Live",
+        "url": "https://www.ticketmaster.com/example-band-live-tickets/event/vvG1zZ9sExample1",
+        "description": "Example Band returns to Las Vegas.",
+        "dates": {
+          "start": {
+            "dateTime": "2026-09-05T02:00:00Z",
+            "localDate": "2026-09-04",
+            "localTime": "19:00:00"
+          },
+          "status": { "code": "onsale" },
+          "timezone": "America/Los_Angeles"
+        },
+        "images": [
+          { "url": "https://s1.ticketm.net/dam/a/example_16x9.jpg", "width": 1024, "height": 576, "ratio": "16_9", "fallback": false }
+        ],
+        "classifications": [
+          {
+            "segment": { "id": "KZFzniwnSyZfZ7v7nJ", "name": "Music" },
+            "genre": { "id": "KnvZfZ7vAeA", "name": "Rock" },
+            "subGenre": { "id": "KZazBEonSMnZfZ7vAA1", "name": "Alternative Rock" },
+            "type": { "id": "KZAyXgnZfZ7v7nI", "name": "Undefined" }
+          }
+        ],
+        "priceRanges": [{ "min": 49.5, "max": 149.5, "currency": "USD" }],
+        "sales": {
+          "public": { "startDateTime": "2026-06-01T17:00:00Z", "endDateTime": "2026-09-05T03:00:00Z" }
+        },
+        "_embedded": {
+          "venues": [
+            {
+              "id": "KovZpZAJnExample",
+              "name": "Example Theater",
+              "address": { "line1": "100 Fremont St" },
+              "city": { "name": "Las Vegas" },
+              "state": { "stateCode": "NV", "name": "Nevada" },
+              "country": { "countryCode": "US", "name": "United States Of America" },
+              "postalCode": "89101",
+              "location": { "longitude": "-115.13980", "latitude": "36.16990" },
+              "timezone": "America/Los_Angeles"
+            }
+          ],
+          "attractions": [
+            { "id": "K8vZ917GExample", "name": "Example Band" }
+          ]
+        }
+      },
+      {
+        "id": "vvG1zZ9sExample2",
+        "name": "Downtown Jazz Night (Cancelled)",
+        "url": "https://www.ticketmaster.com/jazz-night/event/vvG1zZ9sExample2",
+        "dates": {
+          "start": { "dateTime": "2026-09-06T03:00:00Z", "localDate": "2026-09-05", "localTime": "20:00:00" },
+          "status": { "code": "cancelled" },
+          "timezone": "America/Los_Angeles"
+        },
+        "_embedded": {
+          "venues": [
+            {
+              "name": "Jazz Cellar",
+              "city": { "name": "Las Vegas" },
+              "state": { "stateCode": "NV" },
+              "country": { "countryCode": "US" },
+              "location": { "longitude": "-115.14000", "latitude": "36.17000" }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "page": { "size": 2, "totalElements": 2, "totalPages": 1, "number": 0 }
+}

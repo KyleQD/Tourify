@@ -1,0 +1,40 @@
+BEGIN
+SELECT 1
+GRANT
+INSERT 0 2
+SET
+INSERT 0 1
+RESET
+UPDATE 1
+INSERT 0 1
+UPDATE 1
+SET
+INSERT 0 1
+RESET
+UPDATE 1
+SET
+INSERT 0 1
+RESET
+UPDATE 0
+SET
+INSERT 0 1
+RESET
+INSERT 0 1
+             case_name              | passed | verdict 
+------------------------------------+--------+---------
+ all_draft_baseline                 | t      | PASS
+ anon_sees_exactly_published_entity | t      | PASS
+ anon_sees_zero_draft_entities      | t      | PASS
+ draft_to_verified_applied          | t      | PASS
+ place_rows_draft                   | t      | PASS
+ promotion_guard_present            | t      | PASS
+ rejected_stays_hidden_from_anon    | t      | PASS
+ retired_hidden_from_anon           | t      | PASS
+(8 rows)
+
+   ?column?    
+---------------
+ ALL_PASS=true
+(1 row)
+
+ROLLBACK

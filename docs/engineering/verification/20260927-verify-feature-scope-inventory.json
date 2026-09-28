@@ -1,0 +1,458 @@
+{
+  "schema_version": "1.0",
+  "id": "20260927-verify-feature-scope-inventory",
+  "task_id": "RELEASE-010",
+  "owner_agent": "release",
+  "created_at": "2026-09-27T03:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, 120 entries; no commit made by this lane)",
+  "decision": "CP-106, CP-108 (docs/engineering/DECISIONS.md)",
+  "why_this_file_exists": "CP-106 requires the count of task records naming an unachievable verification command to be MEASURED, not estimated, and requires each one to be corrected or explicitly accepted with a recorded reason. This file is that measurement and those reasons, in one discoverable place, so a reader who opens a single stale record can find the disposition without reading 27 records.",
+  "measurement_method": {
+    "scope": "every .json task record under docs/engineering/tasks/**, excluding TASK_INDEX.json and SCHEMA.json",
+    "records_scanned": 183,
+    "match": "the record text contains the string `verify:feature`",
+    "reproduction": "rg -l 'verify:feature' docs/engineering/tasks --glob '!TASK_INDEX.json' | wc -l",
+    "whole_repo_cross_check": "rg -l --hidden -g '!node_modules' -g '!.git' -g '!.next' 'verify:feature' . | wc -l  => 44 files; of those 33 contain the --changed form"
+  },
+  "headline_counts": {
+    "task_records_naming_verify_feature_anywhere": 27,
+    "task_records_listing_it_in_verification_commands": 22,
+    "task_records_using_the_changed_flag": 24,
+    "task_records_citing_CP_106": 3,
+    "task_records_never_run_at_all": 18,
+    "task_records_with_a_recorded_result": 9,
+    "by_status": {
+      "active": 11,
+      "blocked": 16
+    }
+  },
+  "correction_of_the_orchestrator_estimate": "The task brief said \"roughly 100 task records specify `npm run verify:feature -- --changed`\". That does not reproduce. Measured against docs/engineering/tasks/** the figure is 27 task records containing `verify:feature` at all, 22 listing it in verification.commands, and 20 using the --changed form. The whole-repository figure including work packets, agent STATE files, handoffs and prose is 44 files. The estimate is high by roughly four; the direction of the finding is unchanged, and the measured number is what CP-106 asks for.",
+  "disposition_model": "Three buckets. (1) RECOVERED - the record names a command that now runs to a conclusion; nothing to edit, because the command string was never wrong. (2) HISTORICAL - the record states a factually true observation about the tier as it was, with a run timestamp; rewriting it would be falsifying evidence, so it is explicitly accepted and left byte-identical. (3) PER-FILE EDITS - none were made, and the reason is recorded under edits_not_made.",
+  "buckets": {
+    "recovered_never_run": {
+      "count": 18,
+      "ids": [
+        "ADMVIEW-001",
+        "RELEASE-010",
+        "WFC-004",
+        "WFC-005",
+        "WFC-006",
+        "WFC-008",
+        "WFC-009",
+        "WFC-010",
+        "WFC-011",
+        "WFC-012",
+        "WFC-013",
+        "WFC-014",
+        "WFC-015",
+        "WFC-016",
+        "WFC-017",
+        "WFC-018",
+        "WFC-019",
+        "WFC-020"
+      ],
+      "reason": "Each names `npm run verify:feature -- --changed`, which is now runnable and measured at 4-8s end to end. No edit: the command string in the record is correct and now does what it says. These records need their first real run, not a correction."
+    },
+    "historical_assertions_left_intact": {
+      "count": 8,
+      "ids": [
+        "ADMIN-012",
+        "DB-013",
+        "DB-014",
+        "DB-016",
+        "RELEASE-010",
+        "SOCIAL-005",
+        "USER-005",
+        "WFC-003"
+      ],
+      "reason": "These are dated, accurate statements that the tier could not complete on this machine, together with the sub-steps each lane ran individually. They are evidence, not stale instructions, and CP-106 explicitly accepted exactly that reporting style. Rewriting them would make the repository's history claim a working gate where none ran. ACCEPTED AND LEFT BYTE-IDENTICAL. A reader of any one of these finds this file and CP-108 from the record's own CP-106 citation."
+    },
+    "cite_CP_106": {
+      "count": 3,
+      "ids": [
+        "DB-014",
+        "DB-016",
+        "WFC-003"
+      ]
+    }
+  },
+  "edits_not_made": {
+    "what": "No per-record edits to the 27 task records.",
+    "why": "1. The command each record names is now achievable, so the records are not wrong. 2. The records that are factually dated statements of fact are evidence, and editing evidence is worse than leaving it. 3. docs/engineering/tasks/TASK_INDEX.json is currently modified by a concurrent lane regenerating maps; rewriting 27 records would either collide with that or force a mid-flight refresh, which the task brief forbids. The disposition is recorded here, in CP-108, and in the release STATE file instead.",
+    "if_you_want_per_record_annotation": "Orchestrator decision. A single additive `verification.tier_result_reason` string on each of the 20 never-run records, naming CP-108 and the scoped bound, would be safe to apply once no lane is regenerating TASK_INDEX.json. This lane did not do it."
+  },
+  "still_unachievable_on_this_machine_and_not_affected_by_this_fix": {
+    "note": "Measured separately so it is not conflated with the typecheck ceiling. These are credential- or host-gated, not memory-gated.",
+    "commands": [
+      {
+        "command": "npm run check:supabase-target",
+        "reason": "requires SUPABASE_PROJECT_ID / EXPECTED_SUPABASE_PROJECT_ID / SUPABASE_TARGET_CONFIRMATION; no local target is approved"
+      },
+      {
+        "command": "npm run check:admin-audit",
+        "reason": "3 failures, independently proven pre-existing at base SHA 16fb834f (all 35 inputs byte-identical by sha256, including the workbook xlsx)"
+      },
+      {
+        "command": "npm run typecheck (full) / npm run verify:release / npm run build:vercel",
+        "reason": "the full program; owned by ci.yml `Lint And Build`/`Typecheck` and RELEASE-006"
+      },
+      {
+        "command": "npm run generate:database-types / check:database-types",
+        "reason": "SEPARATE 1 MB ENOBUFS generator pipe limit (CP-089, CP-092). Not the same constraint as the typecheck ceiling and not addressed here."
+      }
+    ]
+  },
+  "records": [
+    {
+      "id": "ADMIN-012",
+      "path": "docs/engineering/tasks/active/ADMIN-012.json",
+      "status": "active",
+      "owner_agent": "admin",
+      "verification_tier": "standard",
+      "recorded_result": "pass-with-recorded-exceptions",
+      "last_run_at": "2026-09-26T22:38:00.000Z",
+      "in_verification_commands": true,
+      "uses_changed_flag": false,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "ADMVIEW-001",
+      "path": "docs/engineering/tasks/active/ADMVIEW-001.json",
+      "status": "active",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "DB-013",
+      "path": "docs/engineering/tasks/active/DB-013.json",
+      "status": "active",
+      "owner_agent": "database",
+      "verification_tier": "standard",
+      "recorded_result": "pass",
+      "last_run_at": "2026-09-26T23:00:00.000Z",
+      "in_verification_commands": false,
+      "uses_changed_flag": false,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "DB-014",
+      "path": "docs/engineering/tasks/active/DB-014.json",
+      "status": "active",
+      "owner_agent": "database",
+      "verification_tier": "standard",
+      "recorded_result": "pass",
+      "last_run_at": "2026-09-27T02:30:00.000Z",
+      "in_verification_commands": false,
+      "uses_changed_flag": true,
+      "cites_CP_106": true,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "DB-016",
+      "path": "docs/engineering/tasks/active/DB-016.json",
+      "status": "active",
+      "owner_agent": "database",
+      "verification_tier": "standard",
+      "recorded_result": "pass",
+      "last_run_at": "2026-09-27T04:00:00.000Z",
+      "in_verification_commands": false,
+      "uses_changed_flag": true,
+      "cites_CP_106": true,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "MKT-005",
+      "path": "docs/engineering/tasks/active/MKT-005.json",
+      "status": "active",
+      "owner_agent": "marketplace",
+      "verification_tier": "feature",
+      "recorded_result": "pass",
+      "last_run_at": "2026-09-25T20:33:16.546Z",
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "RELEASE-010",
+      "path": "docs/engineering/tasks/active/RELEASE-010.json",
+      "status": "active",
+      "owner_agent": "release",
+      "verification_tier": "fast",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": false,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "SOCIAL-005",
+      "path": "docs/engineering/tasks/active/SOCIAL-005.json",
+      "status": "active",
+      "owner_agent": "social",
+      "verification_tier": "feature",
+      "recorded_result": "partial",
+      "last_run_at": "2026-09-26T16:10:00.000Z",
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "USER-005",
+      "path": "docs/engineering/tasks/active/USER-005.json",
+      "status": "active",
+      "owner_agent": "general-user",
+      "verification_tier": "feature",
+      "recorded_result": "partial-pass",
+      "last_run_at": "2026-09-26T00:25:00.000Z",
+      "in_verification_commands": true,
+      "uses_changed_flag": false,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "WFC-003",
+      "path": "docs/engineering/tasks/active/WFC-003.json",
+      "status": "active",
+      "owner_agent": "organization",
+      "verification_tier": "feature",
+      "recorded_result": "pass-with-exceptions",
+      "last_run_at": "2026-09-26T16:25:00.000Z",
+      "in_verification_commands": false,
+      "uses_changed_flag": true,
+      "cites_CP_106": true,
+      "asserts_tier_unrunnable": true
+    },
+    {
+      "id": "WFC-004",
+      "path": "docs/engineering/tasks/blocked/WFC-004.json",
+      "status": "blocked",
+      "owner_agent": "database",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-005",
+      "path": "docs/engineering/tasks/blocked/WFC-005.json",
+      "status": "blocked",
+      "owner_agent": "work",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-006",
+      "path": "docs/engineering/tasks/blocked/WFC-006.json",
+      "status": "blocked",
+      "owner_agent": "work",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-007",
+      "path": "docs/engineering/tasks/active/WFC-007.json",
+      "status": "active",
+      "owner_agent": "design-system",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": "2026-09-26T21:41:01.948Z",
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-008",
+      "path": "docs/engineering/tasks/blocked/WFC-008.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-009",
+      "path": "docs/engineering/tasks/blocked/WFC-009.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-010",
+      "path": "docs/engineering/tasks/blocked/WFC-010.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-011",
+      "path": "docs/engineering/tasks/blocked/WFC-011.json",
+      "status": "blocked",
+      "owner_agent": "database",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-012",
+      "path": "docs/engineering/tasks/blocked/WFC-012.json",
+      "status": "blocked",
+      "owner_agent": "work",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-013",
+      "path": "docs/engineering/tasks/blocked/WFC-013.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-014",
+      "path": "docs/engineering/tasks/blocked/WFC-014.json",
+      "status": "blocked",
+      "owner_agent": "work",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-015",
+      "path": "docs/engineering/tasks/blocked/WFC-015.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-016",
+      "path": "docs/engineering/tasks/blocked/WFC-016.json",
+      "status": "blocked",
+      "owner_agent": "social",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-017",
+      "path": "docs/engineering/tasks/blocked/WFC-017.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-018",
+      "path": "docs/engineering/tasks/blocked/WFC-018.json",
+      "status": "blocked",
+      "owner_agent": "database",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-019",
+      "path": "docs/engineering/tasks/blocked/WFC-019.json",
+      "status": "blocked",
+      "owner_agent": "work",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    },
+    {
+      "id": "WFC-020",
+      "path": "docs/engineering/tasks/blocked/WFC-020.json",
+      "status": "blocked",
+      "owner_agent": "admin",
+      "verification_tier": "feature",
+      "recorded_result": "not-run",
+      "last_run_at": null,
+      "in_verification_commands": true,
+      "uses_changed_flag": true,
+      "cites_CP_106": false,
+      "asserts_tier_unrunnable": false
+    }
+  ]
+}

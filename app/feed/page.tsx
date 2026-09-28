@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
+import { SocialFeed } from '@/components/feed/social-feed'
 
 export default function FeedPage() {
-  redirect('/news')
+  return <SocialFeed />
 }

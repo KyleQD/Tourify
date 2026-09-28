@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_PROTOCOL_CONSTITUTION_FLAG_NAMES = [
   "creator_protocol_constitution_readiness_enabled",
   "creator_protocol_constitution_drafting_enabled",
@@ -51,6 +53,9 @@ export async function resolveCreatorProtocolConstitutionFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorProtocolConstitutionFlags> {
+  if (!isLaunchCapabilityAvailable("creator_protocol_constitution"))
+    return { ...DISABLED_CREATOR_PROTOCOL_CONSTITUTION_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

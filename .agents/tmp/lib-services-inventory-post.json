@@ -1,0 +1,2715 @@
+{
+  "generatedAt": "2026-09-25T22:12:04.065Z",
+  "method": {
+    "roots": "Next.js entry points: app|pages route/page/layout/loading/error/not-found/template/default/route files, middleware.ts, next.config.*",
+    "importResolution": "static regex over import/export-from, dynamic import(), require(), bare side-effect import; @/* -> repo root, relative resolved; extensionless + /index resolution",
+    "liveness": "BFS over the resolved import graph from entry points; a file not reached is DEAD (nothing reachable can execute it)",
+    "caveat": "regex-based import extraction; dynamic string-concatenated specifiers are not resolvable and are reported separately as unresolved"
+  },
+  "totals": {
+    "serviceFiles": 77,
+    "totalLines": 36220,
+    "zeroImporter": 7,
+    "onlyDeadImporters": 12,
+    "withLiveImporters": 58
+  },
+  "files": [
+    {
+      "file": "lib/services/__tests__/hiring-eligibility.service.test.ts",
+      "lines": 270,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [],
+      "exportedNames": []
+    },
+    {
+      "file": "lib/services/account-management.service.ts",
+      "lines": 1175,
+      "importerCount": 15,
+      "importers": [
+        "__tests__/notifications/account-options.test.ts",
+        "__tests__/organization/band-created-account-routing.test.ts",
+        "__tests__/services/account-management.test.ts",
+        "app/api/accounts/route.ts",
+        "app/api/dashboard/metrics/route.ts",
+        "components/account/account-route-guard.tsx",
+        "components/account/accounts-seed.tsx",
+        "components/messages/inbox-account-selector.tsx",
+        "components/settings/account-management-settings.tsx",
+        "hooks/use-multi-account.tsx",
+        "lib/accounts/resolve-organization-dashboard-account.ts",
+        "lib/accounts/server-load-accounts.ts",
+        "lib/hiring/resolve-admin-workforce-employer.ts",
+        "lib/notifications/account-options.ts",
+        "lib/services/dashboard.service.ts"
+      ],
+      "liveImporterCount": 12,
+      "liveImporters": [
+        "app/api/accounts/route.ts",
+        "app/api/dashboard/metrics/route.ts",
+        "components/account/account-route-guard.tsx",
+        "components/account/accounts-seed.tsx",
+        "components/messages/inbox-account-selector.tsx",
+        "components/settings/account-management-settings.tsx",
+        "hooks/use-multi-account.tsx",
+        "lib/accounts/resolve-organization-dashboard-account.ts",
+        "lib/accounts/server-load-accounts.ts",
+        "lib/hiring/resolve-admin-workforce-employer.ts",
+        "lib/notifications/account-options.ts",
+        "lib/services/dashboard.service.ts"
+      ],
+      "deadImporterCount": 3,
+      "deadImporters": [
+        "__tests__/notifications/account-options.test.ts",
+        "__tests__/organization/band-created-account-routing.test.ts",
+        "__tests__/services/account-management.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "account_activity_log",
+        "account_relationships",
+        "admin_requests",
+        "artist_profiles",
+        "create_organizer_account",
+        "create_post_with_context",
+        "org_members",
+        "organizer_accounts",
+        "posts",
+        "profiles",
+        "switch_active_account",
+        "tour_team_members",
+        "tours",
+        "user_sessions",
+        "venue_profiles",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "AccountManagementService",
+        "AccountPermissions",
+        "ActiveSession",
+        "UserAccount"
+      ]
+    },
+    {
+      "file": "lib/services/achievement-engine.service.test.ts",
+      "lines": 36,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [],
+      "exportedNames": []
+    },
+    {
+      "file": "lib/services/achievement-engine.service.ts",
+      "lines": 365,
+      "importerCount": 12,
+      "importers": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/booking-requests/[id]/decision/route.ts",
+        "app/api/booking-requests/route.ts",
+        "app/api/music/play/route.ts",
+        "app/api/posts/[id]/comments/route.ts",
+        "app/api/posts/[id]/likes/route.ts",
+        "app/api/posts/create/route.ts",
+        "app/api/social/follow/route.ts",
+        "app/api/tours/[id]/events/[eventId]/route.ts",
+        "lib/services/achievement-engine.service.test.ts",
+        "lib/services/achievement-metric-events.service.ts",
+        "lib/services/achievement.service.ts"
+      ],
+      "liveImporterCount": 11,
+      "liveImporters": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/booking-requests/[id]/decision/route.ts",
+        "app/api/booking-requests/route.ts",
+        "app/api/music/play/route.ts",
+        "app/api/posts/[id]/comments/route.ts",
+        "app/api/posts/[id]/likes/route.ts",
+        "app/api/posts/create/route.ts",
+        "app/api/social/follow/route.ts",
+        "app/api/tours/[id]/events/[eventId]/route.ts",
+        "lib/services/achievement-metric-events.service.ts",
+        "lib/services/achievement.service.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "lib/services/achievement-engine.service.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "achievement_progress_events",
+        "achievements",
+        "resume_achievement_highlights",
+        "reward_transactions",
+        "user_achievements",
+        "user_reward_wallets"
+      ],
+      "exportedNames": [
+        "AchievementRow",
+        "RecordMetricEventArgs",
+        "RecordMetricEventResult",
+        "achievementEngine",
+        "awardUnlockedAchievementRewards",
+        "computeNextValue",
+        "resolveMode",
+        "resolveTarget"
+      ]
+    },
+    {
+      "file": "lib/services/achievement-metric-events.service.ts",
+      "lines": 34,
+      "importerCount": 6,
+      "importers": [
+        "app/api/admin/applications/route.ts",
+        "app/api/job-applications/route.ts",
+        "app/api/settings/certifications/upload/route.ts",
+        "app/api/workflows/threads/[id]/messages/route.ts",
+        "app/api/workflows/threads/[id]/tasks/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "liveImporterCount": 6,
+      "liveImporters": [
+        "app/api/admin/applications/route.ts",
+        "app/api/job-applications/route.ts",
+        "app/api/settings/certifications/upload/route.ts",
+        "app/api/workflows/threads/[id]/messages/route.ts",
+        "app/api/workflows/threads/[id]/tasks/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "recordAchievementMetricEvent"
+      ]
+    },
+    {
+      "file": "lib/services/achievement-trigger.service.ts",
+      "lines": 382,
+      "importerCount": 2,
+      "importers": [
+        "components/onboarding-complete.tsx",
+        "hooks/use-achievement-triggers.ts"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "components/onboarding-complete.tsx",
+        "hooks/use-achievement-triggers.ts"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "badges"
+      ],
+      "exportedNames": [
+        "AchievementTriggerService",
+        "achievementTriggerService"
+      ]
+    },
+    {
+      "file": "lib/services/achievement.service.ts",
+      "lines": 672,
+      "importerCount": 4,
+      "importers": [
+        "app/api/achievements/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "lib/services/achievement-trigger.service.ts"
+      ],
+      "liveImporterCount": 3,
+      "liveImporters": [
+        "app/api/achievements/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "lib/services/achievement-trigger.service.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "achievement_progress_events",
+        "achievements",
+        "collaborations",
+        "endorsements",
+        "events",
+        "follows",
+        "hiring_candidates",
+        "posts",
+        "profiles",
+        "skill_categories",
+        "tracks",
+        "user_achievements",
+        "user_badges",
+        "user_skills"
+      ],
+      "exportedNames": [
+        "AchievementService",
+        "achievementService"
+      ]
+    },
+    {
+      "file": "lib/services/admin-onboarding-staff.service.ts",
+      "lines": 2235,
+      "importerCount": 18,
+      "importers": [
+        "__tests__/services/admin-onboarding-staff.test.ts",
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/job-postings/[id]/route.ts",
+        "app/api/admin/job-postings/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/credentials/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/route.ts",
+        "app/api/admin/onboarding/dashboard/route.ts",
+        "app/api/admin/onboarding/enhanced-invite/route.ts",
+        "app/api/admin/onboarding/invite-new-user/route.ts",
+        "app/api/admin/onboarding/review/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/update-status/route.ts",
+        "app/api/admin/onboarding/workflows/analytics/route.ts",
+        "app/api/admin/onboarding/workflows/route.ts",
+        "app/api/admin/staff/dashboard/route.ts",
+        "app/api/venue/onboarding/summary/route.ts",
+        "components/onboarding/onboarding-wizard.tsx"
+      ],
+      "liveImporterCount": 16,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/job-postings/[id]/route.ts",
+        "app/api/admin/job-postings/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/credentials/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/route.ts",
+        "app/api/admin/onboarding/dashboard/route.ts",
+        "app/api/admin/onboarding/enhanced-invite/route.ts",
+        "app/api/admin/onboarding/invite-new-user/route.ts",
+        "app/api/admin/onboarding/review/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/update-status/route.ts",
+        "app/api/admin/onboarding/workflows/analytics/route.ts",
+        "app/api/admin/onboarding/workflows/route.ts",
+        "app/api/admin/staff/dashboard/route.ts",
+        "app/api/venue/onboarding/summary/route.ts"
+      ],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "__tests__/services/admin-onboarding-staff.test.ts",
+        "components/onboarding/onboarding-wizard.tsx"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "application_form_templates",
+        "hiring_audit_events",
+        "job_applications",
+        "job_board_postings",
+        "job_posting_templates",
+        "onboarding_steps",
+        "onboarding_workflows",
+        "organization_job_postings",
+        "profiles",
+        "staff_members",
+        "staff_messages",
+        "staff_onboarding_candidates",
+        "staff_shifts",
+        "team_communications"
+      ],
+      "exportedNames": [
+        "AdminOnboardingStaffService"
+      ]
+    },
+    {
+      "file": "lib/services/admin-onboarding.service.ts",
+      "lines": 270,
+      "importerCount": 2,
+      "importers": [
+        "components/admin/onboarding/onboarding-wizard.tsx",
+        "components/admin/onboarding/steps/role-selection-step.tsx"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "components/admin/onboarding/onboarding-wizard.tsx",
+        "components/admin/onboarding/steps/role-selection-step.tsx"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "admin_onboarding",
+        "admin_onboarding_steps",
+        "admin_roles",
+        "complete_onboarding_step",
+        "start_admin_onboarding"
+      ],
+      "exportedNames": [
+        "AdminOnboarding",
+        "AdminOnboardingService",
+        "AdminRole",
+        "OnboardingStep"
+      ]
+    },
+    {
+      "file": "lib/services/admin-workforce-people.service.ts",
+      "lines": 301,
+      "importerCount": 6,
+      "importers": [
+        "__tests__/hiring/approve-roster-and-workforce.test.ts",
+        "app/api/admin/staff-operations/channels/[id]/route.ts",
+        "app/api/admin/staff-operations/channels/route.ts",
+        "app/api/admin/team-members/route.ts",
+        "app/api/admin/workforce/people/route.ts",
+        "app/api/events/[id]/staff/route.ts"
+      ],
+      "liveImporterCount": 5,
+      "liveImporters": [
+        "app/api/admin/staff-operations/channels/[id]/route.ts",
+        "app/api/admin/staff-operations/channels/route.ts",
+        "app/api/admin/team-members/route.ts",
+        "app/api/admin/workforce/people/route.ts",
+        "app/api/events/[id]/staff/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/approve-roster-and-workforce.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "event_participants",
+        "org_members",
+        "profiles",
+        "staff_members",
+        "staff_onboarding_candidates",
+        "tour_team_members",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "ListWorkforcePeopleArgs",
+        "WorkforcePerson",
+        "WorkforcePersonSource",
+        "listWorkforcePeople"
+      ]
+    },
+    {
+      "file": "lib/services/agreement.service.ts",
+      "lines": 42,
+      "importerCount": 1,
+      "importers": [
+        "app/api/agreements/accept/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/agreements/accept/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "agreement_acceptances"
+      ],
+      "exportedNames": [
+        "RecordAgreementAcceptanceInput",
+        "recordAgreementAcceptance"
+      ]
+    },
+    {
+      "file": "lib/services/applicant-profile-snapshot.service.ts",
+      "lines": 177,
+      "importerCount": 3,
+      "importers": [
+        "__tests__/hiring/profile-snapshot.test.ts",
+        "app/api/hiring/apply/profile-preview/route.ts",
+        "app/api/job-applications/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/hiring/apply/profile-preview/route.ts",
+        "app/api/job-applications/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/profile-snapshot.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "portfolio_items",
+        "profile_certifications",
+        "profile_experiences",
+        "profiles",
+        "skill_endorsements"
+      ],
+      "exportedNames": [
+        "ProfileCompletenessResult",
+        "buildProfileSnapshot",
+        "validateSnapshotCompleteness"
+      ]
+    },
+    {
+      "file": "lib/services/artist-business.service.ts",
+      "lines": 244,
+      "importerCount": 3,
+      "importers": [
+        "app/api/artist/business/overview/route.ts",
+        "app/artist/business/_page-client.tsx",
+        "app/artist/business/page.tsx"
+      ],
+      "liveImporterCount": 3,
+      "liveImporters": [
+        "app/api/artist/business/overview/route.ts",
+        "app/artist/business/_page-client.tsx",
+        "app/artist/business/page.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_contracts",
+        "artist_events",
+        "artist_financial_transactions",
+        "artist_marketing_campaigns",
+        "artist_merchandise",
+        "artist_music",
+        "artist_works",
+        "profiles",
+        "tour_artists"
+      ],
+      "exportedNames": [
+        "BusinessOverview",
+        "BusinessTransaction",
+        "getBusinessOverview",
+        "getRecentTransactions"
+      ]
+    },
+    {
+      "file": "lib/services/artist-collaboration.service.ts",
+      "lines": 165,
+      "importerCount": 1,
+      "importers": [
+        "app/artist/business/collaboration/page.tsx"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/artist/business/collaboration/page.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "logistics_tasks",
+        "tour_artists",
+        "tour_team_members",
+        "tour_teams",
+        "tours"
+      ],
+      "exportedNames": [
+        "CollaborationLogisticsTask",
+        "CollaborationTeam",
+        "CollaborationTeamMember",
+        "CollaborationTour",
+        "fetchArtistCollaboration",
+        "memberDisplayName"
+      ]
+    },
+    {
+      "file": "lib/services/artist-content.service.ts",
+      "lines": 498,
+      "importerCount": 1,
+      "importers": [
+        "components/dashboard/artist-page-client.tsx"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "components/dashboard/artist-page-client.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_blog_posts",
+        "artist_events",
+        "artist_fan_interactions",
+        "artist_merchandise",
+        "artist_music",
+        "artist_photos",
+        "artist_videos",
+        "events",
+        "get_artist_content_stats",
+        "music_tracks"
+      ],
+      "exportedNames": [
+        "BlogContent",
+        "EventContent",
+        "MerchandiseContent",
+        "MusicContent",
+        "PhotoContent",
+        "VideoContent",
+        "artistContentService"
+      ]
+    },
+    {
+      "file": "lib/services/artist-dashboard-layout.service.ts",
+      "lines": 62,
+      "importerCount": 2,
+      "importers": [
+        "components/dashboard/artist-dashboard-bottom-sections.tsx",
+        "components/dashboard/sortable-widget-section.tsx"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "components/dashboard/artist-dashboard-bottom-sections.tsx",
+        "components/dashboard/sortable-widget-section.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_dashboard_layouts"
+      ],
+      "exportedNames": [
+        "ArtistDashboardLayoutState",
+        "ArtistDashboardWidgetId",
+        "artistDashboardLayoutService"
+      ]
+    },
+    {
+      "file": "lib/services/artist-jobs.server.ts",
+      "lines": 41,
+      "importerCount": 1,
+      "importers": [
+        "app/api/artist-jobs/[id]/applications/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/artist-jobs/[id]/applications/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_job_applications"
+      ],
+      "exportedNames": [
+        "applyToArtistJob"
+      ]
+    },
+    {
+      "file": "lib/services/artist-jobs.service.ts",
+      "lines": 952,
+      "importerCount": 6,
+      "importers": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/artist-jobs/[id]/route.ts",
+        "app/artist/collaborations/page.tsx",
+        "components/collaborations/collaboration-detail.tsx",
+        "components/collaborations/collaboration-feed.tsx",
+        "components/collaborations/collaboration-post-form.tsx"
+      ],
+      "liveImporterCount": 6,
+      "liveImporters": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/artist-jobs/[id]/route.ts",
+        "app/artist/collaborations/page.tsx",
+        "components/collaborations/collaboration-detail.tsx",
+        "components/collaborations/collaboration-feed.tsx",
+        "components/collaborations/collaboration-post-form.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_job_applications",
+        "artist_job_categories",
+        "artist_job_saves",
+        "artist_job_views",
+        "artist_jobs",
+        "collaboration_applications"
+      ],
+      "exportedNames": [
+        "ArtistJobsService"
+      ]
+    },
+    {
+      "file": "lib/services/artist.service.ts",
+      "lines": 394,
+      "importerCount": 3,
+      "importers": [
+        "app/artist/events/page-optimized.tsx",
+        "app/venue/components/events/create-event-modal.tsx",
+        "hooks/use-artist-events.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/venue/components/events/create-event-modal.tsx"
+      ],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "app/artist/events/page-optimized.tsx",
+        "hooks/use-artist-events.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "connections",
+        "content",
+        "events",
+        "messages",
+        "profiles"
+      ],
+      "exportedNames": [
+        "BusinessData",
+        "ContentData",
+        "EventData",
+        "artistService"
+      ]
+    },
+    {
+      "file": "lib/services/auth.service.ts",
+      "lines": 416,
+      "importerCount": 1,
+      "importers": [
+        "components/auth/enhanced-signup-form.tsx"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "components/auth/enhanced-signup-form.tsx"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "AuthService",
+        "SigninData",
+        "SigninResult",
+        "SignupData",
+        "SignupResult"
+      ]
+    },
+    {
+      "file": "lib/services/candidate-invite-email.service.ts",
+      "lines": 93,
+      "importerCount": 1,
+      "importers": [
+        "app/api/admin/onboarding/invite-new-user/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/admin/onboarding/invite-new-user/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "CandidateInvitePayload",
+        "InviteDeliveryResult",
+        "buildCandidateInviteEmailHtml",
+        "sendCandidateInviteEmail"
+      ]
+    },
+    {
+      "file": "lib/services/capabilities.ts",
+      "lines": 35,
+      "importerCount": 1,
+      "importers": [
+        "app/api/admin/capabilities/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/admin/capabilities/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "CapabilityInput",
+        "getCapabilities"
+      ]
+    },
+    {
+      "file": "lib/services/contract-email.service.ts",
+      "lines": 279,
+      "importerCount": 2,
+      "importers": [
+        "app/api/cron/contract-sign-reminders/route.ts",
+        "app/lib/actions/contract-workflow.actions.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/cron/contract-sign-reminders/route.ts",
+        "app/lib/actions/contract-workflow.actions.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_contracts",
+        "profiles"
+      ],
+      "exportedNames": [
+        "ContractReminderCandidate",
+        "ContractReminderDay",
+        "pickReminderDay",
+        "sendComplianceHtmlEmail",
+        "sendContractCompletionEmails",
+        "sendContractInviteEmail",
+        "sendContractReminderEmailForCron"
+      ]
+    },
+    {
+      "file": "lib/services/cross-platform-posting.service.ts",
+      "lines": 849,
+      "importerCount": 4,
+      "importers": [
+        "__tests__/content/post-templates-hashtags.test.ts",
+        "components/cross-platform/cross-platform-composer.tsx",
+        "components/cross-platform/scheduled-posts-panel.tsx",
+        "hooks/use-cross-platform-posting.ts"
+      ],
+      "liveImporterCount": 3,
+      "liveImporters": [
+        "components/cross-platform/cross-platform-composer.tsx",
+        "components/cross-platform/scheduled-posts-panel.tsx",
+        "hooks/use-cross-platform-posting.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/content/post-templates-hashtags.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "create_cross_platform_post",
+        "create_post_template",
+        "get_cross_platform_analytics",
+        "hashtag_groups",
+        "post_templates",
+        "posting_analytics",
+        "scheduled_posts"
+      ],
+      "exportedNames": [
+        "CrossPlatformPostingService",
+        "CrossPostAnalytics",
+        "HashtagGroup",
+        "PostTemplate",
+        "ScheduledPost",
+        "crossPlatformPostingService"
+      ]
+    },
+    {
+      "file": "lib/services/dashboard.service.ts",
+      "lines": 281,
+      "importerCount": 3,
+      "importers": [
+        "app/api/dashboard/metrics/route.ts",
+        "app/dashboard/optimized-dashboard.tsx",
+        "components/dashboard/unified-activity-feed.tsx"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/dashboard/metrics/route.ts",
+        "components/dashboard/unified-activity-feed.tsx"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "app/dashboard/optimized-dashboard.tsx"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "events_v2",
+        "follows",
+        "posts",
+        "venue_booking_requests"
+      ],
+      "exportedNames": [
+        "AccountMetrics",
+        "DashboardActivity",
+        "DashboardService",
+        "DashboardStats"
+      ]
+    },
+    {
+      "file": "lib/services/data-isolation.service.ts",
+      "lines": 529,
+      "importerCount": 1,
+      "importers": [
+        "hooks/use-data-isolation.tsx"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "hooks/use-data-isolation.tsx"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "access_audit_log",
+        "tour_events",
+        "tours"
+      ],
+      "exportedNames": [
+        "DataAccessPolicy",
+        "DataIsolationService",
+        "IsolationRule",
+        "dataIsolationService",
+        "requireDataAccess",
+        "withDataIsolation"
+      ]
+    },
+    {
+      "file": "lib/services/email-delivery.service.ts",
+      "lines": 141,
+      "importerCount": 5,
+      "importers": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/email/send-promotional-email.ts",
+        "lib/ticketing/guest-list.server.ts"
+      ],
+      "liveImporterCount": 4,
+      "liveImporters": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/ticketing/guest-list.server.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "lib/email/send-promotional-email.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "BatchEmailResult",
+        "EmailDeliveryService",
+        "EmailResult",
+        "SendEmailParams"
+      ]
+    },
+    {
+      "file": "lib/services/enhanced-account.service.ts",
+      "lines": 429,
+      "importerCount": 2,
+      "importers": [
+        "components/enhanced-account-demo.tsx",
+        "hooks/use-enhanced-accounts.ts"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "components/enhanced-account-demo.tsx",
+        "hooks/use-enhanced-accounts.ts"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "accounts",
+        "discover_accounts",
+        "follows",
+        "get_account_display_info",
+        "get_account_feed",
+        "posts",
+        "refresh_account_display_info",
+        "update_account_stats",
+        "upsert_account"
+      ],
+      "exportedNames": [
+        "Account",
+        "AccountDiscoveryResult",
+        "EnhancedAccountService",
+        "PostWithAccount",
+        "enhancedAccountService"
+      ]
+    },
+    {
+      "file": "lib/services/enhanced-onboarding-templates.service.ts",
+      "lines": 737,
+      "importerCount": 4,
+      "importers": [
+        "app/api/admin/onboarding/initialize-templates/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "liveImporters": [
+        "app/api/admin/onboarding/initialize-templates/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "staff_onboarding_candidates",
+        "staff_onboarding_steps",
+        "staff_onboarding_templates"
+      ],
+      "exportedNames": [
+        "EnhancedOnboardingTemplatesService"
+      ]
+    },
+    {
+      "file": "lib/services/enhanced-onboarding.service.ts",
+      "lines": 591,
+      "importerCount": 2,
+      "importers": [
+        "__tests__/onboarding/onboarding-submit-contract.test.ts",
+        "app/api/onboarding/submit/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/onboarding/submit/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/onboarding/onboarding-submit-contract.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "notifications",
+        "profiles",
+        "staff_invitations",
+        "staff_onboarding_candidates",
+        "staff_onboarding_templates",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "EnhancedOnboardingService",
+        "OnboardingCandidate",
+        "OnboardingTemplate"
+      ]
+    },
+    {
+      "file": "lib/services/epk.service.test.ts",
+      "lines": 180,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [],
+      "exportedNames": []
+    },
+    {
+      "file": "lib/services/epk.service.ts",
+      "lines": 1255,
+      "importerCount": 18,
+      "importers": [
+        "app/api/artist/epk/route.ts",
+        "app/artist/epk/page.tsx",
+        "app/epk/[slug]/page.tsx",
+        "components/epk/epk-builder-toolbar.tsx",
+        "components/epk/epk-builder-view.tsx",
+        "components/epk/epk-editor-tabs.tsx",
+        "components/epk/epk-hidden-sections-panel.tsx",
+        "components/epk/epk-preview.tsx",
+        "components/epk/epk-public-actions.tsx",
+        "components/epk/epk-template-selector.tsx",
+        "components/epk/epk-template-variants.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "hooks/use-epk-sync.ts",
+        "lib/epk/epk-preview-utils.ts",
+        "lib/public-artist/get-public-artist-profile.ts",
+        "lib/public-artist/public-artist-types.ts",
+        "lib/services/epk.service.test.ts",
+        "lib/services/venue-kit.service.ts"
+      ],
+      "liveImporterCount": 16,
+      "liveImporters": [
+        "app/api/artist/epk/route.ts",
+        "app/artist/epk/page.tsx",
+        "app/epk/[slug]/page.tsx",
+        "components/epk/epk-builder-toolbar.tsx",
+        "components/epk/epk-builder-view.tsx",
+        "components/epk/epk-editor-tabs.tsx",
+        "components/epk/epk-hidden-sections-panel.tsx",
+        "components/epk/epk-preview.tsx",
+        "components/epk/epk-public-actions.tsx",
+        "components/epk/epk-template-variants.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "hooks/use-epk-sync.ts",
+        "lib/epk/epk-preview-utils.ts",
+        "lib/public-artist/get-public-artist-profile.ts",
+        "lib/public-artist/public-artist-types.ts",
+        "lib/services/venue-kit.service.ts"
+      ],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "components/epk/epk-template-selector.tsx",
+        "lib/services/epk.service.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_epk_settings",
+        "artist_events",
+        "artist_music",
+        "artist_photos",
+        "artist_profiles",
+        "artist_social_integrations",
+        "events",
+        "events_v2",
+        "profiles"
+      ],
+      "exportedNames": [
+        "EpkSaveError",
+        "computeEPKQuality",
+        "createEpkSlug",
+        "epkService",
+        "resolveEpkSlugCandidate"
+      ]
+    },
+    {
+      "file": "lib/services/feed.service.ts",
+      "lines": 505,
+      "importerCount": 4,
+      "importers": [
+        "components/feed/for-you-page.tsx",
+        "components/feed/post-card.tsx",
+        "contexts/social-context.tsx",
+        "hooks/use-feed.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "contexts/social-context.tsx"
+      ],
+      "deadImporterCount": 3,
+      "deadImporters": [
+        "components/feed/for-you-page.tsx",
+        "components/feed/post-card.tsx",
+        "hooks/use-feed.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "comment_likes",
+        "follows",
+        "hashtags",
+        "post_comments",
+        "post_hashtags",
+        "post_media",
+        "posts",
+        "profiles"
+      ],
+      "exportedNames": [
+        "ExtendedComment",
+        "ExtendedPost",
+        "FeedService"
+      ]
+    },
+    {
+      "file": "lib/services/friend-suggestions.ts",
+      "lines": 534,
+      "importerCount": 1,
+      "importers": [
+        "app/api/social/suggestions/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/social/suggestions/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "follow_requests",
+        "follows",
+        "profiles"
+      ],
+      "exportedNames": [
+        "FriendSuggestionService",
+        "friendSuggestionService"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-application-approval.service.ts",
+      "lines": 427,
+      "importerCount": 4,
+      "importers": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "hiring_audit_events",
+        "job_applications",
+        "staff_onboarding_candidates"
+      ],
+      "exportedNames": [
+        "ApproveStaffApplicationOnboarding",
+        "ApproveStaffApplicationOptions",
+        "ApproveStaffApplicationResult",
+        "approveStaffApplication"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-candidate-assignment.service.ts",
+      "lines": 162,
+      "importerCount": 1,
+      "importers": [
+        "app/api/hiring/candidates/[id]/assignment/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/hiring/candidates/[id]/assignment/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "hiring_audit_events",
+        "staff_onboarding_candidates",
+        "staff_shifts"
+      ],
+      "exportedNames": [
+        "AssignCandidateInput",
+        "assignCandidate"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-candidate-workflow.service.ts",
+      "lines": 480,
+      "importerCount": 4,
+      "importers": [
+        "__tests__/hiring/candidate-list-normalization.test.ts",
+        "app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/documents/[documentId]/review/route.ts"
+      ],
+      "liveImporterCount": 3,
+      "liveImporters": [
+        "app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/documents/[documentId]/review/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/candidate-list-normalization.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "hiring_audit_events",
+        "job_applications",
+        "job_posting_templates",
+        "onboarding_workflows",
+        "staff_documents",
+        "staff_members",
+        "staff_onboarding_candidates",
+        "staff_onboarding_templates"
+      ],
+      "exportedNames": [
+        "HiringCandidateWorkflowService"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-compliance.service.ts",
+      "lines": 293,
+      "importerCount": 3,
+      "importers": [
+        "__tests__/hiring/id-document-compliance.test.ts",
+        "app/api/hiring/onboarding/compliance/[candidateId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/compliance/[candidateId]/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/hiring/onboarding/compliance/[candidateId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/compliance/[candidateId]/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/id-document-compliance.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "staff_documents",
+        "staff_onboarding_candidates",
+        "staff_onboarding_templates"
+      ],
+      "exportedNames": [
+        "HiringComplianceService"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-eligibility.service.ts",
+      "lines": 306,
+      "importerCount": 7,
+      "importers": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/employer/vetting/[applicationId]/route.ts",
+        "app/lib/actions/staff.actions.ts",
+        "lib/services/__tests__/hiring-eligibility.service.test.ts",
+        "lib/services/admin-onboarding-staff.service.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "liveImporterCount": 5,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/employer/vetting/[applicationId]/route.ts",
+        "lib/services/admin-onboarding-staff.service.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "app/lib/actions/staff.actions.ts",
+        "lib/services/__tests__/hiring-eligibility.service.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "agreement_acceptances",
+        "endorsements",
+        "follows",
+        "hiring_eligibility_snapshots",
+        "job_applications",
+        "job_posting_templates",
+        "staff_documents",
+        "staff_onboarding_candidates",
+        "user_achievements",
+        "user_reward_wallets"
+      ],
+      "exportedNames": [
+        "HiringChecklistItem",
+        "HiringEligibilityAssessment",
+        "HiringEligibilityGateError",
+        "HiringEligibilityMode",
+        "enforceHiringEligibilityGate",
+        "evaluateHiringEligibility",
+        "getHiringEligibilityMode",
+        "isHiringEligibilityGateError",
+        "recordHiringEligibilitySnapshot"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-onboarding-templates.service.ts",
+      "lines": 303,
+      "importerCount": 6,
+      "importers": [
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/clone/route.ts",
+        "app/api/admin/onboarding/templates/role-packs/route.ts",
+        "app/api/admin/onboarding/templates/route.ts",
+        "app/api/hiring/job-postings/options/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "liveImporterCount": 6,
+      "liveImporters": [
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/clone/route.ts",
+        "app/api/admin/onboarding/templates/role-packs/route.ts",
+        "app/api/admin/onboarding/templates/route.ts",
+        "app/api/hiring/job-postings/options/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "job_posting_templates",
+        "staff_onboarding_candidates",
+        "staff_onboarding_templates"
+      ],
+      "exportedNames": [
+        "TemplateScope",
+        "TemplateWriteInput",
+        "cloneTemplateForEmployer",
+        "createTemplateForEmployer",
+        "deleteTemplateForEmployer",
+        "getTemplateById",
+        "listTemplatesForEmployer",
+        "updateTemplateForEmployer"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-onboarding-upload.service.ts",
+      "lines": 441,
+      "importerCount": 5,
+      "importers": [
+        "__tests__/hiring/onboarding-upload-token.test.ts",
+        "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "app/api/hiring/onboarding/upload/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/upload/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "liveImporters": [
+        "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "app/api/hiring/onboarding/upload/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/upload/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/onboarding-upload-token.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "hiring_audit_events",
+        "staff_documents",
+        "staff_invitations",
+        "staff_onboarding_candidates",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "HiringOnboardingUploadService"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-onboarding.service.ts",
+      "lines": 3449,
+      "importerCount": 21,
+      "importers": [
+        "__tests__/hiring/hiring-onboarding-assignment.test.ts",
+        "__tests__/hiring/onboarding-approve-roster.test.ts",
+        "app/actions/hiring/create-job-posting.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/[id]/star/route.ts",
+        "app/api/hiring/applications/route.ts",
+        "app/api/hiring/candidates/[id]/approve/route.ts",
+        "app/api/hiring/candidates/[id]/onboarding/route.ts",
+        "app/api/hiring/dashboard/route.ts",
+        "app/api/hiring/invite/route.ts",
+        "app/api/hiring/job-postings/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/[id]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/dashboard/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/invite/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/job-postings/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-7/app/actions/hiring/create-job-posting.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "scripts/hiring/staging-e2e-validation.ts"
+      ],
+      "liveImporterCount": 16,
+      "liveImporters": [
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/[id]/star/route.ts",
+        "app/api/hiring/applications/route.ts",
+        "app/api/hiring/candidates/[id]/approve/route.ts",
+        "app/api/hiring/candidates/[id]/onboarding/route.ts",
+        "app/api/hiring/dashboard/route.ts",
+        "app/api/hiring/invite/route.ts",
+        "app/api/hiring/job-postings/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/[id]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/dashboard/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/invite/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/job-postings/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "deadImporterCount": 5,
+      "deadImporters": [
+        "__tests__/hiring/hiring-onboarding-assignment.test.ts",
+        "__tests__/hiring/onboarding-approve-roster.test.ts",
+        "app/actions/hiring/create-job-posting.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-7/app/actions/hiring/create-job-posting.ts",
+        "scripts/hiring/staging-e2e-validation.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "events",
+        "events_v2",
+        "hiring_audit_events",
+        "job_applications",
+        "job_posting_templates",
+        "onboarding_responses",
+        "onboarding_workflows",
+        "org_members",
+        "organizer_accounts",
+        "staff_documents",
+        "staff_invitations",
+        "staff_members",
+        "staff_onboarding_candidates",
+        "staff_onboarding_templates",
+        "staff_shifts",
+        "tour_team_members",
+        "tour_teams",
+        "tours"
+      ],
+      "exportedNames": [
+        "HiringOnboardingService",
+        "resolveOrganizerId"
+      ]
+    },
+    {
+      "file": "lib/services/hiring-roster.service.ts",
+      "lines": 1240,
+      "importerCount": 12,
+      "importers": [
+        "__tests__/hiring/approve-roster-and-workforce.test.ts",
+        "__tests__/hiring/completed-onboarding-shift-sync.test.ts",
+        "__tests__/hiring/hiring-roster.service.test.ts",
+        "app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "app/api/hiring/roster/[memberId]/route.ts",
+        "app/api/hiring/roster/export/route.ts",
+        "app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/export/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "liveImporterCount": 9,
+      "liveImporters": [
+        "app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "app/api/hiring/roster/[memberId]/route.ts",
+        "app/api/hiring/roster/export/route.ts",
+        "app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/export/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "deadImporterCount": 3,
+      "deadImporters": [
+        "__tests__/hiring/approve-roster-and-workforce.test.ts",
+        "__tests__/hiring/completed-onboarding-shift-sync.test.ts",
+        "__tests__/hiring/hiring-roster.service.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "hiring_audit_events",
+        "profiles",
+        "staff_documents",
+        "staff_invitations",
+        "staff_members",
+        "staff_onboarding_candidates",
+        "staff_shift_assignments",
+        "staff_shifts",
+        "tour_events"
+      ],
+      "exportedNames": [
+        "HiringRosterService"
+      ]
+    },
+    {
+      "file": "lib/services/job-board.service.ts",
+      "lines": 459,
+      "importerCount": 1,
+      "importers": [
+        "app/api/job-board/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/job-board/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "increment",
+        "job_board_postings",
+        "organization_job_postings"
+      ],
+      "exportedNames": [
+        "JobBoardService"
+      ]
+    },
+    {
+      "file": "lib/services/jukebox.service.ts",
+      "lines": 504,
+      "importerCount": 14,
+      "importers": [
+        "components/dashboard/jukebox-player.tsx",
+        "components/feed/feed-music-player.tsx",
+        "components/jukebox/full-player-view.tsx",
+        "components/jukebox/player-actions.tsx",
+        "components/jukebox/track-card.tsx",
+        "components/jukebox/track-cover-image.tsx",
+        "components/music/music-player.tsx",
+        "components/music/page/music-discover-section.tsx",
+        "components/music/page/music-home.tsx",
+        "components/music/page/music-library-section.tsx",
+        "components/music/page/music-page-client.tsx",
+        "components/music/page/music-playlists-section.tsx",
+        "components/music/page/music-search-results.tsx",
+        "components/profile/profile-jukebox-widget.tsx"
+      ],
+      "liveImporterCount": 13,
+      "liveImporters": [
+        "components/dashboard/jukebox-player.tsx",
+        "components/feed/feed-music-player.tsx",
+        "components/jukebox/full-player-view.tsx",
+        "components/jukebox/player-actions.tsx",
+        "components/jukebox/track-card.tsx",
+        "components/jukebox/track-cover-image.tsx",
+        "components/music/music-player.tsx",
+        "components/music/page/music-discover-section.tsx",
+        "components/music/page/music-home.tsx",
+        "components/music/page/music-library-section.tsx",
+        "components/music/page/music-page-client.tsx",
+        "components/music/page/music-playlists-section.tsx",
+        "components/music/page/music-search-results.tsx"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "components/profile/profile-jukebox-widget.tsx"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "JukeboxPlaylist",
+        "JukeboxPlaylistItem",
+        "LibraryItem",
+        "addTrackToLibrary",
+        "addTrackToPlaylist",
+        "checkLibraryStatus",
+        "checkLikeStatus",
+        "createPlaylist",
+        "deletePlaylist",
+        "deleteTrack",
+        "fetchArtistTracks",
+        "fetchDiscoverTracks",
+        "fetchFavoriteTracks",
+        "fetchFollowingTracks",
+        "fetchLibraryTracks",
+        "fetchSocialStatus",
+        "fetchUserFavoritesForProfile",
+        "fetchUserPlaylists",
+        "getStreamUrl",
+        "playlistItemsToTracks",
+        "removeTrackFromPlaylist",
+        "reorderPlaylistItem",
+        "resolveJukeboxCoverUrl",
+        "searchNativeTracks",
+        "shareTrack",
+        "toggleLike",
+        "updatePlaylist",
+        "updateTrack"
+      ]
+    },
+    {
+      "file": "lib/services/mfa-verification-code-store.server.ts",
+      "lines": 171,
+      "importerCount": 2,
+      "importers": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "lib/services/mfa.service.ts"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "lib/services/mfa.service.ts"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "begin_mfa_verification_attempt",
+        "cleanup_expired_mfa_verification_codes",
+        "finish_mfa_verification_attempt",
+        "issue_mfa_verification_code",
+        "revoke_mfa_verification_code"
+      ],
+      "exportedNames": [
+        "SupabaseMfaVerificationCodeStore"
+      ]
+    },
+    {
+      "file": "lib/services/mfa-verification-code-store.ts",
+      "lines": 213,
+      "importerCount": 3,
+      "importers": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "lib/services/mfa-verification-code-store.server.ts",
+        "lib/services/mfa.service.ts"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 3,
+      "deadImporters": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "lib/services/mfa-verification-code-store.server.ts",
+        "lib/services/mfa.service.ts"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "ConsumeMfaVerificationCodeInput",
+        "ConsumeMfaVerificationCodeResult",
+        "ConsumeMfaVerificationCodeStatus",
+        "InMemoryMfaVerificationCodeStore",
+        "IssueMfaVerificationCodeInput",
+        "IssueMfaVerificationCodeResult",
+        "MFA_VERIFICATION_CODE_HASH_ROUNDS",
+        "MFA_VERIFICATION_CODE_ISSUE_WINDOW_MS",
+        "MFA_VERIFICATION_CODE_MAX_ATTEMPTS",
+        "MFA_VERIFICATION_CODE_MAX_ISSUES",
+        "MFA_VERIFICATION_CODE_RESEND_COOLDOWN_MS",
+        "MFA_VERIFICATION_CODE_TTL_MS",
+        "MfaVerificationCodeKind",
+        "MfaVerificationCodeStore",
+        "UnconfiguredMfaVerificationCodeStore"
+      ]
+    },
+    {
+      "file": "lib/services/mfa.service.ts",
+      "lines": 639,
+      "importerCount": 2,
+      "importers": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "hooks/use-mfa.ts"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "hooks/use-mfa.ts"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "user_mfa_backup_codes",
+        "user_mfa_methods",
+        "user_mfa_setup_temp"
+      ],
+      "exportedNames": [
+        "MFAMethod",
+        "MFAService",
+        "MFAServiceOptions",
+        "MFASetupResult",
+        "MFAVerificationResult",
+        "SMSProvider",
+        "mfaService"
+      ]
+    },
+    {
+      "file": "lib/services/notification-channels.ts",
+      "lines": 119,
+      "importerCount": 7,
+      "importers": [
+        "__tests__/admin/publication-channel-adapters.test.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/admin/publication-channel-adapters.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/services/notification-delivery.ts"
+      ],
+      "liveImporterCount": 5,
+      "liveImporters": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/services/notification-delivery.ts"
+      ],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "__tests__/admin/publication-channel-adapters.test.ts",
+        "lib/admin/publication-channel-adapters.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "NotificationChannelResult",
+        "sendEmailNotification",
+        "sendPushNotification",
+        "sendSMSNotification"
+      ]
+    },
+    {
+      "file": "lib/services/notification-delivery.ts",
+      "lines": 184,
+      "importerCount": 2,
+      "importers": [
+        "app/api/webhooks/supabase/notifications/route.ts",
+        "lib/services/optimized-notification-service.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/webhooks/supabase/notifications/route.ts",
+        "lib/services/optimized-notification-service.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "notification_delivery_log",
+        "notification_preferences",
+        "profiles"
+      ],
+      "exportedNames": [
+        "OutboundNotificationPayload",
+        "deliverNotificationOutbound",
+        "getUserContactForDelivery"
+      ]
+    },
+    {
+      "file": "lib/services/notification-service.ts",
+      "lines": 6,
+      "importerCount": 2,
+      "importers": [
+        "app/api/notifications/route.ts",
+        "app/api/notifications/test/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/notifications/route.ts",
+        "app/api/notifications/test/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [],
+      "exportedNames": []
+    },
+    {
+      "file": "lib/services/onboarding-template-resolver.service.ts",
+      "lines": 282,
+      "importerCount": 3,
+      "importers": [
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/lib/services/token-onboarding-payload.service.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/lib/services/token-onboarding-payload.service.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "staff_onboarding_templates"
+      ],
+      "exportedNames": [
+        "resolveOnboardingTemplate"
+      ]
+    },
+    {
+      "file": "lib/services/onboarding-templates.service.ts",
+      "lines": 808,
+      "importerCount": 2,
+      "importers": [
+        "components/admin/enhanced-onboarding-system.tsx",
+        "components/admin/onboarding-form-fields.tsx"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 2,
+      "deadImporters": [
+        "components/admin/enhanced-onboarding-system.tsx",
+        "components/admin/onboarding-form-fields.tsx"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "staff_onboarding_templates"
+      ],
+      "exportedNames": [
+        "OnboardingField",
+        "OnboardingTemplate",
+        "OnboardingTemplatesService"
+      ]
+    },
+    {
+      "file": "lib/services/optimized-notification-service.ts",
+      "lines": 917,
+      "importerCount": 27,
+      "importers": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/share/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/tasks/route.ts",
+        "app/api/admin/messages/broadcast/route.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "app/api/notifications/analytics/route.ts",
+        "app/api/notifications/preferences/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/skills/endorse/route.ts",
+        "app/api/social/follow/route.ts",
+        "lib/feed/post-collaborators.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/notifications/venue-fanout.ts",
+        "lib/rebuild/hiring-automation.ts",
+        "lib/rebuild/hiring-onboarding-changes-notify.ts",
+        "lib/rebuild/hiring-onboarding-notify.ts",
+        "lib/rebuild/hiring-roster-notify.ts",
+        "lib/rebuild/shift-assignment-notify.ts",
+        "lib/rebuild/workforce-activity-notify.ts",
+        "lib/services/achievement-engine.service.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "lib/services/notification-service.ts",
+        "lib/ticketing/notifications.ts"
+      ],
+      "liveImporterCount": 27,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/share/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/tasks/route.ts",
+        "app/api/admin/messages/broadcast/route.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "app/api/notifications/analytics/route.ts",
+        "app/api/notifications/preferences/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/skills/endorse/route.ts",
+        "app/api/social/follow/route.ts",
+        "lib/feed/post-collaborators.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/notifications/venue-fanout.ts",
+        "lib/rebuild/hiring-automation.ts",
+        "lib/rebuild/hiring-onboarding-changes-notify.ts",
+        "lib/rebuild/hiring-onboarding-notify.ts",
+        "lib/rebuild/hiring-roster-notify.ts",
+        "lib/rebuild/shift-assignment-notify.ts",
+        "lib/rebuild/workforce-activity-notify.ts",
+        "lib/services/achievement-engine.service.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "lib/services/notification-service.ts",
+        "lib/ticketing/notifications.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "cleanup_old_notifications",
+        "notification_delivery_log",
+        "notification_events",
+        "notification_preferences",
+        "notifications",
+        "profiles",
+        "should_send_notification"
+      ],
+      "exportedNames": [
+        "NotificationMetrics",
+        "NotificationPreferences",
+        "OptimizedNotification",
+        "OptimizedNotificationService",
+        "SocialNotificationHelpers"
+      ]
+    },
+    {
+      "file": "lib/services/organization-social-integrations.service.ts",
+      "lines": 69,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [
+        "organization_social_integrations"
+      ],
+      "exportedNames": [
+        "OrganizationSocialIntegrationsService"
+      ]
+    },
+    {
+      "file": "lib/services/project-workspace.service.ts",
+      "lines": 836,
+      "importerCount": 1,
+      "importers": [
+        "components/collaboration/project-workspace-dashboard.tsx"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "components/collaboration/project-workspace-dashboard.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "channel_participants",
+        "collaboration_invitations",
+        "collaboration_projects",
+        "communication_channels",
+        "project_activity",
+        "project_collaborators",
+        "project_files",
+        "project_tasks"
+      ],
+      "exportedNames": [
+        "CollaborationProject",
+        "CreateProjectData",
+        "CreateTaskData",
+        "InviteCollaboratorData",
+        "ProjectActivity",
+        "ProjectCollaborator",
+        "ProjectFile",
+        "ProjectTask",
+        "ProjectWorkspaceService"
+      ]
+    },
+    {
+      "file": "lib/services/rbac.service.ts",
+      "lines": 628,
+      "importerCount": 2,
+      "importers": [
+        "hooks/use-rbac.ts",
+        "lib/services/data-isolation.service.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "hooks/use-rbac.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "lib/services/data-isolation.service.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "has_entity_permission",
+        "organizer_accounts",
+        "rbac_permissions",
+        "rbac_role_permissions",
+        "rbac_roles",
+        "rbac_user_entity_roles"
+      ],
+      "exportedNames": [
+        "RBACService",
+        "checkPermission",
+        "rbacService",
+        "requirePermission",
+        "requirePermissionCheck"
+      ]
+    },
+    {
+      "file": "lib/services/rbac.ts",
+      "lines": 41,
+      "importerCount": 11,
+      "importers": [
+        "app/actions/staffing/create-job-posting.ts",
+        "app/api/admin/events/[id]/participants/route.ts",
+        "app/api/admin/logistics/items/route.ts",
+        "app/api/admin/staffing/performance/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/admin/staffing/shifts/route.ts",
+        "app/api/admin/staffing/zones/route.ts",
+        "app/api/events/[id]/job-postings/route.ts",
+        "lib/auth/hiring-permissions.ts",
+        "lib/services/capabilities.ts"
+      ],
+      "liveImporterCount": 11,
+      "liveImporters": [
+        "app/actions/staffing/create-job-posting.ts",
+        "app/api/admin/events/[id]/participants/route.ts",
+        "app/api/admin/logistics/items/route.ts",
+        "app/api/admin/staffing/performance/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/admin/staffing/shifts/route.ts",
+        "app/api/admin/staffing/zones/route.ts",
+        "app/api/events/[id]/job-postings/route.ts",
+        "lib/auth/hiring-permissions.ts",
+        "lib/services/capabilities.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "has_entity_permission"
+      ],
+      "exportedNames": [
+        "HasEntityPermissionArgs",
+        "hasEntityPermission"
+      ]
+    },
+    {
+      "file": "lib/services/resume-achievement.service.ts",
+      "lines": 156,
+      "importerCount": 2,
+      "importers": [
+        "app/api/achievements/resume/export/route.ts",
+        "app/api/achievements/resume/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/achievements/resume/export/route.ts",
+        "app/api/achievements/resume/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "resume_achievement_highlights",
+        "user_achievements",
+        "user_reward_wallets"
+      ],
+      "exportedNames": [
+        "ResumeAchievementsResponse",
+        "ResumeExportPayload",
+        "buildResumeExport",
+        "getResumeAchievements",
+        "upsertResumeHighlight"
+      ]
+    },
+    {
+      "file": "lib/services/sms-delivery.service.ts",
+      "lines": 64,
+      "importerCount": 1,
+      "importers": [
+        "lib/services/mfa.service.ts"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "lib/services/mfa.service.ts"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [],
+      "exportedNames": [
+        "SMSDeliveryService"
+      ]
+    },
+    {
+      "file": "lib/services/social-integrations.service.ts",
+      "lines": 93,
+      "importerCount": 3,
+      "importers": [
+        "components/artist/content-social-links-panel.tsx",
+        "components/social/social-integrations-manager.tsx",
+        "hooks/use-social-integrations.ts"
+      ],
+      "liveImporterCount": 3,
+      "liveImporters": [
+        "components/artist/content-social-links-panel.tsx",
+        "components/social/social-integrations-manager.tsx",
+        "hooks/use-social-integrations.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "artist_social_integrations"
+      ],
+      "exportedNames": [
+        "ProviderAuthUrlOptions",
+        "SocialIntegrationsService",
+        "socialIntegrationsService"
+      ]
+    },
+    {
+      "file": "lib/services/social-interactions.service.ts",
+      "lines": 389,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [
+        "profiles"
+      ],
+      "exportedNames": [
+        "InteractionResponse",
+        "SocialInteraction",
+        "socialInteractionsService"
+      ]
+    },
+    {
+      "file": "lib/services/staff-onboarding-sensitive-vault.service.ts",
+      "lines": 108,
+      "importerCount": 2,
+      "importers": [
+        "app/api/hiring/onboarding/sensitive/[candidateId]/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "app/api/hiring/onboarding/sensitive/[candidateId]/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "staff_onboarding_sensitive_vault"
+      ],
+      "exportedNames": [
+        "StaffOnboardingSensitiveVaultService"
+      ]
+    },
+    {
+      "file": "lib/services/staff-onboarding.service.ts",
+      "lines": 399,
+      "importerCount": 1,
+      "importers": [
+        "app/venue/staff/components/onboarding-wizard.tsx"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "app/venue/staff/components/onboarding-wizard.tsx"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "onboarding_templates",
+        "staff_members",
+        "staff_onboarding",
+        "staff_onboarding_candidates",
+        "venue_profiles",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "StaffOnboardingData",
+        "StaffOnboardingResult",
+        "StaffOnboardingService"
+      ]
+    },
+    {
+      "file": "lib/services/staff-shift-assignment-sync.ts",
+      "lines": 546,
+      "importerCount": 12,
+      "importers": [
+        "__tests__/hiring/staff-shift-assignment-sync.test.ts",
+        "app/api/admin/staff/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/venue/shifts/[id]/route.ts",
+        "app/api/venue/shifts/assignments/route.ts",
+        "app/api/work-mode/assignments/[id]/respond/route.ts",
+        "lib/admin/workforce-assignment.service.ts",
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/staffing-assignment.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "liveImporterCount": 11,
+      "liveImporters": [
+        "app/api/admin/staff/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/venue/shifts/[id]/route.ts",
+        "app/api/venue/shifts/assignments/route.ts",
+        "app/api/work-mode/assignments/[id]/respond/route.ts",
+        "lib/admin/workforce-assignment.service.ts",
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/staffing-assignment.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/staff-shift-assignment-sync.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "events",
+        "hiring_audit_events",
+        "notifications",
+        "profiles",
+        "staff_members",
+        "staff_shifts",
+        "tour_team_members"
+      ],
+      "exportedNames": [
+        "RespondToShiftAssignmentArgs",
+        "RespondToShiftAssignmentResult",
+        "StaffShiftRow",
+        "SyncShiftAssignmentOptions",
+        "SyncShiftAssignmentResult",
+        "cancelEmploymentAssignmentForShift",
+        "publishStaffShifts",
+        "respondToShiftAssignment",
+        "syncActiveStaffMemberShifts",
+        "syncEmploymentAssignmentForShift"
+      ]
+    },
+    {
+      "file": "lib/services/staffing-assignment.service.ts",
+      "lines": 275,
+      "importerCount": 9,
+      "importers": [
+        "__tests__/hiring/event-tour-staffing-repair.test.ts",
+        "app/api/admin/tours/team-members/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/events/[id]/staff/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "liveImporterCount": 8,
+      "liveImporters": [
+        "app/api/admin/tours/team-members/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/events/[id]/staff/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/event-tour-staffing-repair.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "staff_members",
+        "staff_shifts"
+      ],
+      "exportedNames": [
+        "EnsureOrgStaffMemberInput",
+        "StaffingErrorCode",
+        "StaffingFlowError",
+        "assertNoShiftConflict",
+        "assertOrgStaffMember",
+        "createEventStaffAssignment",
+        "ensureOrgStaffMember",
+        "staffingErrorStatus",
+        "syncTourEmploymentAssignment"
+      ]
+    },
+    {
+      "file": "lib/services/staffing-invitation.service.ts",
+      "lines": 407,
+      "importerCount": 4,
+      "importers": [
+        "__tests__/hiring/event-tour-staffing-repair.test.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts"
+      ],
+      "liveImporterCount": 3,
+      "liveImporters": [
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/event-tour-staffing-repair.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "staff_invitations",
+        "staff_onboarding_candidates",
+        "staff_onboarding_templates",
+        "staff_shifts",
+        "tour_team_members",
+        "tour_teams"
+      ],
+      "exportedNames": [
+        "StaffingInviteInput",
+        "acceptStaffingInvitation",
+        "createStaffingInvitation",
+        "staffingInvitationDestinationMatches"
+      ]
+    },
+    {
+      "file": "lib/services/ticketing.service.ts",
+      "lines": 495,
+      "importerCount": 1,
+      "importers": [
+        "components/ticketing/ticket-purchase-form.tsx"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "components/ticketing/ticket-purchase-form.tsx"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "messages",
+        "posts",
+        "ticket_notifications"
+      ],
+      "exportedNames": [
+        "TicketingService",
+        "ticketingService"
+      ]
+    },
+    {
+      "file": "lib/services/token-onboarding-payload.service.ts",
+      "lines": 278,
+      "importerCount": 4,
+      "importers": [
+        "app/api/onboarding/[token]/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/onboarding/validate-invitation/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/app/api/onboarding/[token]/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "liveImporters": [
+        "app/api/onboarding/[token]/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/onboarding/validate-invitation/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/app/api/onboarding/[token]/route.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "job_posting_templates",
+        "onboarding_responses",
+        "staff_invitations",
+        "staff_onboarding_candidates"
+      ],
+      "exportedNames": [
+        "buildTokenOnboardingPayload"
+      ]
+    },
+    {
+      "file": "lib/services/unified-onboarding.service.ts",
+      "lines": 421,
+      "importerCount": 7,
+      "importers": [
+        "__tests__/onboarding/onboarding-submit-contract.test.ts",
+        "__tests__/onboarding/unified-onboarding-api.test.ts",
+        "app/api/onboarding/_lib/flow-submit.ts",
+        "app/api/onboarding/unified/route.ts",
+        "components/admin/onboarding-management.tsx",
+        "components/onboarding/artist-venue-onboarding.tsx",
+        "lib/onboarding/persona-onboarding.ts"
+      ],
+      "liveImporterCount": 4,
+      "liveImporters": [
+        "app/api/onboarding/_lib/flow-submit.ts",
+        "app/api/onboarding/unified/route.ts",
+        "components/onboarding/artist-venue-onboarding.tsx",
+        "lib/onboarding/persona-onboarding.ts"
+      ],
+      "deadImporterCount": 3,
+      "deadImporters": [
+        "__tests__/onboarding/onboarding-submit-contract.test.ts",
+        "__tests__/onboarding/unified-onboarding-api.test.ts",
+        "components/admin/onboarding-management.tsx"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "onboarding_flows",
+        "onboarding_templates"
+      ],
+      "exportedNames": [
+        "CreateOnboardingFlowParams",
+        "OnboardingField",
+        "OnboardingFlow",
+        "OnboardingTemplate",
+        "UnifiedOnboardingService",
+        "UpdateOnboardingFlowParams"
+      ]
+    },
+    {
+      "file": "lib/services/venue-kit.service.ts",
+      "lines": 815,
+      "importerCount": 16,
+      "importers": [
+        "app/venue/kit/page.tsx",
+        "app/vk/[slug]/page.tsx",
+        "app/vk/[slug]/vk-public-page-client.tsx",
+        "components/venue-kit/amenities-section.tsx",
+        "components/venue-kit/contact-section.tsx",
+        "components/venue-kit/media-section.tsx",
+        "components/venue-kit/overview-section.tsx",
+        "components/venue-kit/press-section.tsx",
+        "components/venue-kit/shows-section.tsx",
+        "components/venue-kit/social-section.tsx",
+        "components/venue-kit/specs-section.tsx",
+        "components/venue-kit/vk-appearance-panel.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "components/venue-kit/vk-editor-tabs.tsx",
+        "components/venue-kit/vk-pdf-export.tsx",
+        "hooks/use-vk-sync.ts"
+      ],
+      "liveImporterCount": 16,
+      "liveImporters": [
+        "app/venue/kit/page.tsx",
+        "app/vk/[slug]/page.tsx",
+        "app/vk/[slug]/vk-public-page-client.tsx",
+        "components/venue-kit/amenities-section.tsx",
+        "components/venue-kit/contact-section.tsx",
+        "components/venue-kit/media-section.tsx",
+        "components/venue-kit/overview-section.tsx",
+        "components/venue-kit/press-section.tsx",
+        "components/venue-kit/shows-section.tsx",
+        "components/venue-kit/social-section.tsx",
+        "components/venue-kit/specs-section.tsx",
+        "components/venue-kit/vk-appearance-panel.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "components/venue-kit/vk-editor-tabs.tsx",
+        "components/venue-kit/vk-pdf-export.tsx",
+        "hooks/use-vk-sync.ts"
+      ],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": true,
+      "supabaseObjects": [
+        "venue_profiles"
+      ],
+      "exportedNames": [
+        "SaveVKFailure",
+        "SaveVKSuccess",
+        "VKData",
+        "VKSaveState",
+        "VK_DEFAULT_SECTION_ORDER",
+        "VkSaveError",
+        "VkSectionKey",
+        "buildDefaultVKData",
+        "createVkSlug",
+        "resolveVkSlugCandidate",
+        "venueKitService"
+      ]
+    },
+    {
+      "file": "lib/services/venue-roles-permissions.service.ts",
+      "lines": 660,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [
+        "create_default_venue_roles",
+        "get_user_permissions",
+        "log_permission_change",
+        "user_has_permission",
+        "venue_permission_audit_log",
+        "venue_permissions",
+        "venue_role_permissions",
+        "venue_roles",
+        "venue_user_permission_overrides",
+        "venue_user_roles"
+      ],
+      "exportedNames": [
+        "VenueRolesPermissionsService"
+      ]
+    },
+    {
+      "file": "lib/services/venue-scheduling.service.ts",
+      "lines": 1005,
+      "importerCount": 0,
+      "importers": [],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 0,
+      "deadImporters": [],
+      "selfLive": false,
+      "supabaseObjects": [
+        "venue_checkin_qr_codes",
+        "venue_recurring_shifts",
+        "venue_shift_assignments",
+        "venue_shift_checkins",
+        "venue_shift_notes",
+        "venue_shift_requests",
+        "venue_shift_swaps",
+        "venue_shift_templates",
+        "venue_shifts",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "VenueSchedulingService"
+      ]
+    },
+    {
+      "file": "lib/services/venue.service.ts",
+      "lines": 1016,
+      "importerCount": 18,
+      "importers": [
+        "__tests__/venue/venue-calendar-raw-read-boundary.test.ts",
+        "app/venue/actions/profile-actions.ts",
+        "app/venue/actions/team-actions.ts",
+        "app/venue/components/customer-relationship.tsx",
+        "app/venue/components/recurring-template-form.tsx",
+        "app/venue/context/profile-context.tsx",
+        "app/venue/dashboard/onboarding/page.tsx",
+        "app/venue/documents/page.tsx",
+        "app/venue/equipment/page.tsx",
+        "app/venue/events/[id]/page.tsx",
+        "app/venue/hooks/use-venue-calendar-data.ts",
+        "app/venue/hooks/useCurrentVenue.ts",
+        "app/venue/lib/hooks/use-venue-events.ts",
+        "app/venue/overview/page.tsx",
+        "components/account/account-route-guard.tsx",
+        "hooks/use-multi-account.tsx",
+        "hooks/use-venue.ts",
+        "lib/venue/__tests__/event-id-domain.test.ts"
+      ],
+      "liveImporterCount": 13,
+      "liveImporters": [
+        "app/venue/components/recurring-template-form.tsx",
+        "app/venue/context/profile-context.tsx",
+        "app/venue/dashboard/onboarding/page.tsx",
+        "app/venue/documents/page.tsx",
+        "app/venue/equipment/page.tsx",
+        "app/venue/events/[id]/page.tsx",
+        "app/venue/hooks/use-venue-calendar-data.ts",
+        "app/venue/hooks/useCurrentVenue.ts",
+        "app/venue/lib/hooks/use-venue-events.ts",
+        "app/venue/overview/page.tsx",
+        "components/account/account-route-guard.tsx",
+        "hooks/use-multi-account.tsx",
+        "hooks/use-venue.ts"
+      ],
+      "deadImporterCount": 5,
+      "deadImporters": [
+        "__tests__/venue/venue-calendar-raw-read-boundary.test.ts",
+        "app/venue/actions/profile-actions.ts",
+        "app/venue/actions/team-actions.ts",
+        "app/venue/components/customer-relationship.tsx",
+        "lib/venue/__tests__/event-id-domain.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "events",
+        "events_v2",
+        "generate_slots_for_template",
+        "get_venue_dashboard_stats",
+        "respond_to_booking_request",
+        "venue_analytics",
+        "venue_booking_requests",
+        "venue_booking_slots",
+        "venue_documents",
+        "venue_equipment",
+        "venue_profiles",
+        "venue_recurring_templates",
+        "venue_reviews",
+        "venue_team_members"
+      ],
+      "exportedNames": [
+        "venueService"
+      ]
+    },
+    {
+      "file": "lib/services/verification.service.ts",
+      "lines": 535,
+      "importerCount": 1,
+      "importers": [
+        "components/verification/account-verification.tsx"
+      ],
+      "liveImporterCount": 0,
+      "liveImporters": [],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "components/verification/account-verification.tsx"
+      ],
+      "selfLive": false,
+      "supabaseObjects": [
+        "accounts",
+        "calculate_verification_score",
+        "get_verification_status",
+        "staff_documents",
+        "submit_verification_request",
+        "verification_badges",
+        "verification_criteria",
+        "verification_documents",
+        "verification_history",
+        "verification_requests"
+      ],
+      "exportedNames": [
+        "VerificationBadge",
+        "VerificationCriteria",
+        "VerificationDocument",
+        "VerificationRequest",
+        "VerificationService",
+        "VerificationStatus",
+        "verificationService"
+      ]
+    },
+    {
+      "file": "lib/services/worker-onboarding-profile.service.ts",
+      "lines": 231,
+      "importerCount": 3,
+      "importers": [
+        "__tests__/hiring/worker-onboarding-profile-reuse.test.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "liveImporterCount": 2,
+      "liveImporters": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/worker-onboarding-profile-reuse.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "worker_onboarding_profiles"
+      ],
+      "exportedNames": [
+        "PrefillSource",
+        "WorkerOnboardingProfileService"
+      ]
+    },
+    {
+      "file": "lib/services/worker-ops.service.ts",
+      "lines": 181,
+      "importerCount": 2,
+      "importers": [
+        "__tests__/hiring/worker-ops.service.test.ts",
+        "app/api/staff/ops/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "liveImporters": [
+        "app/api/staff/ops/route.ts"
+      ],
+      "deadImporterCount": 1,
+      "deadImporters": [
+        "__tests__/hiring/worker-ops.service.test.ts"
+      ],
+      "selfLive": true,
+      "supabaseObjects": [
+        "employment_assignments",
+        "lodging_guest_assignments",
+        "staff_members",
+        "staff_shifts",
+        "tasks",
+        "travel_group_members"
+      ],
+      "exportedNames": [
+        "WorkerOpsAssignment",
+        "WorkerOpsDashboard",
+        "WorkerOpsLodging",
+        "WorkerOpsShift",
+        "WorkerOpsTask",
+        "WorkerOpsTravel",
+        "getWorkerOpsDashboard"
+      ]
+    }
+  ]
+}

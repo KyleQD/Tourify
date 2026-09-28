@@ -1,0 +1,585 @@
+{
+  "project": "Tourify Event Discovery and Tour Integrations",
+  "version": 1,
+  "updated_at": "2026-08-04T19:28:00Z",
+  "allowed_statuses": [
+    "not_started",
+    "in_progress",
+    "blocked",
+    "complete",
+    "verified",
+    "deferred"
+  ],
+  "summary": {
+    "total": 38,
+    "verified": 0,
+    "complete": 0,
+    "blocked": 0,
+    "in_progress": 0,
+    "not_started": 38,
+    "deferred": 0
+  },
+  "tasks": [
+    {
+      "id": "EVT-000",
+      "phase": 0,
+      "title": "Create implementation branch",
+      "status": "not_started",
+      "dependencies": [],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-001",
+      "phase": 0,
+      "title": "Audit event database schema",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-000"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-002",
+      "phase": 0,
+      "title": "Audit public and account event routes",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-000"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-003",
+      "phase": 0,
+      "title": "Audit event UI, filters and location handling",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-000"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-004",
+      "phase": 0,
+      "title": "Audit RLS and account authorization",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-001"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-005",
+      "phase": 0,
+      "title": "Audit cron, jobs, caching and observability",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-000"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-006",
+      "phase": 0,
+      "title": "Create revised architecture and file target map",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-001",
+        "EVT-002",
+        "EVT-003",
+        "EVT-004",
+        "EVT-005"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-007",
+      "phase": 0,
+      "title": "Record baseline lint, test and build results",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-000"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-100",
+      "phase": 1,
+      "title": "Implement provider registry and adapter contract",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-006"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-101",
+      "phase": 1,
+      "title": "Implement normalized external event runtime schema",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-100"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-102",
+      "phase": 1,
+      "title": "Create additive external source and ticket offer schema",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-006"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-103",
+      "phase": 1,
+      "title": "Create provider connection and sync tracking schema",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-006"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-104",
+      "phase": 1,
+      "title": "Implement feature flags and server-only configuration validation",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-100"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-105",
+      "phase": 1,
+      "title": "Implement and verify RLS for new tables",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-102",
+        "EVT-103"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-200",
+      "phase": 2,
+      "title": "Enable and verify PostGIS in approved schema",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-006"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-201",
+      "phase": 2,
+      "title": "Create event discovery index",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-200",
+        "EVT-102"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-202",
+      "phase": 2,
+      "title": "Backfill native events idempotently",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-201"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-203",
+      "phase": 2,
+      "title": "Implement nearby search with stable cursor",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-201"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-204",
+      "phase": 2,
+      "title": "Implement date, timezone and filter parsing",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-203"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-205",
+      "phase": 2,
+      "title": "Verify query plans and native parity",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-202",
+        "EVT-203",
+        "EVT-204"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-300",
+      "phase": 3,
+      "title": "Build event discovery page and URL state",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-205"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-301",
+      "phase": 3,
+      "title": "Build location permission and manual location flows",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-300"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-302",
+      "phase": 3,
+      "title": "Build filters, sorts, cards and empty states",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-300"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-303",
+      "phase": 3,
+      "title": "Integrate canonical event detail view",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-300"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-304",
+      "phase": 3,
+      "title": "Verify accessibility and responsive behavior",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-301",
+        "EVT-302",
+        "EVT-303"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-400",
+      "phase": 4,
+      "title": "Implement Ticketmaster client and adapter",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-101",
+        "EVT-104"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-401",
+      "phase": 4,
+      "title": "Implement provider throttling and quota accounting",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-400"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-402",
+      "phase": 4,
+      "title": "Implement Ticketmaster normalization and source upsert",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-400",
+        "EVT-102"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-403",
+      "phase": 4,
+      "title": "Implement limited-market and demand-driven sync",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-401",
+        "EVT-402"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-404",
+      "phase": 4,
+      "title": "Implement provider health and disable controls",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-403"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-500",
+      "phase": 5,
+      "title": "Implement deterministic matching and merge candidates",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-402"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-501",
+      "phase": 5,
+      "title": "Implement transactional merge and redirects",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-500"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-502",
+      "phase": 5,
+      "title": "Implement source conflict handling",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-500"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-600",
+      "phase": 6,
+      "title": "Implement event claim workflow",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-105",
+        "EVT-303"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-601",
+      "phase": 6,
+      "title": "Implement Tourify enrichment preservation",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-600"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-602",
+      "phase": 6,
+      "title": "Implement event-to-tour association",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-600"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-700",
+      "phase": 7,
+      "title": "Implement permission-safe Bandsintown connection and adapter",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-101",
+        "EVT-104"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-701",
+      "phase": 7,
+      "title": "Implement scoped artist event sync and tour matching",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-700",
+        "EVT-602"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    },
+    {
+      "id": "EVT-800",
+      "phase": 8,
+      "title": "Implement production jobs, retries, logs, metrics and runbook",
+      "status": "not_started",
+      "dependencies": [
+        "EVT-403",
+        "EVT-701"
+      ],
+      "files": [],
+      "evidence": [],
+      "tests": [],
+      "blockers": [],
+      "notes": ""
+    }
+  ]
+}

@@ -14,6 +14,11 @@ import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 import { getAccountAuthor, getAccountAuthorPath } from '@/lib/accounts/account-author'
 import Link from 'next/link'
+import { PostAppearanceBoundary } from '@/components/posts/appearance/post-appearance-boundary'
+import { usePostStyleFlags } from '@/hooks/use-post-style-flags'
+import type { RawPostAppearanceRow } from '@/lib/feed/resolve-post-appearance-dto'
+import { setPostLike, sharePostExternally } from '@/lib/feed/post-engagement-client'
+import { toast } from 'sonner'
 
 interface Post {
   id: string
@@ -38,6 +43,8 @@ interface Post {
     is_verified: boolean
   } | null
   is_liked: boolean
+  appearance?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
+  post_appearances?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
 }
 
 function getProfileUrl(post: Pick<Post, 'profiles' | 'posted_as_profile_id' | 'posted_as_type' | 'account_username' | 'account_display_name'>) {
@@ -53,6 +60,7 @@ export function SimpleFeed() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const { flags: postStyleFlags } = usePostStyleFlags()
   
   
 
@@ -67,6 +75,14 @@ export function SimpleFeed() {
             full_name,
             avatar_url,
             is_verified
+          ),
+          post_appearances (
+            template_id,
+            template_version,
+            schema_version,
+            snapshot,
+            snapshot_hash,
+            status
           )
         `)
         .eq('visibility', 'public')
@@ -114,20 +130,12 @@ export function SimpleFeed() {
           : post
       ))
 
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ action })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle like')
-      }
-
-      console.log('✅ Successfully toggled like')
+      const result = await setPostLike(postId, action)
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, is_liked: result.is_liked, likes_count: result.likes_count }
+          : post
+      ))
     } catch (error) {
       // Revert on error
       setPosts(prev => prev.map(post => 
@@ -140,6 +148,19 @@ export function SimpleFeed() {
           : post
       ))
       console.error('Error toggling like:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update like')
+    }
+  }
+
+  const handleShare = async (postId: string) => {
+    try {
+      const result = await sharePostExternally(postId)
+      setPosts(prev => prev.map(post =>
+        post.id === postId ? { ...post, shares_count: result.shares_count } : post
+      ))
+      toast.success('Post shared')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to share post')
     }
   }
 
@@ -245,9 +266,15 @@ export function SimpleFeed() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
+                <PostAppearanceBoundary
+                  postId={post.id}
+                  appearance={post.post_appearances ?? post.appearance}
+                  enabled={postStyleFlags.post_styles_read}
+                  surface="feed"
+                >
                 <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
                   <CardHeader className="pb-3">
-                    <div className="flex items-start gap-3">
+                    <div data-post-region="header" className="flex items-start gap-3">
                       <Link href={getProfileUrl(post)} className="flex-shrink-0">
                         <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                           <AvatarImage src={post.profiles?.avatar_url || ''} />
@@ -292,7 +319,7 @@ export function SimpleFeed() {
 
                   <CardContent className="pt-0">
                     {/* Content */}
-                    <div className="mb-4">
+                    <div data-post-region="body" className="mb-4">
                       <p className="text-slate-200 leading-relaxed whitespace-pre-wrap">
                         {post.content}
                       </p>
@@ -300,7 +327,7 @@ export function SimpleFeed() {
 
                     {/* Hashtags */}
                     {post.hashtags && post.hashtags.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-4">
+                      <div data-post-region="tags" className="flex flex-wrap gap-2 mb-4">
                         {post.hashtags.map((hashtag) => (
                           <Badge
                             key={hashtag}
@@ -316,7 +343,7 @@ export function SimpleFeed() {
                     <Separator className="my-4 bg-slate-700/50" />
 
                     {/* Engagement Stats */}
-                    <div className="flex items-center gap-4 text-sm text-slate-400 mb-3">
+                    <div data-post-region="metadata" className="flex items-center gap-4 text-sm text-slate-400 mb-3">
                       {post.likes_count > 0 && (
                         <span>{post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}</span>
                       )}
@@ -329,7 +356,7 @@ export function SimpleFeed() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-1">
+                    <div data-post-region="actions" className="flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -344,6 +371,7 @@ export function SimpleFeed() {
                         variant="ghost"
                         size="sm"
                         className="text-slate-400 hover:text-blue-400"
+                        onClick={() => window.location.assign(`/posts/${post.id}`)}
                       >
                         <MessageCircle className="h-5 w-5 mr-2" />
                         Comment
@@ -353,6 +381,7 @@ export function SimpleFeed() {
                         variant="ghost"
                         size="sm"
                         className="text-slate-400 hover:text-green-400"
+                        onClick={() => handleShare(post.id)}
                       >
                         <Share2 className="h-5 w-5 mr-2" />
                         Share
@@ -360,6 +389,7 @@ export function SimpleFeed() {
                     </div>
                   </CardContent>
                 </Card>
+                </PostAppearanceBoundary>
               </motion.div>
             ))}
           </div>
@@ -367,4 +397,4 @@ export function SimpleFeed() {
       </AnimatePresence>
     </div>
   )
-} 
+}

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728212330_artist_profile_design_drafts.sql",
+  "taskId": "ARTIST-PROFILE-STUDIO",
+  "status": "planned",
+  "owner": "artist-experience",
+  "reviewer": "security-data",
+  "domains": ["artist-profile", "appearance", "privacy"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with artist owner and unrelated authenticated personas",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm public.artist_profiles exists and its id and user_id columns use uuid",
+      "Count artist profiles and inspect existing public_profile_design values",
+      "Record grants and RLS policies on public.artist_profiles"
+    ],
+    "expectedAffectedRows": "No existing rows are updated; one empty owner-only draft table, one index, one trigger, and four policies are added",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "The migration is additive and rerunnable; guarded table and index creation converge the schema",
+    "resumeCursor": "not applicable; no backfill",
+    "idempotency": "Table and index use IF NOT EXISTS; the trigger and policies are dropped and recreated deterministically"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No legacy profile appearance is copied or inferred by the migration"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "one draft per artist profile",
+      "draft owner must reference auth.users",
+      "draft payload must be a JSON object"
+    ],
+    "indexes": [
+      "artist_profile_design_drafts_owner_user_id_idx"
+    ],
+    "validationPlan": "Verify owner CRUD succeeds, anonymous access is denied, and unrelated authenticated users cannot read or mutate another artist's draft"
+  },
+  "recovery": {
+    "rollback": "Disable Profile Studio draft actions and leave the additive private table in place",
+    "forwardFix": "Apply a reviewed additive policy, constraint, or indexing migration"
+  },
+  "postflight": {
+    "queries": [
+      "Verify RLS is enabled on public.artist_profile_design_drafts",
+      "Verify anon has no table grants and authenticated has only CRUD grants",
+      "Verify four owner policies exist",
+      "Verify artist owner CRUD succeeds and cross-owner access returns no rows"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

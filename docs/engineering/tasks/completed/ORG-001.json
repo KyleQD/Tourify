@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "id": "ORG-001",
+  "title": "Audit Organization workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "organization",
+  "created_at": "2026-09-09T06:17:40.309Z",
+  "updated_at": "2026-09-09T07:54:12.191Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Organization area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: organization identity, membership, tours, collaboration, and tenant context",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/organization/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The organization default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/organization/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/organization/BASELINE.md: what the organization area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/organization/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task ORG-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/organization/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/organization/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/organization/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "agents:validate 2026-09-09: 17 agents, 21 tasks validated, 0 errors, 8 pre-existing SHA warnings (WARN project-map/routes/api-routes/components/database-schema/database-objects/permissions/integrations from different SHA)"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T07:54:12.191Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Org workspace audit done: produced BASELINE.md, GAPS.md (15 gaps triaged missing/incomplete/improve), QUESTIONS.md; updated STATE.md and BACKLOG.md. Top 5 owner questions: (1) canonical identity model (organizations vs organizer_accounts ops_org_id bridge) - build/fix/drop; (2) membership lifecycle ownership (org domain vs admin RBAC) + finish WS-0.2 atomic accept RPC + revocation; (3) legacy /api/tours GET/POST retirement (WS-2.3) after confirming zero live clients; (4) fix acting-context headers on org hub panels (wrong-org risk); (5) public DTO manage-check parity for tour collaborators. Key gaps: lib/organization/** phantom path; org invite accept non-atomic + plaintext token (WS-0.2); admin org panels GET-only; withOrgCommand (SEC-103) only 5 call sites; tours RLS stacked generations need reconciliation (WS-1.1). No production code or migration changed (read-only audit).",
+    "completed": [
+      "BASELINE.md produced (paths, evidence, intended direction)",
+      "GAPS.md produced (15 items triaged: missing/incomplete/improve, each with evidence + location)",
+      "QUESTIONS.md produced (P1-P3 + drop candidates + first-five list)",
+      "STATE.md updated to reviewed; BACKLOG.md populated with candidates",
+      "Working-set discrepancy found: lib/organization/** absent; real paths recorded (path + reason)"
+    ],
+    "next_steps": [
+      "Owner answers QUESTIONS.md P1 items: identity model, membership lifecycle scope, capability-mapping contract",
+      "Convert answered gaps into bounded task records (WS-0.2 atomic org invite accept first)"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T07:54:12.191Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Org workspace audit done: produced BASELINE.md, GAPS.md (15 gaps triaged missing/incomplete/improve), QUESTIONS.md; updated STATE.md and BACKLOG.md. Top 5 owner questions: (1) canonical identity model (organizations vs organizer_accounts ops_org_id bridge) - build/fix/drop; (2) membership lifecycle ownership (org domain vs admin RBAC) + finish WS-0.2 atomic accept RPC + revocation; (3) legacy /api/tours GET/POST retirement (WS-2.3) after confirming zero live clients; (4) fix acting-context headers on org hub panels (wrong-org risk); (5) public DTO manage-check parity for tour collaborators. Key gaps: lib/organization/** phantom path; org invite accept non-atomic + plaintext token (WS-0.2); admin org panels GET-only; withOrgCommand (SEC-103) only 5 call sites; tours RLS stacked generations need reconciliation (WS-1.1). No production code or migration changed (read-only audit).",
+        "completed": [
+          "BASELINE.md produced (paths, evidence, intended direction)",
+          "GAPS.md produced (15 items triaged: missing/incomplete/improve, each with evidence + location)",
+          "QUESTIONS.md produced (P1-P3 + drop candidates + first-five list)",
+          "STATE.md updated to reviewed; BACKLOG.md populated with candidates",
+          "Working-set discrepancy found: lib/organization/** absent; real paths recorded (path + reason)"
+        ],
+        "next_steps": [
+          "Owner answers QUESTIONS.md P1 items: identity model, membership lifecycle scope, capability-mapping contract",
+          "Convert answered gaps into bounded task records (WS-0.2 atomic org invite accept first)"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

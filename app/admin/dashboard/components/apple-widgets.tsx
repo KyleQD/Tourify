@@ -65,13 +65,13 @@ export function ToursWidget({ tours, stats, isLoading }: { tours: any[]; stats?:
         <Progress value={progress} className="h-2 bg-white/10" />
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <Link href="/admin/dashboard/tours">
           <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
             Open <ArrowRight className="h-3.5 w-3.5 ml-2" />
           </Button>
         </Link>
-        <div className="flex items-center gap-3 text-xs text-slate-300">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
           <Metric label="Total shows" value={totalShows} />
           <SeparatorDot />
           <Metric label="Completion" value={`${progress}%`} />
@@ -107,7 +107,7 @@ export function EventsWidget({ events, stats, isLoading }: { events: any[]; stat
         <Badge className="bg-white/10 text-slate-100 border-white/10">{events?.length ?? 0} total</Badge>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
         <MiniStat label="Tickets" value={formatCompact(ticketsSold)} icon={<Ticket className="h-3.5 w-3.5 text-slate-200" />} />
         <MiniStat label="Capacity" value={formatCompact(capacity)} />
         <MiniStat label="Utilization" value={`${utilization}%`} />
@@ -123,7 +123,7 @@ export function EventsWidget({ events, stats, isLoading }: { events: any[]; stat
         <div className="absolute top-1 left-2 text-[10px] text-slate-300/80">next 7 days</div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <Link href="/admin/dashboard/events">
           <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10">
             Open <ArrowRight className="h-3.5 w-3.5 ml-2" />
@@ -148,9 +148,9 @@ function FrostedCard({ children }: { children: React.ReactNode }) {
 
 function MiniStat({ label, value, icon }: { label: string; value: string | number; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 flex items-center justify-between">
-      <div className="text-[11px] text-slate-300">{label}</div>
-      <div className="flex items-center gap-1">
+    <div className="flex min-w-0 flex-col items-start gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-2 sm:px-3">
+      <div className="text-[11px] leading-tight text-slate-300">{label}</div>
+      <div className="flex min-w-0 items-center gap-1">
         {icon}
         <div className="text-sm font-medium text-slate-100 tabular-nums">{value}</div>
       </div>
@@ -206,5 +206,4 @@ function formatCompact(n?: number) {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
   return String(n)
 }
-
 

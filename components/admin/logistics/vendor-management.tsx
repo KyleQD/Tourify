@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +39,7 @@ import {
 } from "lucide-react"
 import { GlampingTent, SiteMapZone } from "@/types/site-map"
 import { useToast } from "@/hooks/use-toast"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 
 interface VendorManagementProps {
   siteMapId: string
@@ -83,6 +84,7 @@ export function VendorManagement({
   tourId 
 }: VendorManagementProps) {
   const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [tents, setTents] = useState<GlampingTent[]>([])
   const [zones, setZones] = useState<SiteMapZone[]>([])
@@ -123,17 +125,13 @@ export function VendorManagement({
     specialRequirements: ''
   })
 
-  useEffect(() => {
-    loadData()
-  }, [siteMapId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
       // Load site map data
-      const [siteMapResponse, vendorsResponse] = await Promise.all([
-        fetch(`/api/admin/logistics/site-maps/${siteMapId}`),
-        fetch('/api/admin/logistics/vendors') // This would need to be implemented
+      const [siteMapResponse] = await Promise.all([
+        adminFetch(`/api/admin/logistics/site-maps/${siteMapId}`),
+        adminFetch('/api/admin/logistics/vendors'), // This would need to be implemented
       ])
 
       const siteMapData = await siteMapResponse.json()
@@ -214,7 +212,17 @@ export function VendorManagement({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [adminFetch, siteMapId, toast])
+
+  useEffect(() => {
+    if (!isAdminReady) {
+      setTents([])
+      setZones([])
+      setIsLoading(false)
+      return
+    }
+    void loadData()
+  }, [actingContextKey, isAdminReady, loadData])
 
   const createVendor = async () => {
     try {
@@ -253,7 +261,7 @@ export function VendorManagement({
 
   const createTent = async () => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tentForm)
@@ -298,7 +306,7 @@ export function VendorManagement({
 
   const updateTentStatus = async (tentId: string, status: GlampingTent['status']) => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })

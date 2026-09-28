@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 import { enqueueMusicPreviewJob } from "@/lib/music/preview-jobs"
 
 export const dynamic = "force-dynamic"
@@ -11,7 +12,7 @@ const previewJobSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
 

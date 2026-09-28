@@ -1,0 +1,568 @@
+{
+  "schema_version": "1.0",
+  "id": "ORCH-001",
+  "title": "Audit Orchestrator workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "orchestrator",
+  "created_at": "2026-09-09T06:17:39.267Z",
+  "updated_at": "2026-09-20T19:57:36.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (758 entries; production-readiness audit 2026-09-16)",
+  "goal": "Audit the Orchestrator area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: the engineering control plane itself: domain registry, task/handoff/exec-plan model, generated maps currency, agent identities, and the cross-domain dependency graph (DOCS/engineering)",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/orchestrator/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The orchestrator default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/orchestrator/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/orchestrator/BASELINE.md: what the orchestrator area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/orchestrator/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task ORCH-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/orchestrator/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/orchestrator/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/orchestrator/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:context -- --task ORCH-001",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Original audit artifacts exist at docs/engineering/agents/orchestrator/BASELINE.md, GAPS.md, and QUESTIONS.md; each retains the 2026-09-09 findings and now records the final 2026-09-20 disposition.",
+      "npm run agents:context -- --task ORCH-001 completed at ea5c36a3b468afb82d83809746d01ad479d38541 and produced a bounded 14-of-46-file packet; SHA drift was explicitly reported rather than hidden.",
+      "npm run agents:validate passed before completion: 17 agents, 113 tasks, 8 generated-map SHA-drift warnings, 0 errors. Shared generated maps and TASK_INDEX.json were intentionally not rewritten in this bounded closeout.",
+      "Closeout edits are limited to docs/engineering/agents/orchestrator/ and the ORCH-001 task record; no production code or migration file was changed.",
+      "Owner questions are resolved, routed to ORCH-002, or explicitly classified as non-blocking historical cleanup in QUESTIONS.md and the final checkpoint."
+    ],
+    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+    "last_run_at": "2026-09-20T19:57:36Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "ORCH-001 is complete. The original baseline, triaged gap inventory, and prioritized owner questions are preserved with closeout dispositions; state and backlog are reconciled; bounded context and zero-error control-plane validation were rerun; current workspace and launch orchestration remain in ORCH-002.",
+    "completed": [
+      "authored docs/engineering/agents/orchestrator/BASELINE.md from working set and references",
+      "authored docs/engineering/agents/orchestrator/GAPS.md (8 missing, 7 incomplete, 6 improve)",
+      "authored docs/engineering/agents/orchestrator/QUESTIONS.md (4 P1, 6 P2)",
+      "updated docs/engineering/agents/orchestrator/STATE.md",
+      "updated docs/engineering/agents/orchestrator/BACKLOG.md",
+      "created docs/engineering/exec-plans/active/LOCAL-READINESS-20260909.md",
+      "dispatched parallel local-readiness blocker lanes after initial model-capacity failure",
+      "confirmed all INTG/MUSIC webhook+cron hardening completed (INTG-002/004/005, MUSIC-002)",
+      "confirmed admin/org/ticketing guard+auth contracts passed focused gates (ADMIN-002/003, TICKET-003/004; ORG-003 partial-pending live RLS)",
+      "confirmed DISC-002 search consolidation + WORK-002 persona matrix verified with handoffs",
+      "recorded owner-directed CP-051 (manual migrations, no DB reset) in DECISIONS.md, INDEX.md, and the exec plan",
+      "wave-1 dispatch: artist lane (home-feed analytics + discover music-card username routing, 15 tests green) and general-user lane (onboarding create-account artist_profiles.url_slug, 22 tests green) both completed",
+      "reconciled evidence-complete tasks into completed records",
+      "normalized RELEASE-001 verification result to canonical pass",
+      "added docs/DEPLOYMENT_ROUTINE.md",
+      "gated E2E behind Vitest and matching-SHA deployment checks",
+      "replaced automatic production migration apply with explicit CP-051 stop gate",
+      "dispatched bounded database, ticketing, integrations, music, social, and design-system owner lanes",
+      "dispatched second bounded owner batch without overlap",
+      "dispatched third bounded owner batch",
+      "dispatched fourth bounded owner batch",
+      "accepted batch 3/4 design audit results and reconciled DESIGN-005/006/007/008/009/010/022/027 to completed",
+      "accepted DESIGN-011..015 audits and reconciled all five to completed",
+      "accepted DESIGN-016..020 audits and reconciled all five to completed",
+      "accepted DESIGN-021/023/024/025/026 audits and reconciled all five to completed",
+      "updated design-system STATE.md with separator divergence, stale register rows, and DESIGN-005..027 completion",
+      "accepted ADMIN-003 zone registry-sync slice (legacy 98/98 exact, 96 focused tests)",
+      "dispatched and accepted DESIGN-029 venue-ui twin retirement (24 twins deleted under CP-037, register updated)",
+      "moved DESIGN-004 to completed and cleared the VENUE-002 dependency (kept blocked per policy)",
+      "explored ACTIVE/PARTIAL lanes for re-dispatch; toured DESIGN-030/031 creation",
+      "ADMIN-003 admin lane migration",
+      "DESIGN-030 stage-1 token inventory",
+      "DESIGN-031 use-mobile copies reconciled",
+      "accepted ADMIN-003 RBAC verify + bulk-assign migration",
+      "accepted DESIGN-030 Phase 2 token registry + gated radius",
+      "accepted exhaustive ADMIN-003 legacy sweep (no unwarranted flips)",
+      "accepted DESIGN-030 Phase 3 ThemeProvider consolidation",
+      "completed DESIGN-032 sidebar/chart token gap",
+      "accepted DESIGN-030 Phase 4 scope decisions + C-03 gate finalization",
+      "accepted ADMIN-003 review-only observations + precondition handoff notes",
+      "accepted DESIGN-030 Phase 5 dead-root + neon retirement",
+      "accepted HF-DESIGN-030-ADMIN retirement decision",
+      "completed DESIGN-030 token authority migration",
+      "verified all eight original ORCH-001 acceptance criteria and recorded closeout evidence",
+      "surfaced final dispositions for P1 Q1-Q4 and P2 Q5-Q10 in QUESTIONS.md and the final checkpoint",
+      "reconciled orchestrator STATE.md and BACKLOG.md to make ORCH-002 the active control task",
+      "reran bounded context and agents:validate with 17 agents, 113 tasks, and 0 errors"
+    ],
+    "next_steps": [
+      "Continue workspace curation, dependency truth, and hosted launch-gate coordination only through ORCH-002 and the owning domain tasks.",
+      "Reconcile shared generated maps and TASK_INDEX.json outside this bounded closeout; ORCH-001 deliberately did not rewrite them."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09",
+        "summary": "ORCH-001 audit deliverables written. Expanded scope to docs/engineering/exec-plans and handoffs directories (referenced in INDEX.md) during gap analysis.",
+        "next": "Dispatch DB-001 and surface-domain agents."
+      },
+      {
+        "at": "2026-09-09T19:52:32Z",
+        "summary": "Started LOCAL-READINESS-20260909 execution plan per owner direction: local target, Supabase source of truth, launch blockers only. Initial inherited-model subagents failed capacity; closed them and relaunched database, integrations/music, admin/org/ticketing, work/discover, release/local-parity, and QA lanes on a lighter model.",
+        "next": "Wait for lane outputs, then integrate, refresh maps, validate control plane, and run local readiness gates."
+      },
+      {
+        "at": "2026-09-09T20:20:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Reviewed all lane records (927 lines read). Control plane validates 0 errors. Docker Desktop started; background `supabase start` auto-replay failed mid-chain on 20260415210006_signup_profile_and_email_confirmation.sql (pg_read_file denied) and stopped containers — no reset performed. Owner directed: all SQL migrations applied manually, never reset the DB. Recorded CP-051 in DECISIONS.md, INDEX.md operating constraints, exec plan, and orchestrator state. Ground-truthed 8 vitest failures in 6 files. Wave-1 completed: artist + general-user lanes landed their QA-002 contracts green; DB lane cancelled pre-execution.",
+        "next": "Re-dispatch DB lane under CP-051 manual-migration constraints, then work/logistics zones bridge, ORG-003 live RLS probe, QA-002 rerun, release smokes."
+      },
+      {
+        "at": "2026-09-09T21:10:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Wave-2/3 lanes landed under CP-051. DB-003/DB-004: manual Docker bring-up, 281/281 applied, 418 tables reconciled, types regenerated without drift; pg_read_file root-caused (postgres not superuser; pgcrypto trusted, line is no-op). DB-007: restored post-styles/post-appearances family + account_follows from archive, applied manually to 287/287, premiere V3 real DDL applied, 17/17 post-styles tests green, types updated. ARTIST lane: home-feed analytics + discover music-card username routing (15 tests green). USER lane: onboarding create-account artist_profiles.url_slug (22 tests green). WORK-003: zones POST/event-zone bridge restored (3/3 green). ADMIN: stale role:'admin' grant test corrected to CP-043 contract (16/16 green). ORG-003 live probe: 8 of 9 checks pass; CRITICAL finding — accept_org_invite RLS circular condition blocks first-time recipients (ON CONFLICT (org_id,user_id) arbiter forces members_select against the inserted row); evidence recorded, follow-up ORG-004 needed (additive RPC fix). Full-suite rerun in progress to confirm zero failures.",
+        "next": "Confirm full-suite green; dispatch QA-002 rerun/completion and ORG-004 accept_org_invite additive fix; then release runtime smokes (healthz/cron/429) and final agents:generate/validate."
+      },
+      {
+        "at": "2026-09-09T21:30:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "LOCAL-READINESS blocker wave COMPLETE. Full Vitest suite green (4891 passed, 0 failed, 512 files; QA-002 closed and moved to completed with independent rerun + control-plane evidence). ORG-004 landed: additive migration 20260910000000_fix_accept_org_invite_first_recipient_rls.sql applied manually (288/288), P1-P9 probes all pass; ORG-003 and ORG-004 moved to completed. ORG-005 queued (P2, owner-decision: security-definer helper vs new-member visibility policy — flagged by ORG-004). Release lanes retain documented local-safe posture; runtime smokes (healthz/cron/429, Supabase-backed search) remain local-env-dependent handoffs. Final agents:generate refreshed topology; agents:validate: 17 agents, 67 tasks, 0 errors (pre-existing RELEASE-001 warning only).",
+        "next": "ORCH-001 audit deliverables complete; local-readiness orchestration milestones recorded. Remaining: user-driven release runtime smokes (needs local app + configured Redis), ORG-005 owner decision, DECISIONS.md duplicate CP-002 label renumbering, demo/prod promotion out of scope."
+      },
+      {
+        "at": "2026-09-10T06:05:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Closed HF-ORG-005 and moved ORG-005, DB-003, and DB-004 to completed after confirming passing verification evidence. Refreshed generated topology maps; agents:validate reports 0 errors and 1 pre-existing RELEASE-001 warning.",
+        "next": "Do not dispatch release or QA until NEXT_PUBLIC_SITE_URL, ENCRYPTION_KEY, INTERNAL_API_SECRET, CRON_SECRET, and Upstash-compatible Redis credentials are provisioned. Then run release smokes, QA regression, and final topology validation."
+      },
+      {
+        "at": "2026-09-10T06:15:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Rechecked control-plane state: ORG-005, DB-003, and DB-004 are completed; no pending ORG-005 handoff remains; agents:validate is clean except the pre-existing RELEASE-001 warning. Dispatched the next independent P1 continuation to the admin agent in a dedicated worktree for the remaining legacy guard-route sweep.",
+        "next": "Wait for the admin continuation result before dispatching another specialist. Keep release and QA queued until the four local secrets and Upstash-compatible Redis credentials are provisioned."
+      },
+      {
+        "at": "2026-09-10T08:35:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched three non-overlapping specialist lanes in dedicated worktrees: admin authorization convergence (ADMIN-002/003), design-system use-mobile unification (DESIGN-002), and venue component-tree consolidation (VENUE-002). Each lane has explicit ownership, verification, and task-record update requirements.",
+        "next": "Monitor all three lanes; launch each lane's next bounded task only after that lane reports verified completion. Keep release/QA queued behind local secret and Redis provisioning."
+      },
+      {
+        "at": "2026-09-10T08:45:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Previous parallel worktrees had partial edits but no task-record evidence, so all three lanes were restarted in fresh isolated worktrees with tighter bounded-task guidance. Admin must preserve route/entity checks, design must limit changes to the mobile-hook contract, and venue must prove replacements before any removal.",
+        "next": "Monitor the restarted admin, design-system, and venue lanes; accept only verified task-record updates and launch follow-ons only after each lane completes."
+      },
+      {
+        "at": "2026-09-10T16:35:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "DESIGN-002 completed in the main worktree after integrating the verified canonical use-mobile consolidation; scoped TypeScript and diff checks pass, ESLint has no errors, and only pre-existing hook-rule warnings remain. DESIGN-003 was launched as its declared successor in a fresh worktree. Admin and venue lanes remain active pending evidence.",
+        "next": "Monitor admin, venue, and DESIGN-003 lanes. Close each only after task-record evidence and verification pass; launch each declared successor in a non-overlapping worktree."
+      },
+      {
+        "at": "2026-09-11T00:30:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Reconciled the latest owner-lane results: VENUE-001 completed; DB-005, TICKET-002, USER-004, MKT-002, INTG-006, MUSIC-004, and WORK-002 recorded bounded progress with blockers. Per owner direction, no replacement execution agents will be spawned; follow-up work remains assigned to the existing domain owners.",
+        "next": "Remediate VENUE-002's failed component-tree lane; then review DB-005/TICKET-002, complete INTG-006 webhook consistency, and reconcile MUSIC-004 worker count/cadence/DLQ policy. Keep release/QA gated on provisioning."
+      },
+      {
+        "at": "2026-09-11T00:45:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Returned orchestration to the original 17-agent control-plane model. Temporary execution workers were used only for bounded continuation slices, their results were written to the existing owner task records, and completed temporary workers were closed. No owner_agent assignments changed.",
+        "next": "Manage follow-up work through the existing domain agents and their task/state documents; use handoffs for cross-domain blockers and do not create replacement execution chats."
+      },
+      {
+        "at": "2026-09-11T01:05:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Reviewed all 69 task records and refreshed topology. Existing owner lanes have recorded bounded progress: VENUE-002 is blocked pending DESIGN-004, DB-005/DB-006 need approved staging evidence, INTG-006 and MUSIC-004 have focused slices with remaining route/schema policy work, and release lanes remain provisioning-gated. No new agent was created.",
+        "next": "Execute the dependency-ordered owner plan: DESIGN-004 handoff for VENUE-002, database evidence readiness for DB-005/DB-006, ticketing local verification, integrations/music follow-ups, then release and QA only after secrets and Redis are available."
+      },
+      {
+        "at": "2026-09-11T17:48:45.809Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented orchestration reconciliation and deployment safety routine. Reconciled evidence-complete owner tasks, normalized the legacy RELEASE-001 verification spelling, codified release phases, made matching-SHA E2E a deployment prerequisite, and disabled unrestricted production migration application under CP-051.",
+        "completed": [
+          "reconciled evidence-complete tasks into completed records",
+          "normalized RELEASE-001 verification result to canonical pass",
+          "added docs/DEPLOYMENT_ROUTINE.md",
+          "gated E2E behind Vitest and matching-SHA deployment checks",
+          "replaced automatic production migration apply with explicit CP-051 stop gate"
+        ],
+        "next_steps": [
+          "Wait for design-system/venue handoff and database approved-target evidence.",
+          "Keep release and QA lanes blocked until required secrets, Redis, hosted CI, observability, recovery, and required-check evidence are provisioned.",
+          "After prerequisites clear, run the documented demo then production routine against a frozen SHA."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T17:52:54.379Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched six non-overlapping owner lanes: database DB-005/DB-006, ticketing TICKET-002/TICKET-003, integrations INTG-006, music MUSIC-004, social SOCIAL-004, and design-system DESIGN-004 for the VENUE-002 unblock. Release and QA remain gated on external provisioning.",
+        "completed": [
+          "dispatched bounded database, ticketing, integrations, music, social, and design-system owner lanes"
+        ],
+        "next_steps": [
+          "Accept agent results only after existing task records contain verification evidence.",
+          "Keep release/QA deployment lanes held until secrets, Redis, hosted CI, observability, and recovery evidence are provisioned.",
+          "After the design-system handoff, reassess whether VENUE-002 can resume without deleting compatibility files."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T18:09:14.745Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched the next five owner lanes after the prior batch: ADMIN-003 guard continuation, DESIGN-004 compatibility follow-ups for VENUE-002, SOCIAL-001 audit completion, USER-003 settings verification, and INTG-006 feature-tier verification. External-gated database, realtime, music scheduling, release, and QA work remains held.",
+        "completed": [
+          "dispatched second bounded owner batch without overlap"
+        ],
+        "next_steps": [
+          "Accept only task-recorded results with focused verification evidence.",
+          "Close or advance DESIGN-004 and VENUE-002 only after separately scoped compatibility tasks are recorded.",
+          "Keep external-gated lanes queued until approved Supabase, Redis, secrets, and hosted evidence are available."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T18:29:44.530Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched the next focused batch: ADMIN-003 continuation plus isolated DESIGN-022 sidebar, DESIGN-027 use-mobile, DESIGN-008 avatar, and DESIGN-005 alert-dialog audits. Design workers have disjoint primitive scopes and are prohibited from deleting compatibility files or editing shared state concurrently.",
+        "completed": [
+          "dispatched third bounded owner batch"
+        ],
+        "next_steps": [
+          "Accept each result only after its own task record contains evidence and focused verification.",
+          "Integrate design primitive dispositions through the compatibility registry after the isolated audits complete.",
+          "Keep database runtime, realtime live validation, release, QA, and production deployment gated on external prerequisites."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T18:42:11.658Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched the fourth focused batch: ADMIN-003 continuation plus isolated DESIGN-006 alert, DESIGN-007 aspect-ratio, DESIGN-009 carousel, and DESIGN-010 context-menu audits. Each design lane has a single primitive write scope and compatibility-preserving instructions.",
+        "completed": [
+          "dispatched fourth bounded owner batch"
+        ],
+        "next_steps": [
+          "Accept task results only after their own task records contain verification evidence.",
+          "Continue design primitive audits in small disjoint groups; do not bulk-delete compatibility files.",
+          "Keep external-gated database, realtime, release, QA, and production lanes held."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T20:28:05.900Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Final design retire-later audit wave COMPLETE: DESIGN-005..027 (23/23) each recorded zero-use + parity evidence and were reconciled to completed. ADMIN-003 advanced two more bounded slices: logistics site-map family (5 routes / 10 methods) then site-map tents family (2 files / 5 methods) plus the publish-work-mode registry classification sync; registry exact at legacy 100/100; routinary full-suite tsc remains the sole known blocker. Durable design state updated: separator twin confirmed divergent (missing data-slot), register carries stale app/venue/components/ui/** rows needing a register-only cleanup.",
+        "completed": [
+          "accepted batch 3/4 design audit results and reconciled DESIGN-005/006/007/008/009/010/022/027 to completed",
+          "accepted DESIGN-011..015 audits and reconciled all five to completed",
+          "accepted DESIGN-016..020 audits and reconciled all five to completed",
+          "accepted DESIGN-021/023/024/025/026 audits and reconciled all five to completed",
+          "updated design-system STATE.md with separator divergence, stale register rows, and DESIGN-005..027 completion"
+        ],
+        "next_steps": [
+          "Create a separately authorized venue-ui twin retirement/deletion task that revalidates each recorded zero-use + parity disposition before removal, plus a register-only cleanup task (DUP-082 separator basis + stale rows).",
+          "Continue ADMIN-003 with another explicitly org/resource-scoped batch only after the site-map-ops-upgrade pre-existing failure is accounted for.",
+          "Keep external-gated database (DB-005/DB-006), realtime (SOCIAL-004), music scheduling (MUSIC-004), release, and QA lanes held pending provisioning."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T20:39:53.639Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dispatched and accepted the venue-ui retirement wave. DESIGN-029 (authorized by CP-037) re-validated all 24 registered retire-later twins (0 live consumers), deleted them (3262 deletions), preserved the 26 keep files, updated the register (49 stale rows removed, DUP-082 separator basis corrected, 24 rows retired) — reconciled to completed. DESIGN-004 closed as completed (dead twin deletion criterion met). VENUE-002 dependency cleared but remains blocked per its own keep-blocked policy. ADMIN-003 advanced: 6/8 site-map sub-resource candidates already canonical; zones + zones/[zoneId] registry classification synced to capability_gated, legacy exact at 98/98, 96 focused tests green; noted that the concurrent zone-security lane's zones behavior changes need owner review.",
+        "completed": [
+          "accepted ADMIN-003 zone registry-sync slice (legacy 98/98 exact, 96 focused tests)",
+          "dispatched and accepted DESIGN-029 venue-ui twin retirement (24 twins deleted under CP-037, register updated)",
+          "moved DESIGN-004 to completed and cleared the VENUE-002 dependency (kept blocked per policy)"
+        ],
+        "next_steps": [
+          "Record the ADMIN-003 zone-security-lane overlap for the owning lane and defer zones handler review to them.",
+          "Convert remaining design QUESTIONS into bounded tasks (token authority, shared-state adoption, responsive-hook decision, WS-2.6 a11y/i18n) when evidence supports them; the register is now accurate.",
+          "Keep external-gated database (DB-005/006), realtime (SOCIAL-004), music scheduling (MUSIC-004), integrations ledger (INTG-006/INTG-003), release, and QA lanes held pending provisioning."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T21:17:39.593Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Batch 3 accepted. ADMIN-003 migrated the final legacy site-map sub-resource family (tasks/layers/measurements/issues: 8 routes, 15 handlers) to withAdminCapability; legacy registry 98->90 exact, 149 focused tests green; remaining admin candidates all deferred (staffing, team-members mutators, events communications, zones/bulk-assign, site-maps/import) pending scope/linkage or owned elsewhere; observation recorded that rbac/roles registry remains legacy despite STATE migration claim (needs code verification before flip). DESIGN-030 stage 1 committed an evidence inventory (TOKEN_AUTHORITY_INVENTORY.md): CSS-variable runtime truth base, 11 conflicts + 2 duplicates, dead CSS roots/ThemeProviders, neon scope proven in-scope, 6-phase roadmap drafted with zero source changes. DESIGN-031 reconciled: domain use-mobile copies proven zero-consumer and converted to canonical re-exports with a same-function identity contract test; venue/admin shim-removal decisions handed off.",
+        "completed": [
+          "explored ACTIVE/PARTIAL lanes for re-dispatch; toured DESIGN-030/031 creation",
+          "ADMIN-003 admin lane migration",
+          "DESIGN-030 stage-1 token inventory",
+          "DESIGN-031 use-mobile copies reconciled"
+        ],
+        "next_steps": [
+          "Next admin batch: verify rbac/roles code-vs-registry parity before any registry flip, then migrate remaining org-scoped families; mixed-purpose/deferred routes stay deferred.",
+          "DESIGN-030 continues as the staged token-migration sprint (Phases 2-6: central registry with --radius/neon :root truth, ThemeProvider consolidation, neon+dashboard var scope, form-override remediation, adoption gates) - keep active, one phase per future batch.",
+          "Venue/admin shim-removal handoffs from DESIGN-031 recorded; venue owner may close VENUE-002 blocked record if the shim is accepted as intentional."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T21:32:59.430Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Batch 4 accepted. ADMIN-003: rbac/roles verify resolved (all 5 rbac routes confirmed on withAdminCapability org.roles.manage; registry flipped, STATE claim corroborated); team-routes capability corrected to workforce.view; 4 same-class registry/code drifts synced; migrated site-maps/[id]/zones/bulk-assign (logistics.manage + org/zone bounds preserved); site-maps/import and venues deferred with exact reasons; legacy registry 90->79 exact, 52 focused tests green. DESIGN-030 Phase 2: TOKEN_REGISTRY.md target-authority (161 rows, 10 tables) delivered; --radius :root addition correctly GATED (per-alias proof: current resolution is 0px because tailwind.config borderRadius replaces the scale; ~3068 utilities/923 files would round), dead CSS roots deferred to Phase 5 with evidence (sidebar.tsx references --sidebar-*/_bg-sidebar classes that tailwind config does not generate - latent styling gap recorded). No risky source changes accepted this round.",
+        "completed": [
+          "accepted ADMIN-003 RBAC verify + bulk-assign migration",
+          "accepted DESIGN-030 Phase 2 token registry + gated radius"
+        ],
+        "next_steps": [
+          "DESIGN-030 Phase 3: ThemeProvider consolidation (re-validate zero-use per provider before removal) + the C-03 --radius visual-review gate; resolve sidebar/chart token gap as part of the Phase 5 cleanup contract.",
+          "ADMIN-003 next batch: continue remaining org-scoped families; observed registry/code drift on deferred events/[id]/communications + communication-settings (registry event.view vs code withAuth) to reconcile or leave as tracked observation.",
+          "Convert the sidebar bg-sidebar/tailwind gap into a bounded design follow-up task sourced to DESIGN-030 Phase 5 evidence."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T18:06:56.644Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Batch 5 accepted. ADMIN-003: exhaustive sweep of all 75 remaining legacy registry entries - zero migratable without enabling preconditions; registry exact at legacy 75/75, 43 focused tests green, all future migrations now blocked on venue->org, vendor->org, calendar anyOf capability policy, org predicates (travel/lodging/rentals), and org resolution (site-maps/import, venues). DESIGN-030 Phase 3: 6-provider survey reconciled to composition contract (3 live providers over disjoint subtrees, intentionally NOT merged); 4 dead zero-importer providers deleted (components/venue/theme-provider.tsx, app/venue/components/theme-provider.tsx, app/admin/dashboard/components/theme-provider.tsx, app/providers.tsx), 53 lines, zero-delta proven. DESIGN-032 reconciled: sidebar/chart projection landed (tailwind.config +17, :root runtime truth) with 0 orphans/collisions/deltas.",
+        "completed": [
+          "accepted exhaustive ADMIN-003 legacy sweep (no unwarranted flips)",
+          "accepted DESIGN-030 Phase 3 ThemeProvider consolidation",
+          "completed DESIGN-032 sidebar/chart token gap"
+        ],
+        "next_steps": [
+          "DESIGN-030 Phase 4 next: neon + dashboard var scope behind C-02 gate; carries C-03 --radius visual-review gate; then Phase 5 dead-CSS-root cleanup (now unblocked by DESIGN-032).",
+          "ADMIN-003 is precondition-bound; raise handoff notes for venue->org and vendor->org linkage and the calendar capability policy to the owning lanes before further migration batches. Verify tracked observations (events/[id]/communications registry vs withAuth) under a review-only admin pass.",
+          "Hold external-gated lanes (DB/SOCIAL/MUSIC/INTG/release/QA, ARTIST-003, USER-003, MKT-002) as before."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T18:22:19.648Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Batch 6 accepted. DESIGN-030 Phase 4: all token classes decided - neon triplets + --dashboard-*/--admin-* KEPT as scoped runtime surfaces (C-11 resolved as intentional /settings composition via SettingsThemeShell, not a gap); 6 --neon-* composites recorded dead for Phase 5 retirement; C-03 --radius gate finalized as a note only (0px corners preserved; delta 8/6/4px over 3068 utilities/923 files, owner visual-review required); zero source changes. ADMIN-003: review-only + handshake - events/[id]/communications registry-vs-withAuth drift confirmed and recorded (owner-side resolution needed); RBAC flip re-verified consistent; 5 enabling preconditions traced to owning lanes (venue/database/logistics, capability-policy owner) as durable handoff notes; registry stable at legacy 75/75 exact.",
+        "completed": [
+          "accepted DESIGN-030 Phase 4 scope decisions + C-03 gate finalization",
+          "accepted ADMIN-003 review-only observations + precondition handoff notes"
+        ],
+        "next_steps": [
+          "Next design batch = DESIGN-030 Phase 5: D-02 form override remediation, C-10 dead CSS-root removal (now unblocked by DESIGN-032), retire 6 zero-consumer --neon-* composites, --admin-* latent-palette owner decision, all before any owner-gated --radius work.",
+          "ADMIN-003 stays precondition-bound; next admin batch is gated on owning-lane preconditions or the events/[id]/communications owner decision - do not dispatch a migration pass until one lands.",
+          "Hold external-gated lanes (DB/SOCIAL/MUSIC/INTG/release/QA, ARTIST-003, USER-003, MKT-002) as before."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T18:38:47.003Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Batch 7 accepted. DESIGN-030 Phase 5 executed with zero rendered delta: 4 dead CSS roots removed (431 lines, per-root zero-use registers, light provenance preserved), 6 zero-consumer --neon-* composites retired (rgb triplets + tailwind aliases intact), D-02 live form override verified depended-on by 148 form-control files and left unchanged (scoped remediation gate recorded), --admin-* latent-palette decision request handed to the admin lane via HF-DESIGN-030-ADMIN, C-03 --radius gate intact (0px corners preserved). Registry + inventory + STATE.md finalized; roadmap closed except owner-pending items.",
+        "completed": [
+          "accepted DESIGN-030 Phase 5 dead-root + neon retirement"
+        ],
+        "next_steps": [
+          "Admin lane resolves HF-DESIGN-030-ADMIN: decide adopt vs retire the 13 latent --admin-* color tokens (zero external consumers) with registry + zero-delta evidence.",
+          "DESIGN-030 stays active pending the --admin-* decision and owner-gated --radius visual review; do not re-dispatch its phases until both resolve.",
+          "ADMIN-003 remains precondition-bound; no further migration pass until a precondition or the events/[id]/communications owner decision lands.",
+          "Hold external-gated lanes as before."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T18:51:17.217Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Batch 8 accepted. Admin lane resolved HF-DESIGN-030-ADMIN: OPTION B retire - 13 latent --admin-* color tokens (0 var() consumers repo-wide, 0 in-flight adoption, 0 projections, literal rgb() values in rules) removed from app/admin/globals.css (5 lines), --admin-transition-normal retained (self-consumed by live classes), registry Table D flipped dead, handoff moved to completed/, zero rendered delta. DESIGN-030 reconciled to completed (Phases 1-5 executed with zero rendered delta; remaining: owner-gated --radius visual review + Phase 6 governance/regression gate as follow-on).",
+        "completed": [
+          "accepted HF-DESIGN-030-ADMIN retirement decision",
+          "completed DESIGN-030 token authority migration"
+        ],
+        "next_steps": [
+          "Remaining agent-executable work is thin: Phase 6 token-registry CI gate (design) and the events/[id]/communications registry-alignment owner decision (admin) are the only design/admin candidates; keep ADMIN-003 precondition-bound and hold external-gated lanes.",
+          "Surface the C-03 --radius visual review and the events/[id]/communications decision to the product owner for a human decision - the control plane is otherwise at steady state on design/admin."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T20:08:24Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented the launch-readiness oversight cycle. TASK_INDEX.json now agrees with the active ARTIST-001 file; the orchestrator backlog and LOCAL-READINESS plan now contain one dependency board covering ready, evidence-completion, external/owner-blocked, audit-hold, and policy-blocked lanes. State and next actions preserve CP-051, domain ownership, and evidence-backed closure requirements.",
+        "next": "Refresh generated maps, validate the control plane, then manage the existing owner lanes against the dependency board.",
+        "completed": [
+          "Reconciled ARTIST-001 index/file status mismatch without closing the owner-decision audit.",
+          "Added a single launch-readiness dependency board and oversight protocol.",
+          "Recorded launch-gate sequencing and completion evidence requirements in orchestrator state and the active execution plan."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T20:12:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Launched the next disjoint owner batch: DESIGN-034 for the token-registry CI drift gate and DB-002 for QA/release verification of the four already-applied production migrations. Both are isolated worktree tasks with task-record, focused-verification, agents:validate, and CP-051 requirements. External, owner-decision, and policy-blocked lanes remain held.",
+        "next": "Monitor both owner tasks; accept only evidence-backed completion, then refresh the dependency board and dispatch the next eligible lane.",
+        "completed": [
+          "Dispatched DESIGN-034 to the design-system owner.",
+          "Dispatched DB-002 to the database owner.",
+          "Preserved existing domain ownership and recorded held prerequisites."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T20:18:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Accepted the DB-002 owner-lane result as evidence-backed but not complete. Production probes confirmed four PUBLIC/anon-executable SECURITY DEFINER functions, including callable money-mutating RPCs, and migration-history metadata drift after raw Management API application. DB-002 remains active/release-blocked; remediation is assigned to an explicit reviewed CP-051 authorization fix plus DB-003 history reconciliation.",
+        "next": "Hold release progression, monitor DESIGN-034, and dispatch the next eligible lane only after reviewing the DB-002 remediation evidence and current dependency board.",
+        "completed": [
+          "Recorded DB-002 production catalog, RLS, and callable-anon evidence in the owner task and database state.",
+          "Kept DB-002 active and blocked rather than accepting a false completion claim.",
+          "Synchronized DB-002 task-index metadata."
+        ],
+        "blockers": [
+          "DB-002 release-blocking PUBLIC/anon EXECUTE exposure remains unresolved.",
+          "DB-003 migration-history reconciliation remains outstanding."
+        ]
+      },
+      {
+        "at": "2026-09-13T20:24:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Launched the follow-on DESIGN-033 QA visual gate in an isolated worktree while DESIGN-034 remains queued. The visual lane is independent of token-registry implementation; DB-002 and all external/provisioning-gated lanes remain held by recorded blockers.",
+        "next": "Monitor DESIGN-033 and DESIGN-034; accept only task-recorded visual or CI evidence, then reassess the dependency board without duplicating lanes.",
+        "completed": [
+          "Dispatched DESIGN-033 final radius visual verification.",
+          "Preserved DESIGN-034 as the existing queued implementation lane.",
+          "Kept DB-002 release remediation and external-gated lanes held."
+        ],
+        "blockers": [
+          "DESIGN-033 may require a runnable app/browser for visual evidence.",
+          "DB-002 remains release-blocked by callable anon execution exposure."
+        ]
+      },
+      {
+        "at": "2026-09-13T20:32:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Launched the next bounded DESIGN-033 authenticated browser-verification lane in an isolated worktree. It will complete the remaining critical-surface visual checks and staff-radius confirmation or record an exact runtime blocker. DESIGN-034 remains queued; DB-002 and external-gated lanes remain held.",
+        "next": "Monitor the DESIGN-033 browser lane and the queued DESIGN-034 lane; accept only recorded evidence and then reassess the dependency board.",
+        "completed": [
+          "Dispatched authenticated DESIGN-033 visual verification using the browser-verification workflow.",
+          "Avoided duplicate implementation lanes for DESIGN-034 and DB-002.",
+          "Preserved the DB-002 release blocker and all unmet external prerequisites."
+        ],
+        "blockers": [
+          "DESIGN-033 depends on an available authenticated runtime session and QA fixtures.",
+          "DB-002 remains release-blocked by callable anon execution exposure and migration-history drift."
+        ]
+      },
+      {
+        "at": "2026-09-13T21:10:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Launched a focused DESIGN-033 blocker follow-up for the clean authenticated venue dashboard session and direct /artist loading route identified by the prior visual lane. DESIGN-034 remains queued without duplication; DB-002 and all external-gated lanes remain held.",
+        "next": "Monitor the DESIGN-033 follow-up and accept only exact browser evidence or a recorded runtime blocker before dispatching another lane.",
+        "completed": [
+          "Dispatched the DESIGN-033 venue-session and artist-loading follow-up.",
+          "Preserved the existing DESIGN-034 queue and avoided duplicate implementation work.",
+          "Kept DB-002 release remediation and external prerequisites held."
+        ],
+        "blockers": [
+          "DESIGN-033 depends on clean authenticated venue fixtures and a runnable app.",
+          "DB-002 remains release-blocked by callable anon execution exposure and migration-history drift."
+        ]
+      },
+      {
+        "at": "2026-09-13T21:25:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Re-dispatched DESIGN-034 in a fresh isolated worktree after its prior dispatch produced no task-record evidence. The lane is bounded to the token-registry CI drift gate and explicitly excludes the owner-approved radius decision and DESIGN-033 visual work.",
+        "next": "Monitor DESIGN-034 for task-record evidence; keep DESIGN-033 blocked on clean venue QA and hold DB-002/external lanes until their prerequisites clear.",
+        "completed": [
+          "Launched a fresh DESIGN-034 implementation lane.",
+          "Avoided overlapping DESIGN-033 and DESIGN-034 scopes.",
+          "Preserved DB-002 release and external-gated blockers."
+        ],
+        "blockers": [
+          "DESIGN-033 still requires clean authenticated venue QA evidence.",
+          "DB-002 remains release-blocked by callable anon execution exposure and migration-history drift."
+        ]
+      },
+      {
+        "at": "2026-09-14T08:00:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Launched the next independent RELEASE-005 governance preflight in an isolated worktree. The lane is read-only: it will inventory E2E, Vitest, matching-SHA, and branch-protection prerequisites without changing enforcement. DESIGN-034 remains active; DESIGN-033 and DB-002 retain their recorded blockers.",
+        "next": "Monitor RELEASE-005 and DESIGN-034 for task-record evidence; accept only verified findings and keep branch protection, migrations, and external-gated lanes unchanged.",
+        "completed": [
+          "Dispatched RELEASE-005 required-check readiness analysis.",
+          "Preserved the E2E green-test and matching-SHA gates.",
+          "Kept DESIGN-033 venue QA and DB-002 authorization blockers in force."
+        ],
+        "blockers": [
+          "Hosted branch-protection evidence is not available locally.",
+          "DB-002 remains release-blocked by callable anon execution exposure and migration-history drift."
+        ]
+      },
+      {
+        "at": "2026-09-14T08:15:00Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Accepted RELEASE-005 read-only preflight as blocked, not complete. Candidate SHA has two Vitest failures, hosted E2E has no matching successful result, and main is not branch-protected. No enforcement changes were made; closure requires test fixes, matching-SHA hosted E2E, and owner-provisioned required-check governance.",
+        "next": "Hold RELEASE-005 and release promotion; continue only with bounded remediation lanes whose prerequisites are satisfied.",
+        "completed": [
+          "Imported exact RELEASE-005 test, hosted E2E, check-run, and branch-protection evidence.",
+          "Kept required-check enforcement unchanged.",
+          "Updated release and orchestrator state with the blocking acceptance conditions."
+        ],
+        "blockers": [
+          "Two Vitest failures remain on the candidate SHA.",
+          "No matching-SHA hosted E2E success exists.",
+          "main has no branch-protection or required-check enforcement evidence."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:55.823Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit recorded a hard NO-GO for the current live topology and created ORCH-002 to own workspace curation and the launch critical path. ORCH-001 remains active until its original audit acceptance criteria are satisfied.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-20T19:57:36.000Z",
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "summary": "Final ORCH-001 acceptance audit complete. P1 questions: Q1 dispatch is answered by the registered-domain/task model; Q2 map currency by CP-008 and SHA-stamped validation; Q3 dirty ownership is routed to ORCH-002; Q4 exec-plan/handoff models are built. P2 questions: Q5 decision IDs are unique via CP-005; Q6 credentials were unnecessary for the read-only audit; Q7 QA/release boundaries are task/charter enforced; Q8 legacy ledgers are preserved by CP-004; Q9 packets are detailed plans while task JSON is canonical status; Q10 historical fix-pass records remain non-blocking cleanup. BASELINE.md now explicitly records that this documentation domain owns no runtime routes, components, services, APIs, migrations, or database objects. STATE.md and BACKLOG.md point current work to ORCH-002. The bounded context command succeeded and agents:validate passed with 17 agents, 113 tasks, 8 shared-map SHA warnings, and 0 errors. The evidence-led read-only expansion to package.json and scripts/agent-tools/control-plane.mjs verified the INDEX-advertised command wiring; the original 2026-09-09 checkpoint already records why exec-plans and handoffs were added. No production or migration file changed.",
+        "completed": [
+          "Verified BASELINE.md path-backed control-plane inventory, intended direction, implementation-surface boundary, and evidence sources.",
+          "Verified GAPS.md triages every finding as missing, incomplete, or improve and records closeout disposition without erasing the historical audit.",
+          "Verified QUESTIONS.md prioritizes all ten owner questions and records build/fix/drop or routing decisions.",
+          "Rebuilt the bounded ORCH-001 context packet and confirmed the original scope-expansion reason remains recorded in the 2026-09-09 checkpoint.",
+          "Verified package.json and scripts/agent-tools/control-plane.mjs only to substantiate the control-plane commands advertised by INDEX.md; recorded that evidence-led expansion in this checkpoint.",
+          "Reconciled orchestrator state and backlog and preserved ORCH-002 as the follow-up control task.",
+          "Ran npm run agents:validate before completion: 0 errors."
+        ],
+        "next_steps": [
+          "Root orchestration should reconcile TASK_INDEX.json and shared generated maps after concurrent task closeouts.",
+          "Continue all implementation and launch-gate work through ORCH-002 and domain-owned task records."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Database lane (re-dispatch under CP-051): promote 20260728233640_repair_post_engagement_persistence.sql + 20260731233358_premiere_post_styles_v3.sql from the pre-reconciliation archive into the active chain additively; apply all pending migrations manually (no db reset, no automated full-chain replay); reconcile live table counts via SQL; regen lib/database.types.ts + type-drift check; file the pg_read_file manual-apply item for 20260415210006.",
+    "Work/logistics lane: reconcile the site-map zones route with the event-zone bridge contract (restore resolveOrCreateEventZone usage in app/api/admin/logistics/site-maps/[id]/zones/route.ts per __tests__/logistics/site-map-ops-upgrade.test.ts).",
+    "Release/QA (wave 3): local Supabase-backed search + configured-Redis 429 smoke, /healthz loopback smoke, cron unauthorized rejection, org-invite RLS probes — all against manually applied migrations.",
+    "ORCH-002 owns workspace preservation, release-branch curation, the production launch dependency graph, and weekly go/no-go reporting; ORCH-001 is closed after satisfying its original audit acceptance criteria."
+  ]
+}

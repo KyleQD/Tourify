@@ -1,0 +1,138 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-025",
+  "title": "Wire the admin guard proof into the registry CI gate",
+  "status": "blocked",
+  "execution_state": "waiting_decision",
+  "priority": "P1",
+  "owner_agent": "admin-governance",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T23:46:23.640Z",
+  "updated_at": "2026-09-28T02:31:51.479Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (591 entries)",
+  "goal": "Make a guard or boundary divergence fail the registry CI check, not only the admin vitest lane.",
+  "scope": {
+    "in": [
+      "The REL-103 registry CI job"
+    ],
+    "out": [
+      "Hand-editing the CI workflow"
+    ]
+  },
+  "working_set": [
+    "scripts/ci/check-admin-route-registry.mjs"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "ADMIN-019",
+    "ADMIN-024"
+  ],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete ADMIN-019.",
+      "dependency_task_ids": [
+        "ADMIN-019"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "AC-1: the REL-103 registry CI job runs the ADMIN-016 proof and fails on a guard or boundary divergence.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "AC-2: a deliberate one-line flip of a route guard in a scratch worktree is shown to turn the CI job red, and the shared tree is asserted byte-identical before and after.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "State-only correction, no implementation started, no working set changed. ADMIN-024 completing removed the last unfinished member of this task's depends_on set, which made execution_state waiting_dependency false and failed npm run agents:validate -- --strict with 'ADMIN-025: waiting_dependency has no unfinished dependency'. execution_state is corrected to waiting_decision, which is the accurate remaining state: dependencies are met, and the recorded blocker is a working-set collision with the active RELEASE-013 on package.json and .github/workflows/ci.yml whose resolution belongs to root orchestration or the admin dispatcher. ADMIN-025 stays blocked and unstarted; nothing about its scope, criteria or code changed.",
+    "completed": [],
+    "next_steps": [
+      "Root orchestration / the admin dispatcher owns the next action: resolve the RELEASE-013 working-set collision on package.json and .github/workflows/ci.yml, or dispatch ADMIN-025 once RELEASE-013 completes. admin-tour-planning did not and cannot make that call."
+    ],
+    "blockers": [
+      "Serialized behind ADMIN-020/021/022/023 by the control-plane WIP limit (one active implementation task per agent) and working-set collisions on lib/admin/api-route-registry.ts and __tests__/admin/**. Next-action owner: the admin dispatcher, which activates exactly one at a time in chain order."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:55:09.280Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "State-only correction, no implementation started. ADMIN-019 is completed, so this task's ADMIN-019 waiting_dependency no longer holds and --strict was failing on it. Left active/ready for the dispatcher to pick up. See docs/engineering/tasks/active/ADMIN-019.json for the per-method registry record the admin lane measured while repairing the four events/[id] siblings.",
+        "completed": [],
+        "next_steps": [
+          "Dispatcher decides whether to start this task; the dependency it was blocked on is resolved. No code, registry, or test change was made by this checkpoint."
+        ],
+        "blockers": [],
+        "depends_on_added": "ADMIN-024"
+      },
+      {
+        "at": "2026-09-27T23:56:11.926Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Re-serialized by ADMIN-019, not a regression. ADMIN-019 is completed, so this task's ADMIN-019 dependency is satisfied; a dependency edge to the previous task in the admin registry chain was added because the control plane enforces one active implementation task per agent and these tasks all declare lib/admin/api-route-registry.ts and/or __tests__/admin/**, so they cannot be active at the same time. Only ADMIN-020 is left active/ready. No implementation was started and no working set was changed.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": [
+          "Serialized behind ADMIN-020/021/022/023 by the control-plane WIP limit (one active implementation task per agent) and working-set collisions on lib/admin/api-route-registry.ts and __tests__/admin/**. Next-action owner: the admin dispatcher, which activates exactly one at a time in chain order."
+        ]
+      },
+      {
+        "at": "2026-09-27T23:56:12.245Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Additional dispatcher note: even after the admin chain serializes, ADMIN-025 collides with the active RELEASE-013 on package.json and .github/workflows/ci.yml, so it cannot be dispatched until RELEASE-013 completes or the collision is resolved by root orchestration. No implementation started. As of 2026-09-28 this task is also the accepting task for two Admin follow-on obligations, recorded by the admin agent: HF-ADMIN-021-DOMAIN039-LEASE-REVERT (remove the spent shared: entry) and HF-ADMIN-HIER-001-GOVERNANCE-PIN-SLICE (tighten one weakly-bound slice in the same file). Both target this file and should be discharged in the same change.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": [
+          "Serialized behind ADMIN-020/021/022/023 by the control-plane WIP limit (one active implementation task per agent) and working-set collisions on lib/admin/api-route-registry.ts and __tests__/admin/**. Next-action owner: the admin dispatcher, which activates exactly one at a time in chain order."
+        ]
+      },
+      {
+        "at": "2026-09-28T02:31:51.479Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "State-only correction, no implementation started, no working set changed. ADMIN-024 completing removed the last unfinished member of this task's depends_on set, which made execution_state waiting_dependency false and failed npm run agents:validate -- --strict with 'ADMIN-025: waiting_dependency has no unfinished dependency'. execution_state is corrected to waiting_decision, which is the accurate remaining state: dependencies are met, and the recorded blocker is a working-set collision with the active RELEASE-013 on package.json and .github/workflows/ci.yml whose resolution belongs to root orchestration or the admin dispatcher. ADMIN-025 stays blocked and unstarted; nothing about its scope, criteria or code changed.",
+        "completed": [],
+        "next_steps": [
+          "Root orchestration / the admin dispatcher owns the next action: resolve the RELEASE-013 working-set collision on package.json and .github/workflows/ci.yml, or dispatch ADMIN-025 once RELEASE-013 completes. admin-tour-planning did not and cannot make that call."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-ADMIN-025-RELEASE-CI-WIRING",
+    "HF-ADMIN-021-DOMAIN039-LEASE-REVERT",
+    "HF-ADMIN-HIER-001-GOVERNANCE-PIN-SLICE"
+  ]
+}

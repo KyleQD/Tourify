@@ -32,18 +32,13 @@ test.describe("West Coast tour flow", () => {
     test.skip(!scenario?.tourId, "Run npm run qa:seed:flow:scenario first")
 
     const baseURL = test.info().project.use.baseURL || "http://127.0.0.1:3000"
-    const results: Array<{ step: string; ok: boolean; detail?: string }> = []
+    const completedSteps: string[] = []
 
     async function step(name: string, fn: () => Promise<void>) {
-      try {
+      await test.step(name, async () => {
         await fn()
-        results.push({ step: name, ok: true })
-        console.log(`✓ ${name}`)
-      } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error)
-        results.push({ step: name, ok: false, detail })
-        console.log(`✗ ${name} — ${detail}`)
-      }
+        completedSteps.push(name)
+      })
     }
 
     // --- Artist1: band public page ---
@@ -101,7 +96,7 @@ test.describe("West Coast tour flow", () => {
     ]
     for (const w of workers) {
       const job = scenario!.jobs[w.jobIndex]
-      if (!job?.hirePath) continue
+      expect(job?.hirePath, `Missing seeded hire path for ${w.key}`).toBeTruthy()
       await injectFlowSession(page.context(), baseURL, w.key)
       await step(`${w.key} hire onboarding`, async () => {
         await softGoto(page, job.hirePath)
@@ -116,23 +111,21 @@ test.describe("West Coast tour flow", () => {
     await injectFlowSession(page.context(), baseURL, "artist2")
     await step("artist2 tour hub as admin", async () => {
       await softGoto(page, `/admin/dashboard/tours/${scenario!.tourId}`)
-      const url = page.url()
-      if (url.includes("/admin/dashboard/tours/")) {
-        await expect(page).not.toHaveURL(/\/login\b/)
-      } else {
-        // Documented gap: tour_team admin without middleware Admin Work Mode
-        console.log(`  · artist2 redirected off tour hub → ${url}`)
-      }
+      await expect(page).not.toHaveURL(/\/login\b/)
+      await expect(page).toHaveURL(new RegExp(`/admin/dashboard/tours/${scenario!.tourId}`))
     })
 
-    const passed = results.filter((r) => r.ok).length
-    const failed = results.filter((r) => !r.ok)
-    console.log(`West Coast flow summary: ${passed}/${results.length} passed`)
-    for (const f of failed) console.log(`  fail: ${f.step} — ${f.detail}`)
-
-    expect(passed, `results=${JSON.stringify(results)}`).toBeGreaterThanOrEqual(6)
-    expect(results.find((r) => r.step === "artist1 dashboard")?.ok).toBeTruthy()
-    expect(results.find((r) => r.step === "org tour builder")?.ok).toBeTruthy()
-    expect(results.find((r) => r.step === "worker1 hire onboarding")?.ok).toBeTruthy()
+    expect(completedSteps).toEqual([
+      "artist1 dashboard",
+      "pacific-signal public org",
+      "org admin dashboard",
+      "org tour hub",
+      "org tour builder",
+      "org hiring hub",
+      "worker1 hire onboarding",
+      "worker2 hire onboarding",
+      "worker3 hire onboarding",
+      "artist2 tour hub as admin",
+    ])
   })
 })

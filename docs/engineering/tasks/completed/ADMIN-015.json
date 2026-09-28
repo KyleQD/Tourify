@@ -1,0 +1,159 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-015",
+  "title": "Scope Admin tour artist profile reads",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T23:07:12.021Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Bind the Admin tour artist read to the acting organization without widening profile visibility.",
+  "scope": {
+    "in": [
+      "Bind the Admin tour artist read to the acting organization without widening profile visibility."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/tours/artists/**",
+    "__tests__/admin/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "ADMIN-014"
+  ],
+  "resume_condition": "All dependencies complete: ADMIN-014.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete ADMIN-014.",
+      "dependency_task_ids": [
+        "ADMIN-014"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Bind the Admin tour artist read to the acting organization without widening profile visibility.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "app/api/admin/tours/artists/route.ts:54-90 resolveOrganizationArtistUserIds - the acting organization is resolved from admin.orgId only: tours.org_id = admin.orgId -> tour_artists.artist_user_id, plus the existing resolveOrgArtistRosterScope(admin.orgId) (organizer_accounts.ops_org_id = admin.orgId) -> artist_profiles.user_id.",
+        "app/api/admin/tours/artists/route.ts:92-124 selectOrganizationArtistProfiles - the same profiles select, role filter, ilike, order and limit, with .in('id', <organization scope>) added as a data-boundary predicate in 100-id chunks plus a merge, so a large organization still returns the same top-N.",
+        "app/api/admin/tours/artists/route.ts:129-135 - org_id / ops_org_id / organizer_account_id are rejected with 400 organization_scope_field_rejected before any read; the organization is never taken from the request.",
+        "__tests__/admin/admin-tour-artist-org-scope.test.ts - 16 tests driving the real withAdminCapability wrapper and a filter-honoring fake. 9 FAIL at base SHA 16fb834f1a03a70f165be470a5f98f389bf6100a (route restored byte-for-byte in a detached throwaway worktree) and 16 pass on the repair.",
+        "Denial: org A's admin searching 'nova' receives only org A's two artists; base returned five, including org B's tour artist, org B's roster artist, and an artist attached to no organization. A query matching only org B's artist returns an empty directory where base returned that artist.",
+        "Deny control inside the same test: the identical request shape against org A's own artist returns that artist, so the empty result cannot come from a broken fake or a route that always returns nothing.",
+        "No widening: with every artist in the fixture belonging to the acting organization, the response is byte-identical to base (id, name, location, avatarUrl, genres, same order, same limit), including a 120-artist organization returning the identical top-12. A roster profile whose profiles.role is not 'artist' is still refused, and no column beyond the original five-field projection is exposed.",
+        "Data boundary: the recorded queries show .eq('org_id', admin.orgId) on tours and an .in('id', ...) predicate carrying the resolved organization artist ids on profiles, with no write of any kind; tour_artists rows stay protected by the existing tours.org_id access check and the tour_artists_select RLS policy."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate -- --strict",
+          "npx vitest run __tests__/admin/admin-tour-artist-org-scope.test.ts",
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "npx tsc -p tsconfig.admin015-slice.json --noEmit",
+          "npx eslint 'app/api/admin/tours/artists/route.ts'"
+        ],
+        "evidence": [
+          "PASS: npx vitest run __tests__/admin/admin-tour-artist-org-scope.test.ts -> 'Test Files 1 passed (1) / Tests 16 passed (16)'.",
+          "NEGATIVE CONTROL (base-SHA proof, no stash/revert of the shared tree): a detached throwaway worktree at /var/folders/yp/t205v9_d51gcsnjj2zf499_r0000gn/T/opencode/admin015-base on 16fb834f1a03a70f165be470a5f98f389bf6100a (route byte-identical to base, verified by diff against 'git show 16fb834f:app/api/admin/tours/artists/route.ts') with only the new test file copied in -> '9 failed | 7 passed (16)'. The failures are the cross-tenant read itself: base returned 5 profile ids to org A's admin (org B's roster artist 13131313-4313-4313-8313-131313131313, org B's tour artist ffffffff-4fff-4fff-8fff-ffffffffffff, and the unlinked platform artist 15151515-4515-4515-8515-151515151515) where the repaired route returns only 12121212 and eeeeeeee; a query matching only org B's artist returned that artist instead of an empty directory; and the base route issued no organization-scoped read at all. The 7 base passes are the no-widening and regression controls.",
+          "CONTROL AGAINST VACUOUS PASSES: the 7 tests that pass on base are the honest controls - the acting organization is the only one whose artists are all in scope returns a byte-identical directory and response shape; a 120-artist organization returns the identical top-12; the response still exposes only {id,name,location,avatarUrl,genres} and never email/bio; a non-artist roster profile is still refused; the mismatched x-acting-org-id header is still 403 acting_context_mismatch before any profile read; and all three tour-branch tests (own tour 200, another org's tour 404, unknown tour 404) are unchanged. The same test file's denial assertion is therefore shown to be capable of returning rows.",
+          "PASS: npx vitest run __tests__/admin/ -> 'Test Files 274 passed | 1 skipped (275) / Tests 3640 passed | 12 skipped (3652)'. Stated baseline 3624 passed / 12 skipped across 274 files (273 passed + 1 skipped), confirmed by an identical pre-change run. Delta is exactly +1 file and +16 tests; no existing admin test regressed.",
+          "PASS: npm run check:admin-route-registry -> 'Admin API route files on disk: 291 / Legacy route classifications: 53/53 / REL-103 check OK'. Exact baseline, unchanged: no route file was added or removed and the exported GET/POST/PATCH/DELETE set is identical.",
+          "PASS (scoped typecheck; full-repo npm run typecheck deliberately NOT run): NODE_OPTIONS='--max-old-space-size=6144' npx tsc -p tsconfig.admin015-slice.json --noEmit -> 15 diagnostics, and the same slice compiled in the base worktree with the same two test files also produces 15; the sorted 'file: error CODE' sets diff empty. 0 diagnostics in app/api/admin/tours/artists/route.ts and 0 in the new test file. The 15 are pre-existing: 3 in lib/admin/tour-event-operations.service.ts, 6 in lib/services/optimized-notification-service.ts, and 6 in admin-profile-column-drift.test.ts (the same 6 that exist at base, only shifted by this task's fake extension).",
+          "PASS: npx eslint 'app/api/admin/tours/artists/route.ts' -> no output, exit 0. The repo eslint config does not include __tests__ in its lint scope (pre-existing config property).",
+          "PASS: npm run agents:validate -- --strict -> 'validated 18 agents, 217 tasks, 101 pending handoffs, 0 warnings, 0 errors'."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T23:07:12.021Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "AC-1 met. The Admin tour artist read is bound to the acting organization without widening profile visibility. The defect was the directory branch of app/api/admin/tours/artists (GET with no tour_id): an unscoped search of the platform-wide, publicly readable profiles table, so any org admin holding tour.view could enumerate every artist profile on the platform through the tour builder headliner picker. The organization now comes from the verified acting-admin context, and the search is limited to the union of the two ways an organization legitimately acquires an artist (its own tour_artists rows and its organization_artist_members roster), which is a strict subset of the previous global result set. Caller-chosen tenant keys are rejected with 400. Nine new tests fail on base SHA 16fb834f and seven base-passing tests act as no-widening and regression controls. The tour_id branch was already organization-bound and is unchanged.",
+    "completed": [
+      "Dependency ADMIN-014 satisfied; ADMIN-015 unblocked and moved to active/ready by the control-plane state correction, with no implementation started",
+      "GET directory branch now resolves the acting organization server-side: tours.org_id = admin.orgId -> tour_artists.artist_user_id, plus resolveOrgArtistRosterScope(admin.orgId) -> artist_profiles.user_id",
+      "profiles read keeps its exact projection, role='artist' filter, ilike, order and limit and gains an .in('id', <organization scope>) data-boundary predicate, issued in 100-id chunks with a merge so a large organization still returns the same top-N",
+      "GET rejects caller-supplied org_id / ops_org_id / organizer_account_id with 400 organization_scope_field_rejected before any read, on both the directory and tour branches",
+      "16 new tests in __tests__/admin/admin-tour-artist-org-scope.test.ts driving the real withAdminCapability wrapper and a filter-honoring fake client; 9 of them FAIL on base SHA 16fb834f and 7 pass on base as no-widening / regression controls",
+      "ACCEPTED SCOPE REDUCTION (stated, not silent): the picker can no longer discover a platform artist the organization has never attached. Both legs (own tour artists, org roster) are preserved, and a new artist is added through the org roster (/api/admin/artists POST invite/create) or by attaching the tour, after which the picker finds it.",
+      "ADDED PATH outside the declared working set: tsconfig.admin015-slice.json (new file). Reason: full-repo npm run typecheck is documented as 68m18s / 1384 errors and OOMs on this 8GB box, and the verification standard requires a named scoped check. It extends ./tsconfig.json, pins next-env.d.ts, the tours/artists route and the two touched test files, and follows the tsconfig.admin003-slice.json / admin012 / admin014 precedent. Verification artifact only, imported by no build or runtime path. No other path outside app/api/admin/tours/artists/** and __tests__/admin/** was added or edited.",
+      "EDITED __tests__/admin/admin-profile-column-drift.test.ts (inside the working set): its createDirectorySupabase fake now also serves tours and tour_artists, because the route resolves its organization scope before reading profiles. All 5 tours/artists directory-branch assertions are unchanged in intent; its fail-closed test's fake now serves the scope tables so it fails closed on the profiles read error rather than on the scope read. The same file still has 6 type diagnostics before and after, at shifted lines."
+    ],
+    "next_steps": [
+      "Product note for the owner: the tour builder headliner picker (app/admin/dashboard/tours/builder/page.tsx EntityAccountPicker -> /api/admin/tours/artists) now searches only the acting organization's artist set. That is the intended narrowing, but a brand-new artist must be added through the org roster (/api/admin/artists POST) or by attaching a tour first. If the builder needs to search a wider artist directory, that surface needs its own owner decision and an artist->org linkage, not a widened admin read.",
+      "Recorded, not changed: lib/admin/api-route-registry.ts classifies /api/admin/tours/artists capability_gated with capability tour.manage for all four methods while GET is gated on tour.view. check-admin-route-registry does not compare the per-method capability to code and is exact at 53/53, and the registry file is outside this working set.",
+      "Recorded, not changed (pre-existing, outside this working set): /api/tours/planner/artists is the other admin-facing artist search used by components/admin/event-parties-panel.tsx. It is on withAdminAuth and reads profiles and artist_profiles globally, returning profile email as contact.email. It needs its own bounded admin task.",
+      "No migration was written and no schema was touched, so check:db008-harness was not run: this change is handler/query scope only. npm run agents:generate was not run because no route file, route method, or module graph node was added or removed and the registry check is exact at 291 route files / 53/53."
+    ],
+    "blockers": [
+      "Waiting for ADMIN-014."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T22:27:11.620Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "ADMIN-014 is complete, so ADMIN-015's only recorded dependency is satisfied and this task is activated. No ADMIN-015 implementation has been started: this checkpoint only corrects the stale blocked/waiting_dependency state that the control plane flagged after ADMIN-014 completed, and records that the working set is collision-free.",
+        "completed": [
+          "Dependency ADMIN-014 satisfied; ADMIN-015 unblocked and moved to active/ready by the control-plane state correction, with no implementation started"
+        ],
+        "next_steps": [
+          "Confirm the working set is collision-free: app/api/admin/tours/artists/** plus __tests__/admin/**. ADMIN-014 released __tests__/admin/** when it completed, and no other lane holds either path.",
+          "ADMIN-014 found the same wrong-segment resource-read defect ( resolving the trailing route name instead of the  segment) still live in four sibling handlers OUTSIDE any current admin working set: app/api/admin/events/[id]/communications/route.ts:23,107,215; communication-settings/route.ts:38,78; group-chats/route.ts:27,103; secure-uploads/route.ts:26,113,243. Those need their own bounded admin task and are not in ADMIN-015's scope."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:07:12.021Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1 met. The defect was in the directory branch of app/api/admin/tours/artists (the GET with no tour_id): it searched the platform-wide, publicly readable profiles table for any role='artist' row with no organization predicate, so any org admin with tour.view could enumerate every artist profile on the platform (id, name, location, avatar, genres) through the tour builder headliner picker. The organization is now resolved from the verified acting-admin context (admin.orgId, which the withAdminCapability wrapper derives from the authenticated user's selected organizer_accounts row) and the search is restricted to the union of the two ways an organization legitimately acquires an artist: its own tour_artists rows (tours.org_id = admin.orgId) and its organization_artist_members roster (via the existing resolveOrgArtistRosterScope service, organizer_accounts.ops_org_id = admin.orgId). The result set is a strict subset of the previous global directory: the role='artist' filter, the five projected columns, the response shape, the order and the limit are unchanged, so nothing was widened. Caller-chosen tenant keys (org_id, ops_org_id, organizer_account_id) are rejected with 400 organization_scope_field_rejected, matching the ADMIN-013 precedent. The tour_id branch was already organization-bound (assertAdminTourAccess + tours.org_id, RLS tour_artists_select) and is unchanged. Neither ADMIN-013 bug class was present as a live defect here: no {data,error} envelope is consumed as a boolean, and this route is a static path with no dynamic segment (the tour id comes from the query string and is uuid-validated), so the ADMIN-014 wrong-segment class does not apply.",
+        "completed": [
+          "GET directory branch now resolves the acting organization server-side: tours.org_id = admin.orgId -> tour_artists.artist_user_id, plus resolveOrgArtistRosterScope(admin.orgId) -> artist_profiles.user_id",
+          "profiles read keeps its exact projection, role='artist' filter, ilike, order and limit and gains an .in('id', <organization scope>) data-boundary predicate, issued in 100-id chunks with a merge so a large organization still returns the same top-N",
+          "GET rejects caller-supplied org_id / ops_org_id / organizer_account_id with 400 organization_scope_field_rejected before any read, on both the directory and tour branches",
+          "16 new tests in __tests__/admin/admin-tour-artist-org-scope.test.ts driving the real withAdminCapability wrapper and a filter-honoring fake client; 9 of them FAIL on base SHA 16fb834f and 7 pass on base as no-widening / regression controls",
+          "ACCEPTED SCOPE REDUCTION (stated, not silent): the picker can no longer discover a platform artist the organization has never attached. Both legs (own tour artists, org roster) are preserved, and a new artist is added through the org roster (/api/admin/artists POST invite/create) or by attaching the tour, after which the picker finds it.",
+          "ADDED PATH outside the declared working set: tsconfig.admin015-slice.json (new file). Reason: full-repo npm run typecheck is documented as 68m18s / 1384 errors and OOMs on this 8GB box, and the verification standard requires a named scoped check. It extends ./tsconfig.json, pins next-env.d.ts, the tours/artists route and the two touched test files, and follows the tsconfig.admin003-slice.json / admin012 / admin014 precedent. Verification artifact only, imported by no build or runtime path. No other path outside app/api/admin/tours/artists/** and __tests__/admin/** was added or edited.",
+          "EDITED __tests__/admin/admin-profile-column-drift.test.ts (inside the working set): its createDirectorySupabase fake now also serves tours and tour_artists, because the route resolves its organization scope before reading profiles. All 5 tours/artists directory-branch assertions are unchanged in intent; its fail-closed test's fake now serves the scope tables so it fails closed on the profiles read error rather than on the scope read. The same file still has 6 type diagnostics before and after, at shifted lines."
+        ],
+        "next_steps": [
+          "Product note for the owner: the tour builder headliner picker (app/admin/dashboard/tours/builder/page.tsx EntityAccountPicker -> /api/admin/tours/artists) now searches only the acting organization's artist set. That is the intended narrowing, but a brand-new artist must be added through the org roster (/api/admin/artists POST) or by attaching a tour first. If the builder needs to search a wider artist directory, that surface needs its own owner decision and an artist->org linkage, not a widened admin read.",
+          "Recorded, not changed: lib/admin/api-route-registry.ts classifies /api/admin/tours/artists capability_gated with capability tour.manage for all four methods while GET is gated on tour.view. check-admin-route-registry does not compare the per-method capability to code and is exact at 53/53, and the registry file is outside this working set.",
+          "Recorded, not changed (pre-existing, outside this working set): /api/tours/planner/artists is the other admin-facing artist search used by components/admin/event-parties-panel.tsx. It is on withAdminAuth and reads profiles and artist_profiles globally, returning profile email as contact.email. It needs its own bounded admin task.",
+          "No migration was written and no schema was touched, so check:db008-harness was not run: this change is handler/query scope only. npm run agents:generate was not run because no route file, route method, or module graph node was added or removed and the registry check is exact at 291 route files / 53/53."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

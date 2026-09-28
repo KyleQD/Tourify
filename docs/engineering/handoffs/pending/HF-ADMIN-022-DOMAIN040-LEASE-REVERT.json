@@ -1,0 +1,49 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-022-DOMAIN040-LEASE-REVERT",
+  "task_id": "ADMIN-022",
+  "from_agent": "admin-experience-insights",
+  "to_agent": "admin-governance",
+  "status": "pending",
+  "accepting_task_id": "ADMIN-025",
+  "completion_condition": "The __tests__/admin/admin-registry-guard-proof.test.ts entry is removed from the shared: list in docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml and its owner is set back to admin-governance, npm run agents:validate -- --strict is green, and ADMIN-025 records the exact evidence. admin-governance then owns the whole file again with no residual admin-experience-insights claim. This is the DOMAIN-040 obligation and is SEPARATE from the DOMAIN-039 obligation in HF-ADMIN-021-DOMAIN039-LEASE-REVERT: two overrides, two reverts, and neither discharges the other.",
+  "created_at": "2026-09-28T19:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "decision_record": [
+    "DOMAIN-040"
+  ],
+  "summary": "DOMAIN-040 granted admin-experience-insights a TEMPORARY single-task shared lease on __tests__/admin/admin-registry-guard-proof.test.ts so ADMIN-022 could reclassify /api/admin/communications and /api/admin/notifications out of legacy_pending_migration and re-point the ADMIN-016 pinned baseline in the same atomic change. ADMIN-022 is complete and the lease is spent. This record is the revert obligation: admin-governance removes the shared: entry at SEGMENT_OWNERSHIP.yaml:322-324 and restores owner admin-governance. admin-experience-insights does not remove it, because the override is the orchestrator's to grant and to revoke.",
+  "working_set": [
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "__tests__/admin/admin-registry-guard-proof.test.ts"
+  ],
+  "what_the_lease_was_used_for": {
+    "authority": "The baseline figures for /api/admin/communications and /api/admin/notifications only, per DOMAIN-040: the three BASELINE counts those two routes move, and the one named divergence pin that asserts them. Nothing else in the 338-line harness was touched.",
+    "actual_change": "30 insertions, 17 deletions, in exactly TWO hunks: @@ -34,13 +34,13 @@ (legacyRoutes 53 to 51, legacyGuardDrift 9 to 5, capabilityGapMethods 30 to 32) and @@ -307,22 +307,35 @@ (the it(\"keeps the events-communications divergence visible instead of papered over\") block, moved to the true state per the DOMAIN-039 pattern and STRENGTHENED from expect.arrayContaining of 6 named methods to an exact expect.toEqual of all 5). 338 lines and 13427 bytes before; 351 lines and 14334 bytes after. No other route's figures moved: routeFiles 291, registryEntries 291, handlerMethods 483, routesWithoutResourceBoundary 48, policyGateCoherenceGaps 3, noSourceGuardMethods 4 and nonSourceComparableClasses 0 were all left byte-identical.",
+    "why_the_harness_and_the_reclassification_had_to_land_together": "The harness IS the baseline. A legacy_pending_migration route with no authClassByMethod entry for a method whose source already enforces capability_gated fails proveAdminRouteEntry, so leaving the route on the old class while the gate literal changed would assert something false. Measured both directions: control C, with the registry reclassified and the route restored to base SHA, goes red with '/api/admin/communications GET: declared gate \"communications.send\" does not match source [\"logistics.view\"]'; control B, with the registry reverted and the figures left in place, goes red with 'expected 53 to be 51' and the checker with 'Legacy classification growth: 53 exceeds baseline ceiling 51'.",
+    "not_done_deliberately": "The capabilityGapMethods figure RISES from 30 to 32, and that is correct rather than a regression: naming PATCH read_only_compat on communications and POST read_only_compat on notifications puts both into adminCapabilityGapMethods, which only counts methods on non-legacy routes. Lowering that figure to keep the suite green would have hidden the two methods that still owe a gate, so it was raised. Control D3 was kept and re-run precisely because legacyRouteLimit is a monotonic ceiling, not an exact pin."
+  },
+  "completed": [
+    "/api/admin/communications is reclassified from legacy_pending_migration to capability_gated with authClassByMethod { PATCH: 'read_only_compat' } (AC-3).",
+    "/api/admin/notifications is reclassified from legacy_pending_migration to capability_gated with authClassByMethod { POST: 'read_only_compat' } (AC-3).",
+    "scripts/ci/admin-route-registry-baseline.json legacyRouteLimit 53 to 51, which is a real debt payment: the checker reports 51/51 and the old ceiling of 53 would have permitted two routes of new legacy debt to appear unnoticed.",
+    "The ADMIN-016 BASELINE moves legacyRoutes 53 to 51, legacyGuardDrift 9 to 5 and capabilityGapMethods 30 to 32, each measured from the same derived sets the proof asserts rather than copied from the prior session's notes.",
+    "The named divergence pin is moved to the true state and strengthened, so PATCH and POST remain named as the weaker methods instead of disappearing behind the new route class (AC-3).",
+    "All three negative controls re-run against the re-applied change and observed red: B, C and D3."
+  ],
+  "next_steps": [
+    "admin-governance removes the __tests__/admin/admin-registry-guard-proof.test.ts entry (and only that entry) from the shared: list at SEGMENT_OWNERSHIP.yaml:322-324, restoring owner admin-governance, then runs npm run agents:validate -- --strict and records the result in ADMIN-025.",
+    "Discharge HF-ADMIN-021-DOMAIN039-LEASE-REVERT separately. Do not close one and treat the other as done: they are different files, different decisions, and different pinned figures.",
+    "The two methods named as weaker are still real debt and still owned by their own lanes, not by this reclassification: PATCH /api/admin/communications owes a capability gate, and POST /api/admin/notifications owes one. ADMIN-027 fixed the missing organization predicate on the communications PATCH without adding a gate precisely because adding a gate moves these pinned counts; whoever adds the gate must reconcile the counts in the same change."
+  ],
+  "blockers": [
+    "ADMIN-025 does not exist as a task record yet, so the obligation is recorded and cannot be discharged in this wave."
+  ],
+  "verification": [
+    "npm run agents:validate -- --strict -> validated 27 agents, 247 tasks, 115 pending handoffs, 0 warnings, 0 errors. No error named ADMIN-022 at any point in this session.",
+    "npx vitest run __tests__/admin -> 284 files passed | 1 skipped (285); 3751 passed | 12 skipped (3763).",
+    "npx vitest run __tests__/admin/admin-registry-guard-proof.test.ts -> 10 passed (10).",
+    "npm run check:admin-route-registry -> 'Admin API route files on disk: 291; Legacy route classifications: 51/51; REL-103 check OK'.",
+    "npx tsc -p tsconfig.admin022-slice.json --noEmit -> exit 0, recorded as a scoped slice and not as a repo-wide pass."
+  ]
+}

@@ -65,6 +65,24 @@ export async function fetchDiscoverTracks({
   return items.filter((t) => Boolean(t.id)).map(feedTrackToJukeboxTrack)
 }
 
+export async function searchNativeTracks({
+  query,
+  limit = 20,
+}: {
+  query: string
+  limit?: number
+}): Promise<JukeboxTrack[]> {
+  const params = new URLSearchParams({ limit: String(limit), q: query })
+  const res = await fetch(`/api/feed/music?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return []
+  const json = await res.json()
+  const items: FeedTrack[] = json.content || []
+  return items.filter((t) => Boolean(t.id)).map(feedTrackToJukeboxTrack)
+}
+
 export async function fetchFollowingTracks({
   sortBy = "recent",
   limit = 30,
@@ -108,6 +126,7 @@ export interface JukeboxPlaylist {
 export interface JukeboxPlaylistItem {
   id: string
   music_track_id: string
+  position?: number
   artist_music?: {
     id: string
     title: string

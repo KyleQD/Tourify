@@ -41,4 +41,18 @@ describe("getAuthSignUpEmailRedirectTo (Node)", () => {
       "https://demo.example/auth/callback?type=signup&redirectTo=%2Flogin",
     )
   })
+
+  it("preserves a ticket invitation through email confirmation", () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://demo.example"
+    expect(getAuthSignUpEmailRedirectTo("/tickets/invite/secret-token")).toBe(
+      "https://demo.example/auth/callback?type=signup&redirectTo=%2Ftickets%2Finvite%2Fsecret-token",
+    )
+  })
+
+  it("rejects an external post-signup redirect", () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://demo.example"
+    expect(getAuthSignUpEmailRedirectTo("https://evil.example")).toBe(
+      "https://demo.example/auth/callback?type=signup&redirectTo=%2Flogin",
+    )
+  })
 })

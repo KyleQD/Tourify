@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServiceRoleClient()
     const result = await ingestOpportunitiesFromRss({
-      origin: request.nextUrl.origin,
       supabase
     })
 

@@ -1,0 +1,55 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DESIGN-034-LIB-SERVICES-SWEEP",
+  "task_id": "DESIGN-034",
+  "from_agent": "design-system",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-25T15:30:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "Branch codex/qa004-staging-campaign at d2176904 with ~322 dirty entries from six concurrent Wave 34 lanes. lib/services/** was CLEAN at the start of this lane (git status --porcelain -- lib/services/ returned nothing), so every deletion and the one repoint are attributable to this lane alone and no other lane's worktree edit was overwritten. No git history operation, no migration authored or applied, no agents:generate, no lib/database.types.ts or types/** edit, no host touched (CP-051).",
+  "summary": "The 'library' code-drift cluster named in HF-DB008-TYPECHECK-LIBRARY as orphaned service modules is now swept. 15 zero-importer modules (5,554 lines) deleted and 1 module repointed onto the recorded canonical column, removing 211 measured primary tsc diagnostics. The full per-module inventory, the importer evidence behind every disposition, and the measured diagnostic counts are in docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json. 50 database objects still have a lib/services reference; 28 of them sit in live modules with NO recorded canonical destination, and those are handed off rather than unilaterally repointed.",
+  "correction_to_the_brief": "The Wave 34 brief described the library cluster as '60 objects, 28 with live consumers'. The artifact of record (docs/engineering/database-type-inventory-2026-09-25.json) says 48 objects, 16 with a live consumer, 712 diagnostic hits. The artifact of record is what this lane used; the brief's figures were not used anywhere.",
+  "working_set": [
+    "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+    "docs/engineering/database-type-inventory-2026-09-25.json (read-only input)",
+    "lib/services/staff-onboarding.service.ts (the one repoint)"
+  ],
+  "completed": [
+    "Inventory: all 92 files under lib/services/** (89 modules + 3 vitest roots, 41,770 lines) given a machine-readable row: importer list, live importer list, entry-reachability, database objects the module names, and a measured scoped-tsc diagnostic count.",
+    "Zero-importer claim independently re-proven, not trusted: 22 modules were claimed zero-importer. A second, independent extraction pass (rg -o over every quoted import specifier in the whole repo, resolving only root-anchored spellings) confirmed all 22. A third pass (exhaustive rg -F over EVERY file in the repository including docs, JSON manifests, SQL, checklists and logs, for both filename and module stem) found no missed string-path import, vi.mock, moduleNameMapper or manifest reference for any of the 22.",
+    "Liveness proven by BFS from 1,484 Next.js entry points over the resolved import graph, matching the database lane's own method. Every candidate dead importer was re-checked with an independent rg sweep; 13 of 14 spot-checked dead importers returned 0 importers and the one that returned 1 (hooks/use-enhanced-accounts.ts) was itself imported only by a zero-importer component, so the transitive verdict held.",
+    "DELETED 15 zero-importer modules / 5,554 lines: advanced-analytics, enhanced-staff-analytics, equipment-assets, event-page, event-participants, locations, onboarding-workflow, password-management, real-time-staff, rss-feed, security-compliance, session-management, staff-job-board, staff-management, unified-documents. Every one has a per-file reason in the inventory artifact.",
+    "REPOINTED 1: lib/services/staff-onboarding.service.ts venue_profiles.name -> venue_profiles.venue_name, using the database lane's recorded canonicalReplacement. Independently verified against lib/database.types.ts (venue_profiles.Row has venue_name and no name) and against supabase/migrations/20260721120000_venue_profiles_url_slug.sql:5, which names venue_name as the correct column and `name` as wrong. No schema change required, no new table invented, no archived object resurrected.",
+    "MEASURED, NOT ESTIMATED: scoped tsc over a generated per-run tsconfig (include = named roots only, repository compilerOptions) put the 15 deleted files at 209 primary diagnostics and the repointed file at 4 -> 2. 211 primary diagnostics removed, attributed file by file, with no other file's count changing.",
+    "No object with a recorded canonical replacement was left unrepointed in a surviving lib/services file: all 11 such objects resolved either to a dead consumer (deleted) or to the single repoint above.",
+    "23 database objects now have zero on-disk reference anywhere under lib/services."
+  ],
+  "not_done_and_why": [
+    "No repoint was invented for the 28 objects whose live lib/services consumer has no recorded canonical destination. The brief forbids inventing a table to make an error disappear; the database lane recorded canonicalReplacement: null for all of them. They are handed off.",
+    "The 12 dead-but-imported modules were NOT deleted. Every one of their importers is itself unreachable, but each importer is outside the design-system grant, so deleting the module would add a TS2307 to files this lane does not own. Routed in HF-DESIGN-034-DEAD-IMPORTER-OWNERS.",
+    "The full npm run typecheck was NOT run. It is prohibited in this wave (CI 68m18s, 1,384 primary diagnostics across 197 files, OOMs on this 8GB box) and was not run. The 211-diagnostic reduction is a real scoped-tsc measurement of the affected files, not a projection of a full run; the 1,384 baseline has NOT been re-measured."
+  ],
+  "next_steps": [
+    "Re-measure the 1,384-diagnostic baseline once a full typecheck is affordable; the 211 figure is the design-system lane's scoped contribution only.",
+    "Sequence the four follow-on handoffs: HF-DESIGN-034-SCHEMA-NO-HOME (database), HF-DESIGN-034-DEAD-IMPORTER-OWNERS (orchestrator to route per owner), HF-DESIGN-034-TEST-ASSERTED-MODULES (orchestrator to route to admin/social), HF-DESIGN-034-VENUE-DEFERRED (venue).",
+    "prune the now-stale 'lib/services/event-page.service.ts' entry from lib/supabase/service-role-legacy-imports.json in HF-DESIGN-034-VENUE-DEFERRED. The SEC-109 check stays green without the prune (it rejects only unclassified new imports, not stale array entries) but the flat array now names a deleted path."
+  ],
+  "blockers": [
+    "npm run check:migration-validation was RED (exit 1) when this lane started; all four failures belonged to the marketplace lane three brand-new untracked migrations 20260926120000/20260926120100/20260926120200 and their three missing docs/engineering/migration-validation manifests. The marketplace lane wrote those manifests at 14:30-14:32 and the check went green on its own, with no action from this lane. FINAL STATE at handoff: exit 0, no failures, green throughout the deletion sweep. This lane authored and applied no migration (CP-051).",
+    "The 1,384-diagnostic baseline cannot be re-measured in this wave, so the reduction is proven per-file rather than against the whole-repo total."
+  ],
+  "verification": [
+    "PASS npm run check:migration-chain: 'active migration chain has no duplicate policy creations (305 files scanned)', exit 0.",
+    "PASS npx vitest run __tests__/design-system __tests__/services __tests__/venue/venue-code-drift-cluster.test.ts __tests__/integrations/mfa.service.test.ts __tests__/events __tests__/feed: 32 files / 248 tests passed, identical to the pre-deletion baseline captured before any file was removed.",
+    "PASS npm run check:service-role-allowlist, exit 0 (195 -> 194 production files, 182 -> 181 historical), i.e. the deleted event-page.service.ts bare createServiceRoleClient import is gone and nothing unclassified appeared.",
+    "PASS npm run agents:validate: 17 agents / 151 tasks / 0 warnings / 0 errors.",
+    "PASS regression check on the import graph: files with at least one live importer went 58 -> 58 across the deletion, and no file gained a live importer. Nothing live was removed.",
+    "PASS scoped tsc on the three files the work lane named (venue.service.ts, artist.service.ts, account-management.service.ts): 29 primary diagnostics before the deletion and 29 after, identical byCode distribution, so the deletion injected nothing into the surviving high-traffic services. The work lane's '29+ pre-existing type errors pristine at HEAD' claim is confirmed at 29.",
+    "PASS git diff --check: clean.",
+    "NOT RUN full npm run typecheck and full npm test, both prohibited in this wave."
+  ],
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Re-measure the 1,384-diagnostic baseline once a full typecheck is affordable; the 211 figure is the design-system lane's scoped contribution only."
+}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { UserCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { WorkforceEmptyState, WorkforcePanel } from "./workforce-ui"
 
 interface HiringOnboardingPanelProps {
   employer: HiringEntity
+  initialCandidateId?: string | null
 }
 
 function getPayloadError(payload: unknown): string | null {
@@ -29,7 +30,7 @@ function getPayloadError(payload: unknown): string | null {
   return null
 }
 
-export function HiringOnboardingPanel({ employer }: HiringOnboardingPanelProps) {
+export function HiringOnboardingPanel({ employer, initialCandidateId }: HiringOnboardingPanelProps) {
   const queryString = getEmployerQueryString(employer)
   const { data: candidates, isLoading, error, refetch } = useHiringDashboardFetch<HiringCandidate[]>({
     url: `/api/admin/onboarding/candidates?${queryString}`,
@@ -37,6 +38,16 @@ export function HiringOnboardingPanel({ employer }: HiringOnboardingPanelProps) 
   })
   const [selectedCandidate, setSelectedCandidate] = useState<HiringCandidate | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const openedInitialCandidateRef = useRef(false)
+
+  useEffect(() => {
+    if (!initialCandidateId || isLoading || openedInitialCandidateRef.current) return
+    const candidate = candidates.find((item) => item.id === initialCandidateId)
+    if (!candidate) return
+    openedInitialCandidateRef.current = true
+    setSelectedCandidate(candidate)
+    setIsDrawerOpen(true)
+  }, [candidates, initialCandidateId, isLoading])
 
   function openCandidate(candidate: HiringCandidate) {
     setSelectedCandidate(candidate)
@@ -101,7 +112,7 @@ export function HiringOnboardingPanel({ employer }: HiringOnboardingPanelProps) 
               {candidates.map((candidate) => {
                 const progress = getProgressPercent(candidate.onboardingProgress)
                 return (
-                  <div key={candidate.id} className="rounded-[1.15rem] border border-slate-700/60 bg-slate-900/40 p-4">
+                  <div key={candidate.id} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">

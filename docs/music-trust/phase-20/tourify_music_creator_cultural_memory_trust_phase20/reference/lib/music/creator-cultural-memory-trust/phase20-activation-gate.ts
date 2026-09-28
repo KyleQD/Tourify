@@ -1,0 +1,2 @@
+export interface ActivationEvidence { legalEntity:boolean; charterEffective:boolean; communityGovernance:boolean; multipleCustodians:boolean; independentImplementations:boolean; restorePassed:boolean; restrictionPropagationPassed:boolean; providerReplacementPassed:boolean; tourifyUnavailablePassed:boolean; unresolvedCriticalBlockers:number; }
+export function canActivatePhase20(e:ActivationEvidence):boolean { return Object.entries(e).every(([k,v])=>k==="unresolvedCriticalBlockers"?v===0:v===true); }

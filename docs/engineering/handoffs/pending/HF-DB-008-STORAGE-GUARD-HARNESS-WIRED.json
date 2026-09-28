@@ -1,0 +1,46 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB-008-STORAGE-GUARD-HARNESS-WIRED",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "orchestrator",
+  "cc_agents": [
+    "release",
+    "qa"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-26T01:20:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96 (dirty working tree; 6 concurrent lanes)",
+  "summary": "Objective 4 of Wave 35, closed on the harness side, open on the wiring side. Confirmed from a clean-checkout perspective: db008_storage_replay_guard.harness.sh was NOT reproducible. Its manifest.json and 00-bootstrap.sql were never committed and nothing invoked it, so the Wave 33 CP-059 proof was a claim, not evidence. It is now self-contained and runs 10 real scenarios from the tree. What is still missing is a package.json script and a CI job, both outside the database lane's file ownership.",
+  "working_set": [
+    "supabase/tests/db008_storage_replay_guard.harness.sh",
+    "supabase/tests/db008_storage_replay_extract.mjs",
+    "supabase/tests/db008_run_all.sh",
+    "package.json"
+  ],
+  "completed": [
+    "VERIFIED THE FIXTURES WERE NOT COMMITTED. `git ls-files supabase/tests/ | grep db008_storage` returns exactly four files, none of them manifest.json or 00-bootstrap.sql. The committed bootstrap under a different name, db008_storage_replay_bootstrap.sql, WAS present all along; the harness was looking for 00-bootstrap.sql, which is why the Wave 34 run reported zero scenarios. So the defect was a filename mismatch plus a missing manifest, not a missing fixture.",
+    "The harness now creates and destroys its own throwaway PostgreSQL 16.15 cluster, generates its own scenario manifest by running db008_storage_replay_extract.mjs into its temp dir, loads the committed fixture, and still asserts its own post-reset state (2 storage tables / 0 policies / owner=supabase_storage_admin / replay role not superuser) before trusting any scenario. It needs nothing but the repository and a local PostgreSQL 16.",
+    "A SECOND, WORSE DEFECT WAS FIXED IN THE EXTRACTOR. db008_storage_replay_extract.mjs read the pre-guard text from `git show HEAD:<file>`. That was valid while the CP-059 guard was an uncommitted working-tree edit. It is not valid now: the guard is committed, HEAD equals the working tree, and the comparison silently degrades to guarded-vs-guarded, in which every scenario passes without ever exercising the failure mode the harness exists to prove. The extractor now SYNTHESISES the unguarded form by unwrapping the `do $storage_replay_guard_N$ begin ... exception when others ... end` blocks, which is the pre-guard text derived from the tree itself and stays correct as the migrations change. A block that does not match the expected shape is a hard error, never a silent pass-through.",
+    "Result: 10 scenarios, 10 passed, 0 failed, exit 0. 5 of the 10 unguarded forms abort as a non-owner replay role and all 10 guarded forms complete with a sqlstate/sqlerrm warning; the owner-applied policy set is identical to the original in all 10; the form is idempotent over three applies. NOTE the honest delta from Wave 33, which reported all 10 originals aborting: 5 do not, because their inner body carries a pg_policies existence guard that is a no-op on a fresh schema. The synthesized original is not the historical blob, and the report says so.",
+    "supabase/tests/db008_run_all.sh added: one entry point for all nine database-lane harnesses, each with a one-line statement of what a pass does and does not prove, an explicit list of the four things that need a live target and are therefore never silently claimed, and a hard failure when zero harnesses run. That last rule exists because the Wave 33 harness passed having executed nothing."
+  ],
+  "next_steps": [
+    "ORCHESTRATOR: add `\"check:database-harnesses\": \"bash supabase/tests/db008_run_all.sh\"` to package.json. It is deliberately not run as part of check:migration-chain: those harnesses create a PostgreSQL cluster and take minutes, and a shared gate that is slow gets skipped.",
+    "ORCHESTRATOR / QA: add a CI job on a runner with a PostgreSQL 16 service (services: postgres:16) running the same command. The harnesses locate PostgreSQL at /opt/homebrew/opt/postgresql@16/bin and SKIP cleanly if it is absent, so on a Linux runner they will skip rather than fail until PGBIN is pointed at the service; wire PGBIN explicitly. A CI job that silently skips is the Wave 33 failure in a new location, so the job should assert that the harnesses RAN, which db008_run_all.sh's `ran N` line makes possible.",
+    "RELEASE: these are local emulations. A green run is evidence about the migration chain and nothing about staging or production; the operator's manual apply and the hosted postflight remain the gate (CP-051)."
+  ],
+  "blockers": [
+    "package.json and .github/workflows/** are outside the database lane's file ownership for this wave, so the wiring is handed over rather than done. This is a handoff, not silent scope expansion.",
+    "Every harness needs a local PostgreSQL 16 at /opt/homebrew/opt/postgresql@16/bin (overridable with PGBIN). On a machine without it they print SKIP and exit 0, which is correct for a developer machine and WRONG for CI. The CI job must therefore assert that scenarios ran, not merely that the command exited 0."
+  ],
+  "verification": [
+    "git ls-files supabase/tests/ | grep db008_storage -> db008_storage_replay_bootstrap.sql, db008_storage_replay_extract.mjs, db008_storage_replay_guard.harness.sh, db008_storage_replay_guard_contract.sql. No manifest.json, no 00-bootstrap.sql. Confirms the Wave 33 fixture gap.",
+    "bash supabase/tests/db008_storage_replay_guard.harness.sh -> 10 passed, 0 failed, exit 0, with the per-scenario rc and warning counts printed.",
+    "bash supabase/tests/db008_run_all.sh -> ran 9, skipped 1 (view-delta, which needs a gen-types payload), failed 0.",
+    "bash supabase/tests/db008_run_all.sh --list -> lists all nine harnesses and the four live-target commands that are never claimed.",
+    "NOT verified: no CI run, no hosted environment, and the harnesses' own PostgreSQL cluster is a Homebrew build, not the PostgreSQL version a Supabase project runs."
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "ORCHESTRATOR: add `\"check:database-harnesses\": \"bash supabase/tests/db008_run_all.sh\"` to package.json. It is deliberately not run as part of check:migration-chain: those harnesses create a PostgreSQL cluster and take minutes, and a shared gate that is slow gets skipped."
+}

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926120000_marketplace_checkout_idempotency_and_guest_checkout.sql",
+  "taskId": "DB-011",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "8799af96ba3f2f8a99d9e1e2caffa17e54e04834e6304f3c1c75bbaaa90cfd2d",
+  "owner": "database",
+  "reviewer": "marketplace",
+  "domains": ["marketplace", "data-integrity", "authorization"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Static source review of the P0 marketplace checkout money path. app/api/marketplace/checkout/route.ts reads public.marketplace_checkout_attempts at :99 (select status, order_id, input_hash by idempotency_key), updates it at :154 (status, expires_at by idempotency_key + input_hash + status=pending) and upserts it at :464 (idempotency_key, buyer_user_id, guest_email, order_id, input_hash, status, expires_at, onConflict idempotency_key, ignoreDuplicates true). lib/marketplace/webhook-processor.ts:369 updates status='failed' where status='pending' and order_id in (...). The route inserts public.marketplace_orders at :377-394 with applied_fee_snapshot, idempotency_key, guest_email, guest_access_token and guest_access_token_expires_at in addition to the columns the chain already creates. Neither marketplace_checkout_attempts nor those six order columns are created by any active migration: 20260410120000_marketplace_core.sql creates marketplace_orders with 16 columns and none of them. The archived, reviewed DDL is supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260728000011_marketplace_checkout_attempts.sql (MANIFEST.csv:257) and .../20260728000014_marketplace_orders_p6_guest_checkout.sql (MANIFEST.csv:262), both local_only_unapplied. Contract test SHA-256 688274fac1969242cd89d2c2c954d85c461c4ed5037c2c1fcfe993031c6a1610. Executed evidence: supabase/tests/db011_marketplace_surface.harness.sh, PostgreSQL 16.15 local emulation, 33/33 checks pass including 5 negative controls.",
+    "evidenceArtifact": "static-review:DB-011-MARKETPLACE-CHECKOUT-2026-09-26 (migration SHA-256 8799af96ba3f2f8a99d9e1e2caffa17e54e04834e6304f3c1c75bbaaa90cfd2d)"
+  },
+  "assumptions": [
+    "The archived 20260728000011 table definition is the intended contract for marketplace_checkout_attempts. It is reproduced verbatim except for one added column: guest_email. The archived table has no guest_email, but app/api/marketplace/checkout/route.ts:467 writes guest_email in the same upsert that claims the idempotency_key, so the archived DDL is demonstrably behind the code. This is the only departure and it is driven by a caller, not chosen to silence an error.",
+    "The archived unique(idempotency_key) is the idempotency guarantee the route's onConflict:'idempotency_key', ignoreDuplicates:true depends on. It is reproduced as a table-level unique constraint, so it is created inside CREATE TABLE IF NOT EXISTS rather than as a separate statement that could be lost on a re-apply.",
+    "marketplace_orders.guest_access_token is a plain-text opaque token as the archived comment states, not a hash. It is stored server-side only and is covered by the existing order authorization surface; this migration adds no policy and changes no grant on marketplace_orders.",
+    "The six order columns are nullable. The route always supplies all six keys, but a buyer (non-guest) checkout supplies null for guest_email, guest_access_token and guest_access_token_expires_at, so NOT NULL would break the authenticated path.",
+    "RLS is enabled AND forced on marketplace_checkout_attempts. The table deliberately has no INSERT or UPDATE policy because both writers use the service role; FORCE guarantees the owner is subject to that absence too. Service-role writes are unaffected because that role has BYPASSRLS."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm marketplace_orders exists and that to_regclass('public.marketplace_checkout_attempts') is null (fresh) or, if non-null, that its existing columns are a superset of the ten below. Count marketplace_orders rows and the count of orders that already carry guest_email (expected 0).",
+    "Layer 1 (apply, single run, operator): CREATE TABLE IF NOT EXISTS public.marketplace_checkout_attempts with its two indexes, ENABLE + FORCE ROW LEVEL SECURITY, the buyer-scoped SELECT policy, and comments; then ALTER TABLE public.marketplace_orders ADD COLUMN IF NOT EXISTS for the six guest-checkout columns and CREATE [UNIQUE] INDEX IF NOT EXISTS for the three partial indexes. All statements are metadata-only on PostgreSQL 11+; no table is rewritten and no existing row is touched.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db011_marketplace_checkout_surface_contract.sql; expect zero violation rows and exactly one summary row marketplace_checkout_surface_ready. Also run supabase/tests/db011_marketplace_surface.harness.sh if a local PostgreSQL 16 is available.",
+    "Layer 3 (runtime certification, marketplace + release/ops): after apply, npm run generate:database-types against the applied target (CP-016); the CP-016 gate at supabase/tests/db008_chain_contract_replay.mjs --check must pass first, and it does. Then exercise app/api/marketplace/checkout/route.ts end to end: a guest checkout and an authenticated checkout must both reach the payment provider, a repeated idempotency_key must return the stored attempt rather than a second Stripe session, and an anonymous caller must receive PGRST205 for any direct read of marketplace_checkout_attempts rows."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT to_regclass('public.marketplace_checkout_attempts') AS attempts_exists",
+      "SELECT count(*) FROM public.marketplace_orders",
+      "SELECT count(*) FROM public.marketplace_orders WHERE guest_email IS NOT NULL",
+      "SELECT count(*) FROM public.marketplace_orders WHERE order_number IS NOT NULL",
+      "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='marketplace_orders'"
+    ],
+    "expectedAffectedRows": "Zero rows are inserted, updated or deleted. DDL only: one new empty relation, six new nullable columns with no default, and five new indexes. Existing marketplace_orders rows keep every current value and gain NULL in the six new columns.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with this exact file or a targeted psql apply. A partial or failed apply is corrected with a later additive forward fix, never a replay or reset. Every statement is IF NOT EXISTS guarded, so a re-apply after a partial failure converges.",
+    "resumeCursor": "Supabase migration version 20260926120000",
+    "idempotency": "Deterministic and repeatable. CREATE TABLE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, DROP POLICY IF EXISTS + CREATE POLICY, and comments are all no-ops on a second run. Verified by applying the file twice on a throwaway PostgreSQL 16.15 cluster in supabase/tests/db011_marketplace_surface.harness.sh with zero errors on both applies."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement. A target that already received the archived DDL out of band converges rather than erroring, because the table is created IF NOT EXISTS and every column is added IF NOT EXISTS. If such a target's marketplace_checkout_attempts is MISSING guest_email, the ALTER-free CREATE TABLE IF NOT EXISTS will not add it; the operator must then apply the single additive statement `alter table public.marketplace_checkout_attempts add column if not exists guest_email text` and the postflight will confirm it. This divergence is detected, not assumed away, by the contract test's column expectation."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "marketplace_checkout_attempts: primary key (id); unique (idempotency_key); check (status in ('pending','completed','failed','expired')); foreign keys buyer_user_id -> auth.users(id) on delete set null and order_id -> public.marketplace_orders(id) on delete set null. All reproduced from the archived DDL; none is applied to an existing table.",
+      "marketplace_orders: NO constraint is added, altered or dropped. The three order indexes are partial unique/btree indexes, not constraints, so the table's existing constraint set is byte-identical before and after.",
+      "The three order uniqueness guarantees are partial (WHERE column IS NOT NULL) rather than bare unique constraints, because the columns are nullable and guest orders are identified by a token; a bare unique would treat every NULL as distinct anyway but would also block a future NOT NULL promotion without a migration."
+    ],
+    "indexes": [
+      "idx_marketplace_checkout_attempts_key on public.marketplace_checkout_attempts(idempotency_key) - mirrors the unique constraint; kept because the archived DDL created both and a lookup by key is the hot path",
+      "idx_marketplace_checkout_attempts_buyer_time on public.marketplace_checkout_attempts(buyer_user_id, created_at desc) - the buyer read policy's access pattern",
+      "idx_marketplace_orders_order_number UNIQUE partial on (order_number) where order_number is not null",
+      "idx_marketplace_orders_guest_token partial btree on (guest_access_token) where guest_access_token is not null",
+      "idx_marketplace_orders_idempotency_key UNIQUE partial on (idempotency_key) where idempotency_key is not null",
+      "No existing index on either relation is dropped or rebuilt."
+    ],
+    "validationPlan": "supabase/tests/db011_marketplace_checkout_surface_contract.sql asserts, as violation rows only: all 15 expected columns with exact type and nullability; a unique constraint or single-column unique index over idempotency_key alone; relrowsecurity AND relforcerowsecurity on marketplace_checkout_attempts; that every policy on that table is a SELECT policy granted to authenticated alone; and that anon holds no SELECT on marketplace_orders. It emits exactly one summary row marketplace_checkout_surface_ready and only when the relation exists, so an unapplied target cannot pass vacuously. Five negative controls in supabase/tests/db011_marketplace_surface.harness.sh each break one of these and confirm the postflight reports the violation."
+  },
+  "recovery": {
+    "rollback": "Not applicable and not permitted as a first response. The migration is additive: it creates one empty relation and six nullable columns with no default. If it must be undone, a forward migration drops the six columns and the relation, in that order, and only after confirming no checkout attempt has been written since the apply. No DROP is present in this file.",
+    "forwardFix": "Any correction is a new additive migration with a higher version. The realistic correction is adding a column a caller turns out to need, which is a plain ADD COLUMN IF NOT EXISTS. A constraint that proves too strict is relaxed by dropping and re-adding it with a superset, exactly as the archived marketplace_listings status check is handled in 20260926120100."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db011_marketplace_checkout_surface_contract.sql",
+      "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'public.marketplace_checkout_attempts'::regclass",
+      "SELECT polname, polcmd, polroles FROM pg_policy WHERE polrelid = 'public.marketplace_checkout_attempts'::regclass",
+      "SELECT indexname, indexdef FROM pg_indexes WHERE tablename IN ('marketplace_checkout_attempts','marketplace_orders') AND indexname LIKE 'idx_marketplace_%'",
+      "SELECT count(*) AS leaked FROM public.marketplace_checkout_attempts WHERE buyer_user_id IS NULL AND guest_email IS NOT NULL"
+    ]
+  },
+  "verificationOwner": "release/ops operator for the staging apply and the postflight; marketplace lane for the end-to-end checkout certification in Layer 3; database lane for any forward fix",
+  "evidence": [
+    "supabase/tests/db011_marketplace_surface.harness.sh - executed on a throwaway PostgreSQL 16.15 cluster: applies the three DB-011 migrations twice each with zero errors, then 33/33 checks pass, including 5 negative controls and a post-state re-assertion. LOCAL EMULATION ONLY: not Supabase, not a hosted project, not a chain replay, and no `supabase db reset` (CP-051).",
+    "supabase/tests/db011_marketplace_local_only_disposition.mjs - classifies every object the 17 archived local_only_unapplied marketplace migrations would create against the active chain and the live code. 61 items are absent from the chain with at least one product-code consumer; this migration closes the checkout money-path subset of them.",
+    "node supabase/tests/db008_chain_contract_replay.mjs . <out> --check - exits 0 after this migration, so the CP-016 regeneration precondition (chain is a superset of the contract) still holds."
+  ],
+  "exceptions": []
+}

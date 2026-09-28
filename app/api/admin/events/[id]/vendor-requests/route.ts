@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   assertAdminEventAccess,
 } from "@/lib/admin/admin-tour-event-access"
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability('vendor.view', async (request: NextRequest, { supabase, user }) => {
   try {
     const { pathname } = new URL(request.url)
     const parts = pathname.split('/')
@@ -52,5 +52,4 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     return NextResponse.json({ error: err?.message || 'Invalid request' }, { status: 400 })
   }
 })
-
 

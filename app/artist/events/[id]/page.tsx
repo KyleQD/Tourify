@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { ArtistEventOpsPanel } from "@/app/artist/events/components/artist-event-ops-panel"
+import { EventTicketingWorkspace } from "@/components/ticketing/event-ticketing-workspace"
 import { 
   ArrowLeft,
   Calendar, 
@@ -130,16 +131,20 @@ interface Venue {
   venue_type: string
   amenities: string[]
   contact_email?: string
-  booking_status?: 'available' | 'pending' | 'booked' | 'unavailable'
-  price_range?: { min: number; max: number }
   images?: string[]
   user_id?: string
 }
 
 interface BookingRequest {
   id: string
-  venue_id: string
   event_id: string
+  /**
+   * DB-008: `booking_requests.venue_id` is not in the chain or the generated
+   * contract. The venue a request refers to is carried by
+   * `booking_requests.booking_details` (the document `/api/booking-requests`
+   * already writes), so the venue name is read from there.
+   */
+  venue_name: string | null
   message: string
   status: 'pending' | 'approved' | 'declined'
   created_at: string
@@ -240,14 +245,24 @@ export default function EventDetailPage() {
 
   const loadTasks = async () => {
     try {
+      // DB-008: `logistics_tasks.completed` / `assignee` are not in the chain.
+      // The canonical lifecycle column is `logistics_tasks.status` and the
+      // canonical assignee is `assigned_to_user_id`.
       const { data, error } = await supabase
         .from('logistics_tasks')
-        .select('id, title, description, completed, due_date, assignee')
+        .select('id, title, description, status, due_date, assigned_to_user_id, priority, type')
         .eq('event_id', eventId)
-        .order('due_date', { ascending: true })
+        .order('due_date', { ascending: true, nullsFirst: false })
 
       if (error) throw error
-      setTasks(data ?? [])
+      setTasks((data ?? []).map(task => ({
+        id: String(task.id),
+        title: task.title,
+        description: task.description ?? undefined,
+        completed: task.status === 'completed',
+        due_date: task.due_date ?? undefined,
+        assignee: task.assigned_to_user_id ?? undefined,
+      })))
     } catch (err) {
       console.error('Error loading tasks:', err)
       setTasks([])
@@ -256,14 +271,31 @@ export default function EventDetailPage() {
 
   const loadExpenses = async () => {
     try {
+      // DB-008: `artist_financial_transactions` has no `category`, `date` or
+      // `event_id` column. Classification is by transaction `type`, the date is
+      // `occurred_at`, and the caller is scoped by `user_id` (authorization at
+      // the data boundary) plus the event reference in `source_id`.
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setExpenses([])
+        return
+      }
+
       const { data, error } = await supabase
         .from('artist_financial_transactions')
-        .select('id, description, amount, category, date')
-        .eq('event_id', eventId)
-        .order('date', { ascending: false })
+        .select('id, description, amount, type, occurred_at')
+        .eq('user_id', user.id)
+        .eq('source_id', eventId)
+        .order('occurred_at', { ascending: false })
 
       if (error) throw error
-      setExpenses(data ?? [])
+      setExpenses((data ?? []).map(row => ({
+        id: String(row.id),
+        description: row.description || 'Transaction',
+        amount: Number(row.amount) || 0,
+        category: row.type,
+        date: row.occurred_at,
+      })))
     } catch (err) {
       console.error('Error loading expenses:', err)
       setExpenses([])
@@ -272,17 +304,48 @@ export default function EventDetailPage() {
 
   const loadCrewMembers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('event_crew_assignments')
-        .select('id, user_id, email, name, role, status, permissions, created_at')
+      // DB-008: `event_crew_assignments` is not in the chain. The canonical crew
+      // record is `staff_members` (the de-facto organization person per
+      // lib/admin/workforce-identity-map.ts) linked to the event through the
+      // chain's event roster `event_participants`.
+      const { data: participants, error } = await supabase
+        .from('event_participants')
+        .select('participant_id, participant_type, role, created_at')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setCrewMembers((data ?? []).map(m => ({
-        ...m,
-        permissions: m.permissions ?? [],
-      })))
+
+      const rows = (participants ?? []).filter(row => row.participant_type === 'staff_member')
+      const participantIds = rows.map(row => row.participant_id)
+
+      const { data: staffRows } = participantIds.length > 0
+        ? await supabase
+            .from('staff_members')
+            .select('id, user_id, name, email, role, status, permissions')
+            .in('id', participantIds)
+        : { data: [] as Array<{ id: string; user_id: string | null; name: string | null; email: string | null; role: string | null; status: string; permissions: unknown }> }
+
+      const staffById = new Map((staffRows ?? []).map(row => [String(row.id), row]))
+
+      setCrewMembers(rows.map(row => {
+        const person = staffById.get(String(row.participant_id))
+        const rawStatus = person?.status || 'pending'
+        const status: CrewMember['status'] =
+          rawStatus === 'declined' || rawStatus === 'invited'
+            ? rawStatus
+            : 'accepted'
+        return {
+          id: String(row.participant_id),
+          user_id: person?.user_id ?? undefined,
+          email: person?.email ?? undefined,
+          name: person?.name || person?.email || 'Crew member',
+          role: row.role || person?.role || 'crew',
+          status,
+          permissions: Array.isArray(person?.permissions) ? person.permissions.map(String) : [],
+          created_at: row.created_at || new Date().toISOString(),
+        }
+      }))
     } catch (err) {
       console.error('Error loading crew:', err)
       setCrewMembers([])
@@ -291,17 +354,38 @@ export default function EventDetailPage() {
 
   const loadVenues = async () => {
     try {
+      // DB-008: the legacy `venues` table is not in the chain. The canonical
+      // venue projection is `venue_profiles` (venue_name / capacity_total /
+      // venue_types / amenities / contact_info).
       const { data, error } = await supabase
-        .from('venues')
-        .select('id, name, address, city, state, country, capacity, venue_type, amenities, contact_email, booking_status, price_range, images, user_id')
+        .from('venue_profiles')
+        .select('id, venue_name, address, city, state, country, capacity_total, venue_types, amenities, contact_info, avatar_url, is_public, user_id')
+        .eq('is_public', true)
+        .order('venue_name', { ascending: true })
         .limit(20)
 
       if (error) throw error
-      setVenues((data ?? []).map(v => ({
-        ...v,
-        amenities: v.amenities ?? [],
-        images: v.images ?? [],
-      })))
+      setVenues((data ?? []).map(row => {
+        const contactInfo = row.contact_info && typeof row.contact_info === 'object' && !Array.isArray(row.contact_info)
+          ? (row.contact_info as Record<string, unknown>)
+          : {}
+        return {
+          id: String(row.id),
+          name: row.venue_name || 'Venue',
+          address: row.address || '',
+          city: row.city || '',
+          state: row.state || '',
+          country: row.country || '',
+          capacity: Number(row.capacity_total) || 0,
+          venue_type: Array.isArray(row.venue_types) && row.venue_types.length > 0
+            ? row.venue_types.map(String).join(', ')
+            : 'venue',
+          amenities: Array.isArray(row.amenities) ? row.amenities.map(String) : [],
+          contact_email: typeof contactInfo.email === 'string' ? contactInfo.email : undefined,
+          images: row.avatar_url ? [row.avatar_url] : [],
+          user_id: row.user_id,
+        }
+      }))
     } catch (err) {
       console.error('Error loading venues:', err)
       setVenues([])
@@ -310,14 +394,32 @@ export default function EventDetailPage() {
 
   const loadBookingRequests = async () => {
     try {
+      // DB-008: `booking_requests.venue_id` is not in the chain; the venue is
+      // carried in the `booking_details` document.
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('id, venue_id, event_id, message, status, created_at')
+        .select('id, event_id, booking_details, request_type, status, created_at')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setBookingRequests(data ?? [])
+      setBookingRequests((data ?? []).map(row => {
+        const details = row.booking_details && typeof row.booking_details === 'object' && !Array.isArray(row.booking_details)
+          ? (row.booking_details as Record<string, unknown>)
+          : {}
+        return {
+          id: String(row.id),
+          event_id: row.event_id || eventId,
+          venue_name: typeof details.venue === 'string' ? details.venue : null,
+          message: typeof details.description === 'string'
+            ? details.description
+            : typeof details.additionalNotes === 'string'
+              ? details.additionalNotes
+              : '',
+          status: (row.status as BookingRequest['status']) || 'pending',
+          created_at: row.created_at || new Date().toISOString(),
+        }
+      }))
     } catch (err) {
       console.error('Error loading booking requests:', err)
       setBookingRequests([])
@@ -578,8 +680,8 @@ export default function EventDetailPage() {
 
       const request: BookingRequest = {
         id: String(data?.data?.id || data?.venueBookingRequest?.id || Date.now()),
-        venue_id: selectedVenue.id,
         event_id: eventId,
+        venue_name: selectedVenue.name,
         message: bookingMessage,
         status: "pending",
         created_at: new Date().toISOString(),
@@ -998,6 +1100,7 @@ export default function EventDetailPage() {
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
           <TabsList className={artistEventUI.tabsList}>
           <TabsTrigger value="overview" className={artistEventUI.tabsTrigger}>Overview</TabsTrigger>
+          <TabsTrigger value="ticketing" className={artistEventUI.tabsTrigger}>Ticketing</TabsTrigger>
           <TabsTrigger value="public-page" className={artistEventUI.tabsTrigger}>Public Page</TabsTrigger>
           <TabsTrigger value="crew" className={artistEventUI.tabsTrigger}>Crew</TabsTrigger>
           <TabsTrigger value="venues" className={artistEventUI.tabsTrigger}>Venues</TabsTrigger>
@@ -1009,13 +1112,15 @@ export default function EventDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <ArtistEventOpsPanel
-            eventId={eventId}
-            promotedEventV2Id={event?.promoted_event_v2_id}
-            onPromoted={(id) => {
-              setEvent((prev) => (prev ? { ...prev, promoted_event_v2_id: id } : prev))
-            }}
-          />
+          {!event?.promoted_event_v2_id ? (
+            <ArtistEventOpsPanel
+              eventId={eventId}
+              promotedEventV2Id={event?.promoted_event_v2_id}
+              onPromoted={(id) => {
+                setEvent((prev) => (prev ? { ...prev, promoted_event_v2_id: id } : prev))
+              }}
+            />
+          ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Event Details */}
             <Card className={artistEventUI.panel}>
@@ -1126,6 +1231,22 @@ export default function EventDetailPage() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ticketing" className="space-y-6">
+          {event.promoted_event_v2_id ? (
+            <EventTicketingWorkspace eventId={event.promoted_event_v2_id} surface="artist" />
+          ) : (
+            <Card className={artistEventUI.panel}>
+              <CardHeader>
+                <CardTitle className="text-white">Finish event setup first</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-slate-300">Ticketing, guest-list allocations, and crew credentials use the event operations record created from Overview.</p>
+                <Button onClick={() => setSelectedTab('overview')} className={artistEventUI.buttonPrimary}>Open event setup</Button>
               </CardContent>
             </Card>
           )}
@@ -1289,14 +1410,12 @@ export default function EventDetailPage() {
               <h3 className="text-lg font-semibold text-white mb-4">Booking Requests</h3>
               <div className="space-y-3">
                 {bookingRequests.map((request) => {
-                  const venue = venues.find(v => v.id === request.venue_id)
                   return (
                     <Card key={request.id} className={artistEventUI.panel}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-white">{venue?.name || 'Unknown Venue'}</h4>
-                            <p className="text-sm text-slate-400">{venue?.address}, {venue?.city}</p>
+                            <h4 className="font-semibold text-white">{request.venue_name || 'Venue request'}</h4>
                             <p className="text-sm text-slate-300 mt-2">{request.message}</p>
                             <p className="text-xs text-slate-500 mt-2">
                               Sent: {format(new Date(request.created_at), 'PPP')}
@@ -1318,7 +1437,7 @@ export default function EventDetailPage() {
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">Available Venues</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {venues.filter(venue => venue.booking_status === 'available').map((venue) => (
+              {venues.map((venue) => (
                 <Card key={venue.id} className={artistEventUI.panel}>
                   <CardContent className="p-4">
                     <div className="mb-3">
@@ -1336,12 +1455,6 @@ export default function EventDetailPage() {
                         <span className="text-slate-400">Capacity:</span>
                         <span className="text-white">{venue.capacity.toLocaleString()}</span>
                       </div>
-                      {venue.price_range && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-400">Price Range:</span>
-                          <span className="text-white">${venue.price_range.min.toLocaleString()} - ${venue.price_range.max.toLocaleString()}</span>
-                        </div>
-                      )}
                     </div>
                     
                     {venue.amenities.length > 0 && (
@@ -1372,7 +1485,7 @@ export default function EventDetailPage() {
             </div>
           </div>
 
-          {venues.filter(venue => venue.booking_status === 'available').length === 0 && (
+          {venues.length === 0 && (
             <Card className={artistEventUI.panel}>
               <CardContent className={artistEventUI.empty}>
                 <MapPin className="h-12 w-12 text-slate-500 mx-auto mb-4" />
@@ -1886,14 +1999,6 @@ export default function EventDetailPage() {
                   <span className="text-sm text-slate-400">Capacity:</span>
                   <span className="text-sm text-white">{selectedVenue.capacity.toLocaleString()}</span>
                 </div>
-                {selectedVenue.price_range && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-slate-400">Price Range:</span>
-                    <span className="text-sm text-white">
-                      ${selectedVenue.price_range.min.toLocaleString()} - ${selectedVenue.price_range.max.toLocaleString()}
-                    </span>
-                  </div>
-                )}
               </div>
               <div>
                 <Label className="text-slate-300">Booking Message</Label>

@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-014",
+  "title": "Retire venue hover-card primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:41.145Z",
+  "updated_at": "2026-09-11T20:04:09.253Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/hover-card.tsx to components/ui/hover-card.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/hover-card.tsx",
+      "components/ui/hover-card.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/hover-card.tsx",
+    "components/ui/hover-card.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical card / item preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/hover-card|@/components/venue/ui/hover-card\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/hover-card.tsx components/ui/hover-card.tsx",
+      "git diff --check -- components/venue/ui/hover-card.tsx components/ui/hover-card.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded source audit across app/, components/, hooks/, lib/, apps/, __tests__, and scripts found 0 matches for \"components/venue/ui/hover-card\" and \"@/components/venue/ui/hover-card\" (rg exit 1, zero consumers). No approved external dependency exists.",
+      "Venue-surface canonical import inventory: 0 imports of \"components/ui/hover-card\" or \"@/components/ui/hover-card\" under app/venue/** and components/venue/**; a full bounded-path count also returned 0, so the hover-card primitive family (canonical and twin) currently has no live importers anywhere in the audited tree.",
+      "components/venue/ui/hover-card.tsx and components/ui/hover-card.tsx are byte-identical: both are 29 lines and both have SHA-256 c6d7e532ba61870b182feffa9bcf468c385c99784123dbb50ae13d2282bd58ea; diff reports no differences.",
+      "Public/export parity is exact: HoverCard (Root passthrough), HoverCardTrigger (Trigger passthrough), and HoverCardContent (forwardRef with align=\"center\", sideOffset=4, cn class merge, data-[state]/data-[side] animation classes, displayName from Radix primitive) are exported identically by both files with full Radix prop/ref forwarding.",
+      "Register evidence: CANONICAL_COMPONENT_REGISTER.csv row for components/venue/ui/hover-card.tsx already records disposition \"retire later\" with canonical target components/ui/hover-card.tsx (row 1112 is \"keep\"), both in duplicate group DUP-069; the audit confirms the zero-use evidence the register decision basis requires.",
+      "Register observation (not edited): row 315 registers app/venue/components/ui/hover-card.tsx (DUP-069, retire later), but that path does not exist on disk; and DESIGN-004/VENUE-002 task-record references in this task now resolve to no file — both noted as stale references outside this pass's edit scope.",
+      "Disposition: components/ui/hover-card.tsx keep/canonical; no consumers exist to migrate (zero-use, already-migrated condition is trivially satisfied); components/venue/ui/hover-card.tsx is retire-later compatibility debt. No file was deleted or edited and no venue behavior changed.",
+      "Focused ESLint passed for both primitive files (exit 0).",
+      "Focused git diff --check passed for both primitive files and docs/engineering (exit 0; the task record and working tree are untracked, so diff --check only confirms no tracked whitespace errors).",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:04:09.253Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded hover-card audit complete. Neither canonical nor venue twin has live importers; files are byte-identical with full Radix prop/ref parity. Twin remains registered retire-later (DUP-069). Twin retained.",
+    "completed": [
+      "Audited source consumers of components/venue/ui/hover-card.tsx across the bounded application and test paths; found zero consumers and no approved external dependency.",
+      "Inventoried canonical hover-card imports under app/venue/**, components/venue/**, and the full bounded paths; found zero importers, so no consumer migration is required.",
+      "Confirmed byte-level (SHA-256 identical) and public/export parity, including Radix prop/ref forwarding, between the venue twin and components/ui/hover-card.tsx.",
+      "Recorded canonical keep / already-migrated (trivially zero-use) / retire-later dispositions in the task record without changing venue behavior or deleting compatibility files.",
+      "Ran the required focused checks and control-plane validation successfully."
+    ],
+    "next_steps": [
+      "Orchestrator to reconcile whether DESIGN-014 moves to completed; deletion remains unauthorized in this pass.",
+      "Retain components/venue/ui/hover-card.tsx until a separately authorized cleanup action removes retire-later compatibility debt; re-run the bounded zero-use and parity checks before any deletion."
+    ],
+    "blockers": [
+      "Compatibility-file deletion is explicitly out of scope for this audit pass; the venue twin remains retained despite complete zero-use and parity evidence.",
+      "Task-record references DESIGN-004.json and VENUE-002.json no longer resolve, and register row 315 points at a nonexistent app/venue/components/ui/hover-card.tsx; all are stale references outside this pass's edit scope."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T19:48:11.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded hover-card audit. Zero venue-twin consumers were found; the canonical hover-card also has zero current importers, so no migration is required. The two files are byte-identical (SHA-256 c6d7e532...) with exact public exports and Radix parity. Register DUP-069 already lists keep/retire-later dispositions consistent with this evidence. Recorded dispositions without deleting or editing any component file; status kept active.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-014.json"
+        ],
+        "verification": [
+          "Bounded venue-twin consumer audit: 0 matches (rg exit 1)",
+          "Canonical import inventory: 0 imports in venue surfaces and 0 repo-wide in bounded paths",
+          "Byte comparison and SHA-256 parity (c6d7e532ba61870b182feffa9bcf468c385c99784123dbb50ae13d2282bd58ea)",
+          "Focused ESLint: passed (exit 0)",
+          "Focused git diff --check: passed (exit 0)",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Retire-later compatibility-file deletion was not authorized in this pass.",
+          "Stale references observed: DESIGN-004/VENUE-002 task records and register row 315 (app/venue/components/ui/hover-card.tsx) do not resolve; left untouched."
+        ],
+        "next_steps": [
+          "Orchestrator reconciles task move to completed; preserve the venue twin until a separately authorized cleanup task revalidates zero-use evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:04:09.253Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded hover-card audit complete. Neither canonical nor venue twin has live importers; files are byte-identical with full Radix prop/ref parity. Twin remains registered retire-later (DUP-069). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

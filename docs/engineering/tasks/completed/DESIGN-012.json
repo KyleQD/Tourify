@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-012",
+  "title": "Retire venue dropdown-menu primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:39.045Z",
+  "updated_at": "2026-09-11T20:04:08.899Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/dropdown-menu.tsx to components/ui/dropdown-menu.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/dropdown-menu.tsx",
+      "components/ui/dropdown-menu.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/dropdown-menu.tsx",
+    "components/ui/dropdown-menu.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/dropdown-menu|@/components/venue/ui/dropdown-menu\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/dropdown-menu.tsx components/ui/dropdown-menu.tsx",
+      "git diff --check -- components/venue/ui/dropdown-menu.tsx components/ui/dropdown-menu.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded source audit across app/, components/, hooks/, lib/, apps/, __tests__, and scripts found 0 consumers of components/venue/ui/dropdown-menu.tsx and 0 exact venue-twin import references.",
+      "The canonical shared primitive has 77 live consumer files; 30 of them are venue-surface consumers under app/venue/** and components/venue/** that already import components/ui/dropdown-menu.tsx, so no consumer migration is required in this task.",
+      "components/venue/ui/dropdown-menu.tsx and components/ui/dropdown-menu.tsx are byte-identical: both are 200 lines and both have SHA-256 ca0802c2e73d06aaca91242e6c2edb5451168c37770d2675bf98245d6f7f2517.",
+      "Public/export parity is exact: DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuGroup, DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, and DropdownMenuRadioGroup are exported by both files. Radix prop/ref forwarding, class composition, and displayName assignments match line-for-line.",
+      "Disposition: components/ui/dropdown-menu.tsx is keep/canonical (register line 1108); all audited venue-surface consumers are already migrated to it (register row for the venue twin, line 1287, is DUP-067 retire-later, exact duplicate); components/venue/ui/dropdown-menu.tsx is retire-later compatibility debt with no live consumers. No approved external dependency was found.",
+      "Focused ESLint passed for both primitive files (exit 0, no diagnostics).",
+      "Focused git diff --check passed for both primitive files and docs/engineering (exit 0, no whitespace errors).",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:04:08.899Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded dropdown-menu audit complete. The venue dropdown-menu twin has zero live consumers; 30 venue-surface consumers already import the canonical shared primitive. Twin is byte-identical with full export parity and remains registered retire-later (DUP-067). Twin retained.",
+    "completed": [
+      "Audited source consumers of components/venue/ui/dropdown-menu.tsx across the bounded application and test paths; found zero consumers and no approved external dependency.",
+      "Inventoried 77 live canonical consumers, including 30 venue-surface files under app/venue/** and components/venue/**, confirming the venue surface is already on components/ui/dropdown-menu.tsx.",
+      "Confirmed byte-level (SHA-256) and public/export parity between the venue twin and components/ui/dropdown-menu.tsx.",
+      "Recorded keep/canonical, migrate/already-migrated, and retire-later dispositions without changing venue behavior or deleting compatibility files.",
+      "Ran the required focused checks and control-plane validation successfully."
+    ],
+    "next_steps": [
+      "Retain components/venue/ui/dropdown-menu.tsx until a separately authorized cleanup action removes retire-later compatibility debt.",
+      "If cleanup is authorized later, re-run the bounded zero-use and parity checks before deleting the venue twin."
+    ],
+    "blockers": [
+      "Compatibility-file deletion is explicitly out of scope for this audit pass; the venue twin remains retained despite complete zero-use and parity evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T19:47:43.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded dropdown-menu audit. Zero venue-twin consumers were found; 77 files already use the canonical shared primitive, 30 of them on the venue surface. The two files are byte-identical with matching public exports and Radix prop/ref parity. Recorded canonical keep, already-migrated consumer, and retire-later venue-twin dispositions.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-012.json"
+        ],
+        "verification": [
+          "Bounded venue-twin consumer audit: 0 consumers",
+          "Canonical consumer inventory: 77 files (30 venue-surface)",
+          "Byte comparison and SHA-256 parity",
+          "Focused ESLint: passed",
+          "Focused git diff --check: passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Retire-later compatibility-file deletion was not authorized in this pass."
+        ],
+        "next_steps": [
+          "Preserve the venue twin until a separately authorized cleanup task revalidates zero-use evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:04:08.899Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded dropdown-menu audit complete. The venue dropdown-menu twin has zero live consumers; 30 venue-surface consumers already import the canonical shared primitive. Twin is byte-identical with full export parity and remains registered retire-later (DUP-067). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,0 +1,2075 @@
+{
+  "schemaVersion": "world-graph-index-v0.1",
+  "publicationState": "draft_needs_review_not_deployed",
+  "entityCount": 110,
+  "entities": {
+    "detroit_motown_founded_1959": {
+      "id": "detroit_motown_founded_1959",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "historical_milestone",
+      "name": "Motown is founded in Detroit",
+      "neighbors": []
+    },
+    "detroit_hitsville_usa": {
+      "id": "detroit_hitsville_usa",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "studio_landmark",
+      "name": "Hitsville U.S.A.",
+      "neighbors": [
+        {
+          "id": "detroit_motown_sound",
+          "name": "Motown Sound",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.99,
+          "qualityScore": 0.8615
+        }
+      ]
+    },
+    "detroit_motown_sound": {
+      "id": "detroit_motown_sound",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "genre",
+      "name": "Motown Sound",
+      "neighbors": [
+        {
+          "id": "detroit_hitsville_usa",
+          "name": "Hitsville U.S.A.",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.99,
+          "qualityScore": 0.8615
+        },
+        {
+          "id": "detroit_motown_drum_kit",
+          "name": "Drum kit — Motown rhythm section",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.92,
+          "qualityScore": 0.837
+        },
+        {
+          "id": "detroit_motown_electric_bass",
+          "name": "Electric bass guitar — Motown rhythm section",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.92,
+          "qualityScore": 0.837
+        }
+      ]
+    },
+    "detroit_motown_sound_signature": {
+      "id": "detroit_motown_sound_signature",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "sound_signature",
+      "name": "Motown sound signature",
+      "neighbors": []
+    },
+    "detroit_money_barrett_strong": {
+      "id": "detroit_money_barrett_strong",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "recording_reference",
+      "name": "Money (That’s What I Want)",
+      "neighbors": [
+        {
+          "id": "detroit_artist_barrett_strong",
+          "name": "Barrett Strong",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.9283
+        }
+      ]
+    },
+    "detroit_shop_around_miracles": {
+      "id": "detroit_shop_around_miracles",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "recording_reference",
+      "name": "Shop Around",
+      "neighbors": [
+        {
+          "id": "detroit_artist_miracles",
+          "name": "The Miracles",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.9283
+        }
+      ]
+    },
+    "detroit_techno": {
+      "id": "detroit_techno",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "genre",
+      "name": "Detroit techno",
+      "neighbors": [
+        {
+          "id": "detroit_music_institute",
+          "name": "The Music Institute",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.98,
+          "qualityScore": 0.9567
+        },
+        {
+          "id": "detroit_belleville_three",
+          "name": "Belleville Three / early Detroit techno network",
+          "kind": "scene",
+          "relationKey": "part_of",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.84
+        },
+        {
+          "id": "detroit_techno_drum_machine",
+          "name": "Drum machine — early Detroit techno",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.84
+        },
+        {
+          "id": "detroit_techno_synthesizer",
+          "name": "Synthesizer — early Detroit techno",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.84
+        }
+      ]
+    },
+    "detroit_belleville_three": {
+      "id": "detroit_belleville_three",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "scene",
+      "name": "Belleville Three / early Detroit techno network",
+      "neighbors": [
+        {
+          "id": "detroit_artist_juan_atkins",
+          "name": "Juan Atkins",
+          "kind": "artist_reference",
+          "relationKey": "part_of",
+          "direction": "in",
+          "confidence": 0.99,
+          "qualityScore": 0.854
+        },
+        {
+          "id": "detroit_artist_kevin_saunderson",
+          "name": "Kevin Saunderson",
+          "kind": "artist_reference",
+          "relationKey": "part_of",
+          "direction": "in",
+          "confidence": 0.99,
+          "qualityScore": 0.854
+        },
+        {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre",
+          "relationKey": "part_of",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.84
+        }
+      ]
+    },
+    "detroit_techno_sound_signature": {
+      "id": "detroit_techno_sound_signature",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "sound_signature",
+      "name": "Early Detroit techno sound signature",
+      "neighbors": []
+    },
+    "detroit_clear_cybotron": {
+      "id": "detroit_clear_cybotron",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "recording_reference",
+      "name": "Clear",
+      "neighbors": [
+        {
+          "id": "detroit_artist_cybotron",
+          "name": "Cybotron",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.9069
+        }
+      ]
+    },
+    "detroit_strings_of_life": {
+      "id": "detroit_strings_of_life",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "recording_reference",
+      "name": "Strings of Life",
+      "neighbors": [
+        {
+          "id": "detroit_artist_derrick_may",
+          "name": "Derrick May",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.9375
+        }
+      ]
+    },
+    "detroit_good_life_inner_city": {
+      "id": "detroit_good_life_inner_city",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "recording_reference",
+      "name": "Good Life",
+      "neighbors": [
+        {
+          "id": "detroit_artist_inner_city",
+          "name": "Inner City",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.88,
+          "qualityScore": 0.9055
+        }
+      ]
+    },
+    "detroit_motown_electric_bass": {
+      "id": "detroit_motown_electric_bass",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "instrument",
+      "name": "Electric bass guitar — Motown rhythm section",
+      "neighbors": [
+        {
+          "id": "detroit_motown_sound",
+          "name": "Motown Sound",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.92,
+          "qualityScore": 0.837
+        }
+      ]
+    },
+    "detroit_motown_drum_kit": {
+      "id": "detroit_motown_drum_kit",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "instrument",
+      "name": "Drum kit — Motown rhythm section",
+      "neighbors": [
+        {
+          "id": "detroit_motown_sound",
+          "name": "Motown Sound",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.92,
+          "qualityScore": 0.837
+        }
+      ]
+    },
+    "detroit_techno_synthesizer": {
+      "id": "detroit_techno_synthesizer",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "instrument",
+      "name": "Synthesizer — early Detroit techno",
+      "neighbors": [
+        {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.84
+        }
+      ]
+    },
+    "detroit_techno_drum_machine": {
+      "id": "detroit_techno_drum_machine",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "instrument",
+      "name": "Drum machine — early Detroit techno",
+      "neighbors": [
+        {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.84
+        }
+      ]
+    },
+    "detroit_music_institute": {
+      "id": "detroit_music_institute",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "studio_landmark",
+      "name": "The Music Institute",
+      "neighbors": [
+        {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.98,
+          "qualityScore": 0.9567
+        }
+      ]
+    },
+    "detroit_techno_city_atkins": {
+      "id": "detroit_techno_city_atkins",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "recording_reference",
+      "name": "Techno City",
+      "neighbors": [
+        {
+          "id": "detroit_artist_cybotron",
+          "name": "Cybotron",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.9069
+        }
+      ]
+    },
+    "detroit_artist_barrett_strong": {
+      "id": "detroit_artist_barrett_strong",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "Barrett Strong",
+      "neighbors": [
+        {
+          "id": "detroit_money_barrett_strong",
+          "name": "Money (That’s What I Want)",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.9283
+        }
+      ]
+    },
+    "detroit_artist_miracles": {
+      "id": "detroit_artist_miracles",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "The Miracles",
+      "neighbors": [
+        {
+          "id": "detroit_shop_around_miracles",
+          "name": "Shop Around",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.9283
+        }
+      ]
+    },
+    "detroit_artist_cybotron": {
+      "id": "detroit_artist_cybotron",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "Cybotron",
+      "neighbors": [
+        {
+          "id": "detroit_clear_cybotron",
+          "name": "Clear",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.9069
+        },
+        {
+          "id": "detroit_techno_city_atkins",
+          "name": "Techno City",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.9069
+        }
+      ]
+    },
+    "detroit_artist_derrick_may": {
+      "id": "detroit_artist_derrick_may",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "Derrick May",
+      "neighbors": [
+        {
+          "id": "detroit_strings_of_life",
+          "name": "Strings of Life",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.9375
+        }
+      ]
+    },
+    "detroit_artist_inner_city": {
+      "id": "detroit_artist_inner_city",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "Inner City",
+      "neighbors": [
+        {
+          "id": "detroit_good_life_inner_city",
+          "name": "Good Life",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.88,
+          "qualityScore": 0.9055
+        }
+      ]
+    },
+    "detroit_artist_juan_atkins": {
+      "id": "detroit_artist_juan_atkins",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "Juan Atkins",
+      "neighbors": [
+        {
+          "id": "detroit_belleville_three",
+          "name": "Belleville Three / early Detroit techno network",
+          "kind": "scene",
+          "relationKey": "part_of",
+          "direction": "out",
+          "confidence": 0.99,
+          "qualityScore": 0.854
+        }
+      ]
+    },
+    "detroit_artist_kevin_saunderson": {
+      "id": "detroit_artist_kevin_saunderson",
+      "pilotKey": "detroit",
+      "placePath": "us/mi/detroit",
+      "kind": "artist_reference",
+      "name": "Kevin Saunderson",
+      "neighbors": [
+        {
+          "id": "detroit_belleville_three",
+          "name": "Belleville Three / early Detroit techno network",
+          "kind": "scene",
+          "relationKey": "part_of",
+          "direction": "out",
+          "confidence": 0.99,
+          "qualityScore": 0.854
+        }
+      ]
+    },
+    "jamaica_sound_system_culture": {
+      "id": "jamaica_sound_system_culture",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "scene",
+      "name": "Kingston sound-system culture",
+      "neighbors": [
+        {
+          "id": "jamaica_sound_system_technology",
+          "name": "Sound-system culture as music infrastructure",
+          "kind": "educational_topic",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.94,
+          "qualityScore": 0.804
+        }
+      ]
+    },
+    "jamaica_ska": {
+      "id": "jamaica_ska",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "genre",
+      "name": "Ska",
+      "neighbors": [
+        {
+          "id": "jamaica_rocksteady",
+          "name": "Rocksteady",
+          "kind": "genre",
+          "relationKey": "evolved_from",
+          "direction": "in",
+          "confidence": 0.92,
+          "qualityScore": 0.9545
+        }
+      ]
+    },
+    "jamaica_ska_sound_signature": {
+      "id": "jamaica_ska_sound_signature",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "sound_signature",
+      "name": "Ska sound signature",
+      "neighbors": []
+    },
+    "jamaica_rocksteady": {
+      "id": "jamaica_rocksteady",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "genre",
+      "name": "Rocksteady",
+      "neighbors": [
+        {
+          "id": "jamaica_studio_one",
+          "name": "Studio One",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.99,
+          "qualityScore": 0.9653
+        },
+        {
+          "id": "jamaica_reggae",
+          "name": "Reggae",
+          "kind": "genre",
+          "relationKey": "evolved_from",
+          "direction": "in",
+          "confidence": 0.94,
+          "qualityScore": 0.9573
+        },
+        {
+          "id": "jamaica_ska",
+          "name": "Ska",
+          "kind": "genre",
+          "relationKey": "evolved_from",
+          "direction": "out",
+          "confidence": 0.92,
+          "qualityScore": 0.9545
+        }
+      ]
+    },
+    "jamaica_rocksteady_sound_signature": {
+      "id": "jamaica_rocksteady_sound_signature",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "sound_signature",
+      "name": "Rocksteady sound signature",
+      "neighbors": []
+    },
+    "jamaica_reggae": {
+      "id": "jamaica_reggae",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "genre",
+      "name": "Reggae",
+      "neighbors": [
+        {
+          "id": "jamaica_rocksteady",
+          "name": "Rocksteady",
+          "kind": "genre",
+          "relationKey": "evolved_from",
+          "direction": "out",
+          "confidence": 0.94,
+          "qualityScore": 0.9573
+        },
+        {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition",
+          "relationKey": "influenced_by",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.9475
+        }
+      ]
+    },
+    "jamaica_nyahbinghi": {
+      "id": "jamaica_nyahbinghi",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "tradition",
+      "name": "Nyahbinghi drumming influence",
+      "neighbors": [
+        {
+          "id": "jamaica_reggae",
+          "name": "Reggae",
+          "kind": "genre",
+          "relationKey": "influenced_by",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.9475
+        },
+        {
+          "id": "jamaica_nyahbinghi_bass_drum",
+          "name": "Nyahbinghi bass drum",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.97,
+          "qualityScore": 0.8595
+        },
+        {
+          "id": "jamaica_nyahbinghi_funde",
+          "name": "Nyahbinghi funde",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.97,
+          "qualityScore": 0.8595
+        },
+        {
+          "id": "jamaica_nyahbinghi_repeater",
+          "name": "Nyahbinghi repeater / kete",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.8525
+        }
+      ]
+    },
+    "jamaica_reggae_sound_signature": {
+      "id": "jamaica_reggae_sound_signature",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "sound_signature",
+      "name": "Roots reggae sound signature",
+      "neighbors": []
+    },
+    "jamaica_ocarolina": {
+      "id": "jamaica_ocarolina",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "recording_reference",
+      "name": "O’Carolina",
+      "neighbors": [
+        {
+          "id": "jamaica_artist_count_ossie",
+          "name": "Count Ossie",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.88,
+          "qualityScore": 0.913
+        },
+        {
+          "id": "jamaica_artist_folkes_brothers",
+          "name": "The Folkes Brothers",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.88,
+          "qualityScore": 0.913
+        }
+      ]
+    },
+    "jamaica_forward_march": {
+      "id": "jamaica_forward_march",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "recording_reference",
+      "name": "Forward March",
+      "neighbors": [
+        {
+          "id": "jamaica_artist_derrick_morgan",
+          "name": "Derrick Morgan",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.92,
+          "qualityScore": 0.922
+        }
+      ]
+    },
+    "jamaica_everything_crash": {
+      "id": "jamaica_everything_crash",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "recording_reference",
+      "name": "Everything Crash",
+      "neighbors": [
+        {
+          "id": "jamaica_artist_ethiopians",
+          "name": "The Ethiopians",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.92,
+          "qualityScore": 0.922
+        }
+      ]
+    },
+    "jamaica_one_drop": {
+      "id": "jamaica_one_drop",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "recording_reference",
+      "name": "One Drop",
+      "neighbors": [
+        {
+          "id": "jamaica_artist_bob_marley_wailers",
+          "name": "Bob Marley & The Wailers",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.88,
+          "qualityScore": 0.903
+        }
+      ]
+    },
+    "jamaica_reggae_unesco_2018": {
+      "id": "jamaica_reggae_unesco_2018",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "historical_milestone",
+      "name": "Reggae inscribed by UNESCO",
+      "neighbors": []
+    },
+    "jamaica_nyahbinghi_bass_drum": {
+      "id": "jamaica_nyahbinghi_bass_drum",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "instrument",
+      "name": "Nyahbinghi bass drum",
+      "neighbors": [
+        {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.97,
+          "qualityScore": 0.8595
+        }
+      ]
+    },
+    "jamaica_nyahbinghi_funde": {
+      "id": "jamaica_nyahbinghi_funde",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "instrument",
+      "name": "Nyahbinghi funde",
+      "neighbors": [
+        {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.97,
+          "qualityScore": 0.8595
+        }
+      ]
+    },
+    "jamaica_nyahbinghi_repeater": {
+      "id": "jamaica_nyahbinghi_repeater",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "instrument",
+      "name": "Nyahbinghi repeater / kete",
+      "neighbors": [
+        {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.8525
+        }
+      ]
+    },
+    "jamaica_studio_one": {
+      "id": "jamaica_studio_one",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "studio_landmark",
+      "name": "Studio One",
+      "neighbors": [
+        {
+          "id": "jamaica_rocksteady",
+          "name": "Rocksteady",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.99,
+          "qualityScore": 0.9653
+        }
+      ]
+    },
+    "jamaica_sound_system_technology": {
+      "id": "jamaica_sound_system_technology",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "educational_topic",
+      "name": "Sound-system culture as music infrastructure",
+      "neighbors": [
+        {
+          "id": "jamaica_sound_system_culture",
+          "name": "Kingston sound-system culture",
+          "kind": "scene",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.94,
+          "qualityScore": 0.804
+        }
+      ]
+    },
+    "jamaica_simmer_down": {
+      "id": "jamaica_simmer_down",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "recording_reference",
+      "name": "Simmer Down",
+      "neighbors": [
+        {
+          "id": "jamaica_artist_wailers_early",
+          "name": "The Wailers",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.93,
+          "qualityScore": 0.9313
+        }
+      ]
+    },
+    "jamaica_artist_folkes_brothers": {
+      "id": "jamaica_artist_folkes_brothers",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "artist_reference",
+      "name": "The Folkes Brothers",
+      "neighbors": [
+        {
+          "id": "jamaica_ocarolina",
+          "name": "O’Carolina",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.88,
+          "qualityScore": 0.913
+        }
+      ]
+    },
+    "jamaica_artist_count_ossie": {
+      "id": "jamaica_artist_count_ossie",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "artist_reference",
+      "name": "Count Ossie",
+      "neighbors": [
+        {
+          "id": "jamaica_ocarolina",
+          "name": "O’Carolina",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.88,
+          "qualityScore": 0.913
+        }
+      ]
+    },
+    "jamaica_artist_derrick_morgan": {
+      "id": "jamaica_artist_derrick_morgan",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "artist_reference",
+      "name": "Derrick Morgan",
+      "neighbors": [
+        {
+          "id": "jamaica_forward_march",
+          "name": "Forward March",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.92,
+          "qualityScore": 0.922
+        }
+      ]
+    },
+    "jamaica_artist_ethiopians": {
+      "id": "jamaica_artist_ethiopians",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "artist_reference",
+      "name": "The Ethiopians",
+      "neighbors": [
+        {
+          "id": "jamaica_everything_crash",
+          "name": "Everything Crash",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.92,
+          "qualityScore": 0.922
+        }
+      ]
+    },
+    "jamaica_artist_bob_marley_wailers": {
+      "id": "jamaica_artist_bob_marley_wailers",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "artist_reference",
+      "name": "Bob Marley & The Wailers",
+      "neighbors": [
+        {
+          "id": "jamaica_one_drop",
+          "name": "One Drop",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.88,
+          "qualityScore": 0.903
+        }
+      ]
+    },
+    "jamaica_artist_wailers_early": {
+      "id": "jamaica_artist_wailers_early",
+      "pilotKey": "kingston",
+      "placePath": "jm/kingston",
+      "kind": "artist_reference",
+      "name": "The Wailers",
+      "neighbors": [
+        {
+          "id": "jamaica_simmer_down",
+          "name": "Simmer Down",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.93,
+          "qualityScore": 0.9313
+        }
+      ]
+    },
+    "lagos_afrobeat": {
+      "id": "lagos_afrobeat",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "genre",
+      "name": "Afrobeat",
+      "neighbors": [
+        {
+          "id": "lagos_old_afrika_shrine",
+          "name": "Afrika Shrine (Fela-era Lagos venue)",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.98,
+          "qualityScore": 0.9705
+        },
+        {
+          "id": "lagos_fela_tenor_saxophone",
+          "name": "Tenor saxophone in Fela’s Afrobeat practice",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.815
+        },
+        {
+          "id": "lagos_afrobeat_percussion",
+          "name": "Layered percussion in Afrobeat",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.78
+        },
+        {
+          "id": "lagos_afrobeats",
+          "name": "Afrobeats",
+          "kind": "genre",
+          "relationKey": "influenced_by",
+          "direction": "in",
+          "confidence": 0.75,
+          "qualityScore": 0.7275
+        }
+      ]
+    },
+    "lagos_afrobeat_sound_signature": {
+      "id": "lagos_afrobeat_sound_signature",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "sound_signature",
+      "name": "Afrobeat sound signature",
+      "neighbors": []
+    },
+    "lagos_old_afrika_shrine": {
+      "id": "lagos_old_afrika_shrine",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "studio_landmark",
+      "name": "Afrika Shrine (Fela-era Lagos venue)",
+      "neighbors": [
+        {
+          "id": "lagos_afrobeat",
+          "name": "Afrobeat",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.98,
+          "qualityScore": 0.9705
+        }
+      ]
+    },
+    "lagos_afrobeat_political_stage": {
+      "id": "lagos_afrobeat_political_stage",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "movement",
+      "name": "Afrobeat as political performance",
+      "neighbors": [
+        {
+          "id": "lagos_africa_shrine_1972",
+          "name": "Africa Shrine opens at the Empire Hotel site",
+          "kind": "historical_milestone",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.8325
+        }
+      ]
+    },
+    "lagos_zombie_fela": {
+      "id": "lagos_zombie_fela",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "recording_reference",
+      "name": "Zombie",
+      "neighbors": [
+        {
+          "id": "lagos_artist_africa_70",
+          "name": "Africa 70",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.9375
+        },
+        {
+          "id": "lagos_artist_fela_kuti",
+          "name": "Fela Kuti",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.9315
+        }
+      ]
+    },
+    "lagos_afrobeats": {
+      "id": "lagos_afrobeats",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "genre",
+      "name": "Afrobeats",
+      "neighbors": [
+        {
+          "id": "lagos_alte",
+          "name": "Alté",
+          "kind": "scene",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.86,
+          "qualityScore": 0.766
+        },
+        {
+          "id": "lagos_afrobeat",
+          "name": "Afrobeat",
+          "kind": "genre",
+          "relationKey": "influenced_by",
+          "direction": "out",
+          "confidence": 0.75,
+          "qualityScore": 0.7275
+        }
+      ]
+    },
+    "lagos_afrobeats_sound_signature": {
+      "id": "lagos_afrobeats_sound_signature",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "sound_signature",
+      "name": "Afrobeats listening frame",
+      "neighbors": []
+    },
+    "lagos_ojuelegba_wizkid": {
+      "id": "lagos_ojuelegba_wizkid",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "recording_reference",
+      "name": "Ojuelegba",
+      "neighbors": [
+        {
+          "id": "lagos_artist_wizkid",
+          "name": "Wizkid",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.96,
+          "qualityScore": 0.921
+        }
+      ]
+    },
+    "lagos_alte": {
+      "id": "lagos_alte",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "scene",
+      "name": "Alté",
+      "neighbors": [
+        {
+          "id": "lagos_afrobeats",
+          "name": "Afrobeats",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.86,
+          "qualityScore": 0.766
+        }
+      ]
+    },
+    "lagos_alte_sound_signature": {
+      "id": "lagos_alte_sound_signature",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "sound_signature",
+      "name": "Alté listening frame",
+      "neighbors": []
+    },
+    "lagos_fela_tenor_saxophone": {
+      "id": "lagos_fela_tenor_saxophone",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "instrument",
+      "name": "Tenor saxophone in Fela’s Afrobeat practice",
+      "neighbors": [
+        {
+          "id": "lagos_afrobeat",
+          "name": "Afrobeat",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.815
+        }
+      ]
+    },
+    "lagos_afrobeat_percussion": {
+      "id": "lagos_afrobeat_percussion",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "instrument",
+      "name": "Layered percussion in Afrobeat",
+      "neighbors": [
+        {
+          "id": "lagos_afrobeat",
+          "name": "Afrobeat",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.78
+        }
+      ]
+    },
+    "lagos_kalakuta_museum": {
+      "id": "lagos_kalakuta_museum",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "studio_landmark",
+      "name": "Kalakuta Museum",
+      "neighbors": [
+        {
+          "id": "lagos_artist_fela_kuti",
+          "name": "Fela Kuti",
+          "kind": "artist_reference",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.99,
+          "qualityScore": 0.8465
+        }
+      ]
+    },
+    "lagos_africa_shrine_1972": {
+      "id": "lagos_africa_shrine_1972",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "historical_milestone",
+      "name": "Africa Shrine opens at the Empire Hotel site",
+      "neighbors": [
+        {
+          "id": "lagos_afrobeat_political_stage",
+          "name": "Afrobeat as political performance",
+          "kind": "movement",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.8325
+        }
+      ]
+    },
+    "lagos_artist_fela_kuti": {
+      "id": "lagos_artist_fela_kuti",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "artist_reference",
+      "name": "Fela Kuti",
+      "neighbors": [
+        {
+          "id": "lagos_zombie_fela",
+          "name": "Zombie",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.9315
+        },
+        {
+          "id": "lagos_kalakuta_museum",
+          "name": "Kalakuta Museum",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.99,
+          "qualityScore": 0.8465
+        },
+        {
+          "id": "lagos_new_afrika_shrine",
+          "name": "New Afrika Shrine",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.97,
+          "qualityScore": 0.8395
+        }
+      ]
+    },
+    "lagos_artist_africa_70": {
+      "id": "lagos_artist_africa_70",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "artist_reference",
+      "name": "Africa 70",
+      "neighbors": [
+        {
+          "id": "lagos_zombie_fela",
+          "name": "Zombie",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.9375
+        }
+      ]
+    },
+    "lagos_artist_wizkid": {
+      "id": "lagos_artist_wizkid",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "artist_reference",
+      "name": "Wizkid",
+      "neighbors": [
+        {
+          "id": "lagos_ojuelegba_wizkid",
+          "name": "Ojuelegba",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.96,
+          "qualityScore": 0.921
+        }
+      ]
+    },
+    "lagos_new_afrika_shrine": {
+      "id": "lagos_new_afrika_shrine",
+      "pilotKey": "lagos",
+      "placePath": "ng/lagos",
+      "kind": "studio_landmark",
+      "name": "New Afrika Shrine",
+      "neighbors": [
+        {
+          "id": "lagos_artist_fela_kuti",
+          "name": "Fela Kuti",
+          "kind": "artist_reference",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.97,
+          "qualityScore": 0.8395
+        }
+      ]
+    },
+    "london_dub_scene": {
+      "id": "london_dub_scene",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "scene",
+      "name": "Dub London",
+      "neighbors": [
+        {
+          "id": "london_ariwa_sounds",
+          "name": "Ariwa Sounds",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.93,
+          "qualityScore": 0.8305
+        }
+      ]
+    },
+    "london_dub": {
+      "id": "london_dub",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "genre",
+      "name": "Dub in London",
+      "neighbors": [
+        {
+          "id": "london_grime",
+          "name": "Grime",
+          "kind": "genre",
+          "relationKey": "influenced_by",
+          "direction": "in",
+          "confidence": 0.84,
+          "qualityScore": 0.924
+        },
+        {
+          "id": "london_dub_mixing_console",
+          "name": "Dub mixing console and effects as performance tools",
+          "kind": "educational_topic",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.96,
+          "qualityScore": 0.841
+        },
+        {
+          "id": "london_sound_system",
+          "name": "Sound system — London dub culture",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.82
+        }
+      ]
+    },
+    "london_dub_sound_signature": {
+      "id": "london_dub_sound_signature",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "sound_signature",
+      "name": "Dub production sound signature",
+      "neighbors": []
+    },
+    "london_pirate_radio": {
+      "id": "london_pirate_radio",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "scene",
+      "name": "Pirate radio as scene infrastructure",
+      "neighbors": []
+    },
+    "london_grime": {
+      "id": "london_grime",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "genre",
+      "name": "Grime",
+      "neighbors": [
+        {
+          "id": "london_dub",
+          "name": "Dub in London",
+          "kind": "genre",
+          "relationKey": "influenced_by",
+          "direction": "out",
+          "confidence": 0.84,
+          "qualityScore": 0.924
+        },
+        {
+          "id": "london_bow_grime",
+          "name": "Bow early grime network",
+          "kind": "scene",
+          "relationKey": "part_of",
+          "direction": "in",
+          "confidence": 0.96,
+          "qualityScore": 0.841
+        }
+      ]
+    },
+    "london_grime_sound_signature": {
+      "id": "london_grime_sound_signature",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "sound_signature",
+      "name": "Early grime sound signature",
+      "neighbors": []
+    },
+    "london_wiley_eskimo_sound": {
+      "id": "london_wiley_eskimo_sound",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "sound_signature",
+      "name": "Wiley’s eskimo sound",
+      "neighbors": []
+    },
+    "london_bow_grime": {
+      "id": "london_bow_grime",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "scene",
+      "name": "Bow early grime network",
+      "neighbors": [
+        {
+          "id": "london_grime",
+          "name": "Grime",
+          "kind": "genre",
+          "relationKey": "part_of",
+          "direction": "out",
+          "confidence": 0.96,
+          "qualityScore": 0.841
+        }
+      ]
+    },
+    "london_dub_to_grime_lineage": {
+      "id": "london_dub_to_grime_lineage",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "educational_topic",
+      "name": "Bass-culture lineage: dub to later London genres",
+      "neighbors": []
+    },
+    "london_i_luv_you_dizzee": {
+      "id": "london_i_luv_you_dizzee",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "recording_reference",
+      "name": "I Luv You",
+      "neighbors": [
+        {
+          "id": "london_artist_dizzee_rascal",
+          "name": "Dizzee Rascal",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.92,
+          "qualityScore": 0.9187
+        }
+      ]
+    },
+    "london_commandments_of_dub": {
+      "id": "london_commandments_of_dub",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "recording_reference",
+      "name": "The Commandments of Dub",
+      "neighbors": [
+        {
+          "id": "london_artist_jah_shaka",
+          "name": "Jah Shaka",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.94,
+          "qualityScore": 0.924
+        }
+      ]
+    },
+    "london_bass_culture_lkj": {
+      "id": "london_bass_culture_lkj",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "recording_reference",
+      "name": "Bass Culture",
+      "neighbors": [
+        {
+          "id": "london_artist_lkj",
+          "name": "Linton Kwesi Johnson",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.9062
+        }
+      ]
+    },
+    "london_ariwa_sounds": {
+      "id": "london_ariwa_sounds",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "studio_landmark",
+      "name": "Ariwa Sounds",
+      "neighbors": [
+        {
+          "id": "london_dub_scene",
+          "name": "Dub London",
+          "kind": "scene",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.93,
+          "qualityScore": 0.8305
+        }
+      ]
+    },
+    "london_dub_mixing_console": {
+      "id": "london_dub_mixing_console",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "educational_topic",
+      "name": "Dub mixing console and effects as performance tools",
+      "neighbors": [
+        {
+          "id": "london_dub",
+          "name": "Dub in London",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.96,
+          "qualityScore": 0.841
+        }
+      ]
+    },
+    "london_sound_system": {
+      "id": "london_sound_system",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "instrument",
+      "name": "Sound system — London dub culture",
+      "neighbors": [
+        {
+          "id": "london_dub",
+          "name": "Dub in London",
+          "kind": "genre",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.82
+        }
+      ]
+    },
+    "london_robotiks_mad_professor": {
+      "id": "london_robotiks_mad_professor",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "recording_reference",
+      "name": "My Computers Acting Strange",
+      "neighbors": [
+        {
+          "id": "london_artist_robotiks",
+          "name": "The Robotiks",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.86,
+          "qualityScore": 0.9223
+        },
+        {
+          "id": "london_artist_mad_professor",
+          "name": "Mad Professor",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.86,
+          "qualityScore": 0.9077
+        }
+      ]
+    },
+    "london_artist_dizzee_rascal": {
+      "id": "london_artist_dizzee_rascal",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "artist_reference",
+      "name": "Dizzee Rascal",
+      "neighbors": [
+        {
+          "id": "london_i_luv_you_dizzee",
+          "name": "I Luv You",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.92,
+          "qualityScore": 0.9187
+        }
+      ]
+    },
+    "london_artist_jah_shaka": {
+      "id": "london_artist_jah_shaka",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "artist_reference",
+      "name": "Jah Shaka",
+      "neighbors": [
+        {
+          "id": "london_commandments_of_dub",
+          "name": "The Commandments of Dub",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.94,
+          "qualityScore": 0.924
+        }
+      ]
+    },
+    "london_artist_lkj": {
+      "id": "london_artist_lkj",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "artist_reference",
+      "name": "Linton Kwesi Johnson",
+      "neighbors": [
+        {
+          "id": "london_bass_culture_lkj",
+          "name": "Bass Culture",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.9062
+        }
+      ]
+    },
+    "london_artist_mad_professor": {
+      "id": "london_artist_mad_professor",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "artist_reference",
+      "name": "Mad Professor",
+      "neighbors": [
+        {
+          "id": "london_robotiks_mad_professor",
+          "name": "My Computers Acting Strange",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.86,
+          "qualityScore": 0.9077
+        }
+      ]
+    },
+    "london_artist_robotiks": {
+      "id": "london_artist_robotiks",
+      "pilotKey": "london",
+      "placePath": "gb/eng/london",
+      "kind": "artist_reference",
+      "name": "The Robotiks",
+      "neighbors": [
+        {
+          "id": "london_robotiks_mad_professor",
+          "name": "My Computers Acting Strange",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.86,
+          "qualityScore": 0.9223
+        }
+      ]
+    },
+    "tokyo_city_pop": {
+      "id": "tokyo_city_pop",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "genre",
+      "name": "City pop",
+      "neighbors": [
+        {
+          "id": "tokyo_city_pop_internet_revival",
+          "name": "City pop’s internet-era global revival",
+          "kind": "historical_milestone",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.9625
+        },
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.65,
+          "qualityScore": 0.8475
+        }
+      ]
+    },
+    "tokyo_city_pop_sound_signature": {
+      "id": "tokyo_city_pop_sound_signature",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "sound_signature",
+      "name": "City pop listening frame",
+      "neighbors": []
+    },
+    "tokyo_mobile_listening_city_pop": {
+      "id": "tokyo_mobile_listening_city_pop",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "historical_milestone",
+      "name": "Mobile listening and the city-pop era",
+      "neighbors": []
+    },
+    "tokyo_plastic_love": {
+      "id": "tokyo_plastic_love",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "recording_reference",
+      "name": "Plastic Love",
+      "neighbors": [
+        {
+          "id": "tokyo_artist_mariya_takeuchi",
+          "name": "Mariya Takeuchi",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.97,
+          "qualityScore": 0.9433
+        }
+      ]
+    },
+    "tokyo_city_pop_internet_revival": {
+      "id": "tokyo_city_pop_internet_revival",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "historical_milestone",
+      "name": "City pop’s internet-era global revival",
+      "neighbors": [
+        {
+          "id": "tokyo_city_pop",
+          "name": "City pop",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.9625
+        }
+      ]
+    },
+    "tokyo_ymo_electronic_pop": {
+      "id": "tokyo_ymo_electronic_pop",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "scene",
+      "name": "Yellow Magic Orchestra and Japanese electronic pop",
+      "neighbors": [
+        {
+          "id": "tokyo_ymo_synthesizer",
+          "name": "Synthesizer — YMO and Japanese electronic pop",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.95,
+          "qualityScore": 0.955
+        },
+        {
+          "id": "tokyo_city_pop",
+          "name": "City pop",
+          "kind": "genre",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.65,
+          "qualityScore": 0.8475
+        },
+        {
+          "id": "tokyo_ymo_mc8",
+          "name": "Roland MC-8 Microcomposer",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.93,
+          "qualityScore": 0.8255
+        },
+        {
+          "id": "tokyo_ymo_tr808",
+          "name": "Roland TR-808 rhythm machine",
+          "kind": "instrument",
+          "relationKey": "uses_instrument",
+          "direction": "out",
+          "confidence": 0.93,
+          "qualityScore": 0.8255
+        }
+      ]
+    },
+    "tokyo_ymo_sound_signature": {
+      "id": "tokyo_ymo_sound_signature",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "sound_signature",
+      "name": "YMO electronic listening frame",
+      "neighbors": []
+    },
+    "tokyo_rydeen_ymo": {
+      "id": "tokyo_rydeen_ymo",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "recording_reference",
+      "name": "Rydeen",
+      "neighbors": [
+        {
+          "id": "tokyo_artist_ymo",
+          "name": "Yellow Magic Orchestra",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.94,
+          "qualityScore": 0.9277
+        }
+      ]
+    },
+    "tokyo_technopolis_ymo": {
+      "id": "tokyo_technopolis_ymo",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "recording_reference",
+      "name": "Technopolis",
+      "neighbors": [
+        {
+          "id": "tokyo_artist_ymo",
+          "name": "Yellow Magic Orchestra",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.93,
+          "qualityScore": 0.9243
+        }
+      ]
+    },
+    "tokyo_automatic_utada": {
+      "id": "tokyo_automatic_utada",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "recording_reference",
+      "name": "Automatic",
+      "neighbors": [
+        {
+          "id": "tokyo_artist_hikaru_utada",
+          "name": "Hikaru Utada",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.97,
+          "qualityScore": 0.9325
+        }
+      ]
+    },
+    "tokyo_jpop_late_1990s": {
+      "id": "tokyo_jpop_late_1990s",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "educational_topic",
+      "name": "Late-1990s Japanese pop transition",
+      "neighbors": []
+    },
+    "tokyo_ymo_synthesizer": {
+      "id": "tokyo_ymo_synthesizer",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "instrument",
+      "name": "Synthesizer — YMO and Japanese electronic pop",
+      "neighbors": [
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.95,
+          "qualityScore": 0.955
+        }
+      ]
+    },
+    "tokyo_ymo_tr808": {
+      "id": "tokyo_ymo_tr808",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "instrument",
+      "name": "Roland TR-808 rhythm machine",
+      "neighbors": [
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.93,
+          "qualityScore": 0.8255
+        }
+      ]
+    },
+    "tokyo_ymo_mc8": {
+      "id": "tokyo_ymo_mc8",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "instrument",
+      "name": "Roland MC-8 Microcomposer",
+      "neighbors": [
+        {
+          "id": "tokyo_ymo_electronic_pop",
+          "name": "Yellow Magic Orchestra and Japanese electronic pop",
+          "kind": "scene",
+          "relationKey": "uses_instrument",
+          "direction": "in",
+          "confidence": 0.93,
+          "qualityScore": 0.8255
+        }
+      ]
+    },
+    "tokyo_dx7_jpop": {
+      "id": "tokyo_dx7_jpop",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "instrument",
+      "name": "Yamaha DX7 and 1980s Japanese pop production",
+      "neighbors": []
+    },
+    "tokyo_1000_knives": {
+      "id": "tokyo_1000_knives",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "recording_reference",
+      "name": "1000 Knives",
+      "neighbors": [
+        {
+          "id": "tokyo_artist_ryuichi_sakamoto",
+          "name": "Ryuichi Sakamoto",
+          "kind": "artist_reference",
+          "relationKey": "credited_to",
+          "direction": "out",
+          "confidence": 0.9,
+          "qualityScore": 0.925
+        }
+      ]
+    },
+    "tokyo_yamaha_rd_tokyo": {
+      "id": "tokyo_yamaha_rd_tokyo",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "studio_landmark",
+      "name": "Yamaha R&D Tokyo",
+      "neighbors": [
+        {
+          "id": "tokyo_artist_ryuichi_sakamoto",
+          "name": "Ryuichi Sakamoto",
+          "kind": "artist_reference",
+          "relationKey": "related_to",
+          "direction": "out",
+          "confidence": 0.99,
+          "qualityScore": 0.8465
+        }
+      ]
+    },
+    "tokyo_artist_mariya_takeuchi": {
+      "id": "tokyo_artist_mariya_takeuchi",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "artist_reference",
+      "name": "Mariya Takeuchi",
+      "neighbors": [
+        {
+          "id": "tokyo_plastic_love",
+          "name": "Plastic Love",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.97,
+          "qualityScore": 0.9433
+        }
+      ]
+    },
+    "tokyo_artist_ymo": {
+      "id": "tokyo_artist_ymo",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "artist_reference",
+      "name": "Yellow Magic Orchestra",
+      "neighbors": [
+        {
+          "id": "tokyo_rydeen_ymo",
+          "name": "Rydeen",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.94,
+          "qualityScore": 0.9277
+        },
+        {
+          "id": "tokyo_technopolis_ymo",
+          "name": "Technopolis",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.93,
+          "qualityScore": 0.9243
+        }
+      ]
+    },
+    "tokyo_artist_ryuichi_sakamoto": {
+      "id": "tokyo_artist_ryuichi_sakamoto",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "artist_reference",
+      "name": "Ryuichi Sakamoto",
+      "neighbors": [
+        {
+          "id": "tokyo_1000_knives",
+          "name": "1000 Knives",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.9,
+          "qualityScore": 0.925
+        },
+        {
+          "id": "tokyo_yamaha_rd_tokyo",
+          "name": "Yamaha R&D Tokyo",
+          "kind": "studio_landmark",
+          "relationKey": "related_to",
+          "direction": "in",
+          "confidence": 0.99,
+          "qualityScore": 0.8465
+        }
+      ]
+    },
+    "tokyo_artist_hikaru_utada": {
+      "id": "tokyo_artist_hikaru_utada",
+      "pilotKey": "tokyo",
+      "placePath": "jp/tokyo",
+      "kind": "artist_reference",
+      "name": "Hikaru Utada",
+      "neighbors": [
+        {
+          "id": "tokyo_automatic_utada",
+          "name": "Automatic",
+          "kind": "recording_reference",
+          "relationKey": "credited_to",
+          "direction": "in",
+          "confidence": 0.97,
+          "qualityScore": 0.9325
+        }
+      ]
+    }
+  }
+}

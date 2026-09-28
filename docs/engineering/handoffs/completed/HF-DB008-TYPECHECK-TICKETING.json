@@ -1,0 +1,54 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB008-TYPECHECK-TICKETING",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "ticketing",
+  "status": "completed",
+  "created_at": "2026-09-25T21:30:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The 1,384-diagnostic `tsc --noEmit` failure on d2176904 is a generated-database-contract defect, not stale types alone. The database lane reconstructed the live public-schema surface the active migration chain leaves behind and classified every named missing object. This handoff is your share of the `code-drift` cluster \"ticketing\": 4 objects, 22 diagnostic hits, of which 3 are reached by a LIVE entry-reachable route or page so deletion is not an option. The full evidence-backed classification is docs/engineering/database-type-inventory-2026-09-25.json; this handoff names your objects and the canonical replacement for each where the repository records one. 4 objects (ticket_notifications, ticket_sales.ticket_type, artist_financial_transactions.category, booking_requests.venue_id) are ticketing and settlement surfaces owned by the ticketing agent alongside DB-005. RE-HOMED 2026-09-27: this handoff was accepted by TICKET-006, which completed without discharging it — the DB-008 type-drift cluster was never part of TICKET-006's scope (partial issuance, resume deduplication, completion alert). It now sits on TICKET-008, which exists for exactly this purpose. Nobody has dispositioned these four objects yet.",
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "contexts/artist-context.tsx",
+    "lib/marketplace/public-listing-query.ts",
+    "lib/marketplace/ticket-source-adapter.ts",
+    "lib/public-artist/get-public-artist-profile.ts",
+    "app/api/ticketing/settlements/route.ts",
+    "lib/services/ticketing.service.ts",
+    "app/api/ticketing/webhook/route.ts",
+    "app/api/venues/[id]/route.ts"
+  ],
+  "completed": [
+    "Classified 4 objects as code-drift for the \"ticketing\" cluster: get_enhanced_artist_stats, settlements, ticket_notifications, track_venue_profile_view.",
+    "For 0 of them the repository already names a canonical replacement: none.",
+    "Established consumer liveness for each: 3 reached by an entry-reachable route/page, 1 reachable only from modules nothing imports.",
+    "Proved the objects are absent from the active migration chain AND from lib/database.types.ts, so regenerating the types cannot fix them."
+  ],
+  "next_steps": [
+    "Read the cluster in docs/engineering/database-type-inventory-2026-09-25.json (filter items by owningDomain). Each entry carries classification, basis, canonicalReplacement, liveConsumers, deadConsumers and the non-active SQL that proves the object is archived.",
+    "For the 3 objects with a LIVE consumer, do NOT delete the module. Either repoint it to the recorded canonicalReplacement, or raise a new database task asking for an additive migration. Repointing is preferred: the repository's identity maps name the canonical destination precisely so these archived objects are not resurrected.",
+    "If you conclude an object genuinely must exist as schema, raise a NEW database task with the exact column contract. The database lane will author the additive forward-only migration then; it will not guess a contract now.",
+    "Re-run a scoped typecheck for your own files afterwards and report the delta to the release lane so the 1,384 baseline can be re-measured."
+  ],
+  "blockers": [
+    "The database lane cannot clear these diagnostics: every consumer file is outside the database lane's file ownership.",
+    "The full `npm run typecheck` was not run by the database lane (68m18s on CI, OOM locally, and four lanes share one 8GB machine), so the reduction from your cluster cannot be measured until a scoped or full run happens."
+  ],
+  "verification": [
+    "PASS: the object set was re-derived from the preserved `Lint And Build` CI log on d2176904 and the published inventory was validated against every diagnostic in it (107 object literals + 21 column pairs, 0 objects or column pairs in the inventory that the log does not name, 0 in the log that the inventory omits).",
+    "PASS: every consumer path and every recorded evidence source in the inventory was checked to exist on disk.",
+    "NOT RUN: no tsc run and no migration apply were performed by the database lane in this wave."
+  ],
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "TICKET-008",
+  "completion_condition": "Read the cluster in docs/engineering/database-type-inventory-2026-09-25.json (filter items by owningDomain). Each entry carries classification, basis, canonicalReplacement, liveConsumers, deadConsumers and the non-active SQL that proves the object is archived.",
+  "updated_at": "2026-09-27T22:40:00.000Z",
+  "completion_outcome": "DISCHARGED by TICKET-008. All 4 objects of the ticketing cluster were dispositioned individually from re-derived evidence, not from this handoffs summary — and the summary itself was partly wrong: it named get_enhanced_artist_stats, settlements, ticket_notifications and track_venue_profile_view, which is the correct set, but the TASK RECORD scope.in named a different set (ticket_sales.ticket_type, artist_financial_transactions.category, booking_requests.venue_id — the artist clusters settlement surfaces). Outcome: 2 dead-consumer (get_enhanced_artist_stats, ticket_notifications) and 2 accepted-debt (settlements, track_venue_profile_view). Two of the four file-level attributions were falsified. 0 objects require a canonical replacement. The 22 attributed diagnostic hits are NOT reduced by this discharge: the ticketing grant already contributed 0 of them, and the three out-of-grant objects need another domains file to change. Residual work is tracked by HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET (orchestrator, ORCH-004), HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO (venue, VENUE-006), HF-TICKET-035-TICKET-NOTIFICATIONS (design-system, DESIGN-033) and HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW (venue, VENUE-006).",
+  "completion_evidence": [
+    "Every absence claim re-derived with effective-schema resolution over all 320 top-level chain files, so private-schema relations are not mistaken for public ones. 20260821025543 sets search_path = private, public, so ticketing_migration_issues is a private-schema relation — a naive public-schema check gets this wrong, and my own first resolver did.",
+    "Zero-use re-validation, method stated per claim. get_enhanced_artist_stats: rg for rpc(get_enhanced_artist_stats) across the tree returns no production caller; the only hits are comments, one non-migration SQL file, one archived migration, and two artist-lane negative assertions. ticket_notifications: rg sendTicketNotification over 10028 files returns one code hit, the definition itself.",
+    "Live mutations prove the fence can fail: restoring the dead settlements read fails 3 tests, deleting settlement_available: false fails 1, weakening the reference predicate to a substring test fails 5.",
+    "npx vitest run __tests__/ticketing/ -> 20 files / 231 tests passed (baseline 19/187). npm run check:db008-harness -> 8 PASS, 1 SKIP, 0 failed. npm run agents:validate -- --strict -> 0 warnings, 0 errors."
+  ]
+}

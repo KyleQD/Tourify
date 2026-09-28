@@ -1,0 +1,13 @@
+{
+  "label": "baseline-del1",
+  "roots": [
+    "lib/services/advanced-analytics.service.ts lib/services/enhanced-staff-analytics.service.ts lib/services/equipment-assets.service.ts lib/services/event-page.service.ts lib/services/event-participants.service.ts lib/services/locations.service.ts"
+  ],
+  "tscExitCode": 0,
+  "elapsedSeconds": 3.2,
+  "primaryDiagnosticLines": 0,
+  "filesWithDiagnostics": 0,
+  "byFile": {},
+  "byCode": {},
+  "stderr": ""
+}

@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Superseded by hiring onboarding panels (cmp-enhanced-onboarding wont-fix). */
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

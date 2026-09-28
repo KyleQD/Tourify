@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B00-EXECUTION-CONTROL-COMMIT",
+  "kind": "commit",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-09-05T14:11:29-07:00",
+  "capturedBy": "Codex implementation session",
+  "commitSha": "59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
+  "artifact": "git commit 59d951c0e1bc2a67b7cc0289ffabb7dc1ee1644d",
+  "sha256": null,
+  "findingIds": ["AOA-001", "AOA-002", "AOA-004", "AOA-005", "AOA-006", "AOA-008", "AOA-009", "AOA-010", "AOA-011", "AOA-014"],
+  "workflowIds": ["ADM-WF-017"],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Immutable implementation checkpoint for the token-efficient Admin execution control plane. The earlier site-map WIP checkpoint receives no completion credit."
+}

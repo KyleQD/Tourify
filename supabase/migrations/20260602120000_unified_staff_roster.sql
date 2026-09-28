@@ -2,6 +2,7 @@ set client_min_messages = warning;
 
 -- ─── Extend staff_members for multi-entity support ───────────────────────────
 alter table staff_members
+  add column if not exists full_name text,
   add column if not exists entity_type text
     check (entity_type in ('event','venue','tour','org') or entity_type is null),
   add column if not exists entity_id   uuid;

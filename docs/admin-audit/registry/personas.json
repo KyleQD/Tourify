@@ -1,0 +1,212 @@
+[
+  {
+    "personaId": "PER-001",
+    "title": "Organization A Owner",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [
+      "org.settings.manage",
+      "org.roles.manage",
+      "audit.view"
+    ],
+    "expectedDenials": []
+  },
+  {
+    "personaId": "PER-002",
+    "title": "Organization A Admin",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [
+      "tour.manage",
+      "event.manage",
+      "workforce.manage",
+      "logistics.manage"
+    ],
+    "expectedDenials": [
+      "platform.provider.manage"
+    ]
+  },
+  {
+    "personaId": "PER-003",
+    "title": "Organization A Manager",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [
+      "tour.view",
+      "event.view",
+      "workforce.view"
+    ],
+    "expectedDenials": [
+      "org.roles.manage",
+      "finance.manage"
+    ]
+  },
+  {
+    "personaId": "PER-004",
+    "title": "Organization A Finance Viewer",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [
+      "finance.view"
+    ],
+    "expectedDenials": [
+      "finance.manage",
+      "finance.approve",
+      "finance.pay"
+    ]
+  },
+  {
+    "personaId": "PER-005",
+    "title": "Organization A Member",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "tour.manage",
+      "event.manage",
+      "workforce.manage"
+    ]
+  },
+  {
+    "personaId": "PER-006",
+    "title": "Organization A Worker",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [
+      "workforce.view"
+    ],
+    "expectedDenials": [
+      "workforce.manage",
+      "org.roles.manage"
+    ]
+  },
+  {
+    "personaId": "PER-007",
+    "title": "Organization A Artist",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [
+      "event.view",
+      "tour.view"
+    ],
+    "expectedDenials": [
+      "event.manage",
+      "tour.manage"
+    ]
+  },
+  {
+    "personaId": "PER-008",
+    "title": "Candidate or Applicant",
+    "actorClass": "external_human",
+    "organizationScope": "none",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "admin.access"
+    ]
+  },
+  {
+    "personaId": "PER-009",
+    "title": "Authorized Message or Publication Recipient",
+    "actorClass": "external_human",
+    "organizationScope": "none",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "admin.access"
+    ]
+  },
+  {
+    "personaId": "PER-010",
+    "title": "Revoked Former Member",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "admin.access",
+      "org.data.read"
+    ]
+  },
+  {
+    "personaId": "PER-011",
+    "title": "Stale Session User",
+    "actorClass": "human",
+    "organizationScope": "organization",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "admin.mutate"
+    ]
+  },
+  {
+    "personaId": "PER-012",
+    "title": "Unauthenticated User",
+    "actorClass": "external_human",
+    "organizationScope": "none",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "admin.access"
+    ]
+  },
+  {
+    "personaId": "PER-013",
+    "title": "Organization B Admin Cross-Tenant Adversary",
+    "actorClass": "human",
+    "organizationScope": "cross_organization_negative",
+    "expectedCapabilities": [
+      "tour.manage",
+      "event.manage"
+    ],
+    "expectedDenials": [
+      "organization_a.data"
+    ]
+  },
+  {
+    "personaId": "PER-014",
+    "title": "Platform Administrator",
+    "actorClass": "human",
+    "organizationScope": "platform",
+    "expectedCapabilities": [
+      "platform.provider.manage",
+      "audit.view"
+    ],
+    "expectedDenials": []
+  },
+  {
+    "personaId": "PER-015",
+    "title": "Service Role Job",
+    "actorClass": "technical",
+    "organizationScope": "platform",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "interactive_admin_session"
+    ]
+  },
+  {
+    "personaId": "PER-016",
+    "title": "Provider Sync Principal",
+    "actorClass": "technical",
+    "organizationScope": "platform",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "organization_admin_ui"
+    ]
+  },
+  {
+    "personaId": "PER-017",
+    "title": "Cron or Webhook Principal",
+    "actorClass": "technical",
+    "organizationScope": "none",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "interactive_admin_session"
+    ]
+  },
+  {
+    "personaId": "PER-018",
+    "title": "Outbox Worker",
+    "actorClass": "technical",
+    "organizationScope": "none",
+    "expectedCapabilities": [],
+    "expectedDenials": [
+      "interactive_admin_session"
+    ]
+  }
+]

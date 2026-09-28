@@ -1,148 +1,361 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import type { PublicArtistPostDTO, PublicArtistViewerDTO } from '@/lib/public-artist/public-artist-types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { Loader2, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
+import { ArtistPostCard, type ArtistFeedPost } from '@/components/artist/artist-post-card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Heart, MessageCircle, Share2, Pin, BarChart3 } from 'lucide-react'
-import { paCard } from '@/components/public-artist/public-artist-ui'
-import { formatSafeDate } from '@/lib/events/admin-event-normalization'
-import { PollVoteCard } from '@/components/polls/poll-vote-card'
+import type { PollPayload } from '@/lib/polls/hydrate-polls'
+import type { PublicArtistPostDTO, PublicArtistViewerDTO } from '@/lib/public-artist/public-artist-types'
+import {
+  createPostComment,
+  getPostComments,
+  setPostLike,
+  sharePostExternally,
+} from '@/lib/feed/post-engagement-client'
+import { PublicArtistMediaLightbox } from '@/components/public-artist/media/public-artist-media-lightbox'
+import type { MediaItem } from '@/utils/media-utils'
 
-export function PublicArtistPostsSection({
-  viewer,
-  pinnedPosts,
-  posts,
-}: {
-  viewer: PublicArtistViewerDTO
-  pinnedPosts: PublicArtistPostDTO[]
-  posts: PublicArtistPostDTO[]
-}) {
-  const [optimisticPinnedById, setOptimisticPinnedById] = useState<Record<string, boolean>>({})
+function normalizeMedia(post: PublicArtistPostDTO | Record<string, any>) {
+  const id = String(post.id)
+  const urls = 'mediaUrls' in post ? post.mediaUrls : post.media_urls
+  return (Array.isArray(urls) ? urls : [])
+    .map((entry: string | { url?: string; type?: string; thumbnail_url?: string; altText?: string }, index: number) => {
+      const url = typeof entry === 'string' ? entry : entry?.url || ''
+      return {
+        id: `${id}-media-${index}`,
+        url,
+        type: typeof entry === 'string'
+          ? (/\.(mp4|webm|mov)(?:\?|$)/i.test(entry) ? 'video' : 'image')
+          : entry.type || 'image',
+        thumbnail_url: typeof entry === 'string' ? undefined : entry.thumbnail_url,
+        altText: typeof entry === 'string' ? undefined : entry.altText,
+      }
+    })
+    .filter((item) => Boolean(item.url))
+}
 
-  const ordered = useMemo(() => [...pinnedPosts, ...posts], [pinnedPosts, posts])
-
-  if (ordered.length === 0) return null
-
-  const togglePin = async (post: PublicArtistPostDTO) => {
-    if (!viewer.isOwner) return
-
-    const nextPinned = !(optimisticPinnedById[post.id] ?? post.isPinned)
-    setOptimisticPinnedById((prev) => ({ ...prev, [post.id]: nextPinned }))
-
-    try {
-      const res = await fetch('/api/posts/pin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: post.id, isPinned: nextPinned }),
-      })
-
-      if (!res.ok) setOptimisticPinnedById((prev) => ({ ...prev, [post.id]: post.isPinned }))
-    } catch {
-      setOptimisticPinnedById((prev) => ({ ...prev, [post.id]: post.isPinned }))
+function toArtistFeedPost(post: PublicArtistPostDTO | Record<string, any>): ArtistFeedPost {
+  if ('authorName' in post) {
+    return {
+      id: post.id,
+      content: post.content || '',
+      type: post.type || 'text',
+      content_ref_type: post.contentRefType,
+      content_ref_id: post.contentRefId,
+      visibility: post.visibility || 'public',
+      location: post.location,
+      hashtags: post.hashtags,
+      tagged_users: post.taggedUsers,
+      collaborators: post.collaborators.map((collaborator: PublicArtistPostDTO['collaborators'][number]) => ({
+        user_id: collaborator.userId || undefined,
+        profile_id: collaborator.profileId,
+        username: collaborator.username,
+        avatar_url: collaborator.avatarUrl,
+        status: 'accepted',
+      })),
+      media_items: normalizeMedia(post),
+      media_urls: post.mediaUrls,
+      metadata: post.metadata,
+      track_preview: (post.trackPreview || null) as ArtistFeedPost['track_preview'],
+      article_preview: post.articlePreview as ArtistFeedPost['article_preview'],
+      listing_preview: post.listingPreview as ArtistFeedPost['listing_preview'],
+      event_preview: post.eventPreview as ArtistFeedPost['event_preview'],
+      created_at: post.createdAt,
+      user: {
+        id: post.authorUserId,
+        username: post.authorName,
+        avatar_url: post.authorAvatarUrl,
+        profile_path: post.authorProfilePath,
+        is_verified: post.authorVerified,
+      },
+      owner_user_id: post.authorUserId,
+      likes_count: post.likesCount,
+      comments_count: post.commentsCount,
+      shares_count: post.sharesCount,
+      is_liked: post.isLiked,
+      is_pinned: post.isPinned,
+      poll: (post.poll || null) as PollPayload | null,
+      appearance: post.appearance as ArtistFeedPost['appearance'],
     }
   }
 
+  const author = post.author || {}
+  const profile = post.profiles || post.user || {}
+  return {
+    id: post.id,
+    content: post.content || '',
+    type: post.type || 'text',
+    content_ref_type: post.content_ref_type || null,
+    content_ref_id: post.content_ref_id || null,
+    visibility: post.visibility || 'public',
+    location: post.location || null,
+    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    tagged_users: Array.isArray(post.tagged_users) ? post.tagged_users : [],
+    collaborators: Array.isArray(post.collaborators) ? post.collaborators : [],
+    media_items: normalizeMedia(post),
+    media_urls: Array.isArray(post.media_urls) ? post.media_urls : [],
+    metadata: post.metadata || null,
+    track_preview: post.track_preview || null,
+    article_preview: post.article_preview || null,
+    listing_preview: post.listing_preview || null,
+    event_preview: post.event_preview || null,
+    created_at: post.created_at,
+    user: {
+      id: author.id || post.posted_as_profile_id || post.user_id || '',
+      username: author.displayName || post.account_display_name || profile.full_name || profile.username || 'Artist',
+      avatar_url: author.avatarUrl || post.account_avatar_url || profile.avatar_url || null,
+      profile_path: author.profilePath || profile.account_context?.profile_path || null,
+      is_verified: Boolean(author.isVerified || profile.is_verified),
+    },
+    owner_user_id: post.user_id || null,
+    likes_count: Number(post.likes_count || 0),
+    comments_count: Number(post.comments_count || 0),
+    shares_count: Number(post.shares_count || 0),
+    is_liked: Boolean(post.is_liked),
+    is_pinned: Boolean(post.is_pinned),
+    poll: post.poll || null,
+    appearance: post.appearance || post.post_appearances || null,
+  }
+}
+
+export function PublicArtistPostsSection({
+  viewer,
+  artistProfileId,
+  artistUserId,
+  artistName,
+  pinnedPosts: initialPinnedPosts,
+  posts: initialPosts,
+  nextCursor: initialNextCursor,
+  enablePostStyles,
+  className,
+}: {
+  viewer: PublicArtistViewerDTO
+  artistProfileId: string
+  artistUserId: string
+  artistName: string
+  pinnedPosts: PublicArtistPostDTO[]
+  posts: PublicArtistPostDTO[]
+  nextCursor: string | null
+  enablePostStyles: boolean
+  cardStyle?: React.CSSProperties
+  className?: string
+}) {
+  const [pinnedPosts, setPinnedPosts] = useState(() => initialPinnedPosts.map(toArtistFeedPost))
+  const [posts, setPosts] = useState(() => initialPosts.map(toArtistFeedPost))
+  const [nextCursor, setNextCursor] = useState(initialNextCursor)
+  const [loadState, setLoadState] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [announcement, setAnnouncement] = useState('')
+  const [lightbox, setLightbox] = useState<{ items: MediaItem[]; index: number } | null>(null)
+  const loadMoreRef = useRef<HTMLButtonElement>(null)
+  const feedPosts = useMemo(() => [...pinnedPosts, ...posts], [pinnedPosts, posts])
+
+  const sendToSignIn = useCallback(() => {
+    const returnUrl = `${window.location.pathname}${window.location.search}`
+    window.location.assign(`/login?tab=signin&redirect=${encodeURIComponent(returnUrl)}`)
+  }, [])
+
+  const requireViewer = useCallback(() => {
+    if (viewer.isAuthenticated) return true
+    sendToSignIn()
+    return false
+  }, [sendToSignIn, viewer.isAuthenticated])
+
+  const handleLike = useCallback(async (postId: string) => {
+    if (!requireViewer()) throw new Error('Sign in required')
+    const post = feedPosts.find((item) => item.id === postId)
+    await setPostLike(postId, post?.is_liked ? 'unlike' : 'like')
+    const update = (item: ArtistFeedPost) => item.id === postId
+      ? { ...item, is_liked: !item.is_liked }
+      : item
+    setPinnedPosts((items) => items.map(update))
+    setPosts((items) => items.map(update))
+  }, [feedPosts, requireViewer])
+
+  const handleShare = useCallback(async (postId: string) => {
+    try {
+      if (viewer.isAuthenticated) {
+        await sharePostExternally(postId, { title: 'Tourify post' })
+      } else {
+        await navigator.clipboard.writeText(`${window.location.origin}/posts/${encodeURIComponent(postId)}`)
+      }
+      const update = (item: ArtistFeedPost) => item.id === postId
+        ? { ...item, shares_count: item.shares_count + 1 }
+        : item
+      if (viewer.isAuthenticated) {
+        setPinnedPosts((items) => items.map(update))
+        setPosts((items) => items.map(update))
+      }
+      toast.success('Post link copied')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to share this post')
+      throw error
+    }
+  }, [viewer.isAuthenticated])
+
+  const handlePin = useCallback(async (postId: string, isPinned: boolean) => {
+    const response = await fetch('/api/posts/pin', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId, isPinned }),
+    })
+    if (!response.ok) throw new Error('Unable to update the pinned post')
+
+    if (isPinned) {
+      const match = posts.find((post) => post.id === postId)
+      if (match) {
+        setPosts((items) => items.filter((post) => post.id !== postId))
+        setPinnedPosts((items) => [{ ...match, is_pinned: true }, ...items])
+      }
+    } else {
+      const match = pinnedPosts.find((post) => post.id === postId)
+      if (match) {
+        setPinnedPosts((items) => items.filter((post) => post.id !== postId))
+        setPosts((items) => [{ ...match, is_pinned: false }, ...items])
+      }
+    }
+  }, [pinnedPosts, posts])
+
+  const handleLoadMore = useCallback(async () => {
+    if (!nextCursor || loadState === 'loading') return
+    setLoadState('loading')
+    setAnnouncement('Loading more posts')
+
+    try {
+      const params = new URLSearchParams({
+        type: 'user',
+        profile_id: artistProfileId,
+        user_id: artistUserId,
+        attribution: 'strict',
+        exclude_pinned: 'true',
+        limit: '10',
+        cursor: nextCursor,
+      })
+      const response = await fetch(`/api/feed/posts?${params.toString()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error?.message || 'Unable to load more posts')
+
+      const appended = (payload.data || []).map(toArtistFeedPost)
+      setPosts((current) => {
+        const existing = new Set(current.map((post) => post.id))
+        return [...current, ...appended.filter((post: ArtistFeedPost) => !existing.has(post.id))]
+      })
+      setNextCursor(payload.next_cursor || null)
+      setLoadState('idle')
+      setAnnouncement(
+        appended.length > 0
+          ? `${appended.length} more posts loaded`
+          : 'You have reached the end of the feed',
+      )
+      requestAnimationFrame(() => {
+        document.getElementById(`post-${appended[0]?.id}`)?.focus({ preventScroll: true })
+      })
+    } catch (error) {
+      setLoadState('error')
+      setAnnouncement(error instanceof Error ? error.message : 'Unable to load more posts')
+    }
+  }, [artistProfileId, artistUserId, loadState, nextCursor])
+
+  if (feedPosts.length === 0) return null
+
   return (
-    <Card className={paCard}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold tracking-tight text-white">Posts</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="flex flex-col gap-3.5">
-          {ordered.slice(0, 10).map((post, index) => {
-            const isPinned = optimisticPinnedById[post.id] ?? post.isPinned
-            const primaryMedia = post.mediaUrls[0] ?? null
-            const isPoll = post.type === 'poll' && Boolean(post.poll)
-
-            return (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.04, duration: 0.3 }}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-black/30 ring-1 ring-white/5"
-              >
-                {primaryMedia && !isPoll ? (
-                  <div className="aspect-video bg-black/40">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={primaryMedia}
-                      alt="Post media"
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                ) : null}
-
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="truncate text-sm font-medium text-white/90">{post.authorName}</div>
-                        {isPinned ? (
-                          <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px] uppercase tracking-wide">
-                            Pinned
-                          </Badge>
-                        ) : null}
-                        {isPoll ? (
-                          <Badge className="rounded-full border-purple-500/30 bg-purple-500/15 px-2 py-0 text-[10px] uppercase tracking-wide text-purple-200">
-                            <BarChart3 className="mr-1 h-3 w-3" />
-                            Poll
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <div className="mt-1 text-xs text-white/60">
-                        {formatSafeDate(post.createdAt)}
-                      </div>
-                    </div>
-
-                    {viewer.isOwner ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => togglePin(post)}
-                        className="shrink-0 rounded-full"
-                      >
-                        <Pin className={['h-4 w-4', isPinned ? 'text-purple-300' : 'text-white/60'].join(' ')} />
-                      </Button>
-                    ) : null}
-                  </div>
-
-                  {isPoll && post.poll ? (
-                    <PollVoteCard
-                      postId={post.id}
-                      poll={post.poll}
-                      className="mt-3 border-white/10 bg-white/[0.03]"
-                    />
-                  ) : post.content ? (
-                    <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/75">
-                      {post.content}
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 flex items-center gap-4 text-xs text-white/60">
-                    <div className="flex items-center gap-1" aria-label={`${post.likesCount} likes`}>
-                      <Heart className="h-3.5 w-3.5" />
-                      <span>{post.likesCount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1" aria-label={`${post.commentsCount} comments`}>
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      <span>{post.commentsCount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1" aria-label={`${post.sharesCount} shares`}>
-                      <Share2 className="h-3.5 w-3.5" />
-                      <span>{post.sharesCount.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
+    <section id="posts" className={className} aria-labelledby="artist-posts-heading">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--artist-theme-muted, rgba(255,255,255,.58))]">Latest from</p>
+          <h2 id="artist-posts-heading" className="mt-1 text-2xl font-semibold tracking-tight text-[var(--artist-theme-text, white)]">
+            Artist feed
+          </h2>
         </div>
-      </CardContent>
-    </Card>
+        <span className="text-sm text-[var(--artist-theme-muted, rgba(255,255,255,.58))]">{feedPosts.length} shown</span>
+      </div>
+
+      <div role="feed" aria-busy={loadState === 'loading'} aria-labelledby="artist-posts-heading" className="space-y-4">
+        {feedPosts.map((post, index) => (
+          <ArtistPostCard
+            key={post.id}
+            post={post}
+            currentUserId={viewer.userId}
+            canPin={viewer.isOwner}
+            enablePostStyles={enablePostStyles}
+            className="public-artist-feed-card"
+            feedPosition={index + 1}
+            feedSize={nextCursor ? -1 : feedPosts.length}
+            onAuthRequired={sendToSignIn}
+            onOpenMedia={(mediaIndex, items) => setLightbox({ items, index: mediaIndex })}
+            onLike={handleLike}
+            onShare={handleShare}
+            onPin={handlePin}
+            onLoadComments={async (postId) => {
+              if (!requireViewer()) return []
+              const result = await getPostComments(postId)
+              return result.comments.map((comment) => ({
+                id: comment.id,
+                content: comment.content,
+                created_at: comment.created_at,
+                profiles: {
+                  username: comment.user.full_name || comment.user.username,
+                  avatar_url: comment.user.avatar_url || null,
+                },
+              }))
+            }}
+            onSubmitComment={async (postId, content) => {
+              if (!requireViewer()) return null
+              const result = await createPostComment(postId, content)
+              return {
+                id: result.comment.id,
+                content: result.comment.content,
+                created_at: result.comment.created_at,
+                profiles: {
+                  username: result.comment.user.full_name || result.comment.user.username,
+                  avatar_url: result.comment.user.avatar_url || null,
+                },
+              }
+            }}
+          />
+        ))}
+      </div>
+
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
+
+      {nextCursor || loadState === 'error' ? (
+        <div className="mt-5 flex justify-center">
+          <Button
+            ref={loadMoreRef}
+            type="button"
+            variant="outline"
+            onClick={() => void handleLoadMore()}
+            disabled={loadState === 'loading'}
+            className="min-w-40 rounded-full border-[var(--artist-theme-text, rgba(255,255,255,.18))] bg-[var(--artist-theme-surface, rgba(255,255,255,.05))] text-[var(--artist-theme-text, white)] hover:bg-[var(--artist-theme-surface, rgba(255,255,255,.10))]"
+          >
+            {loadState === 'loading' ? (
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading</>
+            ) : loadState === 'error' ? (
+              <><RefreshCw className="mr-2 h-4 w-4" />Try again</>
+            ) : 'Load more posts'}
+          </Button>
+        </div>
+      ) : (
+        <p className="mt-5 text-center text-sm text-[var(--artist-theme-muted, rgba(255,255,255,.58))]">You’re all caught up.</p>
+      )}
+      {lightbox ? (
+        <PublicArtistMediaLightbox
+          artistName={artistName}
+          items={lightbox.items.map((item) => ({
+            url: item.url,
+            type: item.type,
+            caption: item.alt_text || item.altText || item.alt || null,
+            thumbnailUrl: item.thumbnail_url || item.thumbnailUrl || null,
+          }))}
+          index={lightbox.index}
+          onIndexChange={(index) => setLightbox((current) => current ? { ...current, index } : null)}
+          onOpenChange={(open) => { if (!open) setLightbox(null) }}
+        />
+      ) : null}
+    </section>
   )
 }

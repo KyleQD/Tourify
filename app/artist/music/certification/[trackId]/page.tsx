@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { supabase } from "@/lib/supabase"
+import { artistMusicApiFetch, uploadArtistMusicSignedUrl } from "@/lib/artist/artist-music"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,8 +35,9 @@ export default function MusicCertificationPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/artist/music/certification?trackId=${encodeURIComponent(trackId)}`, { credentials: "include", cache: "no-store" })
-      const body = await response.json()
+      const { response, body } = await artistMusicApiFetch<{ data?: CertificationCase[]; enabled?: boolean }>(
+        `/api/artist/music/certification?trackId=${encodeURIComponent(trackId)}`,
+      )
       if (!response.ok) throw new Error(body?.error?.message || "Unable to load certification")
       setEnabled(body.enabled === true)
       const current = body.data?.[0] || null
@@ -44,8 +45,10 @@ export default function MusicCertificationPage() {
       setContributorConfirmation(current?.contributor_confirmation || false)
       setDisclosure(String(current?.disclosures?.artist_statement || ""))
       if (current) {
-        const eventsResponse = await fetch(`/api/artist/music/certification/${current.id}/events`, { credentials: "include", cache: "no-store" })
-        if (eventsResponse.ok) setEvents((await eventsResponse.json()).data || [])
+        const { response: eventsResponse, body: eventsBody } = await artistMusicApiFetch<{ data?: Event[] }>(
+          `/api/artist/music/certification/${current.id}/events`,
+        )
+        if (eventsResponse.ok) setEvents(eventsBody.data || [])
       }
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to load certification") }
     finally { setLoading(false) }
@@ -56,11 +59,10 @@ export default function MusicCertificationPage() {
   async function createCase() {
     setBusy(true)
     try {
-      const response = await fetch("/api/artist/music/certification", {
+      const { response, body } = await artistMusicApiFetch("/api/artist/music/certification", {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ track_id: trackId, certification_type: "human_created", requested_level: 1, idempotency_key: crypto.randomUUID() }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to create certification case")
       toast.success("Certification workspace created")
       await load()
@@ -72,19 +74,16 @@ export default function MusicCertificationPage() {
     if (!certificationCase || !file) return
     setBusy(true)
     try {
-      const prepareResponse = await fetch(`/api/artist/music/certification/${certificationCase.id}/evidence`, {
+      const { response: prepareResponse, body: prepared } = await artistMusicApiFetch(`/api/artist/music/certification/${certificationCase.id}/evidence`, {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "prepare", file_name: file.name, content_type: file.type || "application/octet-stream" }),
       })
-      const prepared = await prepareResponse.json()
       if (!prepareResponse.ok) throw new Error(prepared?.error?.message || "Unable to prepare evidence")
-      const { error: uploadError } = await supabase.storage.from(prepared.data.bucket).uploadToSignedUrl(prepared.data.path, prepared.data.token, file, { contentType: file.type })
-      if (uploadError) throw uploadError
-      const registerResponse = await fetch(`/api/artist/music/certification/${certificationCase.id}/evidence`, {
+      await uploadArtistMusicSignedUrl({ ...prepared.data, file })
+      const { response: registerResponse, body: registered } = await artistMusicApiFetch(`/api/artist/music/certification/${certificationCase.id}/evidence`, {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "register", path: prepared.data.path, evidence_type: evidenceType, original_filename: file.name, content_type: file.type, byte_size: file.size }),
       })
-      const registered = await registerResponse.json()
       if (!registerResponse.ok) throw new Error(registered?.error?.message || "Unable to register evidence")
       setFile(null)
       toast.success("Evidence added")
@@ -97,11 +96,10 @@ export default function MusicCertificationPage() {
     if (!certificationCase) return
     setBusy(true)
     try {
-      const response = await fetch(`/api/artist/music/certification/${certificationCase.id}`, {
+      const { response, body } = await artistMusicApiFetch(`/api/artist/music/certification/${certificationCase.id}`, {
         method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status, contributor_confirmation: contributorConfirmation, disclosures: { artist_statement: disclosure }, request_id: crypto.randomUUID() }),
       })
-      const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || "Unable to update certification")
       toast.success(status === "submitted" ? "Certification submitted" : "Certification withdrawn")
       await load()

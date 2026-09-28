@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926120100_marketplace_external_listing_surface.sql",
+  "taskId": "DB-011",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "eaa5ac54162d181264b1dd2981b764574d20a22aca60f0e7330144de9c9e1519",
+  "owner": "database",
+  "reviewer": "marketplace",
+  "domains": [
+    "marketplace",
+    "authorization",
+    "data-integrity"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Static source review of the dead-CTA redirect and external-listing import paths. app/api/marketplace/listings/[id]/redirect/route.ts:36-42 selects `marketplace_external_listings (canonical_url, provider_domain, safety_status)` as an EMBEDDED relation from marketplace_listings, which only resolves through a real foreign key, and then gates on listing.listing_kind !== 'external' at :46 - a column that no active migration creates on marketplace_listings. lib/marketplace/feed-attachment.ts:192 and :318 read marketplace_external_listings for the feed card and batch hydration. app/api/marketplace/listings/import-external/route.ts:164 writes the row. app/api/marketplace/listings/[id]/redirect/route.ts also records an outbound click. Archived, reviewed provenance: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260728000001_marketplace_listing_kinds.sql (MANIFEST.csv:241), .../20260728000003_marketplace_external_listings.sql (MANIFEST.csv:249) and .../20260728000004_marketplace_external_clicks.sql (MANIFEST.csv:250), all local_only_unapplied. ONE DELIBERATE DEPARTURE from the archived text: the archived migration created a table-level public SELECT policy and asserted in a comment that canonical_url was excluded from it. A USING predicate cannot exclude a column, so that policy would have exposed the destination URL to any anonymous caller that satisfied the row predicate. The archived public read is replaced by a column-limited view. Contract test SHA-256 1b89785fe0074d216c60fc31c515b1d08f8bc295968e664202630309477f9cfa. Executed evidence: supabase/tests/db011_marketplace_surface.harness.sh, PostgreSQL 16.15 local emulation.",
+    "evidenceArtifact": "static-review:DB-011-MARKETPLACE-EXTERNAL-LISTINGS-2026-09-26 (migration SHA-256 6e734873c327d96417a5d8f37f6c4c025f2707477038322b859a4b1b34a85d2a)"
+  },
+  "assumptions": [
+    "The archived 20260728000003 definition is the intended contract. The foreign key marketplace_external_listings.listing_id -> marketplace_listings(id) ON DELETE CASCADE is load-bearing twice over: it is the embedded-relation target for the redirect route and it is what makes ON DELETE CASCADE safe when a seller deletes a listing.",
+    "public.marketplace_touch_updated_at() already exists in the active chain (created by 20260410120000_marketplace_core.sql:210), so the updated_at trigger needs no new function. Verified on the emulation by applying the real core migration before this one.",
+    "The archived marketplace_listings status CHECK permitted exactly (draft, published, archived). The replacement constraint is a strict SUPERSET adding paused, sold_out and suspended, which lib/marketplace/webhook-processor.ts already writes. No row that satisfied the original can fail the replacement, so the drop-and-re-add cannot reject data. This is the only statement in the file that removes a constraint, and it immediately re-adds a wider one in the same transaction.",
+    "marketplace_listings.listing_kind is added NOT NULL DEFAULT 'physical'. Every existing row therefore reads 'physical', which is the value the archived migration chose as the default and the value the feed, listing cards and quick view already branch on.",
+    "The public projection runs with the view owner's rights rather than security_invoker. An invoker-security view would require the caller to hold SELECT on the base table, which the anon revoke denies, so the view would be unreadable by exactly the audience it exists for. The approved-and-published predicate is therefore written explicitly in the view body instead of being inherited from a policy.",
+    "The status CHECK is re-added NOT VALID and then validated in a separate statement. A plain ADD CONSTRAINT ... CHECK holds ACCESS EXCLUSIVE for a full table scan; NOT VALID skips the scan and VALIDATE CONSTRAINT needs only SHARE UPDATE EXCLUSIVE. The replacement list is a strict superset of the original, so the validation cannot fail on an existing row, and the interval in which the wider constraint is unvalidated is strictly more permissive, never less. marketplace_listings_public_slug_unique is a UNIQUE constraint, which PostgreSQL cannot add NOT VALID, so that one statement does take ACCESS EXCLUSIVE and build an index; it is the single operator decision point recorded in preflight."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm marketplace_listings exists; count rows by current status (the pre-image the constraint change must not invalidate); confirm to_regclass('public.marketplace_external_listings') and to_regclass('public.marketplace_external_listings_public') are null; count marketplace_listings rows with a status outside the original three-value list (expected 0, because the original constraint forbade them; a non-zero result means the target already carries the wider constraint out of band and the drop-and-re-add is a no-op).",
+    "Layer 1 (apply, single run, operator): four ADD COLUMN IF NOT EXISTS on marketplace_listings; DROP CONSTRAINT IF EXISTS + ADD CONSTRAINT ... NOT VALID + a separate VALIDATE CONSTRAINT for marketplace_listings_status_check and marketplace_listings_public_slug_unique; two CREATE INDEX IF NOT EXISTS; CREATE TABLE IF NOT EXISTS marketplace_external_listings with two indexes, ENABLE + FORCE ROW LEVEL SECURITY, the owner_manage policy, the column-limited public view, its anon/authenticated grant, the base-table anon revoke, and the updated_at trigger; CREATE TABLE IF NOT EXISTS marketplace_external_clicks with one index, ENABLE + FORCE ROW LEVEL SECURITY and the seller_read policy. The unique constraint on marketplace_listings_public_slug takes an ACCESS EXCLUSIVE lock and builds an index, which is the only statement in the file with a real lock cost; on a large listings table that is the operator's decision point.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db011_marketplace_external_listing_contract.sql; expect zero violation rows and exactly one summary row marketplace_external_listing_surface_ready. Then, as a caller, prove the confidentiality property directly: as anon, select canonical_url from public.marketplace_external_listings must fail with permission denied, and select * from public.marketplace_external_listings_public must succeed and return only the four safe columns.",
+    "Layer 3 (runtime certification, marketplace + release/ops): after apply, npm run generate:database-types (CP-016) and then exercise app/api/marketplace/listings/[id]/redirect/route.ts for a published+approved external listing, an unapproved one, and a physical one. The first must 302 to canonical_url and record a click; the second must 404; the third must 400."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT to_regclass('public.marketplace_external_listings') AS external_listings_exists",
+      "SELECT status, count(*) FROM public.marketplace_listings GROUP BY status ORDER BY status",
+      "SELECT count(*) FROM public.marketplace_listings WHERE status NOT IN ('draft','published','archived')",
+      "SELECT count(*) FROM public.marketplace_listings",
+      "SELECT count(*) FROM pg_policies WHERE tablename = 'marketplace_listings'"
+    ],
+    "expectedAffectedRows": "Zero rows inserted, updated or deleted. DDL only: four new columns on marketplace_listings (three nullable, one NOT NULL DEFAULT 'physical' which backfills every existing row to the default atomically), two new relations, four new indexes, one replaced CHECK constraint, one added UNIQUE constraint, four policies, one view and one trigger.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 10000,
+    "statementTimeoutMs": 300000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with this exact file or a targeted psql apply, and run it in one transaction so the constraint replacement and the table creation cannot be observed half-applied. A partial or failed apply is corrected with a later additive forward fix, never a replay or reset.",
+    "resumeCursor": "Supabase migration version 20260926120100",
+    "idempotency": "Deterministic and repeatable. ADD COLUMN IF NOT EXISTS, DROP CONSTRAINT IF EXISTS followed by ADD CONSTRAINT, CREATE INDEX IF NOT EXISTS, CREATE TABLE IF NOT EXISTS, DROP POLICY IF EXISTS followed by CREATE POLICY, DROP TRIGGER IF EXISTS followed by CREATE TRIGGER, CREATE OR REPLACE VIEW, and GRANT/REVOKE are all no-ops or idempotent on a second run. Verified by applying the file twice on a throwaway PostgreSQL 16.15 cluster in supabase/tests/db011_marketplace_surface.harness.sh with zero errors on both applies. Note that a re-apply will NOT re-add a column that was dropped by a negative control, which is why the harness restores by rebuilding the relation rather than by re-applying."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement. A target that already received the archived DDL out of band converges: the tables are created IF NOT EXISTS, the columns are added IF NOT EXISTS, and the policies and trigger are dropped and recreated under their final names. The one case that needs operator attention is a marketplace_listings_public_slug_unique constraint that already exists with different semantics; the DROP CONSTRAINT IF EXISTS followed by ADD CONSTRAINT resolves it, and the operator should confirm the resulting uniqueness before proceeding because duplicate slugs would then fail the ADD."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "marketplace_external_listings: primary key (id); unique (listing_id) - one external destination per listing; check (safety_status in ('pending_review','approved','flagged','blocked')); check (health_check_status in ('ok','unreachable','redirected','unsafe')); foreign key listing_id -> public.marketplace_listings(id) ON DELETE CASCADE.",
+      "marketplace_external_clicks: primary key (id); check (source_surface in ('hub','storefront','profile','feed','direct','unknown')); foreign key listing_id -> public.marketplace_listings(id) ON DELETE CASCADE.",
+      "marketplace_listings: marketplace_listings_status_check is DROPPED and re-ADDED with a strict superset of its original value list, and marketplace_listings_public_slug_unique is added. These are the only constraint changes in the file. Both are reproduced from the archived 20260728000001. The status CHECK is added NOT VALID and validated separately so it does not hold ACCESS EXCLUSIVE while scanning, which is why the validator accepts it without a reviewed-exception marker, and the status widening is required because lib/marketplace/webhook-processor.ts writes 'sold_out'.",
+      "Four inline CHECK constraints are added by the ADD COLUMN clauses (listing_kind, service_mode) and the two tables. They are added NOT VALID-free because they apply to columns with a constant DEFAULT, so the existing rows are validated during the ADD rather than by a table rewrite."
+    ],
+    "indexes": [
+      "idx_marketplace_listings_kind on public.marketplace_listings(listing_kind) - the feed and discovery filter",
+      "idx_marketplace_listings_public_slug partial btree on (public_slug) where public_slug is not null, plus the unique constraint on the same column - slug lookups without indexing every NULL",
+      "idx_marketplace_external_listings_listing on marketplace_external_listings(listing_id) - the embedded-relation join",
+      "idx_marketplace_external_listings_domain_safety on marketplace_external_listings(provider_domain, safety_status) - the safety review queue",
+      "idx_marketplace_external_clicks_listing_time on marketplace_external_clicks(listing_id, clicked_at desc) - the seller analytics read",
+      "No existing index on marketplace_listings is dropped or rebuilt."
+    ],
+    "validationPlan": "supabase/tests/db011_marketplace_external_listing_contract.sql asserts, as violation rows only: 24 expected columns with exact type and nullability; a foreign key from both new relations to marketplace_listings; single-column uniqueness on marketplace_external_listings.listing_id; that anon holds NO SELECT on the base table; that the public projection exists, is anon-readable, and does NOT carry canonical_url; relrowsecurity AND relforcerowsecurity on both new relations; and that marketplace_listings_status_check still contains draft, published and archived. It emits exactly one summary row and only when all three new relations exist. Four negative controls in supabase/tests/db011_marketplace_surface.harness.sh each break one assertion and confirm the postflight reports the violation, including the confidentiality one (granting anon SELECT on the base table)."
+  },
+  "recovery": {
+    "rollback": "Not applicable as a first response; the migration is additive apart from the two constraint statements, which are replaced within the same transaction by wider equivalents. Undoing it would mean dropping marketplace_external_listings_public, then marketplace_external_clicks, then marketplace_external_listings, then the four marketplace_listings columns and the two constraints, in one later forward migration. No DROP appears in this file.",
+    "forwardFix": "Any correction is a new additive migration with a higher version. A status value the code writes that the new CHECK does not allow is fixed by dropping and re-adding the constraint with a wider list, which is the same pattern this file uses. A projection that leaks a column is fixed by CREATE OR REPLACE VIEW with a narrower column list plus a REVOKE, never by re-granting the base table."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db011_marketplace_external_listing_contract.sql",
+      "SET ROLE anon; SELECT canonical_url FROM public.marketplace_external_listings; -- must fail: permission denied",
+      "SET ROLE anon; SELECT * FROM public.marketplace_external_listings_public; -- must succeed, four columns only",
+      "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'public.marketplace_listings'::regclass AND conname IN ('marketplace_listings_status_check','marketplace_listings_public_slug_unique')",
+      "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname IN ('marketplace_external_listings','marketplace_external_clicks')",
+      "SELECT convalidated FROM pg_constraint WHERE conname='marketplace_listings_status_check' AND conrelid='public.marketplace_listings'::regclass -- must be true"
+    ]
+  },
+  "verificationOwner": "release/ops operator for the staging apply and the postflight, including the two anon-caller probes; marketplace lane for the redirect and import route certification; security-data reviewer for the column-limited projection, because it narrows access relative to the archived DDL and therefore needs a named reviewer",
+  "evidence": [
+    "supabase/tests/db011_marketplace_surface.harness.sh - executed on a throwaway PostgreSQL 16.15 cluster: 33/33 checks pass. It asserts, as a caller, that anon cannot SELECT the base table, CAN read the projection, that the projection exposes exactly listing_id, provider_name, provider_domain and safety_status, and that anon reads 0 rows from it while no listing is approved (so the RLS-equivalent filter is live rather than vacuously empty). Four negative controls confirm the postflight fails when each contract element is removed. LOCAL EMULATION ONLY: not Supabase, not a hosted project, not a chain replay, no `supabase db reset` (CP-051).",
+    "supabase/tests/db011_marketplace_local_only_disposition.mjs - 61 marketplace surface items absent from the active chain with at least one product-code consumer; this migration closes the external-listing subset (listing_kind, service_mode, public_slug, optimistic_version, marketplace_external_listings, marketplace_external_clicks).",
+    "The confidentiality departure from the archived DDL is a narrowing, so it cannot widen any existing access path; it is called out here and in the migration header because it is the one place where this file does not reproduce its source text verbatim."
+  ],
+  "exceptions": []
+}

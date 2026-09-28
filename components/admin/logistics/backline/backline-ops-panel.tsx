@@ -9,6 +9,7 @@ import { Zap, Plus } from 'lucide-react'
 import { LogisticsDynamicManager } from '@/components/admin/logistics-dynamic-manager'
 import { useRentalAgreements, useRentalAnalytics, useEquipmentUtilization } from '@/hooks/use-rentals'
 import { formatSafeCurrency } from '@/lib/format/number-format'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 interface BacklineOpsPanelProps {
   eventId?: string
@@ -16,6 +17,8 @@ interface BacklineOpsPanelProps {
 }
 
 export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
+  const hasScope = Boolean(eventId || tourId)
   const [requirements, setRequirements] = useState<any[]>([])
   const [conflicts, setConflicts] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -39,10 +42,15 @@ export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
   const { utilization } = useEquipmentUtilization()
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setRequirements([])
+      setConflicts([])
+      return
+    }
     const params = new URLSearchParams()
     if (eventId) params.set('eventId', eventId)
     if (tourId) params.set('tourId', tourId)
-    const res = await fetch(`/api/admin/logistics/backline?${params}`, { credentials: 'include' })
+    const res = await adminFetch(`/api/admin/logistics/backline?${params}`)
     const data = await res.json()
     if (!res.ok) {
       setError(data.error || 'Failed to load backline')
@@ -51,7 +59,7 @@ export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
     setRequirements(data.requirements || [])
     setConflicts(data.conflicts || [])
     if (data.needsMigration) setError('Apply logistics foundation migration for backline domain tables')
-  }, [eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
     load()
@@ -59,7 +67,7 @@ export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
 
   async function createRequirement() {
     setError(null)
-    const res = await fetch('/api/admin/logistics/backline', {
+    const res = await adminFetch('/api/admin/logistics/backline', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -88,7 +96,7 @@ export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
   async function fulfill(requirementId: string) {
     const sourceType = window.prompt('Fulfillment source (organization|venue|artist|vendor|rental)', 'organization')
     if (!sourceType) return
-    const res = await fetch('/api/admin/logistics/backline', {
+    const res = await adminFetch('/api/admin/logistics/backline', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -107,7 +115,7 @@ export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
   async function proposeSubstitution(requirementId: string) {
     const proposed = window.prompt('Proposed substitute make/model')
     if (!proposed) return
-    const res = await fetch('/api/admin/logistics/backline', {
+    const res = await adminFetch('/api/admin/logistics/backline', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -155,7 +163,8 @@ export function BacklineOpsPanel({ eventId, tourId }: BacklineOpsPanelProps) {
           <Input value={form.rider_version} onChange={(e) => setForm((f) => ({ ...f, rider_version: e.target.value }))} />
         </div>
         <div className="md:col-span-2">
-          <Button onClick={createRequirement}><Plus className="h-4 w-4 mr-2" />Add requirement</Button>
+          <Button disabled={!isAdminReady || !hasScope} onClick={createRequirement}><Plus className="h-4 w-4 mr-2" />Add requirement</Button>
+          {!hasScope ? <p className="mt-2 text-xs text-slate-400">Select a tour or event before adding a requirement.</p> : null}
         </div>
       </div>
 

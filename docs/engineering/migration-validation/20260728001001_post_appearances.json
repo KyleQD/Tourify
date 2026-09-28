@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728001001_post_appearances.sql",
+  "taskId": "DB-007",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": ["posts", "appearance"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with public.posts present and empty",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.post_appearances"
+    ],
+    "expectedAffectedRows": "New table created empty; no rows are touched in any existing table",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 1000,
+    "statementTimeoutMs": 30000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the idempotent create-table/create-index/create-trigger sequence; every object uses IF NOT EXISTS or OR REPLACE",
+    "resumeCursor": "post_appearances_author_idx / post_appearances_template_idx index definitions",
+    "idempotency": "CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, CREATE OR REPLACE FUNCTION, CREATE TRIGGER after drop-if-exists"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant keys or user data are inferred, backfilled, or quarantined; the table starts empty"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["public.post_appearances.post_appearances_pkey"],
+    "indexes": ["public.post_appearances.post_appearances_author_idx", "public.post_appearances.post_appearances_template_idx"],
+    "validationPlan": "The PK is declared inline on a brand-new table; secondary indexes have no pre-existing rows to validate"
+  },
+  "recovery": {
+    "rollback": "Drop the new table and its trigger function in a forward migration if the family is rolled back",
+    "forwardFix": "Any further appearance shape changes are additive migrations"
+  },
+  "postflight": {
+    "queries": [
+      "select to_regclass('public.post_appearances')",
+      "select count(*) from pg_policies where schemaname = 'public' and tablename = 'post_appearances'"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

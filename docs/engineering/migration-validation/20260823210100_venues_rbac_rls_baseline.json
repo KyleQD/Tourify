@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823210100_venues_rbac_rls_baseline.sql",
+  "taskId": "H12-RBAC-RLS",
+  "status": "staging_validated",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "venues",
+    "rbac",
+    "rls"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": "Post-apply staging inspection: venues + all rbac_* tables RLS-enabled, named policies present, has_entity_permission SECURITY DEFINER, profiles_privilege_guard trigger enabled, anon/owner RLS probes (task DB-002 evidence)"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "policy/table existence probes via to_regclass",
+      "select column_name from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name in ('is_admin', 'role', 'admin_level') order by column_name"
+    ],
+    "expectedAffectedRows": "Adds missing privilege columns with non-privileged defaults, installs the self-elevation guard before trusting those columns, and enables scoped RLS policies; no account is promoted",
+    "artifact": "Chain + validation scans clean (277 files); schema-drift blocker resolved by 20260823221100_venues_add_identity_columns before baseline re-apply"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional DDL: ENABLE RLS + named policies + SECURITY DEFINER has_entity_permission replacement; retry-safe",
+    "resumeCursor": "supabase migration version 20260823210100",
+    "idempotency": "privilege columns use IF NOT EXISTS, guard and permission functions use CREATE OR REPLACE, triggers and policies are dropped by exact name before recreation, and re-running converges"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "profiles.is_admin defaults false, profiles.role defaults user, and profiles.admin_level defaults null",
+      "profiles_privilege_guard blocks non-service inserts or changes that elevate is_admin, role, or admin_level",
+      "RBAC assignment and override access remains scoped by self, MANAGE_MEMBERS, or platform administration"
+    ],
+    "indexes": [],
+    "validationPlan": "Confirm policies/functions/triggers and grants, prove self-elevation is rejected, prove service-managed privilege updates succeed, and run owner/member/non-member RLS negatives"
+  },
+  "recovery": {
+    "rollback": "Disable the added policies by name (do not disable RLS) pending review",
+    "forwardFix": "Later migration adjusting scope without disabling RLS"
+  },
+  "postflight": {
+    "queries": [
+      "venues/rbac_* report rls_enabled = true",
+      "has_entity_permission is SECURITY DEFINER with pinned search_path",
+      "anon can read only slug-published venue rows"
+    ],
+    "artifact": "Post-apply pg_policies + pg_class + pg_proc + pg_trigger probes; anon slug-read returns 1, anon INSERT rejected 42501, probe rows rolled back (task DB-002 evidence, 2026-09-09)",
+    "securityAdvisorArtifact": "Not run as separate artifact \u2014 RLS posture verified via pg_policies probes in staging (DB-002 evidence)",
+    "performanceAdvisorArtifact": "Not applicable \u2014 policy/guard DDL; no hot-path plan changes"
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": "Existing reviewed migration; re-applied after schema reconciliation on 2026-09-09 via Management API (HTTP 201). Postflight: RLS enabled on venues + 6 rbac tables; all named policies present; has_entity_permission SECURITY DEFINER search_path=public; profiles_privilege_guard trigger enabled.",
+    "staging": "Applied via Management API (HTTP 201) on 2026-09-09 after 20260823221100_venues_add_identity_columns resolved the slug/account_id/created_by schema drift. Postflight: venues_public_read + venues_owner_write present on venues; rbac_* policies present; RLS enabled on venues + 6 rbac tables; anon can read slug-published rows (anon_visible_published=1) but cannot INSERT (42501); probe rows rolled back.",
+    "production": null
+  },
+  "exceptions": []
+}

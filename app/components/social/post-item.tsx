@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/contexts/auth-context"
-import { useSocial } from "@/contexts/social-context"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingSpinner } from "../loading-spinner"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
@@ -43,6 +42,11 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import { useRouter } from "next/navigation"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import {
+  createPostComment,
+  setPostLike,
+  sharePostExternally,
+} from "@/lib/feed/post-engagement-client"
 
 interface PostItemProps {
   post: any
@@ -62,10 +66,6 @@ export function PostItem({
   className = "",
 }: PostItemProps) {
   const { user: currentUser } = useAuth()
-  const social = useSocial() as any
-  const likePost = social.likePost || (async (_id: string) => {})
-  const unlikePost = social.unlikePost || (async (_id: string) => {})
-  const addComment = social.addComment || (async (_id: string, _text: string) => {})
   const { toast } = useToast()
   const router = useRouter()
 
@@ -80,14 +80,9 @@ export function PostItem({
 
   const handleLikeToggle = async () => {
     try {
-      if (isLiked) {
-        await unlikePost(post.id)
-        setLikeCount((prev: number) => prev - 1)
-      } else {
-        await likePost(post.id)
-        setLikeCount((prev: number) => prev + 1)
-      }
-      setIsLiked(!isLiked)
+      const result = await setPostLike(post.id, isLiked ? "unlike" : "like")
+      setLikeCount(result.likes_count)
+      setIsLiked(result.is_liked)
     } catch (error) {
       console.error("Error toggling like:", error)
       toast({
@@ -114,7 +109,7 @@ export function PostItem({
     setIsSubmittingComment(true)
 
     try {
-      await addComment(post.id, commentText)
+      await createPostComment(post.id, commentText)
       setCommentText("")
       toast({
         title: "Comment added",
@@ -132,12 +127,20 @@ export function PostItem({
     }
   }
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`)
-    toast({
-      title: "Link copied",
-      description: "Post link has been copied to clipboard.",
-    })
+  const handleShare = async () => {
+    try {
+      await sharePostExternally(post.id, { preferNative: false })
+      toast({
+        title: "Link copied",
+        description: "Post link was copied and the share was saved.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to share post.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handlePostClick = () => {
@@ -517,4 +520,4 @@ export function PostItem({
       )}
     </Card>
   )
-} 
+}

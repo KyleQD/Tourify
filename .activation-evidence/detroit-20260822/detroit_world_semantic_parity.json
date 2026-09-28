@@ -1,0 +1,8 @@
+{
+  "schema_version": "world-semantic-parity-report-v0.1",
+  "status": "PASS",
+  "reference": "/Users/kyledaley/Downloads/Tourify_World_of_Music_Working_Folder 2/implementation/phase2/generated/world_api_fixtures/detroit.json",
+  "candidate": ".activation-evidence/detroit-20260822/detroit-db-backed.json",
+  "difference_count": 0,
+  "differences": []
+}

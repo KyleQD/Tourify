@@ -2,20 +2,26 @@ import { readFileSync } from "fs"
 import { resolve } from "path"
 
 describe("grant tour admins stays tour-scoped", () => {
-  it("panel does not request org membership by default", () => {
+  it("panel uses the tour collaboration invitation boundary", () => {
     const panel = readFileSync(
       resolve(process.cwd(), "components/admin/grant-tour-admins-panel.tsx"),
       "utf8",
     )
-    expect(panel).toContain("grant_org_membership: false")
-    expect(panel).not.toContain("grant_org_membership: true")
+    expect(panel).toContain("/collaboration-invites")
+    expect(panel).not.toContain("/grant-admins")
+    expect(panel).not.toContain("grant_org_membership")
   })
 
-  it("API defaults grant_org_membership to false", () => {
+  it("collaboration invitations cannot create organization membership", () => {
     const route = readFileSync(
-      resolve(process.cwd(), "app/api/admin/tours/[id]/grant-admins/route.ts"),
+      resolve(
+        process.cwd(),
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+      ),
       "utf8",
     )
-    expect(route).toMatch(/grant_org_membership:\s*z\.boolean\(\)\.optional\(\)\.default\(false\)/)
+    expect(route).toContain('.from("tour_collaboration_invitations")')
+    expect(route).not.toContain('.from("org_members")')
+    expect(route).not.toContain("grant_org_membership")
   })
 })

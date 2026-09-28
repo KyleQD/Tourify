@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Superseded by AdminUnifiedInbox (cmp-message-board wont-fix). */
+
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRealTimeCommunications } from '@/hooks/use-real-time-communications'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'

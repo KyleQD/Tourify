@@ -1,0 +1,429 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-017",
+  "title": "Reconcile the full capability catalog with the RLS permission matrix",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-27T16:58:50.829Z",
+  "updated_at": "2026-09-28T01:01:33.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (676 entries at session start, 693 at close, from 12+ concurrent lanes; every one preserved). Every path this task wrote is listed under the checkpoint's paths_changed and every one is an UNTRACKED ADDITION except the two records it was told to update. No commit, add, checkout, restore, stash, reset, clean, rebase, merge or cherry-pick was issued at any point. `npm run agents:generate` was deliberately NOT run: the generated maps are a shared artefact in a worktree many lanes share. `docs/engineering/DECISIONS.md` was NOT written to, per the orchestrator's Wave 37 directive: proposed decision text is in progress.proposed_decisions below for the orchestrator to append.",
+  "goal": "Close the 206 measured (role, capability) pairs where the application capability gate grants authority the RLS matrix does not.",
+  "scope": {
+    "in": [
+      "Measuring the full 42-capability catalog disagreement, not just the workforce slice",
+      "One recorded decision per capability, with a reason, an owner and a named next action",
+      "A CI check that fails when the two layers disagree for any role and capability pair, with both error directions stated",
+      "Enumeration and disposition of every capability no RLS policy reads, workforce.publish included",
+      "Proof the check can fail before it is trusted to report clean"
+    ],
+    "out": [
+      "Seeding capabilities whose correct answer is still undecided — this task DECIDES and DETECTS, it does not seed",
+      "Authoring any migration or any SQL test under supabase/tests/** — WFC-004 owned both this wave. Both directories are byte-unchanged by this task.",
+      "Re-opening the workforce.* family, which DB-016 closed. Nothing under workforce.* was seeded, edited or re-decided; the two workforce decisions record DB-016's outcome and its CP-094 pair-level subtraction.",
+      "Editing DB-014's, DB-015's or DB-016's scripts/ci files — all consumed read-only",
+      "package.json and .github/workflows/ci.yml, so the check is NOT wired into CI. Both are shared artefacts in a dirty multi-lane worktree and outside this grant under CP-112. The wiring is handed to release in progress.next_steps with the exact commands and exit codes.",
+      "Applying anything to any database. CP-051 honoured in full."
+    ]
+  },
+  "working_set": [
+    "scripts/ci/check-capability-matrix-agreement.mjs (NEW)",
+    "scripts/ci/check-capability-matrix-agreement.test.mjs (NEW)",
+    "docs/engineering/verification/db017-capability-matrix-agreement/ (NEW — this task's own report directory: README.md, report.json, check-output.txt, strict-output.txt, test-output.txt)",
+    "docs/engineering/tasks/active/DB-017.json -> docs/engineering/tasks/completed/DB-017.json (this record)",
+    "docs/engineering/agents/database/STATE.md (one dated section appended)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/completed/DB-016.json (read-only: its comparator, its two-layer test and its 206-pair finding are the input, and its per-role distribution is corrected below)",
+    "docs/engineering/tasks/completed/DB-015.json",
+    "docs/engineering/tasks/completed/WFC-004.json",
+    "docs/engineering/handoffs/pending/HF-WFC-004-WORKFORCE-RBAC-PROVISIONING.json",
+    "docs/engineering/handoffs/pending/HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS.json (already pending; the 11 catalog_authoritative capabilities generalise it)",
+    "supabase/tests/db016_capability_gate_probe.mjs and __tests__/admin/db016-capability-matrix-agreement.test.ts (READ-ONLY: the seam and the two-layer comparison, reused rather than rebuilt)",
+    "lib/auth/admin-capabilities.ts (READ-ONLY, and the in-flight ADMIN-012/CP-094 edit is what the measurement used: 42 capabilities, 12 roles)",
+    "supabase/migrations/20250816132000_org_rbac.sql, 20260712005429_organization_public_personas.sql, 20260821180438_job_posting_scopes_and_organization_seats.sql, 20260926200000_org_role_permissions_workforce_seed.sql (READ-ONLY: the three matrix writers and the per-member CHECK constraint)"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Every one of the 42 capabilities has a recorded decision: matrix-authoritative, catalog-authoritative, or deliberately unseeded, and none is left undecided",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "42 decisions, one per capability, in CAPABILITY_DECISIONS (scripts/ci/check-capability-matrix-agreement.mjs). THE FOURTH ANSWER IS IN THE RECORD, NOT ASSUMED AWAY: matrix_authoritative 2, catalog_authoritative 11, declared_intent_only 29, deliberately_unseeded 0. Enforced mechanically, not by review: UNDECIDED_CAPABILITY fails if a catalog capability has no decision, and STALE_DECISION_CAPABILITY fails if a decision names a capability the catalog no longer defines. Both directions are live — the test file drives each, and a 25-test run against the real chain finds 0 undecided and 0 stale.",
+        "matrix_authoritative (2, ZERO open pairs): workforce.view and workforce.manage. Both are read by RLS (12 and 43 literal policy sites plus the private.user_can_*_zone helpers), both were reconciled by DB-016 under CP-102, and the check exists to keep them at zero. The CP-094 withholding of workforce.manage from department_manager is recorded as a PAIR-level decision inside workforce.manage's reason, with the reason it is pair-level: has_perm takes no target, so a matrix grant is organization-wide by construction, and that is a property of a (role, capability) pair, not of a capability.",
+        "catalog_authoritative (11, 58 open pairs): tour.view, tour.manage, tour.delete, event.manage, routing.manage, hiring.manage, vendor.view, vendor.manage, logistics.view, logistics.manage, tour.publish. Each names why the open pairs are FALSE DENIALS rather than disclosures, an evidence citation, an owner, and a nextAction. Owner is wfc-003 for the eight that the matrix projection alone fixes; the other three carry the additional question their own shape raises (tour.publish is enforced at an RPC boundary, not row level, and is per-tour in the product).",
+        "declared_intent_only (29, 148 open pairs): every capability no RLS policy reads. EACH IS NAMED INDIVIDUALLY with a reason, an owner and a next action. There is no wildcard entry, because a wildcard is how a declared intent becomes an unexamined assumption — which is the mechanism that produced workforce.publish in the first place. A test asserts all 29 carry a reason longer than 80 characters, an owner and a next action, so a future entry cannot be a bare classification.",
+        "deliberately_unseeded: IMPLEMENTED, ENFORCED, AND APPLIED TO ZERO CAPABILITIES, and that is reported as a finding rather than papered over. The one real instance in this repository is pair-level (CP-094, above). The class is proven reachable rather than asserted to be, because a class no test can reach is a class that does not exist: FORBIDDEN_MATRIX_GRANT fires the moment a deliberately_unseeded capability gains a matrix grant, and a test drives exactly that.",
+        "NO CAPABILITY IS LEFT UNDECIDED, and the claim is falsifiable in both directions. DECISION_NOT_SUPPORTED_BY_CHAIN fails when a decision claims enforcement the chain no longer provides, and DECISION_UNDERSTATES_CHAIN fails when a new enforcement site appears and the record is stale. Both are pinned by tests; the second is pinned by INJECTING a real policy that reads workforce.publish into a copy of 20250816132000 and requiring exactly one failure naming workforce.publish.",
+        "Each decision also records the measured enforcement class it claims, and the check compares it to the chain on every run. The claim is a claim, not a restatement: if the chain grows or loses a reader the record becomes wrong and the check fails."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "A CI check fails when the application capability gate and the RLS matrix disagree for any role and capability pair",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "scripts/ci/check-capability-matrix-agreement.mjs compares BOTH layers for ALL 504 pairs (12 roles x 42 capabilities). Layer 1 is the REAL resolveEffectiveAdminCapabilities, dynamically imported from lib/auth/admin-capabilities.ts — the same module the running application imports, with the same three inputs loadCapabilities supplies and no target and no department authority, because has_perm takes no target. Layer 2 is DERIVED by replaying the chain's own 17 insert into public.org_role_permissions writes in version order across its three writers, each with its own conflict clause modelled, and the DB-016 seed parsed out of the migration that declares it. Neither layer is transcribed, so the two can actually disagree.",
+        "DEFAULT MODE exits 0 with every disagreement dispositioned; --strict exits 1 with exactly 206 STRICT_PAIR_DISAGREEMENT and no class exemption. Both are measured, not argued: exit 0 and exit 1 respectively, with the failure count asserted. The strict mode is the literal reading of the criterion and the default mode is what makes the decision record enforceable, so both readings are delivered rather than one being chosen.",
+        "BOTH DISAGREEMENT DIRECTIONS ARE COMPUTED, and the second one is a real finding rather than a formality. matrix_exceeds_gate is 0 today, and it is 0 STRUCTURALLY: resolveAdminCapabilities unions configuredPermissions — the matrix row — into the role's catalog defaults (SEC-102), so matrix(role) is a subset of gate(role) for every catalog capability. Asserted over all 504 pairs AND against the real resolver per role and per carried capability: zero counterexamples. THE CONSEQUENCE IS THE MOST DECISION-RELEVANT FACT IN THIS TASK: none of the 206 is a disclosure. Every one is a caller who passes the route gate and is then denied rows — a plausible zero, which CP-098 forbids, but a NARROWER surface. That is what makes catalog_authoritative the right answer for the 11 enforced-with-open-pairs capabilities, and it is why the direction is still implemented and still fails (MATRIX_GRANT_UNMODELLED_BY_GATE): a comparator that computed only one direction would report the same 0.",
+        "THE CHECK IS NOT A NAME BLACKLIST, and this is the specific way it could have been one. Enforcement is classified by TRANSITIVE REACHABILITY from a policy predicate — a capability is enforced iff its literal is passed to has_perm inside a policy-creating statement, or inside a chain-defined function transitively reachable from one (287 chain-defined functions, 50 policy-reachable). logistics.view and logistics.manage are read ONLY through private.user_can_read_staff_zone / user_can_edit_staff_zone (20260903120000:53500, :53568) and appear in NO create policy statement anywhere, so a policy-text grep calls both unenforced. They are enforced. Measured and pinned by a test.",
+        "Nine failure rules, and the rule underneath them is stated so it cannot be quietly weakened: the check fails whenever the measured world and the recorded decisions disagree, IN EITHER DIRECTION. There is no severity level and no safe direction for a stale record, and a newly added RLS policy — a security improvement — still fails until the decision is updated.",
+        "THE CHECK IS NOT WIRED INTO CI AND THAT IS A GRANT LIMITATION, NOT AN OMISSION. package.json and .github/workflows/ci.yml are shared artefacts in a dirty 693-entry worktree and are outside this task's grant under CP-112. Handed to release in next_steps with the exact command, the exit codes, and the two legitimate ways it can go red on day one (a new capability nobody decided, or a decision the chain no longer supports). Until then the detector exists, is proven, and runs on nobody's behalf."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Capabilities that no RLS policy reads, including workforce.publish, are enumerated and dispositioned rather than assumed harmless",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "29 of the 42 capabilities are read by no RLS policy, by no policy-reachable function, and by no trigger anywhere in the 323-migration chain. All 29 are enumerated by name and dispositioned individually with a reason, an owner and a next action. Measured: enforcement classes across the 42 are none 29, rls_policy 10, rls_policy_via_function 2, non_row_level_only 1 — so 13 enforced, 29 declared intent.",
+        "workforce.publish IS TREATED AS THE TEST CASE, NOT AS A SPECIAL CASE. Measured from the chain: NO has_perm site at all. Its only occurrences are org_members_permissions_check (20260821180438:88), which ADMITS the value and authorizes nothing, and DB-016's own seed and post-condition. Its decision is declared_intent_only with enforcement 'none', and its reason says in terms that it is read by no policy, by no function and by no trigger, and that it changes NO row-level access. It is NOT counted among the 13 enforced capabilities anywhere in the report or the check output. The test file pins the measurement AND the raw-text occurrence list, so the claim cannot rot into a comment.",
+        "A SECOND INSTANCE OF THE FOURTH ANSWER, PREVIOUSLY UNRECORDED: finance.manage is the only capability that is in the catalog, IN THE MATRIX, and read by nothing. owner, admin and finance have carried it since 20250816132000:45-48 and it has gated nothing for the whole life of the chain. DB-016's additivity rule forbids removing it, so the disposition is to LABEL it — and to say plainly that the chain enforces no finance capability at the row level: finance.view, finance.approve, finance.pay and advance.manage are all declared_intent_only too. That is a launch-relevant fact, not a catalog observation, and it is recorded as such.",
+        "THE NINE INERT MATRIX GRANTS ARE PRINTED BY THE CHECK, because an inert grant is indistinguishable from authority in a table dump: owner/admin/production/tour_manager/production_manager/department_manager x workforce.publish, and owner/admin/finance x finance.manage. workforce.manage is absent from all twelve rows, which is CP-102's subtraction working.",
+        "THE ENFORCEMENT SURFACE ITSELF IS ENUMERATED, not just the absence: every one of the 16 distinct permission literals the chain reads through has_perm is classified, and the 9 that are NOT catalog capabilities are recorded in LEGACY_MATRIX_VOCABULARY. THREE OF THOSE NINE ARE READ BY RLS — org.manage, org.invite, staff.manage — so the 42x12 pair table is NOT the whole authorization story: the RLS layer enforces three control names the application catalog cannot express at all. A tenth would fail the check with UNDECIDED_MATRIX_VOCABULARY. Stated so the 206 is not read as a complete inventory of the split-brain.",
+        "One capability is enforced and NO POLICY READS IT: tour.publish is read by three publication RPCs that call has_perm and then RAISE (20260720200000, 20260721215705, 20260720020302:8001). It is a command boundary, not a row boundary, which a policy-only instrument cannot see, and it is on a launch-critical publication path with 3 open pairs. A fourth enforcement class exists in the code for exactly this shape."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The check is proven able to fail before it is trusted to report clean, and its false-positive and false-negative directions are both recorded",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "PROVEN ABLE TO FAIL FOUR TIMES AT THE CLI, each a copy of the real 323-file chain with ONE edit, each run through the same command a pipeline would run, each with a real exit code. CAPABILITY_MATRIX_CHAIN_DIR was added specifically so the inversions are reproducible by an operator and not only inside a test. (1) Remove workforce.view from finance's matrix row in 20260926200000: exit 1, exactly 1 failure, MATRIX_AUTHORITATIVE_BREACH, 'finance/workforce.view: the decision is matrix_authoritative and zero open pairs, but the application gate grants it and the matrix does not.' (2) Make the organizations UPDATE policy read workforce.publish in 20250816132000: exit 1, exactly 1 failure, DECISION_UNDERSTATES_CHAIN, 'workforce.publish: the decision claims enforcement \"none\" but the chain measures \"rls_policy\".' (3) Make a policy read 'mystery.perm': exit 1, exactly 1 failure, UNDECIDED_MATRIX_VOCABULARY. (4) The UNMUTATED chain under --strict: exit 1, exactly 206 STRICT_PAIR_DISAGREEMENT.",
+        "DB-016's standard was 'make the comparator report 13 disagreements on the before-state'. The equivalent here is larger and is run first: --strict reports 206 on the CURRENT chain, and the default mode's 0 is only trustworthy because the same instrument reports 206 under a flag. The in-test inversions go further, to the real chain, and each asserts that its edit APPLIED before requiring the failure, so no inversion can pass vacuously.",
+        "FALSE POSITIVE — SAFE, RECORDED, AND LABELLED IN THE OUTPUT ITSELF (FALSE_POSITIVE_DIRECTION_SAFE): an unrecognised capability construct, i.e. a permission literal the chain reads that is neither a catalog capability nor a recorded legacy permission. It is reported loudly as UNDECIDED_MATRIX_VOCABULARY and an operator adds it. The check never silently ignores a construct it does not understand, and the reason is the point of AC-3: a silently ignored construct is indistinguishable from a capability that constrains nothing, which is exactly how workforce.publish came to be believed.",
+        "FALSE NEGATIVE — UNSAFE, THE DANGEROUS ONE, RECORDED, PRINTED FIRST, AND GIVEN ITS OWN SEVERITY LABEL (FALSE_NEGATIVE_DIRECTION): a RECOGNISED construct that is recorded as constraining something and no longer does. DECISION_NOT_SUPPORTED_BY_CHAIN is the rule and it is the first failure class in the output. Driven both by unit inversion and by a real-chain inversion.",
+        "THE INSTRUMENT'S OWN POST-STATE IS ASSERTED, AND ITS OWN FLOORS ARE CROSS-CHECKED, because two defects in this check's FIRST revision both produced a confident clean report from a broken instrument. (a) The statement splitter's dollar-quote branch had wrong index arithmetic, so a 'do $x$ ... $x$; create policy ...' file produced ONE statement and the second half was invisible. (b) The has_perm argument extractor was non-greedy and stopped at the first ')', so has_perm(auth.uid(), org_id, 'x') yielded the argument 'auth.uid(' — zero string literals — and 41 of the 42 capabilities were reported as constraining nothing. Both are now prevented structurally, not by care: a splitter probe and a call-argument probe run on EVERY invocation and a failed probe returns instrumentBroken and reports that the run proves nothing; and a SECOND, INDEPENDENT extractor — deliberately wrong in one specific way, hunting the closing paren with a plain depth counter that does not skip quoted strings — must find exactly the same set of 16 permission literals. A broken extractor cannot return a superset of that one. A test drives the first revision's non-greedy extractor and requires it to lose at least 10 literals, so the floor has real work to do rather than being free.",
+        "A THIRD defect was found by the test file rather than by running the check: Object.keys on a Map returns [], so the per-capability table — the table that is the whole point of the report — printed EMPTY on the first green run. A report that looked complete and omitted its own substance. Fixed in the check, not the test, and the test now asserts the presence of specific capability lines.",
+        "node --import tsx --test scripts/ci/check-capability-matrix-agreement.test.mjs -> 25 pass / 0 fail, exit 0. Every inversion asserts the edit applied; every measurement is against the real chain, not a fixture."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs",
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs --strict",
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs --json",
+          "node --import tsx --test scripts/ci/check-capability-matrix-agreement.test.mjs",
+          "CAPABILITY_MATRIX_CHAIN_DIR=<mutated copy> node --import tsx scripts/ci/check-capability-matrix-agreement.mjs   (four inversions)",
+          "npm run agents:validate -- --strict",
+          "npm run agents:state:refresh",
+          "npx eslint scripts/ci/check-capability-matrix-agreement.mjs scripts/ci/check-capability-matrix-agreement.test.mjs",
+          "shasum -a 256 on the two new source files and the report artifacts"
+        ],
+        "evidence": [
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs -> exit 0. Verbatim, the first ten lines: 'chain: 323 active migrations, 17 matrix writes, 12 roles' / 'chain functions: 287, policy-reachable: 50, distinct permissions read: 16' / 'naive cross-check: 16 literals, 0 missed by the balanced extractor (0 required)' / 'pairs: 504 compared (12 roles x 42 capabilities) — agree 298, gate>matrix 206, matrix>gate 0' / 'enforcement measured: {\"none\":29,\"rls_policy\":10,\"non_row_level_only\":1,\"rls_policy_via_function\":2}' / 'enforced capabilities: 13 of 42; declared_intent_only decisions: 29' / 'open pairs by decision class: {\"declared_intent_only\":148,\"catalog_authoritative\":58}' / 'open pairs by role: {\"owner\":37,\"admin\":35,\"tour_manager\":26,\"production\":23,\"production_manager\":24,\"department_manager\":11,\"finance\":13,\"finance_manager\":14,\"ticketing\":7,\"ticketing_manager\":7,\"viewer\":9}' / 'INERT MATRIX GRANTS (declared intent, no reader, grants nothing): 9' / 'the gate is a SUPERSET of the matrix BY CONSTRUCTION (SEC-102 ...) so gate>matrix is the only reachable direction for a catalog capability and every open pair is a FALSE DENIAL, not a disclosure.' / '✓ capability/matrix agreement: 504 pairs, every disagreement dispositioned, 42 decisions recorded, 0 undecided vocabulary.'",
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs --strict -> exit 1, '✗ 206 failures:', every one STRICT_PAIR_DISAGREEMENT, e.g. 'owner/org.roles.manage: the two layers disagree (decision class: declared_intent_only) and --strict forbids it.' This is the red-on-the-current-state number, and it is what makes the default mode's 0 a measurement rather than an instrument that always says zero.",
+          "node --import tsx --test scripts/ci/check-capability-matrix-agreement.test.mjs -> 'tests 25 / pass 25 / fail 0', exit 0.",
+          "INVERSION 1, exit 1, one failure: '✗ 1 failures:' / '[MATRIX_AUTHORITATIVE_BREACH] (error) finance/workforce.view: the decision is matrix_authoritative and zero open pairs, but the application gate grants it and the matrix does not.' Injection: 20260926200000_org_role_permissions_workforce_seed.sql, '\"finance\": [\"workforce.view\"]' -> '\"finance\": []'.",
+          "INVERSION 2, exit 1, one failure — the AC-3 test case falsified: '✗ 1 failures:' / '[DECISION_UNDERSTATES_CHAIN] (error) workforce.publish: the decision claims enforcement \"none\" but the chain measures \"rls_policy\". A new enforcement site is an improvement, and it still fails until the record is current: a check that rewards being stale is not a check.' Injection: 20250816132000_org_rbac.sql, orgs_update's predicate 'org.manage' -> 'workforce.publish'.",
+          "INVERSION 3, exit 1, one failure, and the severity label is the point: '✗ 1 failures:' / '[UNDECIDED_MATRIX_VOCABULARY] (FALSE_POSITIVE_DIRECTION_SAFE) the chain reads permission \"mystery.perm\" through has_perm (20250816132000_org_rbac.sql) and it is neither a catalog capability nor a recorded legacy permission.'",
+          "INVERSION 4, exit 1, 206 failures: '✗ 206 failures:' on the unmutated chain under --strict.",
+          "The instrument's own probes, which run on every invocation: 'instrument self-check' equivalent inside runInstrumentSelfChecks asserts splitSqlStatements turns 'do $x$ begin perform 1; perform 2; end $x$; create policy p on t for select using (has_perm(auth.uid(), org_id, \\'a.b\\'));' into exactly 2 statements with the trailing body intact, and that callArguments returns exactly \"auth.uid(), org_id, 'a.b'\". Both self-checks pass on every run in this evidence set.",
+          "The extractor cross-check, on every run: 'naive cross-check: 16 literals, 0 missed by the balanced extractor (0 required)'. The two independent extractors find the same SET of 16, not merely a subset.",
+          "The matrix replay, asserted: 17 writes (4 from 20250816132000:44-49, 1 replace from 20260712005429:219-235, 12 sorted-unions from 20260926200000), 12 roles, production_manager = ['workforce.manage','workforce.publish','workforce.view'], every role's perms array sorted (DB-016's write sorts, and capability_version's digest runs over the array IN ORDER), and department_manager does not carry workforce.manage.",
+          "The measured enforcement classes: none 29, rls_policy 10, rls_policy_via_function 2, non_row_level_only 1. logistics.view and logistics.manage are rls_policy_via_function and appear in NO create policy statement, which is the measured proof that the classification is not a policy-text grep.",
+          "THE 206 REPRODUCED EXACTLY from the chain with the real resolver, AND DB-016's PER-ROLE DISTRIBUTION CORRECTED: by role owner=37 admin=35 tour_manager=26 production=23 production_manager=24 department_manager=11 finance=13 finance_manager=14 ticketing=7 ticketing_manager=7 viewer=9 worker=0, summing to 206. The distribution in the DB-016 brief and in this task's dispatch sums to 207 and records production=24; DB-016's own evidence line already flagged 'production 23 vs 24' and then recorded 24 as authoritative with an explanation about a matrix snapshot that does not account for the arithmetic. The chain-derived value is 23. Cause, measured: production_manager's catalog slice is IDENTICAL to production's, but DB-016 created its matrix row with only the workforce.* slice, so production_manager is 24 and production is the same 24 minus the one capability production already carried in the matrix — event.manage, which is the ONLY open pair for that capability and is asserted to be exactly ['production_manager']. Pinned by a test that asserts both the 207 sum and the 23.",
+          "matrix_exceeds_gate is 0 AND STRUCTURALLY 0: asserted over all 504 pairs and, separately, against the real resolver for every (role, matrix-carried catalog capability) pair in the replayed matrix. Zero counterexamples. resolveAdminCapabilities unions configuredPermissions into the catalog defaults, so matrix is a subset of gate for every catalog capability. Consequence recorded: none of the 206 is a disclosure.",
+          "npm run agents:validate -- --strict -> see progress.checkpoints[0].verification for the verbatim output.",
+          "npm run agents:state:refresh -> run after the record was moved to completed/, per the completion instruction.",
+          "SHA-256: scripts/ci/check-capability-matrix-agreement.mjs e150ccdeb5fc5ec51a6e76c4d127017e2136891f593d802a390f12437bdf32fd; scripts/ci/check-capability-matrix-agreement.test.mjs 7322e397f28a3e58eacd513c21547aeb6303213b450fade278874c550782a9ef; docs/engineering/verification/db017-capability-matrix-agreement/README.md d7a8a2333bd11fffa196b4dc753f5d9b4b73d38edbbfb58aa01dc39c6f404410; report.json e44a82322ba8538e9d017f74c6219378e09ecd5d7119f4ea7db1b4c09a3833ad.",
+          "NOT RUN AND NOT CLAIMED: npm run typecheck (whole-repo; CP-106, this machine OOMs on lib/database.types.ts at ~25,600 lines) and npm run verify:feature (verify.mjs:44 runs typecheck unconditionally). NO TypeScript compilation is claimed for either new file, because both are .mjs and neither is in a tsc program; their correctness evidence is the 25-test node --test run and four CLI inversions, not a compiler. npx eslint on both files was attempted — see progress.checkpoints[0].verification for its result. npm run generate:database-types and npm run check:database-types were NOT run: THIS TASK CHANGES NO SCHEMA. It authored no migration and no table, column or function, so lib/database.types.ts is byte-unchanged and regeneration is not merely blocked but unnecessary here. supabase db lint --local needs a running target. npm run agents:generate was deliberately NOT run (shared-map race).",
+          "NO HOSTED EVIDENCE EXISTS AND NONE IS CLAIMED. No migration was applied to staging or production, no supabase db reset and no chain replay was run, no psql session was opened against any target, and no probe was run as a real caller anywhere. The derived matrix is a CHAIN PREDICTION, not a measurement of any target, and DB-002's finding that some hosted versions were applied by raw Management API SQL means 'the chain says X' and 'the target has X' are two different claims. A clean local report is not proof of a deployed posture."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T01:01:33.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active.",
+          "The hosted half of this finding is a real question and is NOT answered here: whether any hosted target's org_role_permissions differs from the chain, which DB-002's out-of-band Management API finding makes possible in either direction. The check's derived matrix is a chain prediction and says so in its own output. A target-side read of public.org_role_permissions plus the same has_perm probe is a one-query preflight and is named in next_steps."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "The 206 pairs are now 42 decisions, one per capability, with a reason, an owner and a named next action each — and the four-answer classification the disposition required, including the fourth: 29 of the 42 capabilities are read by no RLS policy anywhere in the chain, so they are declared intent that constrains nothing, and workforce.publish is the named instance of that class rather than a special case quietly accepted. Two capabilities are matrix_authoritative with zero open pairs (workforce.view, workforce.manage, both reconciled by DB-016); eleven are catalog_authoritative with 58 open pairs; deliberately_unseeded is implemented, enforced and applied to zero capabilities because the one real instance is a pair-level decision. scripts/ci/check-capability-matrix-agreement.mjs compares both layers over all 504 pairs — the gate by importing the real resolver, the matrix by replaying the chain's own 17 writes — and fails whenever the measured world and the recorded decisions disagree, in either direction, with no severity level and no safe direction for a stale record. It is proven able to fail four times at the CLI with real exit codes, including a real-chain injection that falsifies the workforce.publish decision. The finding DB-016 handed over is reproduced exactly at 206, and its per-role distribution is corrected: as printed it sums to 207 and production is 23, not 24, because production_manager's catalog slice is identical to production's while DB-016 created its matrix row empty. Two further findings the 206 figure does not contain: the gate is a structural SUPERSET of the matrix, so none of the 206 is a disclosure and all of it is false denial; and three permissions the RLS enforces (org.manage, org.invite, staff.manage) have no catalog capability at all, so the pair table is not the whole authorization story.",
+    "completed": [
+      "Read the mandated context: docs/engineering/INDEX.md, the database charter and STATE.md, DB-017.json, DB-016.json, DB-015.json, and the named references. Loaded the working set only; no repository re-audit.",
+      "REUSED DB-016's comparator and harness rather than rebuilding them. Its `supabase/tests/db016_capability_gate_probe.mjs` is the seam this check's layer-1 import is, and its two-layer test is the shape of the comparison. Both consumed read-only; neither edited. The one thing this task adds is the DECISION LAYER, which DB-016 explicitly did not have and which is the only way 206 pairs become 42 decisions.",
+      "MEASURED THE METHOD BEFORE TRUSTING IT, and rejected the obvious instrument. A grep of `create policy` text for a capability literal would report logistics.view and logistics.manage as constraining nothing; both are read only through private.user_can_read_staff_zone / user_can_edit_staff_zone (20260903120000:53500, :53568) and both ARE enforced. The shipped classifier is transitive reachability from a policy predicate: 287 chain-defined functions, 50 policy-reachable, and 16 distinct permission literals read through the one matrix authority.",
+      "PROVED the chain has no second matrix consumer. The only policy touching org_role_permissions directly is roleperms_select ... using (true) (20250816132000:112), which is world-readable and authorizes nothing; no policy reads org_members.permissions or the perms array directly. Every RLS enforcement path goes through public.has_perm, and the check fails with UNDECIDED_MATRIX_VOCABULARY if that ever stops being true.",
+      "Authored scripts/ci/check-capability-matrix-agreement.mjs: 42 decisions with reason/owner/enforcement/evidence/nextAction, 9 legacy matrix permissions recorded, the chain replay, the transitive enforcement classifier, the two-layer pair comparator with BOTH disagreement directions, nine failure rules, --strict, --json, and CAPABILITY_MATRIX_CHAIN_DIR so an operator can reproduce the inversions.",
+      "Authored scripts/ci/check-capability-matrix-agreement.test.mjs: 25 tests. Six inversions, five against the real chain, each asserting that its edit APPLIED before requiring the failure.",
+      "Authored docs/engineering/verification/db017-capability-matrix-agreement/ with README.md (the report), report.json, check-output.txt, strict-output.txt and test-output.txt, all captured verbatim at this SHA.",
+      "FOUR DEFECTS IN THIS LANE'S OWN WORK, all found by running it, all recorded rather than hidden. Three were in the check: (a) the statement splitter's dollar-quote branch had wrong index arithmetic, so a dollar-quoted DO block swallowed the following create policy and the second half of a file was invisible; (b) the has_perm argument extractor was non-greedy and stopped at the first ')', yielding the argument 'auth.uid(' and ZERO string literals, so 41 of 42 capabilities were reported as constraining nothing; (c) a decision the chain no longer supports was initially reported in the same list as a decision it understates, with the FALSE-NEGATIVE direction second. One was in the test: a matrix_exceeds_gate pair on a matrix_authoritative capability was classified as an open gap instead of a violation, which was a real hole in the reverse direction and is now MATRIX_GRANT_UNMODELLED_BY_GATE. The (b) defect is the sixth consecutive instance in this repository of a revision passing while its instrument could not fail, and the standing rule — assert your own post-state, and check that the instrument can fail before believing that it did not — is now mechanised rather than remembered: probes on every invocation, plus a second independent extractor that must find the same 16 literals.",
+      "STATED THE LIMIT THAT IS THE WHOLE RISK PROFILE, in the check's own output rather than only in its header: it proves a capability is READ BY an enforcement site, not that the site constrains the right rows. Correct scoping is a behavioural question and belongs to the harnesses. Both error directions are labelled in the emitted severities: FALSE_POSITIVE_DIRECTION_SAFE for an unrecognised construct, FALSE_NEGATIVE_DIRECTION for a recognised construct that constrains nothing while the record claims otherwise."
+    ],
+    "next_steps": [
+      "RELEASE / ORCHESTRATOR — CI WIRING, THE ONE THING THAT MAKES THIS CHECK RUN ON ANYONE'S BEHALF. Two files, both outside this lane's grant under CP-112 and both shared in a dirty 693-entry worktree. In package.json scripts, beside the existing check:* entries: \"check:capability-matrix\": \"node --import tsx scripts/ci/check-capability-matrix-agreement.mjs\" and optionally \"check:capability-matrix:strict\": \"node --import tsx scripts/ci/check-capability-matrix-agreement.mjs --strict\". --import tsx IS REQUIRED: layer 1 is a TypeScript module and a static import of it from a .mjs does not resolve. Wire the default mode into .github/workflows/ci.yml. The two LEGITIMATE ways it goes red on day one, so neither is mistaken for a broken check: a new capability added to ADMIN_CAPABILITIES with no decision (UNDECIDED_CAPABILITY), or a decision whose measured enforcement the chain no longer supports (DECISION_NOT_SUPPORTED_BY_CHAIN / DECISION_UNDERSTATES_CHAIN). Do NOT wire --strict into a required check as it stands: it is red today by 206 design and becomes green only when the matrix-projection CP lands.",
+      "WFC-003 — the matrix projection. The 11 catalog_authoritative capabilities carry 58 open pairs, all false denials, and their nextAction is HF-WFC-003-MATRIX-PROVISIONING. HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS is already pending and this task GENERALISES it from two permissions to eleven capabilities across the catalog, so it should be re-scoped rather than duplicated. Nothing in this task seeds anything: the scope boundary is explicit and the grant excluded it.",
+      "WFC-005 / WFC-006 — the workforce.publish decision. It is either a policy starts reading it, which makes it catalog_authoritative and turns this check red until the decision is updated, or it stays a route-level declaration and the matrix value stays inert. Six roles carry an inert workforce.publish today. That is a decision, and it is not the database lane's to take.",
+      "FINANCE — the money-path question, which is larger than the pair count suggests. finance.view, finance.manage, finance.approve, finance.pay and advance.manage are ALL declared intent: the chain enforces no finance capability at the row level, and finance.manage has been an inert matrix grant since 20250816132000:45-48. That is a launch-relevant fact about a money path, and it is not fixed by widening the matrix.",
+      "ORG — the vocabulary gap. org.manage, org.invite and staff.manage are read by RLS and have no catalog capability; org.roles.manage, org.settings.manage and communications.send are catalog capabilities and have no matrix row. The control exists, so this is a naming decision rather than a missing control, and the record says which is which so nobody chases a control that is already there.",
+      "QA — the hosted half. One query settles it: select role, perms from public.org_role_permissions on a live target, diffed against the chain prediction the check prints. DB-002's out-of-band Management API finding means the target may differ in either direction, and this task produced no hosted evidence of any kind."
+    ],
+    "blockers": [
+      "None for this task. All four acceptance criteria are met with recorded evidence and the record is complete.",
+      "CARRIED, NOT RESOLVED, AND DELIBERATELY NOT ABSORBED: the 206 pairs are still open. This task decided and detected; it did not seed, and seeding is WFC-003's CP under a grant boundary that excluded it. The 206 is not a regression and not a new defect — it is the same finding, now 42 named decisions with owners.",
+      "CARRIED: the check is NOT wired into CI. It is proven and it runs on nobody's behalf until release adds two lines. Stated rather than left implied, and identical in shape to DB-014's and DB-015's unwired instruments.",
+      "CARRIED: 29 of 42 capabilities are enforced by nothing at the row level, and 9 matrix values are inert. The decisions name an owner and a next action for each; none of those owners has been told, because a handoff file is outside this grant. The routing is in next_steps for the orchestrator.",
+      "CARRIED: the derived matrix is a CHAIN PREDICTION. DB-002's out-of-band Management API application means a target can differ in either direction, so nothing here is evidence about a deployed posture.",
+      "The hosted-product gate is transferred to QA and not run. A local clean report is not a hosted one."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T01:01:33.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "DB-017 complete against all four acceptance criteria, locally. 42 per-capability decisions recorded, 0 undecided and 0 stale, in four classes (matrix_authoritative 2, catalog_authoritative 11, declared_intent_only 29, deliberately_unseeded 0-for-a-stated-reason). The check compares both layers over all 504 pairs, exits 0 in its decision-aware default and 1 with exactly 206 failures under --strict, and is proven able to fail four times at the CLI against copies of the real chain with real exit codes. 29 of 42 capabilities measured as constraining no row-level access, each dispositioned individually; workforce.publish measured at zero has_perm sites and labelled declared intent; finance.manage identified as a second, previously unrecorded instance of the same class. The 206 reproduced exactly and DB-016's per-role distribution corrected: as printed it sums to 207, and production is 23, not 24. Four defects in this lane's own work recorded, one of which reported 41 of 42 capabilities as constraining nothing while exiting 0. Nothing applied to any environment; no reset, replay or hosted probe. Task is COMPLETE. The 206 pairs remain open by grant boundary and are routed, not absorbed.",
+        "scope_expansions": [
+          {
+            "path": "CAPABILITY_MATRIX_CHAIN_DIR (an environment variable read by readActiveChain, not a file)",
+            "reason": "Acceptance criterion 4 requires the check to be PROVEN ABLE TO FAIL at the interface an operator or a pipeline would use, not only inside a test file. Without an override the CLI can only ever read supabase/migrations/, and the four inversions would exist solely as unit tests. The override changes no default behaviour — unset, it reads the active chain exactly as before — and it is what makes the red evidence in this record reproducible by anyone with a shell."
+          },
+          {
+            "path": "lib/auth/admin-capabilities.ts",
+            "reason": "READ-ONLY, and dynamically imported rather than parsed. Layer 1 must be the real resolver so the check cannot drift from the code the routes use; a text parse of the catalog would have made it a second implementation, which is the failure mode this task exists to prevent. The file's in-flight ADMIN-012/CP-094 edit (275 insertions) is what the measurement used: 42 capabilities, 12 roles, one department-scoped entry. Not written."
+          },
+          {
+            "path": "supabase/migrations/ (323 files, read-only)",
+            "reason": "The matrix IS the chain's data, and the chain is the database source of truth, so the check has to read it. Three files matter by name — 20250816132000_org_rbac.sql (the matrix DDL, the five-role seed, roleperms_select), 20260712005429_organization_public_personas.sql:219-235 (tour_manager, an on-conflict REPLACE that a naive replay would treat as an insert), 20260926200000_org_role_permissions_workforce_seed.sql (the sorted-union seed, parsed out of the file rather than transcribed) — and 20260821180438_job_posting_scopes_and_organization_seats.sql:88 (the org_members_permissions_check that is workforce.publish's only occurrence in the whole chain). Every other file is read for the enforcement classification only. NO migration was authored, edited, renumbered, reordered, removed or applied."
+          },
+          {
+            "path": "supabase/tests/db016_capability_gate_probe.mjs, __tests__/admin/db016-capability-matrix-agreement.test.ts, supabase/tests/db016_workforce_role_seed.harness.sh",
+            "reason": "READ-ONLY reuse, not edited. The probe is the language seam this check's layer-1 import is; the vitest file is the two-layer comparison shape; the harness is the measured 206. All three consumed exactly as DB-014 and DB-015 consumed theirs."
+          },
+          {
+            "path": "docs/engineering/handoffs/pending/HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS.json and HF-WFC-004-WORKFORCE-RBAC-PROVISIONING.json",
+            "reason": "READ-ONLY. The first is already pending and this task generalises its scope from two permissions to eleven capabilities, so it must be read before it is re-scoped rather than duplicated. The second is DB-016's input specification and records the workforce.* share of the residual as exactly zero. Neither was edited: a handoff file is outside this task's working_set, and the routing is in progress.next_steps for the orchestrator to raise."
+          },
+          {
+            "path": "A throwaway copy of the 323-migration chain under the OS temp dir, outside the repository",
+            "reason": "Verification input, not a working-tree artefact. The four inversions mutate a COPY, one file at a time, restoring between them. The repository's own migrations are never modified, which is why the inversions are reported as CAPABILITY_MATRIX_CHAIN_DIR runs rather than as edits. No database, cluster or container was created."
+          },
+          {
+            "path": "supabase/migrations/**, supabase/tests/**, docs/engineering/migration-validation/**",
+            "reason": "NOT expanded into, and the strongest constraint in the brief: WFC-004 owned all three this wave. Byte-unchanged by this task, verified by `git diff --name-only` returning nothing under supabase/. This task authored no migration and no SQL test because it DECIDES and DETECTS: a capability whose correct answer is still undecided must not be seeded, and 11 of the 42 are exactly in that state."
+          },
+          {
+            "path": "package.json, .github/workflows/ci.yml, docs/engineering/DECISIONS.md",
+            "reason": "NOT expanded into. The first two are shared artefacts in a dirty 693-entry worktree and are outside this grant under CP-112; the wiring is handed to release in next_steps with exact commands, exit codes, and the two legitimate day-one failure modes. DECISIONS.md is the orchestrator's Wave 37 exclusion — three lanes are appending concurrently and an append-only shared file is a claim collision — so the proposed decision text is in progress.proposed_decisions below for the orchestrator to append."
+          },
+          {
+            "path": "scripts/ci/check-sweep-exemption-hazard.mjs, check-never-executed-migration-blocks.mjs, and every other scripts/ci file",
+            "reason": "READ-ONLY, consumed as the house pattern for a scripts/ci check: chain anchoring at run time, a fixture battery with must-fire and must-not-fire controls, both error directions stated in the header, and a stated limit. DB-014's and DB-015's files were not edited. The two new files carry the exact names this task's working_set assigns and collide with nothing."
+          },
+          {
+            "path": "lib/database.types.ts",
+            "reason": "NOT touched, NOT regenerated, and confirmed UNNECESSARY rather than merely skipped: this task authored no migration and changed no table, column or function, so it cannot require a type change. Regeneration is separately blocked (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE) and the `linked` project is a different database. The task record's depends_on on DB-008 was cleared by the orchestrator for exactly this reason and that was correct."
+          },
+          {
+            "path": "npm run agents:generate",
+            "reason": "Deliberately NOT run. The generated maps are a shared artefact and 12+ lanes are writing in this worktree; running it would have raced them. The orchestrator should run it once the worktree settles. The generated maps now trail one new report directory, one new agent STATE section and this record's move to completed/."
+          }
+        ],
+        "paths_changed": [
+          "scripts/ci/check-capability-matrix-agreement.mjs (NEW)",
+          "scripts/ci/check-capability-matrix-agreement.test.mjs (NEW)",
+          "docs/engineering/verification/db017-capability-matrix-agreement/README.md (NEW)",
+          "docs/engineering/verification/db017-capability-matrix-agreement/report.json (NEW)",
+          "docs/engineering/verification/db017-capability-matrix-agreement/check-output.txt (NEW)",
+          "docs/engineering/verification/db017-capability-matrix-agreement/strict-output.txt (NEW)",
+          "docs/engineering/verification/db017-capability-matrix-agreement/test-output.txt (NEW)",
+          "docs/engineering/agents/database/STATE.md (one dated section appended)",
+          "docs/engineering/tasks/completed/DB-017.json (this record, moved from active/)"
+        ],
+        "the_42_decisions": {
+          "matrix_authoritative": {
+            "count": 2,
+            "open_pairs": 0,
+            "capabilities": ["workforce.view", "workforce.manage"]
+          },
+          "catalog_authoritative": {
+            "count": 11,
+            "open_pairs": 58,
+            "open_pairs_per_capability": {
+              "tour.view": 11,
+              "tour.manage": 5,
+              "tour.delete": 2,
+              "tour.publish": 3,
+              "event.manage": 1,
+              "routing.manage": 5,
+              "hiring.manage": 3,
+              "vendor.view": 9,
+              "vendor.manage": 5,
+              "logistics.view": 9,
+              "logistics.manage": 5
+            },
+            "owner": "wfc-003 for the eight the matrix projection alone fixes; tour.publish additionally raises whether per-tour publish authority belongs in an org-wide matrix at all"
+          },
+          "declared_intent_only": {
+            "count": 29,
+            "open_pairs": 148,
+            "capabilities": [
+              "org.roles.manage",
+              "org.settings.manage",
+              "audit.view",
+              "tour.archive",
+              "event.view",
+              "event.publish",
+              "event.live_ops",
+              "advance.manage",
+              "logistics.sensitive",
+              "workforce.publish",
+              "vendor.sensitive",
+              "contract.view",
+              "contract.manage",
+              "contract.sign",
+              "finance.view",
+              "finance.manage",
+              "finance.approve",
+              "finance.pay",
+              "ticketing.view",
+              "ticketing.manage",
+              "ticketing.scan",
+              "ticketing.refund",
+              "site_map.view",
+              "site_map.edit",
+              "site_map.share",
+              "communications.send",
+              "communications.broadcast",
+              "content.view",
+              "content.manage"
+            ]
+          },
+          "deliberately_unseeded": {
+            "count": 0,
+            "why_zero": "Implemented and enforced; FORBIDDEN_MATRIX_GRANT is proven reachable by test. The one real instance in this repository is a PAIR-level decision — CP-094's withholding of workforce.manage from department_manager, recorded inside workforce.manage's reason — and that is a property of a (role, capability) pair, not of a capability, so forcing it onto a capability would misdescribe it. Reported as zero rather than manufacturing an instance."
+          }
+        },
+        "enforcement_measured": {
+          "method": "A capability is row-level enforced iff its literal is passed to public.has_perm inside a statement that creates a policy, or inside a chain-defined function transitively reachable from such a policy. Reachability, not a policy-text grep, and the reason is measured: logistics.view and logistics.manage are read only through private.user_can_read_staff_zone / user_can_edit_staff_zone (20260903120000:53500, :53568) and appear in NO create policy statement, so a policy-text grep calls both unenforced and they are enforced.",
+          "chain_functions": 287,
+          "policy_reachable_functions": 50,
+          "distinct_permissions_read": 16,
+          "rls_policy": {
+            "count": 10,
+            "capabilities": [
+              "tour.view",
+              "tour.manage",
+              "tour.delete",
+              "event.manage",
+              "routing.manage",
+              "hiring.manage",
+              "vendor.view",
+              "vendor.manage",
+              "workforce.view",
+              "workforce.manage"
+            ],
+            "note": "event.manage alone has 46 literal and 14 DYNAMICALLY BUILT policy sites (execute $p$ ... $p$ inside DO blocks), which is why the splitter's dollar-quote handling is load-bearing."
+          },
+          "rls_policy_via_function": {
+            "count": 2,
+            "capabilities": ["logistics.view", "logistics.manage"]
+          },
+          "non_row_level_only": {
+            "count": 1,
+            "capabilities": ["tour.publish"],
+            "note": "Read by three publication RPCs that call has_perm and then RAISE. Enforced, at a command boundary rather than a row boundary, on a launch-critical path, with 3 open pairs. A policy-only instrument cannot see this class, which is why it has its own class."
+          },
+          "none": {
+            "count": 29,
+            "note": "The fourth answer, and every one of the 29 is named individually in the decision table. Nine matrix values are INERT across these capabilities and the check prints them."
+          }
+        },
+        "contradictions_found": [
+          "DB-016's per-role distribution SUMS TO 207, not 206: owner=37 admin=35 tour_manager=26 production=24 production_manager=24 department_manager=11 finance=13 finance_manager=14 ticketing=7 ticketing_manager=7 viewer=9 worker=0. The chain-derived measurement gives production=23, which is the only value at which the total is 206. DB-016's own evidence line already printed 'production 23 vs 24' and then recorded 24 as authoritative, with an explanation about a matrix snapshot that does not account for the arithmetic. Cause, measured rather than inferred: production_manager's catalog slice is IDENTICAL to production's, but DB-016 created its matrix row with only the workforce.* slice, so production_manager is 24 and production is that same 24 minus the single capability production already carried in the matrix, event.manage. event.manage's only open pair is asserted to be exactly ['production_manager']. Pinned by a test that asserts both the 207 sum and the 23.",
+          "THE 206 IS NOT A DISCLOSURE INVENTORY, and the dispatch did not say so. resolveAdminCapabilities unions configuredPermissions — the matrix row — into the role's catalog defaults (SEC-102, lib/auth/admin-capabilities.ts:464-480), so matrix(role) is a SUBSET of gate(role) for every catalog capability, structurally. The matrix-exceeds-gate direction is therefore unreachable, asserted over all 504 pairs and against the real resolver per role and per carried capability: zero counterexamples. Every one of the 206 is a caller who passes the route gate and is then denied rows — a plausible zero, which CP-098 forbids, but a narrower surface. This is what makes catalog_authoritative the correct disposition for the 11 enforced-with-open-pairs capabilities rather than matrix_authoritative, and it is a materially different remediation priority: the remedy is a false-denial inventory, not an exposure inventory.",
+          "THE 42x12 PAIR TABLE IS NOT THE WHOLE AUTHORIZATION STORY. Three permissions the RLS enforces — org.manage, org.invite, staff.manage — have no catalog capability at all, so they generate no pair and cannot appear in any (role, capability) count. Six more (offer.manage, task.manage, schedule.manage, report.view, storage.read, storage.write) are in the matrix and read by nothing. All nine are recorded in LEGACY_MATRIX_VOCABULARY; a tenth would fail the check.",
+          "finance.manage is an UNRECORDED second instance of the fourth answer: in the catalog, in the matrix for owner/admin/finance since 20250816132000:45-48, and read by nothing. With finance.view, finance.approve, finance.pay and advance.manage also unread, THE CHAIN ENFORCES NO FINANCE CAPABILITY AT THE ROW LEVEL. That is a launch-relevant fact the 206-pair count does not surface.",
+          "tour.publish is enforced and NO POLICY READS IT — three publication RPCs call has_perm and RAISE. It is on the admin publication path with 3 open pairs, and a policy-only instrument would classify it as unenforced."
+        ],
+        "the_check_cannot_do": [
+          "It is not wired into CI. package.json and .github/workflows/ci.yml are outside this grant under CP-112. Until release wires it, the detector exists, is proven, and runs on nobody's behalf.",
+          "It is not a name blacklist — enforcement is transitive reachability from a policy predicate, and a capability with no site is reported as declared intent rather than as enforced.",
+          "It does not prove a capability is correctly SCOPED. It proves the capability is read by an enforcement site, not that the site constrains the right rows. Correct scoping is behavioural and belongs to the harnesses.",
+          "The matrix it derives is a CHAIN PREDICTION, not a measurement of any target. DB-002's out-of-band Management API application means a target can differ in either direction.",
+          "It does not decide the 11 catalog_authoritative remedies. Widening the matrix is the WFC-003 projection CP; this task decides and detects."
+        ],
+        "verification": [
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs -> exit 0; 504 pairs, 206 open and dispositioned, 42 decisions, 0 undecided vocabulary. Full output in docs/engineering/verification/db017-capability-matrix-agreement/check-output.txt.",
+          "node --import tsx scripts/ci/check-capability-matrix-agreement.mjs --strict -> exit 1, exactly 206 STRICT_PAIR_DISAGREEMENT. Full output in strict-output.txt.",
+          "node --import tsx --test scripts/ci/check-capability-matrix-agreement.test.mjs -> tests 25 / pass 25 / fail 0, exit 0. Full output in test-output.txt.",
+          "INVERSION 1 (CAPABILITY_MATRIX_CHAIN_DIR over a copy with workforce.view removed from finance's matrix row) -> exit 1, 1 failure, MATRIX_AUTHORITATIVE_BREACH.",
+          "INVERSION 2 (a copy whose organizations UPDATE policy reads workforce.publish) -> exit 1, 1 failure, DECISION_UNDERSTATES_CHAIN. This is the AC-3 test case falsified.",
+          "INVERSION 3 (a copy whose policy reads 'mystery.perm') -> exit 1, 1 failure, UNDECIDED_MATRIX_VOCABULARY with severity FALSE_POSITIVE_DIRECTION_SAFE.",
+          "INVERSION 4 (the unmutated chain under --strict) -> exit 1, 206 failures.",
+          "npm run agents:validate -- --strict -> run at close; result recorded in the local verification gate above and repeated here if it differed.",
+          "npm run agents:state:refresh -> run after this record was moved to completed/.",
+          "SHA-256: check e150ccdeb5fc5ec51a6e76c4d127017e2136891f593d802a390f12437bdf32fd; test 7322e397f28a3e58eacd513c21547aeb6303213b450fade278874c550782a9ef; report README d7a8a2333bd11fffa196b4dc753f5d9b4b73d38edbbfb58aa01dc39c6f404410; report.json e44a82322ba8538e9d017f74c6219378e09ecd5d7119f4ea7db1b4c09a3833ad.",
+          "NOT RUN AND NOT CLAIMED: whole-repo npm run typecheck (CP-106, OOMs on lib/database.types.ts at ~25,600 lines on this box), npm run verify:feature (runs typecheck unconditionally at verify.mjs:44), npm run generate:database-types, npm run check:database-types, supabase db lint --local, npm run agents:generate, and every hosted probe. No TypeScript compilation is claimed for the two new .mjs files; their correctness evidence is the 25-test run and four CLI inversions."
+        ]
+      }
+    ],
+    "proposed_decisions": {
+      "note": "docs/engineering/DECISIONS.md was excluded from this lane's grant in Wave 37 because three lanes are appending concurrently and the file is a shared claim. The text below is proposed for the ORCHESTRATOR to append verbatim. Nothing was written to that file by this task. Next free CP number at the time of writing: the orchestrator should confirm against the live file, since other lanes may have taken numbers concurrently.",
+      "entries": [
+        {
+          "title": "CP-129 — The application capability gate is a structural superset of the RLS matrix, and the split-brain is a false-denial inventory",
+          "task": "DB-017",
+          "decision": "Adopt as standing knowledge: for every catalog capability, matrix(role) is a SUBSET of gate(role), because resolveAdminCapabilities unions configuredPermissions (the matrix row) into the role's catalog defaults (SEC-102). Therefore the (role, capability) split-brain is ONE-DIRECTIONAL and every open pair is a caller who passes the route gate and is then denied rows — a plausible zero, never a disclosure.",
+          "reason": "It was measured, not inferred: 504 pairs, zero matrix-exceeds-gate counterexamples, asserted both over the pair table and against the real resolver per role and per carried capability. The consequence is a materially different remediation priority. A gate that EXCEEDS the matrix narrows access, so the 206 pairs are a false-denial inventory, and the correct disposition for an enforced capability with open pairs is catalog_authoritative (project the matrix forward) rather than matrix_authoritative (narrow the catalog). Anyone who reads the 206 as an exposure list will prioritise it wrongly, and DB-016's own record framed it as a split-brain without stating the direction.",
+          "consequences": "Widening org_role_permissions is a false-denial fix, so it is a product-priority decision about who is being refused authority, not a security-urgency decision. AND it carries DB-016's named cost: capability_version digests perms IN ORDER, so ANY mutation invalidates every active acting-context session for every role touched. All roles must land in one migration and re-activation verification is a PREFLIGHT step."
+        },
+        {
+          "title": "CP-130 — A capability that no RLS policy reads is a declared intent, and a matrix value for it is inert",
+          "task": "DB-017",
+          "decision": "Adopt a fourth disposition alongside matrix-authoritative, catalog-authoritative and deliberately-unseeded: declared_intent_only. A capability whose literal is passed to no enforcement site in the active chain constrains no row-level access, and any value for it in org_role_permissions is INERT — it reads as authority in a table dump and grants nothing. Such a capability must be labelled as declared intent and must never be counted as enforced.",
+          "reason": "29 of the 42 capabilities in this repository are in this class, so a three-way classification silently forces them into one of the other three buckets, and each of those buckets carries an enforcement claim that is false. workforce.publish is the instance the class was written for: DB-016 seeded it into eight roles so the matrix would agree with the route gate, it is read by no policy, function or trigger anywhere in the 323-migration chain, and its only occurrence is a CHECK constraint that admits the value and authorizes nothing. finance.manage is a second, previously unrecorded instance: in the catalog, in the matrix for three roles since 20250816132000, and read by nothing. With finance.view, finance.approve, finance.pay and advance.manage also unread, the chain enforces no finance capability at the row level, which is a launch-relevant fact that a per-family reading would have hidden.",
+          "consequences": "The class is not a label, it is a rule with teeth: a decision whose measured enforcement is weaker than it claims fails the check as the FALSE-NEGATIVE direction, and a new reader of a declared-intent capability fails it too, because a check that rewards being stale is not a check. A consequence nobody should be surprised by: because the matrix is a superset of what RLS reads, the 9 inert matrix grants are an acceptable steady state and removing them is a REMOVAL, which DB-016's additivity rule forbids. The correct action is to label them, and to route the underlying question to the capability's owner."
+        },
+        {
+          "title": "CP-131 — Enforcement must be classified by transitive reachability from a policy predicate, not by a grep of policy text",
+          "task": "DB-017",
+          "decision": "Adopt as the method for classifying whether a capability is RLS-enforced: a capability is enforced if and only if its literal is passed to the matrix authority inside a statement that creates a policy, or inside a chain-defined function transitively reachable from such a policy. A statement that merely NAMES a permission in prose, or a literal that appears only in an RPC guard, a trigger or a CHECK constraint, is not row-level enforcement and must be classified as such.",
+          "reason": "The grep answer is wrong in the dangerous direction and the repository contains the proof. logistics.view and logistics.manage are read only through private.user_can_read_staff_zone / user_can_edit_staff_zone (20260903120000:53500, :53568) and appear in NO create policy statement anywhere, so a policy-text grep reports both as constraining nothing. They are enforced. The converse also exists: tour.publish is enforced by three publication RPCs that call has_perm and then RAISE, and no policy reads it at all, so a policy-only instrument reports it as unenforced on a launch-critical publication path. event.manage shows the third shape, 14 of its 60 policy sites built dynamically inside execute $p$ ... $p$ DO blocks, which a splitter that mishandles dollar-quotes loses entirely.",
+          "consequences": "Any RLS classification tool in this repository needs a call graph, not a text matcher, and needs a statement splitter that is correct on dollar-quoted bodies. Both of this task's own first-revision defects were in that machinery and both produced a confident clean report: a splitter that lost the second half of a file, and an argument extractor that found 41 of 42 capabilities constraining nothing. The standing rule generalises — assert your own post-state, and check that the instrument can fail before believing that it did not. Note the count of policy sites is also not a count of policies: a capability read by 46 literal and 14 dynamic sites is one capability with one enforcement class, and conflating the two is how a single reader gets reported as sixty controls."
+        },
+        {
+          "title": "CP-132 — The 42-capability pair table is not the whole authorization story, and the vocabulary gap is not a missing control",
+          "task": "DB-017",
+          "decision": "Adopt as standing knowledge: the application catalog and the RLS matrix do not share a vocabulary. Nine permissions in org_role_permissions are not capabilities, and THREE of them are read by RLS — org.manage, org.invite and staff.manage. Conversely org.roles.manage, org.settings.manage and communications.send are capabilities with no matrix row at all, while the chain enforces authority for the first two as org.manage and for the third as staff.manage.",
+          "reason": "It changes the remediation from 'find the missing control' to 'map the names', and getting that backwards sends people to build controls that already exist. The measurement is 16 distinct permission literals read through the chain's single matrix authority public.has_perm, against a 42-item catalog, with a 9-item legacy remainder — and the only policy that touches the matrix directly is roleperms_select ... using (true), which is world-readable and authorizes nothing. A 42x12 pair count cannot surface a control the catalog cannot name, so any inventory built from pairs is structurally blind to it.",
+          "consequences": "Any future capability-count-based security claim must state the vocabulary remainder alongside the pair count or it is incomplete by construction. org.roles.manage and org.settings.manage are vocabulary gaps, not missing controls, and communications.send and site_map.* are the same shape against staff.manage and the logistics vocabulary. A tenth unrecognised literal now fails scripts/ci/check-capability-matrix-agreement.mjs, so the remainder cannot grow silently."
+        }
+      ]
+    }
+  },
+  "handoffs": [],
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "COMPLETE, 2026-09-28. All four acceptance criteria met with recorded evidence. Do not reopen this record. The 206 pairs remain OPEN by grant boundary and are routed, not absorbed: the matrix projection is WFC-003's (HF-WFC-003-MATRIX-PROVISIONING, which this task generalises from two permissions to eleven capabilities), the workforce.publish decision is WFC-005/WFC-006's, the money-path question is finance's, the vocabulary gap is org's, CI wiring is release's, and the hosted half is QA's — see progress.next_steps. If the capability catalog gains a 43rd entry, or any of the 13 enforced capabilities gains or loses a reader, this check goes red by design and the decision record is what has to be updated.",
+  "blocked_on": []
+}

@@ -1,0 +1,22 @@
+{
+  "evidenceId": "EVD-WAVE0-ROUTE-REGISTRY-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:09:27-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "/Users/kyledaley/.nvm/versions/node/v20.20.2/bin/node scripts/ci/check-admin-route-registry.mjs",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-013"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Local route inventory passed with 288 Admin API route files and an exact 117/117 legacy ceiling. Runtime capability, tenant-denial, idempotency, and audit-event evidence remain incomplete."
+}

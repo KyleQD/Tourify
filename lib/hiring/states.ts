@@ -4,6 +4,7 @@ export const JOB_POSTING_STATUSES = [
   'paused',
   'closed',
   'filled',
+  'archived',
 ] as const
 
 export const JOB_APPLICATION_STATUSES = [

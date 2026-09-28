@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-017",
+  "title": "Retire venue navigation-menu primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:44.235Z",
+  "updated_at": "2026-09-11T20:07:23.886Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/navigation-menu.tsx to components/ui/navigation-menu.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/navigation-menu.tsx",
+      "components/ui/navigation-menu.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/navigation-menu.tsx",
+    "components/ui/navigation-menu.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical navigation / shell preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/navigation-menu|@/components/venue/ui/navigation-menu\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/navigation-menu.tsx components/ui/navigation-menu.tsx",
+      "git diff --check -- components/venue/ui/navigation-menu.tsx components/ui/navigation-menu.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use consumer audit passed: rg for \"components/venue/ui/navigation-menu|@/components/venue/ui/navigation-menu\" across app, components, hooks, lib, apps, __tests__, scripts returned 0 matches (exit 1, no matches).",
+      "Canonical import inventory: rg for \"components/ui/navigation-menu|@/components/ui/navigation-menu\" across the same roots returned 0 matches (exit 1) - neither the venue twin nor the canonical has any live importer in the scanned codebase. A name-based search for NavigationMenu (all exports) finds only the two source files themselves (components/ui/navigation-menu.tsx and components/venue/ui/navigation-menu.tsx).",
+      "Venue-surface consumer audit: 0 matches for the canonical or the twin under app/venue/** and components/venue/**; the only navigation-menu hit inside components/venue is the twin file itself (its own @radix-ui/react-navigation-menu import and radix viewport CSS var). No barrel (index.ts) exists in components/venue/ui, so no re-export path resolves to the venue twin.",
+      "Canonical register evidence: CANONICAL_COMPONENT_REGISTER.csv rows for DUP-074 - components/venue/ui/navigation-menu.tsx has disposition \"retire later\", duplicate refs 0, canonical target components/ui/navigation-menu.tsx, note \"Exact duplicate; preserve until imports move and zero-use evidence is recorded.\"; components/ui/navigation-menu.tsx has disposition \"keep\". A third DUP-074 row names app/venue/components/ui/navigation-menu.tsx \"retire later\", but that path does not exist in this tree (app/venue/components/ui/ is absent) and is recorded here as a stale register row only, not edited.",
+      "Twin characterization: byte-identical copy, not divergent/stale. sha256 of both files matches (c07f503f41162b190bef100ba0ad31a8eaa9c790f3f782ba7df220e26f23b93a); diff reports no differences; both files are 5046 bytes.",
+      "Public export parity: both files export the identical 9-symbol contract - navigationMenuTriggerStyle, NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuContent, NavigationMenuTrigger, NavigationMenuLink, NavigationMenuIndicator, NavigationMenuViewport - from identical React.forwardRef implementations over @radix-ui/react-navigation-menu with identical displayName wiring, cva trigger style, and cn() class composition.",
+      "Focused ESLint passed for components/venue/ui/navigation-menu.tsx and components/ui/navigation-menu.tsx (exit 0, no output).",
+      "Focused git diff check passed for components/venue/ui/navigation-menu.tsx, components/ui/navigation-menu.tsx, and docs/engineering (exit 0, clean).",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:07:23.886Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded navigation-menu audit complete. Neither canonical nor venue twin has live importers; files are byte-identical with 9-export parity and remain registered retire-later (DUP-074). Twin retained.",
+    "completed": [
+      "Ran the zero-use consumer audit (rg) and recorded 0 matches across app, components, hooks, lib, apps, __tests__, and scripts for the venue twin import paths.",
+      "Confirmed byte-identical twin via sha256 (c07f503f...) and diff; both files export the identical 9-symbol public contract (navigationMenuTriggerStyle, NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuContent, NavigationMenuTrigger, NavigationMenuLink, NavigationMenuIndicator, NavigationMenuViewport) with identical Radix prop/ref forwarding and displayName wiring.",
+      "Inventoried canonical importers: 0 files import components/ui/navigation-menu repo-wide; 0 venue-surface consumers under app/venue/** or components/venue/**; name-based search finds only the twin and canonical source files.",
+      "Recorded register disposition: components/venue/ui/navigation-menu.tsx is DUP-074 \"retire later\" with 0 duplicate refs; components/ui/navigation-menu.tsx is \"keep\". Noted (without editing) a stale DUP-074 register row for app/venue/components/ui/navigation-menu.tsx whose path does not exist in this tree.",
+      "Ran verification commands for the audit-only pass: focused ESLint, focused git diff check, and npm run agents:validate (17 agents, 93 tasks, 0 warnings, 0 errors)."
+    ],
+    "next_steps": [
+      "Audit live consumers and identify the owning surface for components/venue/ui/navigation-menu.tsx - completed in this pass: zero live consumers of either variant; the NavigationMenu exports are referenced only by the two source files.",
+      "Confirm public/export parity with the canonical target before retirement - completed in this pass: byte-identical twin with full export parity.",
+      "Coordinate any migration and deletion only after focused verification and register evidence; deletion of the venue twin remains unauthorized for the audit-only pass."
+    ],
+    "blockers": [
+      "No approved consumer migration or deletion is in scope for this audit-only pass; the venue twin is retained as registered retire-later compatibility debt (DUP-074)."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:20:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded audit-only pass. Zero-use consumer audit returned 0 matches; the venue twin is byte-identical to the canonical with full 9-symbol public export parity and identical Radix prop/ref forwarding; neither variant has any live importer (canonical import inventory: 0 files; venue-surface consumers: 0). Register disposition confirmed: canonical keep / consumers already-migrated (none exist) / twin retire-later compatibility debt (DUP-074). A stale register row for app/venue/components/ui/navigation-menu.tsx (path absent from tree) was observed but not edited. No deletions, edits to the twin, canonical, consumers, or register were made; only this task record was updated.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-017.json"
+        ],
+        "verification": [
+          "rg zero-use audit: 0 matches",
+          "Canonical import inventory: 0 files repo-wide (neither variant imported)",
+          "sha256/diff twin parity: byte-identical (c07f503f...)",
+          "Public export parity: full (9 exports, identical)",
+          "Focused ESLint passed (exit 0)",
+          "Focused git diff check passed (exit 0)",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Deletion of the venue twin is not authorized in this audit-only pass"
+        ],
+        "next_steps": [
+          "Await orchestrator reconciliation; the retirement (deletion) step requires a separately scoped task with register updates."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:07:23.886Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded navigation-menu audit complete. Neither canonical nor venue twin has live importers; files are byte-identical with 9-export parity and remain registered retire-later (DUP-074). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

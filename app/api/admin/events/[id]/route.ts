@@ -5,6 +5,7 @@ import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
+import { EventVersionConflictError } from "@/lib/admin/event-version-diff"
 
 function extractEventId(url: string): string | null {
   const segments = new URL(url).pathname.split("/")
@@ -40,9 +41,24 @@ export const PATCH = withAdminCapability("event.manage", async (request: NextReq
       eventId,
       input: body,
       orgId: admin.orgId,
+      capabilities: admin.capabilities,
     })
     return NextResponse.json({ success: true, event })
   } catch (error: any) {
+    if (error instanceof EventVersionConflictError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          code: error.code,
+          expectedVersion: error.expectedVersion,
+          currentVersion: error.currentVersion,
+          diff: error.diff,
+          event: error.serverEvent,
+        },
+        { status: 409 },
+      )
+    }
     const status = getAdminTourEventErrorStatus(error, 500)
     return NextResponse.json({ success: false, error: error.message || "Failed to update event" }, { status })
   }
@@ -57,6 +73,7 @@ export const DELETE = withAdminCapability("event.manage", async (request: NextRe
       userId: user.id,
       eventId,
       orgId: admin.orgId,
+      capabilities: admin.capabilities,
     })
     return NextResponse.json(result)
   } catch (error: any) {

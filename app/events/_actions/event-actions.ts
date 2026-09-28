@@ -7,6 +7,49 @@ import { revalidatePath } from 'next/cache'
 
 const action = createSafeActionClient()
 
+/**
+ * Object-level authorization for org-scoped event operations (AUDIT H8).
+ * Authentication alone is never sufficient: the caller must hold
+ * `event.manage` on the organization referenced by client input.
+ */
+async function assertOrgEventManager(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  orgId: string,
+): Promise<boolean> {
+  const { data: allowed, error } = await supabase.rpc('has_perm', {
+    uid: userId,
+    oid: orgId,
+    perm: 'event.manage',
+  })
+  if (error) return false
+  return allowed === true
+}
+
+/** Resolve the owning org of an event and authorize the caller against it. */
+async function resolveAuthorizedEventOrgId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  eventId: string,
+): Promise<string | null> {
+  const { data: row, error } = await supabase
+    .from('events_v2')
+    .select('org_id')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (error || !row?.org_id) return null
+  return (await assertOrgEventManager(supabase, userId, row.org_id)) ? row.org_id : null
+}
+
+const eventDateTimeSchema = z.string().trim().min(1).refine(
+  (value) => Number.isFinite(Date.parse(value)),
+  'Invalid event date and time',
+)
+
+function hasForwardTimeRange(input: { startAt: string; endAt: string }) {
+  return Date.parse(input.endAt) > Date.parse(input.startAt)
+}
+
 const createCalendarSchema = z.object({
   orgId: z.string().uuid(),
   name: z.string().min(2).max(80),
@@ -18,6 +61,10 @@ export const createCalendarAction = action.schema(createCalendarSchema).action(a
   const supabase = await createClient()
   const { data: user } = await supabase.auth.getUser()
   if (!user?.user) return { ok: false, error: 'not_authenticated' }
+
+  if (!(await assertOrgEventManager(supabase, user.user.id, parsedInput.orgId))) {
+    return { ok: false, error: 'not_authorized' }
+  }
 
   const { data, error } = await supabase
     .from('calendars')
@@ -33,16 +80,23 @@ export const createCalendarAction = action.schema(createCalendarSchema).action(a
 const createEventSchema = z.object({
   orgId: z.string().uuid(),
   title: z.string().min(3).max(120),
-  startAt: z.string(),
-  endAt: z.string(),
+  startAt: eventDateTimeSchema,
+  endAt: eventDateTimeSchema,
   timezone: z.string().default('UTC'),
   venueId: z.string().uuid().optional()
+}).refine(hasForwardTimeRange, {
+  path: ['endAt'],
+  message: 'Event end must be after its start',
 })
 
 export const createEventAction = action.schema(createEventSchema).action(async ({ parsedInput }) => {
   const supabase = await createClient()
   const { data: user } = await supabase.auth.getUser()
   if (!user?.user) return { ok: false, error: 'not_authenticated' }
+
+  if (!(await assertOrgEventManager(supabase, user.user.id, parsedInput.orgId))) {
+    return { ok: false, error: 'not_authorized' }
+  }
 
   const slug = parsedInput.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 60)
 
@@ -77,12 +131,27 @@ export const updateEventStatusAction = action.schema(updateStatusSchema).action(
   const { data: user } = await supabase.auth.getUser()
   if (!user?.user) return { ok: false, error: 'not_authenticated' }
 
-  const { error } = await supabase
+  // Authorize against the event's actual owning org — never trust the client
+  // to name the resource AND the authority together.
+  const authorizedOrgId = await resolveAuthorizedEventOrgId(
+    supabase,
+    user.user.id,
+    parsedInput.eventId,
+  )
+  if (!authorizedOrgId) {
+    return { ok: false, error: 'not_authorized' }
+  }
+
+  const { data: updatedEvent, error } = await supabase
     .from('events_v2')
     .update({ status: parsedInput.status })
     .eq('id', parsedInput.eventId)
+    .eq('org_id', authorizedOrgId)
+    .select('id')
+    .maybeSingle()
 
   if (error) return { ok: false, error: 'update_failed' }
+  if (!updatedEvent) return { ok: false, error: 'not_authorized' }
   revalidatePath(`/events/${parsedInput.eventId}`)
   return { ok: true }
 })
@@ -90,16 +159,35 @@ export const updateEventStatusAction = action.schema(updateStatusSchema).action(
 const createHoldSchema = z.object({
   orgId: z.string().uuid(),
   calendarId: z.string().uuid(),
-  startAt: z.string(),
-  endAt: z.string(),
+  startAt: eventDateTimeSchema,
+  endAt: eventDateTimeSchema,
   status: z.enum(['soft','hard','confirmed']).default('soft'),
   note: z.string().optional()
+}).refine(hasForwardTimeRange, {
+  path: ['endAt'],
+  message: 'Hold end must be after its start',
 })
 
 export const createHoldAction = action.schema(createHoldSchema).action(async ({ parsedInput }) => {
   const supabase = await createClient()
   const { data: user } = await supabase.auth.getUser()
   if (!user?.user) return { ok: false, error: 'not_authenticated' }
+
+  if (!(await assertOrgEventManager(supabase, user.user.id, parsedInput.orgId))) {
+    return { ok: false, error: 'not_authorized' }
+  }
+
+  // Defense in depth: the hold must land on a calendar that belongs to the
+  // same authorized org.
+  const { data: calendar, error: calendarError } = await supabase
+    .from('calendars')
+    .select('id, org_id')
+    .eq('id', parsedInput.calendarId)
+    .eq('org_id', parsedInput.orgId)
+    .maybeSingle()
+  if (calendarError || !calendar || calendar.org_id !== parsedInput.orgId) {
+    return { ok: false, error: 'not_authorized' }
+  }
 
   const { error } = await supabase
     .from('holds')
@@ -117,5 +205,3 @@ export const createHoldAction = action.schema(createHoldSchema).action(async ({ 
   revalidatePath('/calendar')
   return { ok: true }
 })
-
-

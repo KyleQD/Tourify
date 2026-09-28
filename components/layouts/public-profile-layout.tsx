@@ -1,29 +1,33 @@
 "use client"
 
-import { ReactNode } from 'react'
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, Home, Search } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { TourifyLogo } from "@/components/tourify-logo"
+import { ReactNode, type CSSProperties } from 'react'
 import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 interface PublicProfileLayoutProps {
   children: ReactNode
   profileName?: string
   profileType?: 'artist' | 'venue' | 'general'
+  className?: string
+  style?: CSSProperties
 }
 
 export function PublicProfileLayout({ 
   children, 
-  profileName, 
-  profileType = 'artist' 
+  className,
+  style,
 }: PublicProfileLayoutProps) {
-  const router = useRouter()
   const { isAuthenticated } = useAuth()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black">
+    <div
+      className={cn(
+        "min-h-screen bg-gradient-to-br from-black via-slate-950 to-black",
+        className
+      )}
+      style={style}
+    >
       {/* Profile Content - Main nav is handled by root layout */}
       <div className="relative">
         {children}

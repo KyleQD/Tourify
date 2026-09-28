@@ -1,7 +1,6 @@
 import "./globals.css"
 
 import { ReactNode } from "react"
-import { redirect } from "next/navigation"
 import { AccountsSeed } from "@/components/account/accounts-seed"
 import { loadUserAccountsForSession } from "@/lib/accounts/server-load-accounts"
 import { ArtistLayoutClient } from "./artist-layout-client"
@@ -9,7 +8,9 @@ import { ArtistLayoutClient } from "./artist-layout-client"
 export default async function ArtistLayout({ children }: { children: ReactNode }) {
   const loaded = await loadUserAccountsForSession()
 
-  if (!loaded) redirect("/login?redirectTo=%2Fartist")
+  // Middleware protects artist tools while allowing /artist/[slug] public pages.
+  // Anonymous public visitors do not need an account shell or redirect here.
+  if (!loaded) return <>{children}</>
 
   return (
     <>

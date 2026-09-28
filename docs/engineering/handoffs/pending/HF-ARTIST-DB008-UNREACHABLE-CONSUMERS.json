@@ -1,0 +1,92 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ARTIST-DB008-UNREACHABLE-CONSUMERS",
+  "task_id": "ARTIST-005",
+  "from_agent": "artist",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-25T15:10:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "Two DB-008 objects routed to the artist agent cannot be fixed by the artist lane because every real consumer file is outside the artist working set (docs/engineering/agents/artist/WORKING_SET.json) and outside the Wave 34 artist file ownership. (1) The code-drift cluster \"events\": event_posts, marketplace_post_attachments, job_posting_templates.application_form_template (47 diagnostic hits). (2) The `bookings` relation from the artist cluster: the inventory's attribution to app/api/artist-jobs/[id]/applications/route.ts is not reproducible, and the only real consumers are app/api/analytics/route.ts and app/api/calendar/me/route.ts. There is no `events` agent in docs/engineering/agents/registry.yaml and no manifest entry for app/api/events/**, lib/events/**, app/api/analytics/** or app/api/calendar/**, so these files are unowned. The artist lane did not edit them. Orchestrator action: route the files to an owning lane or extend a lane's working set.",
+  "working_set": [
+    "app/api/events/[id]/page/route.ts",
+    "app/api/events/[id]/posts/route.ts",
+    "app/api/employer/vetting/[applicationId]/route.ts",
+    "app/api/hiring/apply/profile-preview/route.ts",
+    "lib/events/canonical-event-service.ts",
+    "lib/events/event-matcher.ts",
+    "lib/logistics/plans.ts",
+    "lib/marketplace/feed-attachment.ts",
+    "components/events/enhanced-event-page.tsx",
+    "app/api/analytics/route.ts",
+    "app/api/calendar/me/route.ts"
+  ],
+  "completed": [
+    "Verified with the same resolver used for the artist lane that each named file exists and that none of them is imported by an artist-owned module, so the artist lane cannot fix them by editing its own surface.",
+    "Recorded the canonical destination for job_posting_templates.application_form_template (the form is referenced by template id; the column does not exist and no code needs it as a column).",
+    "Did not edit any file outside the artist working set."
+  ],
+  "next_steps": [
+    "Route app/api/events/** and lib/events/** to an owning lane. The database lane's own summary for this cluster already says \"the artist agent owns the artist-side event surfaces, and DB-006 owns the cutover decision\"; the artist-side surfaces are now clean and the remaining files are the shared event surface.",
+    "event_posts: no active creation/RLS migration exists (DB-009). Either author the table with the column contract below or retire the three event post readers.",
+    "marketplace_post_attachments: only lib/marketplace/feed-attachment.ts really reads it (verified at HEAD and in the worktree); the marketplace lane owns that file. The inventory's other three attributions for this object are not reproducible and should not be actioned.",
+    "job_posting_templates.application_form_template: drop the column read in app/api/events/[id]/posts/route.ts and app/api/hiring/apply/profile-preview/route.ts and resolve the form by template id.",
+    "Attribution caveat for the whole cluster: for column objects the inventory's tscFiles are file-level attributions, not line-level. Verified counter-examples: events.cover_image_url is attributed to app/artist/events/actions/marketing.ts, which contains no such reference, and profiles.custom_url is attributed to lib/public-artist/get-public-artist-profile.ts, which contains no such reference at HEAD or in the worktree.",
+    "bookings: repoint app/api/analytics/route.ts and app/api/calendar/me/route.ts to booking_requests / venue_booking_requests (or lib/bookings/artist-booking-server.ts for the artist-facing read), or route those routes to an owning lane. Do not resurrect `bookings`."
+  ],
+  "blockers": [
+    "Ownership: no lane currently owns app/api/events/** or lib/events/**, and the artist lane may not expand into them.",
+    "event_posts needs a database decision (author the table, or retire the surface); the artist lane will not invent that product call."
+  ],
+  "verification": [
+    "PASS: existence and import-graph checks for all nine files from the artist lane.",
+    "NOT RUN: no tsc run against these files by the artist lane, and no code change."
+  ],
+  "object_contracts": {
+    "event_posts": {
+      "consumers": [
+        "app/api/events/[id]/posts/route.ts (select + insert)",
+        "app/api/events/[id]/page/route.ts (select)",
+        "app/api/employer/vetting/[applicationId]/route.ts (select)",
+        "components/events/enhanced-event-page.tsx (dead consumer per the inventory)"
+      ],
+      "observed_columns": "The writer at app/api/events/[id]/posts/route.ts:125-140 inserts: event_id, event_table, user_id, author_id, content, type, media_urls, visibility, is_announcement, is_pinned, likes_count, comments_count. Note author_id is written but is absent from the only archived definition (supabase/migrations_backup/20250115000003_event_pages_system.sql:33-51), so the contract and the archived SQL already disagree - a migration authored from the archived SQL alone would fail this insert.",
+      "note": "Archived definitions: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20250120000000_event_social_features.sql, supabase/migrations_backup/20250115000003_event_pages_system.sql.",
+      "archived_columns": "id, event_id, event_table (check artist_events|events), user_id, content, type (check text|image|video|audio|announcement|update), media_urls jsonb, is_announcement, is_pinned, visibility (check public|attendees|collaborators), likes_count, comments_count, created_at, updated_at"
+    },
+    "marketplace_post_attachments": {
+      "verified_live_consumer": [
+        "lib/marketplace/feed-attachment.ts:151 and :280 (read at both HEAD d2176904 and in the current worktree)"
+      ],
+      "inventory_attribution_not_reproducible": [
+        "lib/events/canonical-event-service.ts",
+        "lib/logistics/plans.ts",
+        "lib/events/event-matcher.ts"
+      ],
+      "evidence": "A repo-wide search for the literal marketplace_post_attachments returns 0 hits in canonical-event-service.ts, plans.ts and event-matcher.ts at HEAD d2176904 and in the current worktree. Those three files read event_external_sources / event_ticket_offers / event_field_overrides / logistics_* relations instead. The database lane's tscFiles attribution for this object is therefore file-level, not line-level, and only lib/marketplace/feed-attachment.ts is a real consumer.",
+      "note": "lib/marketplace/feed-attachment.ts is marketplace-lane owned and is already being edited in this worktree; the marketplace lane should repoint it or hand the contract to database. Only archived SQL defines the relation: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260728000008_marketplace_post_attachments.sql.",
+      "archived_columns": "id, post_id (no FK), listing_id -> marketplace_listings(id), store_id -> marketplace_storefronts(id), original_seller_user_id not null, original_store_id, source_surface check (feed_share|reshare|unknown), created_at, plus a one-target check constraint. Note the column is store_id, not storefront_id, and the FK on post_id is absent."
+    },
+    "job_posting_templates.application_form_template": {
+      "consumers": [
+        "app/api/events/[id]/posts/route.ts",
+        "app/api/hiring/apply/profile-preview/route.ts"
+      ],
+      "canonical": "job_posting_templates has no application_form_template column; the application form is referenced by template id."
+    },
+    "bookings": {
+      "verified_live_consumers": [
+        "app/api/analytics/route.ts:76,144",
+        "app/api/calendar/me/route.ts:35"
+      ],
+      "inventory_attribution_not_reproducible": [
+        "app/api/artist-jobs/[id]/applications/route.ts"
+      ],
+      "evidence": "git show HEAD:app/api/artist-jobs/[id]/applications/route.ts and the worktree copy contain no `bookings` reference; that route reads artist_jobs. The two files above do read `bookings`.",
+      "canonical": "booking_requests and venue_booking_requests are both in the active chain and in lib/database.types.ts; lib/bookings/artist-booking-server.ts is the canonical artist-side booking read. `bookings` is only defined in archived SQL (supabase/migrations/archive/02_core_tables.sql and the pre-reconciliation archive), never in the active chain."
+    }
+  },
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Route app/api/events/** and lib/events/** to an owning lane. The database lane's own summary for this cluster already says \"the artist agent owns the artist-side event surfaces, and DB-006 owns the cutover decision\"; the artist-side surfaces are now clean and the remaining files are the shared event surface."
+}

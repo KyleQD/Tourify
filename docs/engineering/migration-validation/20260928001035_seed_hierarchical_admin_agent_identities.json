@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260928001035_seed_hierarchical_admin_agent_identities.sql",
+  "taskId": "ADMIN-HIER-001",
+  "status": "planned",
+  "owner": "database",
+  "reviewer": "admin-governance",
+  "domains": ["agent-control-plane", "admin", "events", "rls"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "isolated Supabase environment with the existing agent identity directory and no child-agent credentials",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Select the ten target slugs from public.agent_identities before apply",
+      "Count public.agent_credentials and inspect agent_identities RLS and grants before apply"
+    ],
+    "expectedAffectedRows": "At most ten additive pending directory rows; existing slugs remain unchanged and no credentials, memberships, or privileges are created",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 10,
+    "resumeStrategy": "Reapply the idempotent INSERT in an isolated environment; use a later additive migration for corrections",
+    "resumeCursor": "Supabase migration version 20260928001035",
+    "idempotency": "INSERT uses ON CONFLICT (slug) DO NOTHING and never overwrites an existing identity"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No user or tenant data is transformed; every inserted principal remains pending"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Apply twice in isolation; verify exact pending rows and hierarchy metadata, unchanged RLS and grants, and zero new credentials or application permissions"
+  },
+  "recovery": {
+    "rollback": "Leave the additive pending directory rows disabled; do not delete identities or reset a persistent database",
+    "forwardFix": "Correct metadata or directory entries with a later additive migration after reviewing any provisioned linkage"
+  },
+  "postflight": {
+    "queries": [
+      "Verify the seven specialists, two managers, and Events principal exist once and remain pending",
+      "Verify reports_to, kind, execution_policy, and informational scope metadata match the registry",
+      "Verify no matching agent_credentials, organization memberships, or platform capability grants were created",
+      "Verify agent identity RLS and grants are unchanged"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

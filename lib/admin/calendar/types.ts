@@ -5,6 +5,7 @@ export type AdminCalendarKind =
   | 'shift'
   | 'production'
   | 'hiring'
+  | 'travel'
 
 export type AdminCalendarScopeMode = 'tour' | 'event' | 'org'
 
@@ -56,6 +57,32 @@ export interface AdminCalendarSummary {
   shift: number
   production: number
   hiring: number
+  travel: number
+}
+
+/** CAL-101 — Stable calendar source ids aligned to deployed tables. */
+export type AdminCalendarSourceId =
+  | 'events_v2'
+  | 'tour_events'
+  | 'tasks'
+  | 'logistics_tasks'
+  | 'catering_services'
+  | 'ground_transportation_coordination'
+  | 'flight_coordination'
+  | 'lodging_bookings'
+  | 'staff_shifts'
+  | 'event_calendar_items'
+  | 'job_applications'
+  | 'organization_job_postings'
+
+export type AdminCalendarSourceStatus = 'ok' | 'empty' | 'degraded'
+
+export interface AdminCalendarSourceHealth {
+  id: AdminCalendarSourceId
+  status: AdminCalendarSourceStatus
+  itemCount: number
+  errorCode?: string | null
+  message?: string | null
 }
 
 export interface AdminCalendarResponse {
@@ -66,6 +93,9 @@ export interface AdminCalendarResponse {
   filters: AdminCalendarFilters
   summary: AdminCalendarSummary
   context: AdminCalendarContext | null
+  /** CAL-101 — per-source health; degraded ≠ empty calendar */
+  sources?: AdminCalendarSourceHealth[]
+  isDegraded?: boolean
 }
 
 export const ADMIN_CALENDAR_KINDS: AdminCalendarKind[] = [
@@ -75,6 +105,7 @@ export const ADMIN_CALENDAR_KINDS: AdminCalendarKind[] = [
   'shift',
   'production',
   'hiring',
+  'travel',
 ]
 
 export const TOUR_SCOPE_KINDS: AdminCalendarKind[] = [
@@ -82,12 +113,14 @@ export const TOUR_SCOPE_KINDS: AdminCalendarKind[] = [
   'task',
   'shift',
   'production',
+  'travel',
 ]
 
 export const EVENT_SCOPE_KINDS: AdminCalendarKind[] = [
   'task',
   'shift',
   'production',
+  'travel',
 ]
 
 export const ORG_SCOPE_KINDS: AdminCalendarKind[] = [
@@ -96,6 +129,7 @@ export const ORG_SCOPE_KINDS: AdminCalendarKind[] = [
   'shift',
   'production',
   'hiring',
+  'travel',
 ]
 
 export const KIND_LABELS: Record<AdminCalendarKind, string> = {
@@ -105,6 +139,7 @@ export const KIND_LABELS: Record<AdminCalendarKind, string> = {
   shift: 'Shifts',
   production: 'Production',
   hiring: 'Hiring',
+  travel: 'Travel',
 }
 
 export const SCOPED_KIND_LABELS: Record<AdminCalendarKind, string> = {
@@ -114,6 +149,7 @@ export const SCOPED_KIND_LABELS: Record<AdminCalendarKind, string> = {
   shift: 'Shifts',
   production: 'Production',
   hiring: 'Hiring',
+  travel: 'Travel',
 }
 
 export const KIND_COLORS: Record<AdminCalendarKind, string> = {
@@ -123,6 +159,7 @@ export const KIND_COLORS: Record<AdminCalendarKind, string> = {
   shift: 'indigo',
   production: 'emerald',
   hiring: 'pink',
+  travel: 'cyan',
 }
 
 export function kindsForScope(scope?: AdminCalendarScopeMode | null): AdminCalendarKind[] {

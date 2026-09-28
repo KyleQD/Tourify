@@ -1,0 +1,37 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF",
+  "task_id": "EVENTS-005",
+  "from_agent": "events",
+  "to_agent": "admin",
+  "status": "pending",
+  "accepting_task_id": "ADMIN-028",
+  "completion_condition": "app/api/admin/event-claims/route.ts:53 compiles -- `admin.id` resolves to the platform administrator's user id, or is replaced with the value `withPlatformAdmin` actually binds -- AND the reviewed_by / reviewed_at pair it writes is the one the events lane's AC-5 decision names as the audit record for a status transition.",
+  "created_at": "2026-09-28T19:22:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, concurrent lanes; this handoff touches only the paths named in its working_set)",
+  "summary": "The events lane decided, in AC-5 of EVENTS-005, that the ONLY actor that may transition public.event_claims.status off 'pending' is a platform administrator acting through app/api/admin/event-claims/route.ts. That route does not currently work, and the reason is a one-token compile error, not a design gap. `app/api/admin/event-claims/route.ts:53` reads `admin.id` and there is no `admin` in scope. MEASURED: a scoped `tsc --noEmit` over that file reports exactly one error, `error TS2304: Cannot find name 'admin'` at 53:48. The cause is precise: `withPlatformAdmin` in `lib/auth/api-auth.ts:251-266` invokes its handler as `handler(request, { user, supabase })` -- there is no third `admin` argument, and binding one is a no-op that would silently yield `undefined` (the same trap this lane recorded for `withAuth` in its own state). The value the route wants is `auth.user.id`, which `withPlatformAdmin` DOES bind as the second argument. THIS MATTERS MORE THAN A COMPILE ERROR, because it is the audit record. `event_claims.reviewed_by uuid references auth.users(id)` is the only column on the table that records WHO decided a claim, and `status` is what `app/api/events/[id]/tour/route.ts:39` reads to grant ownership of `events.tour_id`. A status transition with no recorded actor is exactly the failure the events lane's decision exists to prevent, so the decision is not enforceable until this line resolves. THE EVENTS LANE DID NOT EDIT THIS FILE. `app/api/admin/**` is outside EVENTS-005's grant and outside the events charter, and the fix belongs to whoever owns the admin surface. The events lane's obligation was to name the actor precisely, and it has: the fix is a name, not a design. SECOND ITEM FOR THE ADMIN LANE, MEASURED, NO EDIT ATTEMPTED: both handlers on this route are gated on `isEventFeatureEnabled('EVENT_PROVIDER_ADMIN_TOOLS')` (:15 and :34), which is in `EXTERNAL_PROVIDER_FLAGS` and therefore behind `isLaunchCapabilityAvailable('external_event_providers')` -- `status: 'disabled'`, `exposure: 'none'` in `lib/config/launch-capabilities.ts`, with the summary 'Third-party event ingestion is deferred pending provider approval evidence'. The route is therefore PERMANENTLY 503 on every environment value until that capability is opened, and `app/api/events/[id]/claim/route.ts:29` is gated the same way via `EVENT_EXTERNAL_CLAIMS`, so the claim WRITE path is closed too. That is a coherent launch posture rather than a bug, and the events lane accepts it -- but the two must be decided TOGETHER. Opening the admin review surface while the claim write path stays closed yields a review queue that can never be filled; opening the write path while the review surface stays closed yields claims that can be filed and never approved except by the auto-verification arm. The owner should decide the pair, and the answer belongs to whoever owns the external_event_providers capability.",
+  "working_set": [
+    "app/api/admin/event-claims/route.ts (ADMIN-OWNED; read-only reference for the events lane, not edited by EVENTS-005)",
+    "lib/auth/api-auth.ts (READ ONLY -- the binding this route is measured against)",
+    "lib/config/launch-capabilities.ts (READ ONLY)",
+    "lib/events/providers/flags.ts (READ ONLY)"
+  ],
+  "completed": [
+    "EVENTS-005 side: the actor is named in the AC-5 decision, the compile error is measured and located, the correct value is identified, and the capability-gate coupling is named. Nothing in app/api/admin/** was edited."
+  ],
+  "next_steps": [
+    "Resolve `admin.id` at app/api/admin/event-claims/route.ts:53. The value is `auth.user.id` -- the second argument `withPlatformAdmin` already binds. Do not bind a third argument: `withAuth` and `withPlatformAdmin` invoke their handler as `(request, auth)`, so a third positional parameter silently receives `undefined` and every reviewed_by row would be written as null with no error.",
+    "Decide EVENT_PROVIDER_ADMIN_TOOLS and EVENT_EXTERNAL_CLAIMS together, not separately. Both sit behind the `external_event_providers` capability, which is `disabled` with `exposure: 'none'`.",
+    "Do not widen `authenticated` on public.event_claims. It holds SELECT and nothing else, asserted by 20260928010000's post-condition. The events lane's AC-5 decision ratifies that narrowing rather than revisiting it."
+  ],
+  "blockers": [
+    "The capability decision is an owner decision, not an engineering one. `external_event_providers` is 'deferred pending provider approval evidence', and that evidence does not exist in this repository."
+  ],
+  "verification": [
+    "MEASURED: scoped `tsc --noEmit` over app/api/admin/event-claims/route.ts reports exactly one error, `error TS2304: Cannot find name 'admin'` at 53:48. (A full-repo typecheck OOMs on this machine by design, CP-106, so the check was scoped and is reported as scoped.)",
+    "READ: lib/auth/api-auth.ts:251-266 -- `withPlatformAdmin` calls `handler(request, auth)` where `auth` is `{ user, supabase }`; there is no third argument to bind. lib/auth/api-auth.ts:276-300 -- `withAdminCapability` DOES pass a third `admin: ActingAdminContext`, which is the wrapper this route appears to have been written against, and it takes a capability as its first argument.",
+    "READ: lib/config/launch-capabilities.ts -- `external_event_providers` is `status: 'disabled'`, `exposure: 'none'`, 'Third-party event ingestion is deferred pending provider approval evidence.' lib/events/providers/flags.ts:19-34 -- both EVENT_EXTERNAL_CLAIMS and EVENT_PROVIDER_ADMIN_TOOLS are in EXTERNAL_PROVIDER_FLAGS.",
+    "INHERITED MEASUREMENT (database lane, DB-023, throwaway cluster, not re-run here): with every policy installed, a service_role insert of status='approved' SUCCEEDS and the row is readable; an authenticated insert of the same row is refused 42501; an authenticated status transition is refused 42501. This is why the AC-5 decision names an application actor rather than a database mechanism."
+  ],
+  "accepting_task_note": "ADMIN-028 was created by EVENTS-005 because the handoff schema requires a recipient-owned accepting task and no existing admin task covered this route. It is created BLOCKED on ADMIN-018, and the admin lane's acceptance of this handoff is the admin lane's call. The events lane did not dispatch it and did not edit app/api/admin/**."
+}

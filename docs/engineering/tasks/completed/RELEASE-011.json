@@ -1,0 +1,223 @@
+{
+  "schema_version": "2.0",
+  "id": "RELEASE-011",
+  "title": "Make a credential-gated step distinguishable from a code failure",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "release",
+  "created_at": "2026-09-27T18:31:24.287Z",
+  "updated_at": "2026-09-27T20:55:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (156 entries; this lane changed only scripts/verify.mjs, package.json (2 additive lines), .github/workflows/ci.yml (2 additive steps in job Migration Gates), docs/DEVELOPMENT_WORKFLOW.md, docs/engineering/DECISIONS.md (CP-121/122/123 + a CP-111 correction), docs/engineering/agents/release/STATE.md, docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json, docs/engineering/handoffs/pending/HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS.json, and this record. No commit. agents:generate NOT run: TASK_INDEX.json is under concurrent regeneration. Two temp detached worktrees under the OS temp dir were created for the scenario matrix and removed; the real supabase/migrations directory, both files under __tests__/admin that other lanes are editing, and all application code were left untouched.)",
+  "goal": "Make verify:feature report a truthful verdict in an unprovisioned environment instead of aborting on a credential-gated step.",
+  "scope": {
+    "in": [
+      "Distinguishing skipped-for-missing-prerequisite from failed, and giving the feature tier a third verdict",
+      "Making exit 0 unreachable for any run in which a step did not run, structurally rather than by convention",
+      "Wiring the DB-015 never-executed-migration-block detector into package.json and ci.yml per HF-DB-015-CI-WIRING, and demonstrating both of its legitimate reds",
+      "Deciding and recording the disposition of the reverse-dependent typecheck coverage gap CP-111 left open",
+      "Deciding and recording the disposition of the two pre-existing account-management.service.ts type errors",
+      "Correcting CP-111's citation of two scope-project files that do not exist in this repository"
+    ],
+    "out": [
+      "Deleting or weakening check:supabase-target — it is gated, not removed, and it still fails on a mismatch",
+      "Quarantining, skipping, or weakening check:admin-audit — its 3 pre-existing findings still fail the tier, and unmasking it is how the first post-change run went red",
+      "Raising a memory ceiling or weakening type coverage for the files the scoped program does contain",
+      "Any edit to lib/services/account-management.service.ts, lib/database.types.ts, or any other implementation code",
+      "npm run generate:database-types / check:database-types — the 1 MB ENOBUFS generator ceiling (CP-089, CP-092) is a separate constraint against a different database and was not touched or conflated",
+      "Any change to the fast or release tier blocks",
+      "npm run agents:generate — TASK_INDEX.json is under concurrent regeneration",
+      "A commit, a push, or a change to any required status-check name"
+    ]
+  },
+  "working_set": [
+    "scripts/verify.mjs",
+    "package.json",
+    ".github/workflows/ci.yml",
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md (append-only)",
+    "docs/engineering/agents/release/STATE.md",
+    "docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json",
+    "docs/engineering/handoffs/pending/HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS.json",
+    "docs/engineering/tasks/active/RELEASE-011.json"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md (CP-106, CP-106 correction, CP-111, CP-118, CP-120, CP-121, CP-122, CP-123)",
+    "docs/engineering/handoffs/pending/HF-DB-015-CI-WIRING.json",
+    "docs/engineering/handoffs/pending/HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS.json",
+    "docs/engineering/tasks/active/RELEASE-010.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "A credential-gated step reports skipped-with-prerequisite and does not fail the tier, while a genuine code failure still does",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The tier's exit code reflects only checks that actually ran, and the skipped set is named in the output",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "The tier never reports pass when a step was skipped, and never reports pass in an unprovisioned environment",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The DB-015 detector is wired into CI, and a deliberate failure of it is shown to go red in CI",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "check:supabase-target and check:admin-audit still run and are not weakened, quarantined, or skipped by default",
+      "owner": "release",
+      "state": "met",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run check:never-executed-migration-blocks",
+          "npm run test:never-executed-migration-blocks",
+          "npm run verify:feature -- --changed  (scenario matrix, in two temp detached worktrees at 16fb834f; see evidence)",
+          "npm run verify:fast -- --changed",
+          "node -e \"<js-yaml read of ci.yml: required-context names, job list, step masking properties>\"",
+          "npm run agents:validate"
+        ],
+        "evidence": [
+          "SHARED-WORKTREE TIER RUN, CURRENTLY RED, AND NOT BECAUSE OF THIS CHANGE: `npm run verify:feature -- --changed` in the live worktree exits 2 at the scoped typecheck with 5 diagnostics in __tests__/admin/workforce-identity-contract.test.ts (lines 1697, 1715, 1718, 1758, 1761). That file is untracked work belonging to WFC-003, which is mid-repair under CP-119, and it is one of the two files this lane was told not to edit. Recorded here rather than left as a stale green. The credentials are absent in this shell, so the tier never reached the supabase-target step in that run.",
+          "AC1 + AC2 + AC3, SCENARIO MATRIX, in a temp detached worktree at 16fb834f whose only content is one probe migration + its manifest and one probe .ts root, with a symlinked node_modules. Every row is a real run of the tier, and the exit code is the shell's, not `tail`'s: (A) unprovisioned + a changed migration -> `RESULT: incomplete`, exit 3, 2 ran, 2 skipped, both named. (B) all three target variables set to one consistent non-secret fixture + a changed .ts root -> `RESULT: pass`, exit 0, 4 ran, 0 skipped, and the gate is printed as `check:supabase-target (requires: SUPABASE_PROJECT_ID, EXPECTED_SUPABASE_PROJECT_ID, SUPABASE_TARGET_CONFIRMATION)` on the GREEN run. (C) variables present but MISMATCHED -> the check RAN and failed: `target mismatch: actual rel011-fixture-project does not match approved a-different-project`, `RESULT: fail`, exit 1 — fail-closed, proven. (D) only SUPABASE_PROJECT_ID set -> skipped naming exactly `EXPECTED_SUPABASE_PROJECT_ID, SUPABASE_TARGET_CONFIRMATION`, exit 3 — so a partial environment is a skip, not a failure of the code. (E) deliberate type error in a changed root -> `RESULT: fail`, exit 2 (tsc's own status preserved), error text naming file:line:column, no ESM stack trace. (F) nothing changed but verify.mjs -> `RESULT: incomplete`, exit 3, with the typecheck itself now a NAMED SKIP (`missing a changed TypeScript source`) — this row is the quiet-green case CP-120 describes, reached with a .mjs-only change, and it used to exit 0.",
+          "THE THREE EXIT CODES ARE DISTINCT AND MEASURED: 0 (pass), 3 (incomplete), and the failing step's own status (1 for a check, 2 for tsc). A child that happened to exit 3 is mapped to 1 so it cannot impersonate the skip verdict.",
+          "AC5, AND THE STRUCTURAL PROOF THAT NOTHING WAS WEAKENED: with the probe migration AND an admin-path change, unprovisioned, the tier SKIPPED check:supabase-target and then RAN `check:admin-route-registry` (succeeded) and `check:admin-audit` (FAILED with its 3 pre-existing findings: Generated view drift STATUS.md, Generated view drift coverage.json, Workbook registry source hash is stale) -> `RESULT: fail`, exit 1, and the summary STILL NAMES THE SKIPPED STEP. This is the same run that proves a skip no longer masks the steps behind it, and it is the first time those steps have run at all. check:supabase-target itself was read, not weakened: it is unchanged on disk, still has its own 2-case test, and is proven above to fail on a real mismatch.",
+          "ANTI-VACUITY GUARDS UNCHANGED AND STILL LOUD: a --typecheck-scope project that omitted one changed file -> `FAILED: typecheck (scoped to --changed): verify: the scoped typecheck did not cover 1 changed file(s): types/rel011-scope-probe.ts`, `RESULT: fail`, exit 1. A 1-file program is still refused.",
+          "ONE DEFECT FOUND IN MY OWN CHANGE AND FIXED, THEN RE-MEASURED: the first scenario run printed a literal `[verify:${tier}]` (a single-quoted template), and a FAILING scoped run reported `typecheck: full repository program (npm run typecheck)` because `mode` was only set after a successful pass. `typecheckReport` now carries a separate `status`, set to `attempted` before pass 1, and the summary distinguishes 'the step did not complete, so its program was not recorded'. Re-run: `typecheck: scoped to 1 changed TypeScript root(s) (generated from --changed); the step did not complete, so its program was not recorded`. Both are the same failure family as the one being fixed: a summary that describes a run that did not happen.",
+          "A HYPOTHESIS RAISED, TESTED, AND REFUTED — recorded because the refutation is the evidence: 141 tracked test files rely on global test-runner types (no `vitest` import) while 555 import them, and the base tsconfig excludes tests entirely, so it looked like a changed global-style test file would produce ~20 phantom `describe`/`it`/`expect` errors — a FALSE RED on innocent code, i.e. this task's defect inverted. A hand-built probe did produce them. The REAL tier does not: a changed `lib/auth/__tests__/rel011-global-style.test.ts` in that style produced 0 diagnostics, because the generated project lives under `<repo>/node_modules/.cache/` and tsc therefore resolves typeRoots up to `<repo>/node_modules/@types`, whose implicit all-packages inclusion supplies the globals. The phantom errors were an artifact of a probe tsconfig living outside the repository. No code change was made, and the latent dependency is recorded in CP-122's neighbourhood: a repository that dropped @types/jest would get false reds on those 141 files.",
+          "AC4, CI WIRING: two additive package.json scripts (`check:never-executed-migration-blocks`, `test:never-executed-migration-blocks`) inserted immediately after RELEASE-010's `check:sweep-exemption-hazard`, nothing edited/reordered/removed, `json.load` parses. Two steps appended inside the existing job `migration-gates` after the DB-014 steps. Parsed with js-yaml: job list unchanged at 11 jobs with identical names in identical order, and all four required contexts this file owns still present byte-for-byte (Production Debug Scan, Vitest, Database Types, Lint And Build) — so no required status-check name can have changed.",
+          "AC4, TODAY'S EXPECTED EXIT: `npm run check:never-executed-migration-blocks` -> exit 0 in 5.3s: '567 guard sites: 53 never executed, 109 guard true, 405 unanalysed', '53 of 53 never-executed blocks are covered by a recorded, owned disposition', 'anti-vacuity: anchors seen yes; order-mutation proof holds'. `npm run test:never-executed-migration-blocks` -> 36 tests, 36 pass, 0 fail, 21.4s.",
+          "AC4, THE RED RUN, BOTH LEGITIMATE WAYS: in an isolated tree (this repository's package.json + the detector + a copy of supabase/migrations + a symlinked node_modules) the LITERAL CI command `npm run check:never-executed-migration-blocks` was run. Control: the unmodified copy exits 0 with counts identical to the real repository's own run, which is what makes the next two runs evidence. (a) Add one migration containing a CP-109-shaped guarded block over a table no migration creates -> exit 1, 'UNROUTED ... 20991231999999_...sql:6', with the subject, the guard text, what it would have created, and 'a never-executed block with no disposition ... Add it to KNOWN_FINDINGS'. (b) Remove one migration from the copy -> exit 1, '52 of 53 never-executed blocks are covered by a recorded, owned disposition' — the completeness gate firing in the other direction. Reverting both returns the command to exit 0, so the reds were caused by the breaks. The real chain and the real worktree were never touched: that is why the red was demonstrated on a copy, and the copy's control run is what licenses it.",
+          "AC4, THE STEP CANNOT BE MASKED: read out of the parsed workflow, not assumed — the step is a plain `run:` step, `continue-on-error` absent, no `if:` on the step, no `if:` on the job, no later step in the job carrying `if: always()`. A nonzero exit fails the step and therefore the job.",
+          "REVERSE-DEPENDENT GAP, MEASURED END TO END: in the worktree, `lib/auth/auth-email-redirect.ts` was given one extra required parameter — internally consistent, and it breaks 8 tracked callers. The scoped typecheck produced ZERO diagnostics over a 4-file program. The tier printed 'reverse dependents — NOT in the program above, and NOT checked by this step: lib/auth/auth-email-redirect.ts <- 8 textual importer(s): app/forgot-password/page.tsx, ...'. A scope project built from that printed list turned the same change into a truthful red: app/forgot-password/page.tsx(45,21): error TS2554: Expected 1 arguments, but got 0, exit 2. Cost of the lookup: one `git grep`, measured 0.54s for the 17 changed roots of the shared worktree, 77 import sites over 60 files, run with --untracked because a lane's own new files are untracked.",
+          "TWO PRE-EXISTING TYPE ERRORS, DIAGNOSED RATHER THAN HANDED BACK: `create_post_with_context` appears in NEITHER the active chain (317 files) NOR lib/database.types.ts. Its only DDL is in supabase/migrations/archive/ (APPLY_TO_SUPABASE_DASHBOARD.sql:315, complete_migration.sql:403, and a DROP FUNCTION IF EXISTS in FIX_FUNCTION_CONFLICT.sql:12). `AccountManagementService.createPostWithContext` has ZERO callers. The second diagnostic is a consequence of the first, so this is ONE defect with the CODE stale, not the contract — the contract is not behind. Corroborating: lib/database.types.ts does contain a `posts` relation the active chain also never creates, so the contract came from a real database that had `posts` and not this RPC. Recorded as CP-123 and routed to general-user (cc social, database) with the recommendation (delete the dead method) and the security objection to promoting the archived DDL, which is SECURITY DEFINER with no set search_path and no ownership check on the caller-supplied profile_id.",
+          "FAST AND RELEASE TIERS UNCHANGED, MECHANICALLY: both tier blocks were extracted from the current file and from `git show HEAD:scripts/verify.mjs` and diffed — byte-identical (fast 556 bytes, release 611 bytes). `npm run verify:fast -- --changed` in the worktree printed 'Fast verification complete. Full typecheck/build is intentionally deferred.' and exited 0.",
+          "MY OWN CORRECTION, WITHDRAWN, AND RECORDED AS THE THIRD DEFECT I FOUND IN MY OWN WORK: RELEASE-011 first recorded that CP-111's two cited precedents (tsconfig.ds-scope.json, tsconfig.wfc003-slice.json) DO NOT EXIST, and wrote that into scripts/verify.mjs and docs/DEVELOPMENT_WORKFLOW.md. They exist — created 2026-09-26 by the DESIGN-034 and WFC-003 lanes, untracked, with exactly the cited shape, and tsconfig.wfc003-slice.json lists a __tests__ root, which is the specific claim. The evidence for 'absent' was gathered in a DETACHED CLEAN WORKTREE, which by construction contains only committed content, and was then generalised to 'at any SHA'. The claim of absence is withdrawn; CP-111 stands. The one true refinement is kept: both files are untracked working-tree artifacts, so the precedent is a two-lane convention rather than a committed one, and the committed precedents for the same shape are tsconfig.admin003-slice.json, tsconfig.music-check.json, tsconfig.phase2.json, tsconfig.phase4.json, tsconfig.work-mode.json and tsconfig.world-slice.json. Recorded in full in DECISIONS.md because it is this repository's own dominant failure mode committed by the lane fixing an instance of it: 'I could not find it' is a statement about the search, not about the repository.",
+          "All five local acceptance criteria were already recorded as met in RELEASE-011."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T20:00:20.385Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "release",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Local credential-gate and CI wiring work is complete; hosted release certification remains with the Release and QA gates.",
+    "completed": [
+      "scripts/verify.mjs: per-step declared environment prerequisites, a skip path that does not stop the tier, a three-valued verdict, a single exit mapper, and a runtime guard that throws if a run with skipped steps is ever classified as a pass",
+      "check:supabase-target gated on its three variables, with the requirement printed on every run including green ones so the gate cannot be dropped without leaving a trace",
+      "The --changed-with-no-changed-TypeScript-source case reclassified from a printed request not to call it a pass to a named SKIP and a non-zero exit — the same quiet-green shape as the credential case, and the one this task's own change would have hit",
+      "Reverse-dependent lookup: one --untracked git grep pass naming the textual importers of each changed root, with the resolution limit stated in the code, in the workflow doc and in CP-122, and with the matching fixed so a root is never its own dependent and lib/foo-bar is never a dependent of lib/foo",
+      "docs/DEVELOPMENT_WORKFLOW.md: the three-verdict table with exit codes and what a task record may say; why incomplete is not 0; which steps are credential-gated; how to read a skip; and the reverse-dependent section with the measured zero-diagnostics result",
+      "DECISIONS.md: CP-121 (the three-verdict tier and the exit-0 argument), CP-122 (the reverse-dependent gap, decided and bounded), CP-123 (the account-management finding, one defect, code-side), and a CP-111 correction for the two non-existent cited scope projects",
+      "DB-015 wiring: 2 additive package.json scripts and 2 additive ci.yml steps in job Migration Gates, plus a full answer recorded on HF-DB-015-CI-WIRING including both demonstrated reds and one stale sentence in the detector's own message that is DB-015's to fix",
+      "HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS re-addressed from orchestrator-assignment to general-user (cc social, database) with the diagnosis that makes the assignment unnecessary",
+      "release STATE.md: a dated section covering the three verdicts, the unmasking consequence, the bounded guarantee, the reverse-dependent decision, the CP-111 correction, the DB-015 wiring and CP-123",
+      "Four defects found in my own work and fixed before handoff: a non-interpolated template in the skip message; a failing scoped run described as a full-repository program; the reverse-dependent self-count and prefix false positive; and a probe artifact that nearly sent me to 'fix' a non-bug",
+      "Closed the local implementation record without claiming hosted product certification."
+    ],
+    "next_steps": [
+      "Use RELEASE-014 for bounded hosted public-surface certification."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T19:00:00.000Z",
+        "summary": "Read CP-120, CP-111, CP-106 and its correction, scripts/verify.mjs, verify-supabase-target.mjs, check-migration-validation.mjs, the task schema and ci.yml. Established that no workflow runs verify:feature, so the exit-code change breaks no CI step, and that only check:supabase-target among the feature tier's steps reads credentials (check:migration-validation's env vars all have defaults and it runs clean unprovisioned).",
+        "note": "Expanded beyond the declared working set to scripts/ci/verify-supabase-target.mjs and .test.mjs (read-only, to establish the gate's real contract and that its test is not to be weakened), scripts/ci/check-migration-validation.mjs (to learn what a probe migration needs in order to exercise the tier honestly), and scripts/agent-tools/control-plane.mjs (to find that the task schema is generated)."
+      },
+      {
+        "at": "2026-09-27T19:20:00.000Z",
+        "summary": "Built a temp detached worktree at 16fb834f with a symlinked node_modules, and captured the BEFORE for both failure shapes: with a probe migration and no credentials the old tier died at check:supabase-target with an ESM stack trace, exit 1, no verdict, later steps unrun; with no changed TypeScript source it printed 'Feature verification complete.' and 'every step this tier ran passed' and exited 0 having type-checked nothing. The second is the same defect and this task's own change would have hit it.",
+        "note": "First attempt at this worktree ran the COMMITTED verify.mjs, which predates RELEASE-010, and started a full 8 GB typecheck; it was killed. The lesson recorded for the next lane: an uncommitted working-set change must be copied into any scratch worktree before the tier is run in it."
+      },
+      {
+        "at": "2026-09-27T19:45:00.000Z",
+        "summary": "Implemented the step/prerequisite/verdict machinery and ran the scenario matrix. Four defects in my own change surfaced and were fixed: a literal `${tier}` in a single-quoted string; a failing scoped run described as a full-repository program; a reverse-dependent lookup that counted a root as its own dependent and would count lib/foo-bar as a dependent of lib/foo; and a probe built outside the repository that produced phantom test globals and nearly caused a 'fix' to a non-bug.",
+        "note": "The last of these is the reason the phantom-globals hypothesis is recorded as REFUTED with its evidence rather than dropped: a false red on innocent code is this task's defect inverted, and the instrument that would have shipped it was built from a probe that did not resemble the real one."
+      },
+      {
+        "at": "2026-09-27T20:05:00.000Z",
+        "summary": "Decided the exit-code question and argued it rather than implementing the brief's design silently: `incomplete` exits 3, not 0, because one scalar cannot be both 'the code is fine' and 'this was not fully verified', and every consumer that has not read the verdict line resolves that ambiguity permissively. The cost — a migration lane in an unprovisioned environment still cannot record a green feature tier — is stated in CP-121 and is correct, because the target check genuinely did not run. No opt-in flag exists that would convert `incomplete` into a green exit, because such a flag is a weakening lever of exactly the class refused for check:admin-audit.",
+        "note": "AC1's phrase 'does not fail the tier' is met in the sense that the STEP does not fail, the code under test is not implicated, and the tier is not reported as `fail`; it is deliberately not met in the sense of exiting 0. That deviation is the one place this task does not follow its brief, and it is argued in CP-121 and in the report."
+      },
+      {
+        "at": "2026-09-27T20:15:00.000Z",
+        "summary": "AC4: wired the DB-015 detector additively (2 package.json lines, 2 ci.yml steps, no job or required-context name touched), measured today's exit 0 and 36/36 fixtures, and demonstrated BOTH legitimate reds on an isolated copy of the chain with the literal CI command, plus the control run that licenses the copy and the restore that proves the reds were caused by the breaks. Confirmed from the parsed workflow that the step carries no continue-on-error and no if:, so a nonzero exit cannot be masked.",
+        "note": "The real supabase/migrations directory was deliberately NOT used for the red, because another lane's live feature tier would have seen a foreign migration in its --changed set and recorded a false red of its own. The cost of that choice is that the red is not byte-identical to a CI run on a real PR; the control run is what makes it evidence."
+      },
+      {
+        "at": "2026-09-27T20:30:00.000Z",
+        "summary": "Reverse-dependent gap decided (CP-122) and measured end to end: an internally-consistent signature change to a file with 8 tracked callers produced ZERO scoped-typecheck diagnostics, and a scope project built from the list the tier printed produced the truthful red. The two type errors diagnosed to one code-side defect (CP-123) and routed to a named owner. CP-111's citation of two non-existent scope projects corrected in three places.",
+        "note": "The residual is stated rather than claimed closed: a lane can still record a green feature tier for a change that breaks a caller. What closes the class is the required `Typecheck` context in ci.yml, and closing it at this tier needs a resolved import graph that costs the 68-minute full program — a CI-budget decision for a future release lane, not a change to this tier."
+      },
+      {
+        "at": "2026-09-27T20:55:00.000Z",
+        "summary": "Caught my own overclaim before handoff. I had recorded that CP-111's two cited scope-project files do not exist, based on a `ls` inside the temp detached worktree — where untracked files are absent by construction — and had generalised that to 'at any SHA on this branch'. Both files exist in the shared working tree, created 2026-09-26 by the DESIGN-034 and WFC-003 lanes, with exactly the shape CP-111 describes, and tsconfig.wfc003-slice.json lists a __tests__ root, which is the precise claim. The correction is withdrawn in DECISIONS.md, in scripts/verify.mjs and in docs/DEVELOPMENT_WORKFLOW.md, and the one true refinement kept: both are untracked working-tree artifacts, not a committed convention.",
+        "note": "This is the fourth defect found in my own work in this task, and the only one that was a wrong CLAIM rather than a wrong behaviour. It is the same failure this task exists to remove — a confident statement in the direction the evidence was easiest to produce — committed by the lane fixing an instance of it, which is why it is recorded at length rather than quietly edited out."
+      },
+      {
+        "at": "2026-09-27T20:00:20.385Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Local credential-gate and CI wiring work is complete; hosted release certification remains with the Release and QA gates.",
+        "completed": [
+          "Closed the local implementation record without claiming hosted product certification."
+        ],
+        "next_steps": [
+          "Use RELEASE-014 for bounded hosted public-surface certification."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS",
+    "HF-DB-015-CI-WIRING",
+    "HF-RELEASE-011-TASK-SCHEMA-HAS-NO-PARTIAL-RESULT"
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "release",
+  "decision_owner": "release",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "general-user accepts HF-RELEASE-010-... and picks deletion (recommended, zero callers) or an additive, authorized RPC with social and database; CP-123 records why the archived DDL must not be promoted as written",
+  "blocked_on": []
+}

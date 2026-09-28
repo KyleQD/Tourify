@@ -32,6 +32,7 @@ import { VenueAccountSettings } from './venue-account-settings'
 import { AdminAccountSettings } from './admin-account-settings'
 import { OrganizationAccountSettings } from './organization-account-settings'
 import { AccountManagementSettings } from './account-management-settings'
+import { VenueIntegrationsPanel } from '@/app/venue/components/settings/venue-integrations-panel'
 import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
 import {
   accountTypeMatchesSection,
@@ -125,9 +126,18 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
       description: 'Manage your accounts and delete unwanted ones'
     }
 
-    // Artist settings: Profile + Account Management only
+    // Artist settings: Profile + Appearance (public page only) + Account Management
     if (accountType === 'artist') {
-      return [profileTab, accountsTab]
+      return [
+        profileTab,
+        {
+          value: 'appearance',
+          label: 'Appearance',
+          icon: Palette,
+          description: 'Public profile template styles'
+        },
+        accountsTab,
+      ]
     }
 
     const baseTabs = [
@@ -138,20 +148,44 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
         label: 'Notifications',
         icon: Bell,
         description: 'Communication preferences'
-      },
-      {
+      }
+    ]
+
+    if (accountType === 'venue') {
+      // VEN-240: venue accounts get account-scoped security here; the Venue's
+      // own privacy/publishing controls live under Venue Info → Privacy.
+      baseTabs.push({
+        value: 'privacy',
+        label: 'Security',
+        icon: Lock,
+        description: 'Password, sessions & account security'
+      })
+    } else {
+      baseTabs.push({
         value: 'privacy',
         label: 'Privacy',
         icon: Lock,
         description: 'Security & privacy settings'
-      },
-      {
-        value: 'appearance',
-        label: 'Appearance',
-        icon: Palette,
-        description: 'Customize your experience'
-      }
-    ]
+      })
+    }
+
+    // VEN-241: dashboard appearance is always human/device-scoped; venue
+    // branding is a separate surface.
+    baseTabs.push(
+      accountType === 'venue'
+        ? {
+            value: 'appearance',
+            label: 'Appearance',
+            icon: Palette,
+            description: 'Post styles published as this venue'
+          }
+        : {
+            value: 'appearance',
+            label: 'Appearance',
+            icon: Palette,
+            description: 'Customize your experience'
+          }
+    )
 
     // Add account-specific tabs
     if (isOrganizationType(accountType)) {
@@ -193,6 +227,20 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
             label: 'Payments',
             icon: CreditCard,
             description: 'Payment methods & billing'
+          },
+          // VEN-258: institutional accounts manage people, not just content.
+          {
+            value: 'team',
+            label: 'Team',
+            icon: Users,
+            description: 'Roster & role assignments'
+          },
+          // VEN-263/264 — real provider integrations for this venue account.
+          {
+            value: 'integrations',
+            label: 'Integrations',
+            icon: Sparkles,
+            description: 'Connected services & OAuth providers'
           }
         ]
       default:
@@ -204,6 +252,11 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
     // Account Management is available for all account types
     if (tabValue === 'accounts') {
       return <AccountManagementSettings activeTab={tabValue} />
+    }
+
+    // VEN-263/264 — venue acting-account provider integrations surface.
+    if (accountType === 'venue' && tabValue === 'integrations') {
+      return <VenueIntegrationsPanel venueId={currentAccount.profile_id} />
     }
 
     if (isOrganizationType(accountType)) {

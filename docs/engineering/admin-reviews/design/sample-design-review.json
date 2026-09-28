@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "review_id": "EXAMPLE-DESIGN-001",
+  "record_status": "example",
+  "reviewer": "admin-design-manager",
+  "review_type": "design_audit",
+  "created_at": "2026-09-27T00:00:00.000Z",
+  "source_sha": "EXAMPLE",
+  "environment": "non_production_example",
+  "contains_production_data": false,
+  "actor_goal": "Demonstrate how a design review records recovery friction in a hypothetical Admin event workflow.",
+  "evidence": [
+    {
+      "category": "reproduction",
+      "reference": "example://design/event-create-validation-recovery",
+      "observation": "Synthetic example only: a hypothetical validation error clears a completed step and provides no focus target."
+    },
+    {
+      "category": "accessibility",
+      "reference": "example://design/focus-recovery-check",
+      "observation": "Synthetic receiving-side check demonstrates documenting expected focus placement and preserved form state."
+    }
+  ],
+  "expected_outcome": "Validation preserves completed input, identifies the affected field, moves focus to the error summary or field, and provides a clear next action.",
+  "severity": "P2",
+  "recommendation": "Route a bounded recovery-state review to the Admin experience and insights specialist; involve event operations only if event-specific behavior changes.",
+  "proposed_specialist": "admin-experience-insights",
+  "disposition": "accepted_and_routed",
+  "disposition_rationale": "Parent Admin accepted this non-production proof record and routed its evidence-only closure to the proposed specialist. It is not a product finding and authorizes no product change.",
+  "linked_task_ids": [
+    "ADMEXP-REV-001"
+  ],
+  "verification": {
+    "state": "verified",
+    "verified_by": "admin",
+    "verified_at": "2026-09-27T00:05:00.000Z",
+    "evidence": [
+      "Example contains no production data.",
+      "Proposed specialist exists in SEGMENT_OWNERSHIP.yaml.",
+      "ADMEXP-REV-001 records the specialist receiving-side closure without changing product code."
+    ]
+  }
+}

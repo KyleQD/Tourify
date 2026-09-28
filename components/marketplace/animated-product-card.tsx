@@ -84,7 +84,6 @@ export function AnimatedProductCard({
       <div className={`relative overflow-hidden bg-black/20 ${isListLayout ? "h-24 w-24 flex-shrink-0 rounded-xl" : "aspect-square"}`}>
         {imageUrl ? (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageUrl}
               alt={title}

@@ -66,9 +66,22 @@ function isPublicPostRoute(segments: string[]): boolean {
   return isSafeDynamicSegment(segments[1]) || isLikelyUuidPathSegment(segments[1])
 }
 
+function isPublicationShareRoute(segments: string[]): boolean {
+  // PUB-206 — /p/[token]
+  if (segments.length !== 2) return false
+  if (segments[0] !== 'p') return false
+  return isSafeDynamicSegment(segments[1])
+}
+
 export function isPublicShareRoute(pathname: string): boolean {
   const segments = getPathSegments(pathname)
-  if (isMusicVerifyRoute(segments) || isPublicPostRoute(segments)) return true
+  if (
+    isMusicVerifyRoute(segments) ||
+    isPublicPostRoute(segments) ||
+    isPublicationShareRoute(segments)
+  ) {
+    return true
+  }
 
   const [root, slug, ...rest] = segments
   if (!root || !slug || rest.length > 0) return false

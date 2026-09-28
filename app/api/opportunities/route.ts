@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
 
     if (shouldRefresh)
       await ingestOpportunitiesFromRss({
-        origin: request.nextUrl.origin,
         supabase: serviceSupabase
       })
 

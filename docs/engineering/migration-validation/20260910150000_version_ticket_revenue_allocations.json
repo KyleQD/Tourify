@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260910150000_version_ticket_revenue_allocations.sql",
+  "taskId": "TICKET-002",
+  "status": "planned",
+  "owner": "ticketing",
+  "reviewer": "security-data",
+  "domains": [
+    "ticketing",
+    "settlements"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Read-only active and historical ticket_revenue_allocations counts per event before execution"
+    ],
+    "expectedAffectedRows": "DDL only at apply time; authorized settlement writes retire active rows and append revisions",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "CREATE OR REPLACE FUNCTION retry or additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260910150000",
+    "idempotency": "Identical allocation payloads are no-ops under the event row lock; changed payloads append one new active revision set"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Verify function definition, grants, pinned search_path, event locking, no-op retries, and preserved inactive history"
+  },
+  "recovery": {
+    "rollback": "Flag off settlement writes; restore the prior function definition only after confirming no versioned writes depend on it",
+    "forwardFix": "Ship a later additive CREATE OR REPLACE preserving the existing function signature"
+  },
+  "postflight": {
+    "queries": [
+      "Function definition, SECURITY DEFINER, pinned search_path, and authenticated/service_role grants",
+      "Read-only behavior checks for identical retry and changed allocation revision"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "ticketing",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

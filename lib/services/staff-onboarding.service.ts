@@ -158,6 +158,39 @@ export class StaffOnboardingService {
     }
   }
 
+
+  /**
+   * VEN-135 — mirror progress onto the CANONICAL staff_onboarding_candidates
+   * row (matched via the staff member's identity), keeping legacy tables as
+   * adapters only.
+   */
+  private static async syncCandidateProgress(supabase: ReturnType<typeof createClient>, staffId: string, progress: number, status: string) {
+    try {
+      const { data: member } = await supabase
+        .from('staff_members')
+        .select('email, user_id')
+        .eq('id', staffId)
+        .maybeSingle()
+      if (!member) return
+
+      const match = member.user_id
+        ? { user_id: member.user_id }
+        : { email: member.email }
+
+      await supabase
+        .from('staff_onboarding_candidates')
+        .update({
+          onboarding_progress: progress,
+          status: status === 'completed' ? 'completed' : 'onboarding',
+          updated_at: new Date().toISOString(),
+        })
+        .match(match)
+    } catch (err) {
+      // Adapter sync is best-effort; the legacy write already succeeded.
+      console.warn('[Staff Onboarding] candidate progress sync skipped:', err)
+    }
+  }
+
   /**
    * Update onboarding progress for a staff member
    */
@@ -179,6 +212,7 @@ export class StaffOnboardingService {
         .single()
 
       if (error) throw error
+      await this.syncCandidateProgress(supabase, staffId, progress, status)
       return data
     } catch (error) {
       console.error('[Staff Onboarding Service] Error updating onboarding progress:', error)
@@ -204,6 +238,16 @@ export class StaffOnboardingService {
 
       if (staffError) throw staffError
 
+      // VEN-135: canonical roster activation alongside the legacy adapter.
+      try {
+        await supabase
+          .from('staff_members')
+          .update({ status: 'active', updated_at: new Date().toISOString() })
+          .eq('id', staffId)
+      } catch (err) {
+        console.warn('[Staff Onboarding] canonical staff activation skipped:', err)
+      }
+
       await this.updateOnboardingProgress(staffId, 100, 'completed')
 
       return staffUpdate
@@ -226,9 +270,13 @@ export class StaffOnboardingService {
 
       if (staffError) throw staffError
 
+      // C-03/DB-008 code-drift repoint: `venue_profiles` has no `name` column in
+      // the active chain or in the generated contract. The chain's display-name
+      // column is `venue_name` (see 20260721120000_venue_profiles_url_slug.sql,
+      // which names `venue_name` as the correct column and `name` as wrong).
       const { data: venue, error: venueError } = await supabase
         .from('venue_profiles')
-        .select('name, address')
+        .select('venue_name, address')
         .eq('id', staff.venue_id)
         .single()
 
@@ -242,9 +290,9 @@ export class StaffOnboardingService {
           data: {
             full_name: staff.name,
             temp_password: tempPassword,
-            venue_name: venue.name,
+            venue_name: venue.venue_name,
             position: staff.role,
-            welcome_message: `Welcome to ${venue.name}! You've been added as a ${staff.role} in the ${staff.department} department.`,
+            welcome_message: `Welcome to ${venue.venue_name}! You've been added as a ${staff.role} in the ${staff.department} department.`,
           },
         },
       })

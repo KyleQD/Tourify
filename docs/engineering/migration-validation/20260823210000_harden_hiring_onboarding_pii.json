@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823210000_harden_hiring_onboarding_pii.sql",
+  "taskId": "H11-PII-HARDENING",
+  "status": "staging_validated",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "hiring",
+    "privacy",
+    "rls"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": "Post-apply staging inspection: vault policy set, can_view_hiring_pii definition, applicant self-read probes (task DB-002 evidence)"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "policy/table existence probes via to_regclass; no data reads"
+    ],
+    "expectedAffectedRows": "DDL only \u2014 zero persisted rows changed by this file itself",
+    "artifact": "Chain + validation scans clean (277 files); to_regclass-guarded review; read-only policy/table probes only"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional DDL: policy drops/creates + vault table + functions; all guarded by to_regclass; safe to retry after interruption",
+    "resumeCursor": "supabase migration version 20260823210000",
+    "idempotency": "drop policy if exists everywhere; creates are conditional; re-running converges to same end state"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "staff_onboarding_sensitive_vault_candidate_id_fkey NOT VALID (validated separately)"
+    ],
+    "indexes": [],
+    "validationPlan": "Confirm policies/functions exist with expected definitions and grants"
+  },
+  "recovery": {
+    "rollback": "Do not roll back by restoring permissive policies while PII rows exist; instead CREATE OR REPLACE the reviewed permissive set explicitly with security sign-off",
+    "forwardFix": "Follow-up policy tightening via later migration preserving vault data"
+  },
+  "postflight": {
+    "queries": [
+      "no policy on hiring tables grants authenticated-wide SELECT",
+      "vault readable only via can_view_hiring_pii",
+      "applicant self-read intact"
+    ],
+    "artifact": "Post-apply pg_policies + pg_proc probes; results recorded in task DB-002 evidence (2026-09-09)",
+    "securityAdvisorArtifact": "Not run as separate artifact \u2014 RLS posture verified via pg_policies probes in staging (DB-002 evidence)",
+    "performanceAdvisorArtifact": "Not applicable \u2014 DDL-only migration; no hot-path plan changes"
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": "Reviewed against production-shaped staging and applied via Management API (HTTP 201) on 2026-09-09. Postflight: no authenticated-wide permissive policies on hiring tables; vault restricted to can_view_hiring_pii + service_role; applicant self-read intact; can_view_hiring_pii is SECURITY DEFINER with search_path=public.",
+    "staging": "Applied via Management API (HTTP 201) on 2026-09-09. Postflight: no authenticated-wide permissive policies on hiring tables; vault restricted to can_view_hiring_pii + service_role; applicant self-read intact; can_view_hiring_pii is SECURITY DEFINER with search_path=public.",
+    "production": null
+  },
+  "exceptions": []
+}

@@ -1,0 +1,16 @@
+{
+  "request": {
+    "riskCapacityRecordId": "uuid",
+    "approvedFields": [
+      "regionCode",
+      "hazardTypes",
+      "capacityTypes",
+      "confidence",
+      "freshnessAt"
+    ]
+  },
+  "response": {
+    "projectionId": "uuid",
+    "preciseLocationIncluded": false
+  }
+}

@@ -1,0 +1,3336 @@
+{
+  "artifact": "lib-services-inventory",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-09-25T22:12:24.307Z",
+  "owner": "design-system",
+  "task": "Wave 34 orphaned shared service pile (lib/services/**)",
+  "baseSha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "branch": "codex/qa004-staging-campaign",
+  "purpose": "Durable, machine-readable inventory and disposition of every module under lib/services/**, with the importer evidence behind each disposition.",
+  "method": {
+    "inventoryRoots": {
+      "roots": "Next.js entry points: app|pages route/page/layout/loading/error/not-found/template/default/route files, middleware.ts, next.config.*",
+      "importResolution": "static regex over import/export-from, dynamic import(), require(), bare side-effect import; @/* -> repo root, relative resolved; extensionless + /index resolution",
+      "liveness": "BFS over the resolved import graph from entry points; a file not reached is DEAD (nothing reachable can execute it)",
+      "caveat": "regex-based import extraction; dynamic string-concatenated specifiers are not resolvable and are reported separately as unresolved"
+    },
+    "zeroImporterCrossCheck": "an independent second pass extracted every quoted import specifier in the whole repo with `rg -o` (a different extraction path from the graph walk) and resolved only root-anchored spellings (@/lib/services/*, lib/services/*); all 22 originally claimed zero-importer modules were confirmed to have zero root-anchored specifier anywhere",
+    "referenceSweep": "an exhaustive `rg -F` sweep over EVERY file in the repository including docs, JSON manifests, SQL, checklists and logs, for both the filename and the module stem, so no string-path import, vi.mock, moduleNameMapper, or manifest reference was missed",
+    "diagnosticMeasurement": "scoped tsc (tsconfig.ds-scope.json generated per run, include = named roots only) with the repository's own compilerOptions; a full `npm run typecheck` is prohibited in this wave (CI 68m18s, 1,384 primary diagnostics, OOMs on an 8GB box) and was NOT run",
+    "diagnosticCountCaveat": "the database lane's tscDiagnosticHits is per-object and overlapping by construction; it is never summed into a diagnostic total here. Every diagnostic number in this file is a real tsc primary-diagnostic line counted from a scoped run."
+  },
+  "ciBaseline": {
+    "source": "docs/engineering/database-type-inventory-2026-09-25.json (preserved GitHub Actions Lint And Build log at d2176904)",
+    "tscPrimaryDiagnosticsTotal": 1384,
+    "tscDistinctFiles": 197,
+    "libraryClusterObjects": 48,
+    "libraryClusterDiagnosticHits": 712,
+    "sharedUiClusterObjects": 13,
+    "sharedUiClusterDiagnosticHits": 341,
+    "note": "the brief cited the library cluster as '60 objects, 28 live'; the artifact of record says 48 objects, 16 with a live consumer. The artifact of record is used throughout."
+  },
+  "totals": {
+    "serviceModulesTrackedAtStart": 92,
+    "serviceLinesTrackedAtStart": 41770,
+    "serviceModulesRemaining": 77,
+    "serviceLinesRemaining": 36220,
+    "zeroImporterAtStart": 22,
+    "onlyDeadImportersAtStart": 12,
+    "withLiveImportersAtStart": 58,
+    "withLiveImportersAtEnd": 58,
+    "testRoots": 3,
+    "liveRetained": 58,
+    "held": 2,
+    "heldPendingOwner": 12,
+    "deferredToVenue": 2,
+    "deleted": 15,
+    "deletedLines": 5554,
+    "measuredPrimaryDiagnosticsRemovedByDeletion": 209,
+    "measuredPrimaryDiagnosticsRemovedByRepoint": 2,
+    "databaseObjectsWithNoRemainingLibServiceReference": 23,
+    "databaseObjectsStillReferencedInLibServices": 50
+  },
+  "repoints": [
+    {
+      "file": "lib/services/staff-onboarding.service.ts",
+      "object": "venue_profiles.name",
+      "from": "select('name, address') + venue.name (2 reads)",
+      "to": "select('venue_name, address') + venue.venue_name (2 reads)",
+      "authority": "database lane recorded canonicalReplacement 'venue_profiles.venue_name (the chain's display-name column; 9 diagnostics name `.name`)'. Independently verified: lib/database.types.ts venue_profiles.Row has venue_name and no name; supabase/migrations/20260721120000_venue_profiles_url_slug.sql:5 names venue_name as the correct column and `name` as wrong.",
+      "schemaChangeRequired": false,
+      "measuredBefore": 4,
+      "measuredAfter": 2
+    }
+  ],
+  "collisionNotes": [
+    "staff_applications / staff_jobs / user_skills / artist_merchandise appear in more than one cluster. This lane's deletions removed lib/services/**'s own references to staff_applications and staff_jobs; user_skills (achievement.service.ts) and artist_merchandise (artist-business.service.ts, artist-content.service.ts) are in LIVE modules with NO recorded canonical destination, so they are handed off, not unilaterally repointed.",
+    "no object with a recorded canonical replacement was left unrepointed in a surviving lib/services file: all 11 such objects resolved either to a deleted dead consumer or to the one repoint above.",
+    "event_crew_assignments: the database lane recorded organization_people as canonical for the crew roster. This lane's consumer (staff-management.service.ts) was deleted as dead; the remaining live consumer app/artist/events/[id]/page.tsx belongs to the artist lane."
+  ],
+  "openDatabaseObjectsInLibServices": [
+    "access_audit_log",
+    "admin_onboarding",
+    "admin_onboarding_steps",
+    "admin_roles",
+    "analytics_snapshots",
+    "artist_fan_interactions",
+    "artist_merchandise",
+    "artist_photos",
+    "artist_videos",
+    "artist_works",
+    "calculate_verification_score",
+    "channel_participants",
+    "collaborations",
+    "complete_onboarding_step",
+    "connections",
+    "content",
+    "create_cross_platform_post",
+    "create_post_template",
+    "create_post_with_context",
+    "discover_accounts",
+    "get_account_display_info",
+    "get_account_feed",
+    "get_artist_content_stats",
+    "get_cross_platform_analytics",
+    "get_verification_status",
+    "hashtag_groups",
+    "hiring_candidates",
+    "increment",
+    "job_board_postings",
+    "organization_job_postings",
+    "pending_password_resets",
+    "post_templates",
+    "posting_analytics",
+    "skill_categories",
+    "start_admin_onboarding",
+    "submit_verification_request",
+    "ticket_notifications",
+    "tracks",
+    "update_account_stats",
+    "upsert_account",
+    "user_mfa_backup_codes",
+    "user_mfa_methods",
+    "user_mfa_setup_temp",
+    "user_skills",
+    "venue_profiles.name",
+    "verification_badges",
+    "verification_criteria",
+    "verification_documents",
+    "verification_history",
+    "verification_requests"
+  ],
+  "modules": [
+    {
+      "file": "lib/services/__tests__/hiring-eligibility.service.test.ts",
+      "lines": 270,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "test-root",
+      "dispositionReason": "vitest test file; vitest loads test files as roots, so a zero-importer graph edge is the normal state, not a deletion signal. Retained."
+    },
+    {
+      "file": "lib/services/account-management.service.ts",
+      "lines": 1175,
+      "importers": [
+        "__tests__/notifications/account-options.test.ts",
+        "__tests__/organization/band-created-account-routing.test.ts",
+        "__tests__/services/account-management.test.ts",
+        "app/api/accounts/route.ts",
+        "app/api/dashboard/metrics/route.ts",
+        "components/account/account-route-guard.tsx",
+        "components/account/accounts-seed.tsx",
+        "components/messages/inbox-account-selector.tsx",
+        "components/settings/account-management-settings.tsx",
+        "hooks/use-multi-account.tsx",
+        "lib/accounts/resolve-organization-dashboard-account.ts",
+        "lib/accounts/server-load-accounts.ts",
+        "lib/hiring/resolve-admin-workforce-employer.ts",
+        "lib/notifications/account-options.ts",
+        "lib/services/dashboard.service.ts"
+      ],
+      "importerCount": 15,
+      "liveImporters": [
+        "app/api/accounts/route.ts",
+        "app/api/dashboard/metrics/route.ts",
+        "components/account/account-route-guard.tsx",
+        "components/account/accounts-seed.tsx",
+        "components/messages/inbox-account-selector.tsx",
+        "components/settings/account-management-settings.tsx",
+        "hooks/use-multi-account.tsx",
+        "lib/accounts/resolve-organization-dashboard-account.ts",
+        "lib/accounts/server-load-accounts.ts",
+        "lib/hiring/resolve-admin-workforce-employer.ts",
+        "lib/notifications/account-options.ts",
+        "lib/services/dashboard.service.ts"
+      ],
+      "liveImporterCount": 12,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "create_post_with_context",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 8,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": 2,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/achievement-engine.service.test.ts",
+      "lines": 36,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "test-root",
+      "dispositionReason": "vitest test file; vitest loads test files as roots, so a zero-importer graph edge is the normal state, not a deletion signal. Retained."
+    },
+    {
+      "file": "lib/services/achievement-engine.service.ts",
+      "lines": 365,
+      "importers": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/booking-requests/[id]/decision/route.ts",
+        "app/api/booking-requests/route.ts",
+        "app/api/music/play/route.ts",
+        "app/api/posts/[id]/comments/route.ts",
+        "app/api/posts/[id]/likes/route.ts",
+        "app/api/posts/create/route.ts",
+        "app/api/social/follow/route.ts",
+        "app/api/tours/[id]/events/[eventId]/route.ts",
+        "lib/services/achievement-engine.service.test.ts",
+        "lib/services/achievement-metric-events.service.ts",
+        "lib/services/achievement.service.ts"
+      ],
+      "importerCount": 12,
+      "liveImporters": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/booking-requests/[id]/decision/route.ts",
+        "app/api/booking-requests/route.ts",
+        "app/api/music/play/route.ts",
+        "app/api/posts/[id]/comments/route.ts",
+        "app/api/posts/[id]/likes/route.ts",
+        "app/api/posts/create/route.ts",
+        "app/api/social/follow/route.ts",
+        "app/api/tours/[id]/events/[eventId]/route.ts",
+        "lib/services/achievement-metric-events.service.ts",
+        "lib/services/achievement.service.ts"
+      ],
+      "liveImporterCount": 11,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/achievement-metric-events.service.ts",
+      "lines": 34,
+      "importers": [
+        "app/api/admin/applications/route.ts",
+        "app/api/job-applications/route.ts",
+        "app/api/settings/certifications/upload/route.ts",
+        "app/api/workflows/threads/[id]/messages/route.ts",
+        "app/api/workflows/threads/[id]/tasks/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "importerCount": 6,
+      "liveImporters": [
+        "app/api/admin/applications/route.ts",
+        "app/api/job-applications/route.ts",
+        "app/api/settings/certifications/upload/route.ts",
+        "app/api/workflows/threads/[id]/messages/route.ts",
+        "app/api/workflows/threads/[id]/tasks/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "liveImporterCount": 6,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/achievement-trigger.service.ts",
+      "lines": 382,
+      "importers": [
+        "components/onboarding-complete.tsx",
+        "hooks/use-achievement-triggers.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "components/onboarding-complete.tsx",
+          "owner": "unassigned (generic components/)"
+        },
+        {
+          "file": "hooks/use-achievement-triggers.ts",
+          "owner": "unassigned (generic hooks/)"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/achievement.service.ts",
+      "lines": 672,
+      "importers": [
+        "app/api/achievements/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "lib/services/achievement-trigger.service.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "app/api/achievements/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts"
+      ],
+      "liveImporterCount": 3,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "user_skills",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 41,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "collaborations",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 8,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "tracks",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 6,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "skill_categories",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "hiring_candidates",
+          "classification": "schema-missing",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/admin-onboarding-staff.service.ts",
+      "lines": 2235,
+      "importers": [
+        "__tests__/services/admin-onboarding-staff.test.ts",
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/job-postings/[id]/route.ts",
+        "app/api/admin/job-postings/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/credentials/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/route.ts",
+        "app/api/admin/onboarding/dashboard/route.ts",
+        "app/api/admin/onboarding/enhanced-invite/route.ts",
+        "app/api/admin/onboarding/invite-new-user/route.ts",
+        "app/api/admin/onboarding/review/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/update-status/route.ts",
+        "app/api/admin/onboarding/workflows/analytics/route.ts",
+        "app/api/admin/onboarding/workflows/route.ts",
+        "app/api/admin/staff/dashboard/route.ts",
+        "app/api/venue/onboarding/summary/route.ts",
+        "components/onboarding/onboarding-wizard.tsx"
+      ],
+      "importerCount": 18,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/job-postings/[id]/route.ts",
+        "app/api/admin/job-postings/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/credentials/route.ts",
+        "app/api/admin/onboarding/candidates/[id]/route.ts",
+        "app/api/admin/onboarding/dashboard/route.ts",
+        "app/api/admin/onboarding/enhanced-invite/route.ts",
+        "app/api/admin/onboarding/invite-new-user/route.ts",
+        "app/api/admin/onboarding/review/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/update-status/route.ts",
+        "app/api/admin/onboarding/workflows/analytics/route.ts",
+        "app/api/admin/onboarding/workflows/route.ts",
+        "app/api/admin/staff/dashboard/route.ts",
+        "app/api/venue/onboarding/summary/route.ts"
+      ],
+      "liveImporterCount": 16,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "job_board_postings",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 29,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "organization_job_postings",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 22,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "admin_roles",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 7,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/admin-onboarding.service.ts",
+      "lines": 270,
+      "importers": [
+        "components/admin/onboarding/onboarding-wizard.tsx",
+        "components/admin/onboarding/steps/role-selection-step.tsx"
+      ],
+      "importerCount": 2,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "admin_onboarding",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 28,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "analytics_snapshots",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 9,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "admin_roles",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 7,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "admin_onboarding_steps",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 6,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "complete_onboarding_step",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "start_admin_onboarding",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 2,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "components/admin/onboarding/onboarding-wizard.tsx",
+          "owner": "admin"
+        },
+        {
+          "file": "components/admin/onboarding/steps/role-selection-step.tsx",
+          "owner": "admin"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/admin-workforce-people.service.ts",
+      "lines": 301,
+      "importers": [
+        "__tests__/hiring/approve-roster-and-workforce.test.ts",
+        "app/api/admin/staff-operations/channels/[id]/route.ts",
+        "app/api/admin/staff-operations/channels/route.ts",
+        "app/api/admin/team-members/route.ts",
+        "app/api/admin/workforce/people/route.ts",
+        "app/api/events/[id]/staff/route.ts"
+      ],
+      "importerCount": 6,
+      "liveImporters": [
+        "app/api/admin/staff-operations/channels/[id]/route.ts",
+        "app/api/admin/staff-operations/channels/route.ts",
+        "app/api/admin/team-members/route.ts",
+        "app/api/admin/workforce/people/route.ts",
+        "app/api/events/[id]/staff/route.ts"
+      ],
+      "liveImporterCount": 5,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/advanced-analytics.service.ts",
+      "lines": 693,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "engagement_analytics",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 12,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "competitor_analysis",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 10,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "analytics_snapshots",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 9,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "growth_trends",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 9,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "analytics_reports",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 7,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "audience_analytics",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 6,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "content_performance",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 6,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "create_daily_analytics_snapshot",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "get_account_analytics",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "generate_weekly_analytics_report",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 2,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 30,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; carried 10 archived-only analytics relations/routines (engagement_analytics, competitor_analysis, analytics_snapshots, growth_trends, analytics_reports, audience_analytics, content_performance, create_daily_analytics_snapshot, get_account_analytics, generate_weekly_analytics_report) - the analytics_snapshots/growth_trends/engagement_analytics/content_performance cluster recorded no canonical destination"
+    },
+    {
+      "file": "lib/services/agreement.service.ts",
+      "lines": 42,
+      "importers": [
+        "app/api/agreements/accept/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/agreements/accept/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/applicant-profile-snapshot.service.ts",
+      "lines": 177,
+      "importers": [
+        "__tests__/hiring/profile-snapshot.test.ts",
+        "app/api/hiring/apply/profile-preview/route.ts",
+        "app/api/job-applications/route.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "app/api/hiring/apply/profile-preview/route.ts",
+        "app/api/job-applications/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist-business.service.ts",
+      "lines": 244,
+      "importers": [
+        "app/api/artist/business/overview/route.ts",
+        "app/artist/business/_page-client.tsx",
+        "app/artist/business/page.tsx"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "app/api/artist/business/overview/route.ts",
+        "app/artist/business/_page-client.tsx",
+        "app/artist/business/page.tsx"
+      ],
+      "liveImporterCount": 3,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "artist_merchandise",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 40,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "artist_works",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 12,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist-collaboration.service.ts",
+      "lines": 165,
+      "importers": [
+        "app/artist/business/collaboration/page.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/artist/business/collaboration/page.tsx"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist-content.service.ts",
+      "lines": 498,
+      "importers": [
+        "components/dashboard/artist-page-client.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "components/dashboard/artist-page-client.tsx"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "artist_merchandise",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 40,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "artist_photos",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 28,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "artist_videos",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 26,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "artist_fan_interactions",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "get_artist_content_stats",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 2,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist-dashboard-layout.service.ts",
+      "lines": 62,
+      "importers": [
+        "components/dashboard/artist-dashboard-bottom-sections.tsx",
+        "components/dashboard/sortable-widget-section.tsx"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "components/dashboard/artist-dashboard-bottom-sections.tsx",
+        "components/dashboard/sortable-widget-section.tsx"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist-jobs.server.ts",
+      "lines": 41,
+      "importers": [
+        "app/api/artist-jobs/[id]/applications/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/artist-jobs/[id]/applications/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist-jobs.service.ts",
+      "lines": 952,
+      "importers": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/artist-jobs/[id]/route.ts",
+        "app/artist/collaborations/page.tsx",
+        "components/collaborations/collaboration-detail.tsx",
+        "components/collaborations/collaboration-feed.tsx",
+        "components/collaborations/collaboration-post-form.tsx"
+      ],
+      "importerCount": 6,
+      "liveImporters": [
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/artist-jobs/[id]/route.ts",
+        "app/artist/collaborations/page.tsx",
+        "components/collaborations/collaboration-detail.tsx",
+        "components/collaborations/collaboration-feed.tsx",
+        "components/collaborations/collaboration-post-form.tsx"
+      ],
+      "liveImporterCount": 6,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/artist.service.ts",
+      "lines": 394,
+      "importers": [
+        "app/artist/events/page-optimized.tsx",
+        "app/venue/components/events/create-event-modal.tsx",
+        "hooks/use-artist-events.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "app/venue/components/events/create-event-modal.tsx"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "content",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 10,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "connections",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "create_cross_platform_post",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": 8,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/auth.service.ts",
+      "lines": 416,
+      "importers": [
+        "components/auth/enhanced-signup-form.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "components/auth/enhanced-signup-form.tsx",
+          "owner": "auth-identity"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/candidate-invite-email.service.ts",
+      "lines": 93,
+      "importers": [
+        "app/api/admin/onboarding/invite-new-user/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/admin/onboarding/invite-new-user/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/capabilities.ts",
+      "lines": 35,
+      "importers": [
+        "app/api/admin/capabilities/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/admin/capabilities/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/contract-email.service.ts",
+      "lines": 279,
+      "importers": [
+        "app/api/cron/contract-sign-reminders/route.ts",
+        "app/lib/actions/contract-workflow.actions.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/cron/contract-sign-reminders/route.ts",
+        "app/lib/actions/contract-workflow.actions.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/cross-platform-posting.service.ts",
+      "lines": 849,
+      "importers": [
+        "__tests__/content/post-templates-hashtags.test.ts",
+        "components/cross-platform/cross-platform-composer.tsx",
+        "components/cross-platform/scheduled-posts-panel.tsx",
+        "hooks/use-cross-platform-posting.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "components/cross-platform/cross-platform-composer.tsx",
+        "components/cross-platform/scheduled-posts-panel.tsx",
+        "hooks/use-cross-platform-posting.ts"
+      ],
+      "liveImporterCount": 3,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "post_templates",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 45,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "hashtag_groups",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 15,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "posting_analytics",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 7,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "create_post_template",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 5,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "create_cross_platform_post",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "get_cross_platform_analytics",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/dashboard.service.ts",
+      "lines": 281,
+      "importers": [
+        "app/api/dashboard/metrics/route.ts",
+        "app/dashboard/optimized-dashboard.tsx",
+        "components/dashboard/unified-activity-feed.tsx"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "app/api/dashboard/metrics/route.ts",
+        "components/dashboard/unified-activity-feed.tsx"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/data-isolation.service.ts",
+      "lines": 529,
+      "importers": [
+        "hooks/use-data-isolation.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "access_audit_log",
+          "classification": "unknown",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": "no canonical destination recorded in the repository",
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "hooks/use-data-isolation.tsx",
+          "owner": "unassigned (generic hooks/)"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/email-delivery.service.ts",
+      "lines": 141,
+      "importers": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/email/send-promotional-email.ts",
+        "lib/ticketing/guest-list.server.ts"
+      ],
+      "importerCount": 5,
+      "liveImporters": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/ticketing/guest-list.server.ts"
+      ],
+      "liveImporterCount": 4,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/enhanced-account.service.ts",
+      "lines": 429,
+      "importers": [
+        "components/enhanced-account-demo.tsx",
+        "hooks/use-enhanced-accounts.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "get_account_feed",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 5,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "discover_accounts",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "get_account_display_info",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "update_account_stats",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "upsert_account",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 2,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "components/enhanced-account-demo.tsx",
+          "owner": "accounts"
+        },
+        {
+          "file": "hooks/use-enhanced-accounts.ts",
+          "owner": "accounts"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/enhanced-onboarding-templates.service.ts",
+      "lines": 737,
+      "importers": [
+        "app/api/admin/onboarding/initialize-templates/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/route.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "app/api/admin/onboarding/initialize-templates/route.ts",
+        "app/api/admin/onboarding/route.ts",
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/enhanced-onboarding.service.ts",
+      "lines": 591,
+      "importers": [
+        "__tests__/onboarding/onboarding-submit-contract.test.ts",
+        "app/api/onboarding/submit/route.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/onboarding/submit/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/enhanced-staff-analytics.service.ts",
+      "lines": 302,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 5,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; no database object named by the type inventory"
+    },
+    {
+      "file": "lib/services/epk.service.test.ts",
+      "lines": 180,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "test-root",
+      "dispositionReason": "vitest test file; vitest loads test files as roots, so a zero-importer graph edge is the normal state, not a deletion signal. Retained."
+    },
+    {
+      "file": "lib/services/epk.service.ts",
+      "lines": 1255,
+      "importers": [
+        "app/api/artist/epk/route.ts",
+        "app/artist/epk/page.tsx",
+        "app/epk/[slug]/page.tsx",
+        "components/epk/epk-builder-toolbar.tsx",
+        "components/epk/epk-builder-view.tsx",
+        "components/epk/epk-editor-tabs.tsx",
+        "components/epk/epk-hidden-sections-panel.tsx",
+        "components/epk/epk-preview.tsx",
+        "components/epk/epk-public-actions.tsx",
+        "components/epk/epk-template-selector.tsx",
+        "components/epk/epk-template-variants.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "hooks/use-epk-sync.ts",
+        "lib/epk/epk-preview-utils.ts",
+        "lib/public-artist/get-public-artist-profile.ts",
+        "lib/public-artist/public-artist-types.ts",
+        "lib/services/epk.service.test.ts",
+        "lib/services/venue-kit.service.ts"
+      ],
+      "importerCount": 18,
+      "liveImporters": [
+        "app/api/artist/epk/route.ts",
+        "app/artist/epk/page.tsx",
+        "app/epk/[slug]/page.tsx",
+        "components/epk/epk-builder-toolbar.tsx",
+        "components/epk/epk-builder-view.tsx",
+        "components/epk/epk-editor-tabs.tsx",
+        "components/epk/epk-hidden-sections-panel.tsx",
+        "components/epk/epk-preview.tsx",
+        "components/epk/epk-public-actions.tsx",
+        "components/epk/epk-template-variants.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "hooks/use-epk-sync.ts",
+        "lib/epk/epk-preview-utils.ts",
+        "lib/public-artist/get-public-artist-profile.ts",
+        "lib/public-artist/public-artist-types.ts",
+        "lib/services/venue-kit.service.ts"
+      ],
+      "liveImporterCount": 16,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "artist_photos",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 28,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/equipment-assets.service.ts",
+      "lines": 54,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 2,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; no database object named by the type inventory"
+    },
+    {
+      "file": "lib/services/event-page.service.ts",
+      "lines": 414,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; the only remaining reference outside docs was the venue-lane SEC-109 legacy inventory entry (now stale, handed off)"
+    },
+    {
+      "file": "lib/services/event-participants.service.ts",
+      "lines": 62,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "job_board_postings",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 29,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 2,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; its only named drift object (job_board_postings) is code-drift whose remaining consumers are live elsewhere"
+    },
+    {
+      "file": "lib/services/feed.service.ts",
+      "lines": 505,
+      "importers": [
+        "components/feed/for-you-page.tsx",
+        "components/feed/post-card.tsx",
+        "contexts/social-context.tsx",
+        "hooks/use-feed.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "contexts/social-context.tsx"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/friend-suggestions.ts",
+      "lines": 534,
+      "importers": [
+        "app/api/social/suggestions/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/social/suggestions/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-application-approval.service.ts",
+      "lines": 427,
+      "importers": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/route.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-candidate-assignment.service.ts",
+      "lines": 162,
+      "importers": [
+        "app/api/hiring/candidates/[id]/assignment/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/hiring/candidates/[id]/assignment/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-candidate-workflow.service.ts",
+      "lines": 480,
+      "importers": [
+        "__tests__/hiring/candidate-list-normalization.test.ts",
+        "app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/documents/[documentId]/review/route.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/candidates/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-9/app/api/admin/onboarding/documents/[documentId]/review/route.ts"
+      ],
+      "liveImporterCount": 3,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-compliance.service.ts",
+      "lines": 293,
+      "importers": [
+        "__tests__/hiring/id-document-compliance.test.ts",
+        "app/api/hiring/onboarding/compliance/[candidateId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/compliance/[candidateId]/route.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "app/api/hiring/onboarding/compliance/[candidateId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/compliance/[candidateId]/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-eligibility.service.ts",
+      "lines": 306,
+      "importers": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/employer/vetting/[applicationId]/route.ts",
+        "app/lib/actions/staff.actions.ts",
+        "lib/services/__tests__/hiring-eligibility.service.test.ts",
+        "lib/services/admin-onboarding-staff.service.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "importerCount": 7,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/employer/vetting/[applicationId]/route.ts",
+        "lib/services/admin-onboarding-staff.service.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "liveImporterCount": 5,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-onboarding-templates.service.ts",
+      "lines": 303,
+      "importers": [
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/clone/route.ts",
+        "app/api/admin/onboarding/templates/role-packs/route.ts",
+        "app/api/admin/onboarding/templates/route.ts",
+        "app/api/hiring/job-postings/options/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "importerCount": 6,
+      "liveImporters": [
+        "app/api/admin/onboarding/templates/[id]/route.ts",
+        "app/api/admin/onboarding/templates/clone/route.ts",
+        "app/api/admin/onboarding/templates/role-packs/route.ts",
+        "app/api/admin/onboarding/templates/route.ts",
+        "app/api/hiring/job-postings/options/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "liveImporterCount": 6,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-onboarding-upload.service.ts",
+      "lines": 441,
+      "importers": [
+        "__tests__/hiring/onboarding-upload-token.test.ts",
+        "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "app/api/hiring/onboarding/upload/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/upload/route.ts"
+      ],
+      "importerCount": 5,
+      "liveImporters": [
+        "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "app/api/hiring/onboarding/upload/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-11/app/api/hiring/onboarding/upload/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-onboarding.service.ts",
+      "lines": 3449,
+      "importers": [
+        "__tests__/hiring/hiring-onboarding-assignment.test.ts",
+        "__tests__/hiring/onboarding-approve-roster.test.ts",
+        "app/actions/hiring/create-job-posting.ts",
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/[id]/star/route.ts",
+        "app/api/hiring/applications/route.ts",
+        "app/api/hiring/candidates/[id]/approve/route.ts",
+        "app/api/hiring/candidates/[id]/onboarding/route.ts",
+        "app/api/hiring/dashboard/route.ts",
+        "app/api/hiring/invite/route.ts",
+        "app/api/hiring/job-postings/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/[id]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/dashboard/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/invite/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/job-postings/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-7/app/actions/hiring/create-job-posting.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "scripts/hiring/staging-e2e-validation.ts"
+      ],
+      "importerCount": 21,
+      "liveImporters": [
+        "app/api/hiring/applications/[id]/route.ts",
+        "app/api/hiring/applications/[id]/star/route.ts",
+        "app/api/hiring/applications/route.ts",
+        "app/api/hiring/candidates/[id]/approve/route.ts",
+        "app/api/hiring/candidates/[id]/onboarding/route.ts",
+        "app/api/hiring/dashboard/route.ts",
+        "app/api/hiring/invite/route.ts",
+        "app/api/hiring/job-postings/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/[id]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/applications/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/dashboard/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/invite/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/job-postings/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-4/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-application-approval.service.ts"
+      ],
+      "liveImporterCount": 16,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/hiring-roster.service.ts",
+      "lines": 1240,
+      "importers": [
+        "__tests__/hiring/approve-roster-and-workforce.test.ts",
+        "__tests__/hiring/completed-onboarding-shift-sync.test.ts",
+        "__tests__/hiring/hiring-roster.service.test.ts",
+        "app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "app/api/hiring/roster/[memberId]/route.ts",
+        "app/api/hiring/roster/export/route.ts",
+        "app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/export/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "importerCount": 12,
+      "liveImporters": [
+        "app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "app/api/hiring/roster/[memberId]/route.ts",
+        "app/api/hiring/roster/export/route.ts",
+        "app/api/hiring/roster/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/assignment/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/[memberId]/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/export/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-10/app/api/hiring/roster/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "liveImporterCount": 9,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/job-board.service.ts",
+      "lines": 459,
+      "importers": [
+        "app/api/job-board/route.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "app/api/job-board/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "job_board_postings",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 29,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "organization_job_postings",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 22,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "increment",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 7,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/jukebox.service.ts",
+      "lines": 504,
+      "importers": [
+        "components/dashboard/jukebox-player.tsx",
+        "components/feed/feed-music-player.tsx",
+        "components/jukebox/full-player-view.tsx",
+        "components/jukebox/player-actions.tsx",
+        "components/jukebox/track-card.tsx",
+        "components/jukebox/track-cover-image.tsx",
+        "components/music/music-player.tsx",
+        "components/music/page/music-discover-section.tsx",
+        "components/music/page/music-home.tsx",
+        "components/music/page/music-library-section.tsx",
+        "components/music/page/music-page-client.tsx",
+        "components/music/page/music-playlists-section.tsx",
+        "components/music/page/music-search-results.tsx",
+        "components/profile/profile-jukebox-widget.tsx"
+      ],
+      "importerCount": 14,
+      "liveImporters": [
+        "components/dashboard/jukebox-player.tsx",
+        "components/feed/feed-music-player.tsx",
+        "components/jukebox/full-player-view.tsx",
+        "components/jukebox/player-actions.tsx",
+        "components/jukebox/track-card.tsx",
+        "components/jukebox/track-cover-image.tsx",
+        "components/music/music-player.tsx",
+        "components/music/page/music-discover-section.tsx",
+        "components/music/page/music-home.tsx",
+        "components/music/page/music-library-section.tsx",
+        "components/music/page/music-page-client.tsx",
+        "components/music/page/music-playlists-section.tsx",
+        "components/music/page/music-search-results.tsx"
+      ],
+      "liveImporterCount": 13,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/locations.service.ts",
+      "lines": 95,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 3,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; no database object named by the type inventory"
+    },
+    {
+      "file": "lib/services/mfa-verification-code-store.server.ts",
+      "lines": 171,
+      "importers": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "lib/services/mfa.service.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "user_mfa_methods",
+          "classification": "unknown",
+          "tscDiagnosticHits": 32,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 1,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "__tests__/integrations/mfa.service.test.ts",
+          "owner": "integrations"
+        },
+        {
+          "file": "lib/services/mfa.service.ts",
+          "owner": "unknown"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/mfa-verification-code-store.ts",
+      "lines": 213,
+      "importers": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "lib/services/mfa-verification-code-store.server.ts",
+        "lib/services/mfa.service.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "__tests__/integrations/mfa.service.test.ts",
+          "owner": "integrations"
+        },
+        {
+          "file": "lib/services/mfa-verification-code-store.server.ts",
+          "owner": "unknown"
+        },
+        {
+          "file": "lib/services/mfa.service.ts",
+          "owner": "unknown"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/mfa.service.ts",
+      "lines": 639,
+      "importers": [
+        "__tests__/integrations/mfa.service.test.ts",
+        "hooks/use-mfa.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "user_mfa_methods",
+          "classification": "unknown",
+          "tscDiagnosticHits": 32,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "user_mfa_setup_temp",
+          "classification": "unknown",
+          "tscDiagnosticHits": 31,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "user_mfa_backup_codes",
+          "classification": "unknown",
+          "tscDiagnosticHits": 13,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 40,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "__tests__/integrations/mfa.service.test.ts",
+          "owner": "integrations"
+        },
+        {
+          "file": "hooks/use-mfa.ts",
+          "owner": "integrations"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/notification-channels.ts",
+      "lines": 119,
+      "importers": [
+        "__tests__/admin/publication-channel-adapters.test.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/admin/publication-channel-adapters.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/services/notification-delivery.ts"
+      ],
+      "importerCount": 7,
+      "liveImporters": [
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/services/notification-delivery.ts"
+      ],
+      "liveImporterCount": 5,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/notification-delivery.ts",
+      "lines": 184,
+      "importers": [
+        "app/api/webhooks/supabase/notifications/route.ts",
+        "lib/services/optimized-notification-service.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/webhooks/supabase/notifications/route.ts",
+        "lib/services/optimized-notification-service.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/notification-service.ts",
+      "lines": 6,
+      "importers": [
+        "app/api/notifications/route.ts",
+        "app/api/notifications/test/route.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/notifications/route.ts",
+        "app/api/notifications/test/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/onboarding-template-resolver.service.ts",
+      "lines": 282,
+      "importers": [
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/lib/services/token-onboarding-payload.service.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/onboarding-templates.service.ts",
+      "lines": 808,
+      "importers": [
+        "components/admin/enhanced-onboarding-system.tsx",
+        "components/admin/onboarding-form-fields.tsx"
+      ],
+      "importerCount": 2,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "components/admin/enhanced-onboarding-system.tsx",
+          "owner": "admin"
+        },
+        {
+          "file": "components/admin/onboarding-form-fields.tsx",
+          "owner": "admin"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/onboarding-workflow.service.ts",
+      "lines": 471,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "onboarding_workflows.candidate_id",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 8,
+          "recordedCanonicalReplacement": "the chain's onboarding link is onboarding_workflows -> staff_onboarding_candidates",
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 14,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; carried onboarding_workflows.candidate_id, for which the database lane recorded the canonical link (onboarding_workflows -> staff_onboarding_candidates) - dead consumer, so deletion rather than repoint"
+    },
+    {
+      "file": "lib/services/optimized-notification-service.ts",
+      "lines": 917,
+      "importers": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/share/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/tasks/route.ts",
+        "app/api/admin/messages/broadcast/route.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "app/api/notifications/analytics/route.ts",
+        "app/api/notifications/preferences/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/skills/endorse/route.ts",
+        "app/api/social/follow/route.ts",
+        "lib/feed/post-collaborators.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/notifications/venue-fanout.ts",
+        "lib/rebuild/hiring-automation.ts",
+        "lib/rebuild/hiring-onboarding-changes-notify.ts",
+        "lib/rebuild/hiring-onboarding-notify.ts",
+        "lib/rebuild/hiring-roster-notify.ts",
+        "lib/rebuild/shift-assignment-notify.ts",
+        "lib/rebuild/workforce-activity-notify.ts",
+        "lib/services/achievement-engine.service.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "lib/services/notification-service.ts",
+        "lib/ticketing/notifications.ts"
+      ],
+      "importerCount": 27,
+      "liveImporters": [
+        "app/api/admin/applications/[id]/route.ts",
+        "app/api/admin/applications/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/share/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/tasks/route.ts",
+        "app/api/admin/messages/broadcast/route.ts",
+        "app/api/admin/tours/[id]/collaboration-invites/route.ts",
+        "app/api/artist-jobs/[id]/applications/route.ts",
+        "app/api/badges/route.ts",
+        "app/api/endorsements/route.ts",
+        "app/api/notifications/analytics/route.ts",
+        "app/api/notifications/preferences/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/skills/endorse/route.ts",
+        "app/api/social/follow/route.ts",
+        "lib/feed/post-collaborators.ts",
+        "lib/logistics/travel-change-notify.ts",
+        "lib/notifications/venue-fanout.ts",
+        "lib/rebuild/hiring-automation.ts",
+        "lib/rebuild/hiring-onboarding-changes-notify.ts",
+        "lib/rebuild/hiring-onboarding-notify.ts",
+        "lib/rebuild/hiring-roster-notify.ts",
+        "lib/rebuild/shift-assignment-notify.ts",
+        "lib/rebuild/workforce-activity-notify.ts",
+        "lib/services/achievement-engine.service.ts",
+        "lib/services/hiring-application-approval.service.ts",
+        "lib/services/notification-service.ts",
+        "lib/ticketing/notifications.ts"
+      ],
+      "liveImporterCount": 27,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "pending_password_resets",
+          "classification": "schema-missing",
+          "tscDiagnosticHits": 14,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/organization-social-integrations.service.ts",
+      "lines": 69,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held",
+      "reason": "zero importers, but __tests__/admin/content-hub.test.ts:216 reads this file's source text and asserts the token-envelope select contract (no plaintext access_token/refresh_token columns, disconnect nulls envelopes only). Deleting it would fail a test in the admin lane's path. Zero database diagnostics.",
+      "handoff": "admin - owns both the test and the content-hub integrations sync route this file mirrors; decide adopt-vs-delete"
+    },
+    {
+      "file": "lib/services/password-management.service.ts",
+      "lines": 663,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "channel_participants",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "pending_password_resets",
+          "classification": "schema-missing",
+          "tscDiagnosticHits": 14,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "password_reset_requests",
+          "classification": "unknown",
+          "tscDiagnosticHits": 35,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "password_change_log",
+          "classification": "unknown",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 31,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; carried password_reset_requests, pending_password_resets, password_change_log, channel_participants. pending_password_resets was schema-missing with the inventory naming optimized-notification-service.ts as a live consumer; verified at HEAD that optimized-notification-service.ts contains no such reference, so this file was its only on-disk consumer"
+    },
+    {
+      "file": "lib/services/project-workspace.service.ts",
+      "lines": 836,
+      "importers": [
+        "components/collaboration/project-workspace-dashboard.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "components/collaboration/project-workspace-dashboard.tsx"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "channel_participants",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/rbac.service.ts",
+      "lines": 628,
+      "importers": [
+        "hooks/use-rbac.ts",
+        "lib/services/data-isolation.service.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "hooks/use-rbac.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/rbac.ts",
+      "lines": 41,
+      "importers": [
+        "app/actions/staffing/create-job-posting.ts",
+        "app/api/admin/events/[id]/participants/route.ts",
+        "app/api/admin/logistics/items/route.ts",
+        "app/api/admin/staffing/performance/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/admin/staffing/shifts/route.ts",
+        "app/api/admin/staffing/zones/route.ts",
+        "app/api/events/[id]/job-postings/route.ts",
+        "lib/auth/hiring-permissions.ts",
+        "lib/services/capabilities.ts"
+      ],
+      "importerCount": 11,
+      "liveImporters": [
+        "app/actions/staffing/create-job-posting.ts",
+        "app/api/admin/events/[id]/participants/route.ts",
+        "app/api/admin/logistics/items/route.ts",
+        "app/api/admin/staffing/performance/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/admin/staffing/shifts/route.ts",
+        "app/api/admin/staffing/zones/route.ts",
+        "app/api/events/[id]/job-postings/route.ts",
+        "lib/auth/hiring-permissions.ts",
+        "lib/services/capabilities.ts"
+      ],
+      "liveImporterCount": 11,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/real-time-staff.service.ts",
+      "lines": 393,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 6,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; no database object named by the type inventory"
+    },
+    {
+      "file": "lib/services/resume-achievement.service.ts",
+      "lines": 156,
+      "importers": [
+        "app/api/achievements/resume/export/route.ts",
+        "app/api/achievements/resume/route.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/achievements/resume/export/route.ts",
+        "app/api/achievements/resume/route.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/rss-feed.service.ts",
+      "lines": 205,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; the discover lane's own records (DISC-002, HF-DISC-002-RSS-SANITIZE-ORDERING) and security/security-scan-exceptions.json still name it - handed off, not expanded into"
+    },
+    {
+      "file": "lib/services/security-compliance.service.ts",
+      "lines": 489,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "staff_certifications",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 8,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "staff_training_records",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "audit_logs",
+          "classification": "unknown",
+          "tscDiagnosticHits": 8,
+          "recordedCanonicalReplacement": "no canonical destination recorded; admin audit evidence is a separate surface",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "user_roles",
+          "classification": "unknown",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": "no canonical destination recorded in the repository",
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 12,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; carried staff_certifications, staff_training_records, audit_logs, user_roles - no canonical destination recorded for any of the four"
+    },
+    {
+      "file": "lib/services/session-management.service.ts",
+      "lines": 482,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "staff_jobs",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 48,
+          "recordedCanonicalReplacement": "job_board_postings / organization_job_postings (DB-005 ticketing + admin-onboarding staff surface)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "user_sessions.expires_at",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 8,
+          "recordedCanonicalReplacement": "user_sessions has no expires_at; session lifetime is auth-side",
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 10,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; carried staff_jobs (database lane recorded job_board_postings/organization_job_postings as canonical) and user_sessions.expires_at (auth-side) - both dead consumers"
+    },
+    {
+      "file": "lib/services/sms-delivery.service.ts",
+      "lines": 64,
+      "importers": [
+        "lib/services/mfa.service.ts"
+      ],
+      "importerCount": 1,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "lib/services/mfa.service.ts",
+          "owner": "unknown"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/social-integrations.service.ts",
+      "lines": 93,
+      "importers": [
+        "components/artist/content-social-links-panel.tsx",
+        "components/social/social-integrations-manager.tsx",
+        "hooks/use-social-integrations.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "components/artist/content-social-links-panel.tsx",
+        "components/social/social-integrations-manager.tsx",
+        "hooks/use-social-integrations.ts"
+      ],
+      "liveImporterCount": 3,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/social-interactions.service.ts",
+      "lines": 389,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held",
+      "reason": "zero importers, but __tests__/social/profile-follow-route.test.ts:151 reads this file's source text and asserts it contains '/api/social/follow' and 'followingId' and does not contain '\"/api/follow\"'. Deleting it would fail a test in the social lane's path. Zero database diagnostics.",
+      "handoff": "social (or qa) - delete the test or repoint it, then the module"
+    },
+    {
+      "file": "lib/services/staff-job-board.service.ts",
+      "lines": 606,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "staff_applications",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 68,
+          "recordedCanonicalReplacement": "no canonical destination recorded in the repository",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "staff_jobs",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 48,
+          "recordedCanonicalReplacement": "job_board_postings / organization_job_postings (DB-005 ticketing + admin-onboarding staff surface)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "get_staff_dashboard_stats",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 12,
+          "recordedCanonicalReplacement": "staff_members (20260823070000_staff_members_canonical_roster.sql; VEN-103 marks venue_team_members LEGACY)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "calculate_ai_match_score",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 42,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; the single largest drift file in the pile: staff_applications, staff_jobs, get_staff_dashboard_stats, calculate_ai_match_score"
+    },
+    {
+      "file": "lib/services/staff-management.service.ts",
+      "lines": 594,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [
+        {
+          "object": "staff_applications",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 68,
+          "recordedCanonicalReplacement": "no canonical destination recorded in the repository",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "venue_crew_members",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 54,
+          "recordedCanonicalReplacement": "organization_people (lib/admin/workforce-identity-map.ts canonicalDestination, duplicateRisk high)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "venue_team_contractors",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 38,
+          "recordedCanonicalReplacement": "organization_people (lib/admin/workforce-identity-map.ts canonicalDestination, duplicateRisk high)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "venue_profiles.name",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 18,
+          "recordedCanonicalReplacement": "venue_profiles.venue_name (the chain's display-name column; 9 diagnostics name `.name`)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "event_crew_assignments",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 17,
+          "recordedCanonicalReplacement": "organization_people (lib/admin/workforce-identity-map.ts) for the crew roster; event scope is owned by DB-009",
+          "inventoryConflictLiveConsumer": true
+        },
+        {
+          "object": "get_staff_dashboard_stats",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 12,
+          "recordedCanonicalReplacement": "staff_members (20260823070000_staff_members_canonical_roster.sql; VEN-103 marks venue_team_members LEGACY)",
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "hire_from_job_board",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 52,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; carried staff_applications, venue_crew_members, venue_team_contractors, event_crew_assignments, get_staff_dashboard_stats, hire_from_job_board, venue_profiles.name. The venue_crew_members / venue_team_contractors / get_staff_dashboard_stats canonical destinations (organization_people, staff_members) had a dead consumer here, so deletion rather than repoint"
+    },
+    {
+      "file": "lib/services/staff-onboarding-sensitive-vault.service.ts",
+      "lines": 108,
+      "importers": [
+        "app/api/hiring/onboarding/sensitive/[candidateId]/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/hiring/onboarding/sensitive/[candidateId]/route.ts",
+        "lib/services/hiring-onboarding.service.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/staff-onboarding.service.ts",
+      "lines": 399,
+      "importers": [
+        "app/venue/staff/components/onboarding-wizard.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "venue_profiles.name",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 18,
+          "recordedCanonicalReplacement": "venue_profiles.venue_name (the chain's display-name column; 9 diagnostics name `.name`)",
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": 4,
+        "postAction": 2,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "app/venue/staff/components/onboarding-wizard.tsx",
+          "owner": "venue"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/staff-shift-assignment-sync.ts",
+      "lines": 546,
+      "importers": [
+        "__tests__/hiring/staff-shift-assignment-sync.test.ts",
+        "app/api/admin/staff/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/venue/shifts/[id]/route.ts",
+        "app/api/venue/shifts/assignments/route.ts",
+        "app/api/work-mode/assignments/[id]/respond/route.ts",
+        "lib/admin/workforce-assignment.service.ts",
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/staffing-assignment.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "importerCount": 12,
+      "liveImporters": [
+        "app/api/admin/staff/route.ts",
+        "app/api/admin/staffing/shifts/[id]/route.ts",
+        "app/api/admin/staffing/shifts/publish/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/venue/shifts/[id]/route.ts",
+        "app/api/venue/shifts/assignments/route.ts",
+        "app/api/work-mode/assignments/[id]/respond/route.ts",
+        "lib/admin/workforce-assignment.service.ts",
+        "lib/services/hiring-roster.service.ts",
+        "lib/services/staffing-assignment.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "liveImporterCount": 11,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/staffing-assignment.service.ts",
+      "lines": 275,
+      "importers": [
+        "__tests__/hiring/event-tour-staffing-repair.test.ts",
+        "app/api/admin/tours/team-members/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/events/[id]/staff/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "importerCount": 9,
+      "liveImporters": [
+        "app/api/admin/tours/team-members/route.ts",
+        "app/api/events/[id]/staff/[shiftId]/route.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/events/[id]/staff/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/staffing-invitation.service.ts"
+      ],
+      "liveImporterCount": 8,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/staffing-invitation.service.ts",
+      "lines": 407,
+      "importers": [
+        "__tests__/hiring/event-tour-staffing-repair.test.ts",
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "app/api/events/[id]/staff/invites/route.ts",
+        "app/api/staffing/invitations/[token]/route.ts",
+        "app/api/tours/[id]/invites/route.ts"
+      ],
+      "liveImporterCount": 3,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/ticketing.service.ts",
+      "lines": 495,
+      "importers": [
+        "components/ticketing/ticket-purchase-form.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [
+        "components/ticketing/ticket-purchase-form.tsx"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "ticket_notifications",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 4,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/token-onboarding-payload.service.ts",
+      "lines": 278,
+      "importers": [
+        "app/api/onboarding/[token]/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/onboarding/validate-invitation/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/app/api/onboarding/[token]/route.ts"
+      ],
+      "importerCount": 4,
+      "liveImporters": [
+        "app/api/onboarding/[token]/route.ts",
+        "app/api/onboarding/_lib/token-submit.ts",
+        "app/api/onboarding/validate-invitation/route.ts",
+        "docs/implementation/onboarding-rebuild/tourify-phase-3/app/api/onboarding/[token]/route.ts"
+      ],
+      "liveImporterCount": 4,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/unified-documents.service.ts",
+      "lines": 31,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deleted",
+      "dispositionReason": "zero importers; 30-line wrapper, only referenced from a scripts/ checklist text file"
+    },
+    {
+      "file": "lib/services/unified-onboarding.service.ts",
+      "lines": 421,
+      "importers": [
+        "__tests__/onboarding/onboarding-submit-contract.test.ts",
+        "__tests__/onboarding/unified-onboarding-api.test.ts",
+        "app/api/onboarding/_lib/flow-submit.ts",
+        "app/api/onboarding/unified/route.ts",
+        "components/admin/onboarding-management.tsx",
+        "components/onboarding/artist-venue-onboarding.tsx",
+        "lib/onboarding/persona-onboarding.ts"
+      ],
+      "importerCount": 7,
+      "liveImporters": [
+        "app/api/onboarding/_lib/flow-submit.ts",
+        "app/api/onboarding/unified/route.ts",
+        "components/onboarding/artist-venue-onboarding.tsx",
+        "lib/onboarding/persona-onboarding.ts"
+      ],
+      "liveImporterCount": 4,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/venue-kit.service.ts",
+      "lines": 815,
+      "importers": [
+        "app/venue/kit/page.tsx",
+        "app/vk/[slug]/page.tsx",
+        "app/vk/[slug]/vk-public-page-client.tsx",
+        "components/venue-kit/amenities-section.tsx",
+        "components/venue-kit/contact-section.tsx",
+        "components/venue-kit/media-section.tsx",
+        "components/venue-kit/overview-section.tsx",
+        "components/venue-kit/press-section.tsx",
+        "components/venue-kit/shows-section.tsx",
+        "components/venue-kit/social-section.tsx",
+        "components/venue-kit/specs-section.tsx",
+        "components/venue-kit/vk-appearance-panel.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "components/venue-kit/vk-editor-tabs.tsx",
+        "components/venue-kit/vk-pdf-export.tsx",
+        "hooks/use-vk-sync.ts"
+      ],
+      "importerCount": 16,
+      "liveImporters": [
+        "app/venue/kit/page.tsx",
+        "app/vk/[slug]/page.tsx",
+        "app/vk/[slug]/vk-public-page-client.tsx",
+        "components/venue-kit/amenities-section.tsx",
+        "components/venue-kit/contact-section.tsx",
+        "components/venue-kit/media-section.tsx",
+        "components/venue-kit/overview-section.tsx",
+        "components/venue-kit/press-section.tsx",
+        "components/venue-kit/shows-section.tsx",
+        "components/venue-kit/social-section.tsx",
+        "components/venue-kit/specs-section.tsx",
+        "components/venue-kit/vk-appearance-panel.tsx",
+        "components/venue-kit/vk-document.tsx",
+        "components/venue-kit/vk-editor-tabs.tsx",
+        "components/venue-kit/vk-pdf-export.tsx",
+        "hooks/use-vk-sync.ts"
+      ],
+      "liveImporterCount": 16,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/venue-roles-permissions.service.ts",
+      "lines": 660,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deferred to venue lane",
+      "reason": "zero importers and zero type diagnostics; same venue-domain collision reasoning as venue-scheduling.service.ts. Also listed in the venue lane's lib/supabase/service-role-legacy-imports.json.",
+      "handoff": "venue - owner decision, zero diagnostic cost either way"
+    },
+    {
+      "file": "lib/services/venue-scheduling.service.ts",
+      "lines": 1005,
+      "importers": [],
+      "importerCount": 0,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "orphan-zero-importer",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "deferred to venue lane",
+      "reason": "zero importers and zero type diagnostics, but it is a venue-domain surface named by the venue lane's own records (VENUE-004, VENUE-005, HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE) and app/venue/components/staff/shift-templates.tsx:37 documents its getShiftTemplates contract. Deleting a venue-domain module while the venue lane is running in this same wave is an avoidable collision for zero diagnostic gain.",
+      "handoff": "venue - owner decision, zero diagnostic cost either way"
+    },
+    {
+      "file": "lib/services/venue.service.ts",
+      "lines": 1016,
+      "importers": [
+        "__tests__/venue/venue-calendar-raw-read-boundary.test.ts",
+        "app/venue/actions/profile-actions.ts",
+        "app/venue/actions/team-actions.ts",
+        "app/venue/components/customer-relationship.tsx",
+        "app/venue/components/recurring-template-form.tsx",
+        "app/venue/context/profile-context.tsx",
+        "app/venue/dashboard/onboarding/page.tsx",
+        "app/venue/documents/page.tsx",
+        "app/venue/equipment/page.tsx",
+        "app/venue/events/[id]/page.tsx",
+        "app/venue/hooks/use-venue-calendar-data.ts",
+        "app/venue/hooks/useCurrentVenue.ts",
+        "app/venue/lib/hooks/use-venue-events.ts",
+        "app/venue/overview/page.tsx",
+        "components/account/account-route-guard.tsx",
+        "hooks/use-multi-account.tsx",
+        "hooks/use-venue.ts",
+        "lib/venue/__tests__/event-id-domain.test.ts"
+      ],
+      "importerCount": 18,
+      "liveImporters": [
+        "app/venue/components/recurring-template-form.tsx",
+        "app/venue/context/profile-context.tsx",
+        "app/venue/dashboard/onboarding/page.tsx",
+        "app/venue/documents/page.tsx",
+        "app/venue/equipment/page.tsx",
+        "app/venue/events/[id]/page.tsx",
+        "app/venue/hooks/use-venue-calendar-data.ts",
+        "app/venue/hooks/useCurrentVenue.ts",
+        "app/venue/lib/hooks/use-venue-events.ts",
+        "app/venue/overview/page.tsx",
+        "components/account/account-route-guard.tsx",
+        "hooks/use-multi-account.tsx",
+        "hooks/use-venue.ts"
+      ],
+      "liveImporterCount": 13,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [
+        {
+          "object": "submit_verification_request",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": 19,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/verification.service.ts",
+      "lines": 535,
+      "importers": [
+        "components/verification/account-verification.tsx"
+      ],
+      "importerCount": 1,
+      "liveImporters": [],
+      "liveImporterCount": 0,
+      "reachableFromEntry": false,
+      "liveness": "dead-only-importers",
+      "databaseObjects": [
+        {
+          "object": "verification_requests",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 18,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "verification_documents",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 15,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "verification_badges",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 7,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "verification_criteria",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 6,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "verification_history",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 6,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "calculate_verification_score",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "get_verification_status",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": false
+        },
+        {
+          "object": "submit_verification_request",
+          "classification": "code-drift",
+          "tscDiagnosticHits": 3,
+          "recordedCanonicalReplacement": null,
+          "inventoryConflictLiveConsumer": true
+        }
+      ],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "held-pending-owner",
+      "dispositionReason": "every importer is itself unreachable, but each importer is outside the design-system grant, so removing this module would add a TS2307 to files this lane does not own",
+      "blockingImporters": [
+        {
+          "file": "components/verification/account-verification.tsx",
+          "owner": "accounts"
+        }
+      ]
+    },
+    {
+      "file": "lib/services/worker-onboarding-profile.service.ts",
+      "lines": 231,
+      "importers": [
+        "__tests__/hiring/worker-onboarding-profile-reuse.test.ts",
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "importerCount": 3,
+      "liveImporters": [
+        "lib/services/hiring-onboarding.service.ts",
+        "lib/services/token-onboarding-payload.service.ts"
+      ],
+      "liveImporterCount": 2,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    },
+    {
+      "file": "lib/services/worker-ops.service.ts",
+      "lines": 181,
+      "importers": [
+        "__tests__/hiring/worker-ops.service.test.ts",
+        "app/api/staff/ops/route.ts"
+      ],
+      "importerCount": 2,
+      "liveImporters": [
+        "app/api/staff/ops/route.ts"
+      ],
+      "liveImporterCount": 1,
+      "reachableFromEntry": true,
+      "liveness": "live",
+      "databaseObjects": [],
+      "measuredScopedTscPrimaryDiagnostics": {
+        "preAction": null,
+        "postAction": null,
+        "note": "scoped tsc (tsconfig.ds-scope.json) over this file as a root; not the full-repo count"
+      },
+      "disposition": "live-retained",
+      "dispositionReason": "has at least one entry-reachable importer; code-drift objects it still names are recorded in the handoff set because the database lane recorded no canonical destination for them"
+    }
+  ]
+}

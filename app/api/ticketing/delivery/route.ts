@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getStripeOrNull } from '@/lib/stripe'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 const stripe = getStripeOrNull()
 
-async function loadPurchase(sessionId: string) {
+async function loadPurchase(sessionId: string, buyerUserId: string) {
   if (!stripe) return { error: 'Payment service not configured', status: 503 as const }
 
   const session = await stripe.checkout.sessions.retrieve(sessionId)
@@ -22,6 +23,7 @@ async function loadPurchase(sessionId: string) {
       events_v2:event_id (title, start_at)
     `)
     .eq('id', saleId)
+    .eq('buyer_user_id', buyerUserId)
     .single()
 
   if (saleError || !sale) return { error: 'Sale not found', status: 404 as const }
@@ -63,10 +65,13 @@ function buildTicketText(sale: Record<string, any>, tickets: any[]) {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const sessionId = request.nextUrl.searchParams.get('session_id')
     if (!sessionId) return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
 
-    const result = await loadPurchase(sessionId)
+    const result = await loadPurchase(sessionId, auth.user.id)
     if ('error' in result && result.error)
       return NextResponse.json({ error: result.error }, { status: result.status })
 
@@ -86,11 +91,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const body = await request.json()
     const sessionId = body.session_id as string | undefined
     if (!sessionId) return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
 
-    const result = await loadPurchase(sessionId)
+    const result = await loadPurchase(sessionId, auth.user.id)
     if ('error' in result && result.error)
       return NextResponse.json({ error: result.error }, { status: result.status })
 

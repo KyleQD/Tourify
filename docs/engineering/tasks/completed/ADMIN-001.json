@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-001",
+  "title": "Audit Admin workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "created_at": "2026-09-09T06:17:39.523Z",
+  "updated_at": "2026-09-20T20:02:31.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Admin area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: admin dashboards, admin operations, authorization gates, and audit registries",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/admin/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The admin default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/admin/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/admin/BASELINE.md: what the admin area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/admin/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task ADMIN-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/admin/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/admin/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/admin/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:context -- --task ADMIN-001",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "BASELINE.md inventories the historical page, API, component, service/library, database-consumer, test, and evidence surfaces with real repository paths and cites the intended direction from DEVELOPMENT_BACKLOG, work-packet workflow, admin backlog, decisions, and admin feature specifications.",
+      "GAPS.md contains fourteen evidenced findings and now provides the required missing/incomplete/improve classification in addition to priority triage.",
+      "QUESTIONS.md contains thirteen prioritized owner questions, corrects the original count, and records non-decisional closeout dispositions; unanswered product questions remain follow-up inputs rather than an audit blocker.",
+      "npm run agents:context -- --task ADMIN-001 completed at ea5c36a3b468afb82d83809746d01ad479d38541 and produced a bounded 15-of-46-file packet with SHA drift explicitly reported.",
+      "npm run agents:validate passed before completion: 17 agents, 113 tasks, 8 shared generated-map SHA warnings, 0 errors.",
+      "Closeout edits are limited to docs/engineering/agents/admin/ and the ADMIN-001 task record; no production code or migration file changed."
+    ],
+    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+    "last_run_at": "2026-09-20T20:02:31Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "ADMIN-001 is complete. The historical admin baseline, fourteen triaged gaps, and thirteen prioritized owner questions are preserved; question dispositions route existing decisions and open product policy without answering it; state/backlog and zero-error validation evidence are recorded.",
+    "completed": [
+      "Read all startup protocol files (INDEX.md, CHARTER.md, STATE.md, ADMIN-001.json)",
+      "Read all admin domain working set (WORKING_SET.json, ARCHITECTURE.md, INTERFACES.md, VERIFICATION.md, BACKLOG.md, DECISIONS.md)",
+      "Read all generated maps (routes.md, api-routes.md, components.md, database-objects.md, database-schema.md, permissions.md)",
+      "Read named references (DEVELOPMENT_WORKFLOW.md, PROJECT_STATE.md, SYSTEM_MAP.md, DEPENDENCY_MAP.md, DECISIONS.md, registry.yaml, DEVELOPMENT_BACKLOG.md)",
+      "Read work packets (TA-PH0.md)",
+      "Read legacy agent ledgers (admin-dashboard-builder, admin-feature-spec-builder, admin-ui-wiring)",
+      "Verified admin area inventory via glob: 79 page routes, 289 API routes, 258 components, 281 lib files, 244 tests, 31 auth core files",
+      "Produced docs/engineering/agents/admin/BASELINE.md",
+      "Produced docs/engineering/agents/admin/GAPS.md (14 gaps: 2 P0, 3 P1, 6 P2, 3 P3; each classified missing/incomplete/improve)",
+      "Produced docs/engineering/agents/admin/QUESTIONS.md (13 questions: 3 P1, 8 P2, 2 P3; final non-decisional dispositions recorded)",
+      "Updated docs/engineering/agents/admin/STATE.md",
+      "Updated docs/engineering/agents/admin/BACKLOG.md",
+      "Verified every original acceptance criterion and reran bounded context plus agents:validate with 0 errors"
+    ],
+    "next_steps": [
+      "Continue implementation only through ADMIN-003, ADMUX-0102, and future bounded admin-owned tasks created when open product questions receive owner answers.",
+      "Root orchestration should reconcile TASK_INDEX.json and shared generated maps after concurrent task closeouts."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "at": "2026-09-09T06:30:00Z",
+        "summary": "Full audit complete. Read all required files, verified inventory via glob, produced BASELINE.md (79 pages, 289 APIs, 258 components, 281 lib files, 244 tests, 31 auth files), GAPS.md (13 gaps: G001-G014, 2 P0 blockers from WS-0.8/WS-1.7), QUESTIONS.md (11 questions: Q001-Q013, 3 P1 blocking), updated STATE.md and BACKLOG.md. No production code changed.",
+        "next": "Run npm run agents:validate, then return final report to orchestrator. Await product owner answers on Q001-Q013 to create follow-up task records."
+      },
+      {
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "at": "2026-09-20T20:02:31.000Z",
+        "summary": "Final ADMIN-001 acceptance audit complete. Q001-Q003 already have recorded implementation direction in CP-014/CP-043/CP-044 and resulting ADMIN-002/ADMIN-003 tasks; this closeout adds no policy. Q004-Q005 remain preserved under CP-004 unless separately authorized for cleanup. Q006 and Q007-Q011 remain open owner questions that become bounded admin tasks only when answered. Q012 is routed to root shared-map reconciliation. Q013 retains ADMUX-0102 for the active accessibility slice while broader IA remains open. BASELINE.md now cites intended direction and the database boundary; GAPS.md correctly records fourteen findings and missing/incomplete/improve triage; QUESTIONS.md correctly records thirteen questions. Context generation succeeded and agents:validate passed with 17 agents, 113 tasks, 8 shared-map SHA warnings, and 0 errors. No product policy was newly decided and no production or migration file changed.",
+        "completed": [
+          "Verified the path-backed baseline across routes, APIs, components, services/libraries, database dependencies, tests, evidence, and intended direction.",
+          "Corrected audit arithmetic to fourteen gaps and thirteen questions without altering the historical findings.",
+          "Added required missing/incomplete/improve classification for every gap.",
+          "Recorded final dispositions for Q001-Q013 without answering open product questions.",
+          "Updated admin state/backlog and confirmed ADMIN-002/ADMIN-003/ADMUX-0102 own follow-up implementation or evidence.",
+          "Ran the bounded context command and npm run agents:validate with 0 errors before completion."
+        ],
+        "next_steps": [
+          "Root orchestration reconciles TASK_INDEX.json and shared generated maps.",
+          "Admin implementation continues only in its active bounded tasks; future owner answers create new or updated admin-owned task records."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

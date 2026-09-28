@@ -1,0 +1,431 @@
+{
+  "schema_version": "2.0",
+  "id": "SOCIAL-007",
+  "title": "Close service-role leak in interaction and notification reads",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "social",
+  "created_at": "2026-09-23T21:09:01.931Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "working_tree_status": "dirty shared worktree (6 concurrent lanes); Wave 35 social edits isolated to app/api/social/post-likes/route.ts (new), app/api/feed/posts/route.ts (one like read), app/api/notifications/social/route.ts (response-contract comments only), app/api/social/follow/route.ts (validation + rate limit), lib/social/post-like-state.ts (new), four __tests__/social files, two new pending handoffs, and the social task/state/decision records",
+  "goal": "Gate interaction-stats and notifications GET endpoints so they never rely on service-role read access, per SIM-20260922-SOC-003.",
+  "scope": {
+    "in": [
+      "Audit interaction-stats and notification GET read paths for service-role usage",
+      "Enforce owner/scope authorization at the data boundary",
+      "Add denial tests for unowned and cross-user reads"
+    ],
+    "out": [
+      "Any service-role bypass in GET endpoints"
+    ]
+  },
+  "working_set": [
+    "app/api/notifications/social/route.ts",
+    "app/api/posts/[id]/poll/vote/route.ts",
+    "app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts",
+    "__tests__/social/interaction-notification-isolation.test.ts",
+    "__tests__/social/poll-interaction-isolation.test.ts",
+    "__tests__/social/group-reaction-isolation.test.ts",
+    "__tests__/social/legacy-notification-follow-route.test.ts",
+    "docs/engineering/handoffs/pending/HF-DB-006-SOCIAL-007.json",
+    "app/api/social/post-likes/route.ts",
+    "lib/social/post-like-state.ts",
+    "__tests__/social/viewer-post-like-state.test.ts",
+    "__tests__/social/interaction-route-gate-inventory.test.ts",
+    "__tests__/social/notification-stats-contract.test.ts",
+    "app/api/feed/posts/route.ts (is_liked read client only)",
+    "docs/engineering/handoffs/pending/HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT.json",
+    "docs/engineering/handoffs/pending/HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE.json"
+  ],
+  "scope_expansions": [
+    {
+      "path": "app/api/posts/[id]/poll/vote/route.ts",
+      "reason": "GET read path for a post interaction (poll options and per-option vote tallies) used the service-role client with no visibility gate at all, and was reachable without authentication. Same defect class as the reported finding, same file family, inside social ownership."
+    },
+    {
+      "path": "app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts",
+      "reason": "Reaction mutation read the message row before verifying thread membership, producing a 404-vs-403 message-existence oracle across the social messaging boundary. Interaction path in social ownership; found by tracing the reaction read, not by re-auditing."
+    },
+    {
+      "path": "docs/engineering/DECISIONS.md (CP-058) and docs/engineering/agents/social/DECISIONS.md (DOMAIN-001, DOMAIN-002)",
+      "reason": "The finding's necessary fix is cross-cutting: because post_likes and post_comments carry permissive USING (true) SELECT policies, restoring the RLS-enforced client is not by itself sufficient. The enforcement-boundary choice needed a durable decision record."
+    },
+    {
+      "path": "app/api/social/post-likes/route.ts (new) and lib/social/post-like-state.ts (new)",
+      "reason": "The database lane returned a decision on HF-DB-006-SOCIAL-007 and named the two browser post_likes readers as the blocker to tightening. The consumer coordination is the app-side deliverable, and a server-authorized read has to exist before another lane can delete a browser read. Both paths are inside social's grant."
+    },
+    {
+      "path": "app/api/feed/posts/route.ts",
+      "reason": "The per-row is_liked field is the value that replaces the browser read, so it must itself stop being a service-role interaction read (CP-058). The change is one argument at the single call site of fetchViewerLikedPostIds; the feed's own post-visibility scope is untouched."
+    },
+    {
+      "path": "app/api/social/follow/route.ts",
+      "reason": "Needed by Objective 2/3 work in the same wave: a non-uuid followingId could only surface as a 500, and the unbounded mutation is a notification-spam primitive against another user. Both fixes are in social's own file and use the existing createRateLimiter pattern from the sibling comment route."
+    },
+    {
+      "path": "__tests__/social/interaction-route-gate-inventory.test.ts (new)",
+      "reason": "Wave 33 recorded that the post-visibility gate is load-bearing with no inventory that fails when a new interaction route omits it. The guard is a source scan plus an explicit exemption registry; it needs no infrastructure outside __tests__/social/**."
+    }
+  ],
+  "read_path_inventory": {
+    "notifications": [
+      {
+        "path": "GET /api/notifications",
+        "chain": "app/api/notifications/route.ts:31 -> resolveActingContext -> NotificationService.getUserNotifications(ctx.userId) -> lib/services/optimized-notification-service.ts:293 (.eq('user_id', userId))",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "OptimizedNotificationService.getNotificationsDb() returns a service-role client on the server, but every query pins .eq('user_id', userId) to the resolved acting context. No client-supplied identifier reaches the query."
+      },
+      {
+        "path": "PATCH /api/notifications (markAsRead / markAllAsRead)",
+        "chain": "app/api/notifications/route.ts:116 -> OptimizedNotificationService.markAsRead / markAllAsRead -> lib/services/optimized-notification-service.ts:374 and :404",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Both update paths pin .eq('user_id', userId); a foreign notificationId matches zero rows."
+      },
+      {
+        "path": "DELETE /api/notifications",
+        "chain": "app/api/notifications/route.ts:153 -> OptimizedNotificationService.deleteNotification(notificationId, ctx.userId)",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Caller-owned id plus the caller's user id; no cross-user delete is expressible."
+      },
+      {
+        "path": "GET /api/notifications/analytics?scope=user",
+        "chain": "app/api/notifications/analytics/route.ts:166 -> OptimizedNotificationService.getMetrics(user.id) -> lib/services/optimized-notification-service.ts:516-520",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Authenticated identity from the Bearer token; all five queries pin user_id."
+      },
+      {
+        "path": "GET /api/notifications/analytics?scope=system",
+        "chain": "app/api/notifications/analytics/route.ts:51 -> checkAdmin(user) (:25, profiles.is_admin via service role) -> platform-wide aggregates",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Server-side is_admin check against the authenticated identity; non-admins get 403 before any aggregate runs."
+      },
+      {
+        "path": "GET /api/notifications/preferences",
+        "chain": "app/api/notifications/preferences/route.ts:59 -> getAuthenticatedUser (Bearer then SSR cookie) -> OptimizedNotificationService.getPreferences(user.id)",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Keyed to the authenticated identity; already has cookie parity."
+      },
+      {
+        "path": "GET /api/notifications/social?postId=",
+        "chain": "app/api/notifications/social/route.ts:201 GET -> getAuthenticatedUser (Bearer only) -> service-role post_likes / post_comments / post_shares with .eq('post_id', <caller-supplied>)",
+        "classification": "LEAKING (fixed)",
+        "reason": "Any authenticated bearer user could pass any postId and receive the full liker, commenter and sharer lists with profile names, bypassing RLS and every post visibility level. Bearer-only auth also broke cookie clients while leaving the unscoped read open."
+      },
+      {
+        "path": "GET /api/notifications/social?userId=",
+        "chain": "app/api/notifications/social/route.ts:210 (userId || user.id) -> six service-role count queries",
+        "classification": "LEAKING (fixed)",
+        "reason": "Any authenticated bearer user could pass any userId and receive that user's likesGiven/likesReceived/commentsGiven/commentsReceived/sharesGiven/sharesReceived counters, disclosing per-user activity and letting counters be used to enumerate accounts."
+      },
+      {
+        "path": "POST /api/notifications/social?action=social_interaction",
+        "chain": "app/api/notifications/social/route.ts:62 -> checkAuth -> getPostInfo (service-role posts read, existence only) -> auth.supabase insert",
+        "classification": "LEAKING (fixed)",
+        "reason": "Same file and same unscoped service-role read, in the write path: the post existence check carried no visibility test, so an outsider could like, comment on, or share a followers-only or private post. The canonical routes app/api/posts/[id]/{likes,comments,shares} already gate this with resolvePostCommentAccess; this route did not."
+      }
+    ],
+    "interactions": [
+      {
+        "path": "GET/POST /api/posts/[id]/likes",
+        "chain": "app/api/posts/[id]/likes/route.ts -> checkAuth (caller-scoped client) -> resolvePostCommentAccess -> 404",
+        "classification": "correctly RLS-scoped",
+        "reason": "Caller-scoped client plus a mandatory visibility gate returning a non-disclosing 404."
+      },
+      {
+        "path": "GET/POST /api/posts/[id]/comments",
+        "chain": "app/api/posts/[id]/comments/route.ts -> checkAuth -> resolvePostCommentAccess -> 404",
+        "classification": "correctly RLS-scoped",
+        "reason": "Same pattern; also rate-limited on the mutation path."
+      },
+      {
+        "path": "POST /api/posts/[id]/shares",
+        "chain": "app/api/posts/[id]/shares/route.ts -> checkAuth -> resolvePostCommentAccess -> 404",
+        "classification": "correctly RLS-scoped",
+        "reason": "No GET handler exists for shares, so there is no share read leak on this route."
+      },
+      {
+        "path": "GET /api/posts/[id]/poll/vote",
+        "chain": "app/api/posts/[id]/poll/vote/route.ts GET -> parseAuthFromCookies -> createServiceRoleClient -> loadPollBundle (posts + poll_options + poll_votes)",
+        "classification": "LEAKING (fixed)",
+        "reason": "No visibility gate at all and no authentication requirement. An anonymous caller could read any post's poll question, options and per-option vote tallies, including followers-only and private posts, and could distinguish 200 from 404 to probe poll existence. The POST sibling was already gated by canVoteOnPoll, so the GET was an unguarded side door onto the same data."
+      },
+      {
+        "path": "POST /api/posts/[id]/poll/vote",
+        "chain": "app/api/posts/[id]/poll/vote/route.ts POST -> parseAuthFromCookies -> loadPollBundle (service role) -> resolvePollFollowerFlags + canVoteOnPoll -> 403 when ineligible",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Service-role read, but the server derives the voter identity, resolves follow state, and refuses private and non-followers-only posts with 403 before any write. Preserved unchanged."
+      },
+      {
+        "path": "GET /api/feed/posts",
+        "chain": "app/api/feed/posts/route.ts:500 -> createFeedReadClient (:169, service role) -> resolveProfileFeedVisibilityAccess (:114) and per-row isPostVisibleToViewer (lib/feed/feed-posts-query.ts:331-360)",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "The reported finding cites this as the correct contrast. A caller-supplied user_id reaches the query but only through an explicit profile-privacy and follow-resolution gate, and the row-level filter then restricts visibility to public/followers with owner override. Like state is resolved only for posts the viewer was already entitled to see."
+      },
+      {
+        "path": "GET /api/community/activity",
+        "chain": "app/api/community/activity/route.ts:19 withAuth -> createServiceRoleClient -> five queries all pinned to user.id",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Every query anchors to the authenticated user (follows.following_id, post_likes/posts.user_id, post_comments/posts.user_id, post_shares/posts.user_id, events.artist_id) and the only caller-controlled input is a page limit clamped to 50. No client-supplied identifier reaches a query."
+      },
+      {
+        "path": "GET /api/social/suggested",
+        "chain": "app/api/social/suggested/route.ts:15 -> createServiceRoleClient -> follows pinned to follower_id = user.id, then a public profiles directory query",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "The only follow edge read is the caller's own. The profiles read is the public directory the Discover surface is built from, and the caller-controlled limit is clamped by `limit * 2`."
+      },
+      {
+        "path": "GET /api/social/all-users",
+        "chain": "app/api/social/all-users/route.ts:70 -> createServiceRoleClient -> follows and follow_requests pinned to user.id, then a public profiles directory query",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "The caller's own follow and pending-request edges only; the profiles read is the public directory and pagination is bounded."
+      },
+      {
+        "path": "GET /api/social/suggestions (friend suggestions)",
+        "chain": "app/api/social/suggestions/route.ts:29 -> friendSuggestionService.getSuggestions(user.id, params) -> lib/services/friend-suggestions.ts service-role reads",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "userId is server-derived. Caller-controlled params (exclude_user_ids, algorithm, location, min/max followers) only shape an exclusion list or a search filter and cannot widen the scope beyond the caller's own connections, which anchor every internal query."
+      },
+      {
+        "path": "GET/POST /api/social/follow-request",
+        "chain": "app/api/social/follow-request/route.ts -> ProductionAuthService.authenticateRequest (caller-scoped client) -> every query anchored to user.id",
+        "classification": "correctly RLS-scoped",
+        "reason": "Caller-scoped client throughout. Service role appears only for one best-effort notification insert in the notification-preferences fallback, and the target is the verified requester, not a caller-supplied id."
+      },
+      {
+        "path": "GET /api/groups/threads/[id]/messages",
+        "chain": "app/api/groups/threads/[id]/messages/route.ts:57 -> authenticateRequestWithBearerFallback -> ensureMembership (service role) -> 403 -> group_messages read",
+        "classification": "service-role-but-safely-scoped",
+        "reason": "Service-role read with a mandatory server-side active-membership check before the message read. Left unchanged; this is the SOCIAL-004 messaging surface."
+      },
+      {
+        "path": "POST /api/groups/threads/[id]/messages/[messageId]/reactions",
+        "chain": "app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts:41-58 (service role) -> group_messages read, then thread_members read",
+        "classification": "LEAKING (fixed)",
+        "reason": "The message row was read before membership was verified, so a non-member got 404 for a missing message and 403 for an existing one: a message-existence oracle. Membership is now proven first and both outcomes return the same 404."
+      },
+      {
+        "path": "client hooks (hooks/use-notifications.ts, hooks/use-friend-suggestions.ts)",
+        "chain": "session-scoped browser client (@/lib/supabase) -> notifications reads pinned to auth.getUser()",
+        "classification": "correctly RLS-scoped",
+        "reason": "Browser session client with the caller's own user id; no service-role path is reachable from the client. Confirmed by inspection, not by hosted run."
+      }
+    ]
+  },
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/audits/flow-notes/agent-user-simulation-campaign.md",
+    "docs/api-security-map.md",
+    ".github/workflows/admin-rls-ci.yml"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "SIM-20260922-SOC-003 reruns and passes with denial evidence",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "No interaction or notification read path relies on service-role access",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Post-visibility gate is mandatory and fail-closed, with no existence oracle",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Per-user engagement aggregates are self-only",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Negative isolation tests prove no cross-user read",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "social",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/social __tests__/messaging",
+          "npx vitest run __tests__/polls __tests__/feed",
+          "npx eslint --no-cache app/api/notifications/social/route.ts app/api/posts/[id]/poll/vote/route.ts app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts __tests__/social/interaction-notification-isolation.test.ts __tests__/social/poll-interaction-isolation.test.ts __tests__/social/group-reaction-isolation.test.ts __tests__/social/legacy-notification-follow-route.test.ts",
+          "git diff --check -- app/api/notifications/social/route.ts app/api/posts/[id]/poll/vote/route.ts app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts __tests__/social/",
+          "npm run check:service-role-allowlist",
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "npm run agents:validate",
+          "npx tsc --project <scoped tsconfig over the three changed routes> --noEmit",
+          "npx vitest run __tests__/social/viewer-post-like-state.test.ts",
+          "npx vitest run __tests__/social/interaction-route-gate-inventory.test.ts",
+          "npx vitest run __tests__/social/notification-stats-contract.test.ts",
+          "npx vitest run __tests__/social/follow-contract-consistency.test.ts",
+          "npm run check:service-role-allowlist",
+          "npx eslint --no-cache app/api/social/post-likes/route.ts lib/social/post-like-state.ts app/api/feed/posts/route.ts app/api/notifications/social/route.ts app/api/social/follow/route.ts __tests__/social/",
+          "NODE_OPTIONS='--max-old-space-size=6144' npx tsc --project <scoped tsconfig over the five changed/added modules> --noEmit --pretty false"
+        ],
+        "evidence": [
+          "Wave 35 focused social + messaging Vitest: 16 files, 128 tests passed (was 12 files / 82). 46 of the 128 are new in this wave: 23 in viewer-post-like-state, 11 in follow-contract-consistency, 7 in interaction-route-gate-inventory, 4 in notification-stats-contract, and 1 added by splitting the client-contract assertion in profile-follow-route. All 24 SOCIAL-004 messaging tests and all 35 Wave 33 SOCIAL-007 negative tests still pass unmodified.",
+          "Shape equivalence is proven, not argued: viewer-post-like-state.test.ts re-implements the retired browser read literally (supabase.from('post_likes').select('post_id').eq('user_id', uid).in('post_id', ids) -> Set<string>) and asserts the server read returns the same Set for posts the caller is entitled to see, differing only by removing ids the gate denied. It also asserts normalizeFeedPostDTO round-trips is_liked for true, false and absent, which is the missing link that makes the deletion in the artist lane safe.",
+          "The gate ordering is proven by observation, not by inspection: for a followers-only post the viewer does not follow, the test asserts the captured query log contains zero post_likes reads, and that the response is identical to the response for a post id that does not exist.",
+          "The regression guard was proven to fail. A deliberately non-compliant route (app/api/social/__gate_probe_tmp/route.ts, service-role read of post_likes, no gate) was created, the guard reported it under both `Unguarded` and `Undeclared`, and the file was removed in the same step; the guard returns to green. A guard that cannot fail is a convention, not a control.",
+          "Adjacent regression run __tests__/polls + __tests__/feed: 15 files, 118 tests passed after the app/api/feed/posts change, unchanged from the Wave 33 count.",
+          "npm run check:migration-chain: passed, 306 files scanned, no duplicate policy creations. npm run check:migration-validation: passed for the whole repository. Social authored no migration and no manifest, so neither gate was at risk and neither was edited.",
+          "npm run check:service-role-allowlist: PASSES (exit 0) at this wave, 194 production files classified. It FAILED in Wave 33 on a stale marketplace-lane entry; that entry has since been reconciled by its owning lane, and social added no service-role import. Not a social fix, but it clears a gate this task previously had to report as a blocker.",
+          "npm run agents:validate: passed, 17 agents, 152 tasks, 0 errors, 8 generated-map SHA warnings. agents:generate was deliberately not run (shared-map race); the maps trail this wave's two new handoffs and the orchestrator should refresh them once the worktree settles.",
+          "Focused ESLint: clean (exit 0) for all nine changed/added TypeScript files. git diff --check: clean (exit 0).",
+          "Scoped TypeScript over the five changed/added modules: the only diagnostic inside social's set is app/api/social/follow/route.ts:122 `Property 'sendFollowNotification' does not exist on type 'typeof OptimizedNotificationService'`, which is the pre-existing diagnostic the Wave 33 record already names at HEAD d2176904 as app/api/social/follow/route.ts:89. The statement is byte-identical; only its line number moved because 33 lines of validation were added above it, and the service does declare the method at lib/services/optimized-notification-service.ts:902. The remaining scoped diagnostics are in lib/services/epk.service.ts and lib/services/optimized-notification-service.ts, both pre-existing and both outside this working set.",
+          "sharesReceived: a repository-wide scan of app, components, lib, hooks, apps and scripts found ZERO consumers of the field outside the route and its tests. Nothing in the repository could have depended on the old structurally-always-zero value. The field is now documented in the GET response contract with posts.shares_count named as the aggregate, and notification-stats-contract.test.ts fails a future consumer that reads it without naming the aggregate.",
+          "marketplace_post_attachments (the database lane's 'logistics' cluster, 18 inventory hits) was re-derived with a scoped typecheck rather than trusted: 4 primary diagnostics across lib/marketplace/feed-attachment.ts, lib/events/canonical-event-service.ts, lib/events/event-matcher.ts and lib/logistics/plans.ts. ZERO are in social's grant, and the inventory itself records primaryDomain 'events' with no 'social' entry for any of its 128 objects. Social therefore has no share of this object; the work lane already holds HF-WORK-034-MARKETPLACE-POST-ATTACHMENTS and the database lane holds the cluster handoffs.",
+          "Answered the social-domain question in HF-DB-011-SCHEDULED-POSTS-FRESH-CHAIN-DIVERGENCE: per-platform status tracking on scheduled_posts is a live feature, so 20250904110000 must be repaired forward and must not be retired. lib/services/cross-platform-posting.service.ts:195 inserts platform_status and app/api/artist/content/overview/route.ts:137 selects platform_status and platform_errors, but 20260413200000_port_missing_tables.sql:335-356 creates the table without either column, so a fresh chain replay breaks both paths. The consumer-side column contract is stated in HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE so the database lane does not have to guess nullability or default. This was measured by reading the chain and the consumers; it was NOT reproduced against a database, because CP-051 forbids starting one.",
+          "NOT run and NOT claimed: a full npm run typecheck (68m18s on CI, 1384 diagnostics, OOMs on this 8 GB machine), npm run test:rls-matrix, any hosted read, supabase db reset, and any migration application. No hosted denial evidence exists for any claim in this task.",
+          "Preserved v1 result: partial"
+        ],
+        "last_run_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "last_run_at": "2026-09-26T16:05:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Actioned the database lane's HF-DB-006-SOCIAL-007 decision from the app side. The consumer coordination it named as the blocker turned out to be a deletion, not an integration: GET /api/feed/posts was already returning a per-row is_liked that both browser consumers already consumed, and social moved that field's computation onto the caller-scoped client so the replacement is not itself a service-role interaction read. Built lib/social/post-like-state.ts + GET /api/social/post-likes?postIds= as the canonical server-authorized batch read (caller-scoped, post-visibility gate resolved before any like read, read pinned to the viewer's own user_id, batch bounded at 50 with oversized refused rather than truncated, fail-closed with an explicit degraded flag surfaced as 500). Shape equivalence is proven against a literal re-implementation of the retired browser read, and the feed DTO is proven to round-trip is_liked. Built the missing regression guard: __tests__/social/interaction-route-gate-inventory.test.ts fails when a new interaction route omits the gate or reaches for a service-role read, with an explicit exemption registry; it was proven to fail on a deliberately non-compliant route that was then removed. Documented the sharesReceived change inside the GET response contract with posts.shares_count named as the aggregate, and proved by repository scan that there is no in-repo consumer, so nothing could have depended on the old structurally-always-zero value. Verified: __tests__/social + __tests__/messaging 16 files/128 tests passed (46 new); __tests__/polls + __tests__/feed 15 files/118 passed; check:migration-chain and check:migration-validation pass; check:service-role-allowlist now passes (exit 0, was failing in Wave 33 on a marketplace entry its own lane has since reconciled); focused ESLint exit 0; git diff --check exit 0; agents:validate 17 agents/152 tasks/0 errors; scoped TypeScript clean apart from one pre-existing diagnostic. Recorded CP-088 and DOMAIN-003/004/005. Not run and not claimed: full tsc, test:rls-matrix, any hosted read, any migration application.",
+    "completed": [
+      "GET /api/notifications/social?postId= is gated on post visibility before any interaction read and returns one indistinguishable 404 for missing and non-entitled posts.",
+      "GET /api/notifications/social?userId= is self-only and refuses a foreign id with 403 without echoing it.",
+      "GET /api/notifications/social no longer holds a service-role read path; it reads through the caller-scoped client, which gives Bearer and cookie parity and makes post_shares RLS actually apply.",
+      "POST /api/notifications/social social_interaction now enforces the same visibility gate as the canonical likes/comments/shares routes, so an outsider cannot interact with a non-entitled post.",
+      "GET /api/posts/[id]/poll/vote gained a mandatory fail-closed post-visibility gate before any poll read, and an unauthenticated caller can no longer read a private or followers-only poll or probe poll existence.",
+      "POST /api/groups/threads/[id]/messages/[messageId]/reactions verifies thread membership before reading the message row, removing a 404-vs-403 message-existence oracle.",
+      "Interaction reads are paginated and projected to a narrow public-actor shape instead of returning raw joined rows.",
+      "Recorded the durable decision as CP-058 plus DOMAIN-001 and DOMAIN-002, and recorded the residual database-layer exposure as HF-DB-006-SOCIAL-007 rather than editing another domain's migration chain.",
+      "The test that codified the leak is replaced by denial tests.",
+      "GET /api/social/post-likes?postIds= is the canonical server-authorized batch read: caller-scoped client, no service-role import, post-visibility gate resolved before any like read, read pinned to the viewer's own user_id, batch bounded at 50 with an oversized request refused rather than truncated, and a failed read answered as 500 like_state_unavailable instead of a zero-filled 200.",
+      "The feed's per-row is_liked is no longer a service-role interaction read: fetchViewerLikedPostIds now receives the caller-scoped client from authenticateApiRequest, so the field that replaces the browser read is itself RLS-enforced (CP-058).",
+      "The two browser post_likes reads are proven redundant rather than merely discouraged, and the exact deletions are handed to the artist lane with file and line ranges in HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT.",
+      "The load-bearing gate now has the inventory guard Wave 33 said it lacked, with an explicit exemption registry and a service-role registry; both are proven to fail on an unregistered route.",
+      "sharesReceived is documented where a consumer reads it, and a test fails any future in-repo consumer that does not name posts.shares_count as the aggregate.",
+      "The canonical follow mutation is bounded per authenticated user and refuses a non-uuid target before any write, closing an unbounded path into another user's notification inbox.",
+      "Answered the database lane's scheduled_posts product question with a consumer-side column contract instead of leaving the repair-versus-retire choice open."
+    ],
+    "next_steps": [
+      "Artist lane makes the two dated post_likes deletions in HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT (re-confirm the line numbers first); database lane accepts HF-DB-006-SOCIAL-007 and authors the scheduled_posts platform_status migration asked for by HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE; QA reruns SIM-20260922-SOC-003 with sim-customer-01 and sim-artist-01 on an approved isolated target and proves the database boundary with a direct PostgREST read. No hosted evidence exists and all 718 QA-004 rows are still not_run."
+    ],
+    "blockers": [
+      "No approved isolated Supabase target with two authenticated actors plus an outsider session exists, so SIM-20260922-SOC-003 cannot be rerun and no hosted denial evidence exists. Every social claim for this task is local and static, against a fake client that models the shipped RLS posture.",
+      "The database still grants any caller SELECT on post_likes and post_comments via USING (true). The application and client sides are now ready for the tightening, but the durable fix is database-owned, HF-DB-006-SOCIAL-007 is still pending and unaccepted, and no migration exists.",
+      "The two browser post_likes reads still exist. Social cannot remove them: components/artist/**, components/profile/** and app/artist/** are outside its grant for this wave.",
+      "npm run test:rls-matrix was not run because it applies migrations and starts a local database, which CP-051 forbids.",
+      "The scheduled_posts platform_status break on a fresh chain replay is measured by reading the chain and the consumers, not reproduced against a database, and social authored no migration."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-25T00:00:00.000Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty shared worktree)",
+        "summary": "Traced every social interaction and notification read path from route to data access, classified 20 paths, closed the 4 that leaked, and added 35 negative isolation tests.",
+        "changed_paths": [
+          "app/api/notifications/social/route.ts",
+          "app/api/posts/[id]/poll/vote/route.ts",
+          "app/api/groups/threads/[id]/messages/[messageId]/reactions/route.ts",
+          "__tests__/social/interaction-notification-isolation.test.ts",
+          "__tests__/social/poll-interaction-isolation.test.ts",
+          "__tests__/social/group-reaction-isolation.test.ts",
+          "__tests__/social/legacy-notification-follow-route.test.ts",
+          "docs/engineering/handoffs/pending/HF-DB-006-SOCIAL-007.json",
+          "docs/engineering/DECISIONS.md",
+          "docs/engineering/agents/social/DECISIONS.md",
+          "docs/engineering/agents/social/STATE.md",
+          "docs/engineering/tasks/active/SOCIAL-007.json"
+        ],
+        "verification": [
+          "Focused social + messaging Vitest: 12 files, 82 tests passed (35 new negative isolation tests; 24 pre-existing messaging tests preserved).",
+          "Adjacent __tests__/polls + __tests__/feed: 15 files, 118 tests passed.",
+          "Focused ESLint: passed (exit 0).",
+          "git diff --check: passed (exit 0).",
+          "Scoped TypeScript: zero diagnostics in the three changed routes; remaining diagnostics pre-existing in app/api/social/follow/route.ts and lib/services/optimized-notification-service.ts.",
+          "npm run check:migration-chain: passed.",
+          "npm run agents:validate: passed, 17 agents, 151 tasks, 0 warnings, 0 errors.",
+          "npm run check:service-role-allowlist: FAILED on a pre-existing marketplace-lane entry; not caused by this lane.",
+          "npm run check:migration-validation: FAILED on a pre-existing work-lane migration checksum drift; not caused by this lane."
+        ],
+        "next": "Rerun SIM-20260922-SOC-003 on an approved isolated target with two actors plus an outsider, and have the database lane accept HF-DB-006-SOCIAL-007."
+      },
+      {
+        "at": "2026-09-25T20:21:22.444Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Traced 20 social interaction/notification read and write paths from route to data access; classified 4 as leaking, 10 as service-role-but-safely-scoped, 6 as correctly RLS-scoped. Closed all 4 leaks: GET /api/notifications/social is now caller-scoped, visibility-gated with a non-disclosing 404, self-only for aggregates, and paginated; its ungated social_interaction write now enforces the same gate as the canonical likes/comments/shares routes; GET /api/posts/[id]/poll/vote gained a mandatory fail-closed post-visibility gate before any poll read; the group reaction route verifies thread membership before reading the message row, removing a 404-vs-403 message-existence oracle. 35 new negative isolation tests added and the test that codified the leak replaced by denial tests. Verified: __tests__/social + __tests__/messaging = 12 files/82 tests passed (incl. all 24 SOCIAL-004 messaging tests); __tests__/polls + __tests__/feed = 15 files/118 tests passed; combined 27 files/200 tests passed; focused ESLint exit 0; git diff --check exit 0; scoped TypeScript zero diagnostics in changed files; check:migration-chain passed; agents:validate passed 17 agents/151 tasks/0 errors. Recorded CP-058 plus DOMAIN-001/002 and handed off the residual RLS exposure as HF-DB-006-SOCIAL-007.",
+        "completed": [],
+        "next_steps": [
+          "Rerun SIM-20260922-SOC-003 with sim-customer-01 (outsider) and sim-artist-01 (owner) against the artist's followers-only post on an approved isolated Supabase target, and have the database lane accept HF-DB-006-SOCIAL-007 to tighten the USING (true) SELECT policies on post_likes and post_comments. No migration was authored or applied (CP-051). Pre-existing concurrent-lane failures not caused by this lane: check:service-role-allowlist (stale entry for app/marketplace/order/[token]/page.tsx) and check:migration-validation (checksum drift for supabase/migrations/20260701021033_job_application_profile_snapshot.sql)."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:02:58.012Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Actioned the database lane's HF-DB-006-SOCIAL-007 decision from the app side. The consumer coordination it named as the blocker turned out to be a deletion, not an integration: GET /api/feed/posts was already returning a per-row is_liked that both browser consumers already consumed, and social moved that field's computation onto the caller-scoped client so the replacement is not itself a service-role interaction read. Built lib/social/post-like-state.ts + GET /api/social/post-likes?postIds= as the canonical server-authorized batch read (caller-scoped, post-visibility gate resolved before any like read, read pinned to the viewer's own user_id, batch bounded at 50 with oversized refused rather than truncated, fail-closed with an explicit degraded flag surfaced as 500). Shape equivalence is proven against a literal re-implementation of the retired browser read, and the feed DTO is proven to round-trip is_liked. Built the missing regression guard: __tests__/social/interaction-route-gate-inventory.test.ts fails when a new interaction route omits the gate or reaches for a service-role read, with an explicit exemption registry; it was proven to fail on a deliberately non-compliant route that was then removed. Documented the sharesReceived change inside the GET response contract with posts.shares_count named as the aggregate, and proved by repository scan that there is no in-repo consumer, so nothing could have depended on the old structurally-always-zero value. Verified: __tests__/social + __tests__/messaging 16 files/128 tests passed (46 new); __tests__/polls + __tests__/feed 15 files/118 passed; check:migration-chain and check:migration-validation pass; check:service-role-allowlist now passes (exit 0, was failing in Wave 33 on a marketplace entry its own lane has since reconciled); focused ESLint exit 0; git diff --check exit 0; agents:validate 17 agents/152 tasks/0 errors; scoped TypeScript clean apart from one pre-existing diagnostic. Recorded CP-088 and DOMAIN-003/004/005. Not run and not claimed: full tsc, test:rls-matrix, any hosted read, any migration application.",
+        "completed": [],
+        "next_steps": [
+          "Artist lane makes the two dated post_likes deletions in HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT (re-confirm the line numbers first); database lane accepts HF-DB-006-SOCIAL-007 and authors the scheduled_posts platform_status migration asked for by HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE; QA reruns SIM-20260922-SOC-003 with sim-customer-01 and sim-artist-01 on an approved isolated target and proves the database boundary with a direct PostgREST read. No hosted evidence exists and all 718 QA-004 rows are still not_run."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Artist: HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT — the two required deletions with exact line ranges, the optional app/artist/business/analytics/page.tsx:149-153 browser count that a tightened policy breaks outright, and the apps/mobile/components/dashboard/feed-post-list.tsx:92-94 browser like/unlike write that bypasses the canonical route's side effects.",
+    "Database: HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE — the social-domain answer to HF-DB-011 (repair forward, do not retire) with the consumer-side column contract, so 20250904110000's intent can be captured as an additive forward-only migration.",
+    "Database: HF-DB-006-SOCIAL-007 is still pending. The app side is ready; the blocker it named (the two browser readers) is now a dated deletion instruction rather than an open question.",
+    "QA: SIM-20260922-SOC-003 still needs sim-customer-01 (outsider) and sim-artist-01 (owner) on an approved isolated target, and the proof should be a direct PostgREST read so the database boundary itself is exercised.",
+    "Design-system: social's answer to the social half of HF-DESIGN-034-TEST-ASSERTED-MODULES is DOMAIN-004 — retire lib/services/social-interactions.service.ts rather than adopt it. Social has narrowed the pinning assertion in __tests__/social/profile-follow-route.test.ts to the three live clients; the file itself is the design-system lane's to delete, in the same change that removes the narrowed assertion.",
+    "No migration was authored and none was applied under CP-051. Any future policy change arrives as an additive forward-only migration plus a planned manifest for operator application."
+  ],
+  "execution_state": "waiting_dependency",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "social",
+  "shared_working_set": [],
+  "depends_on": [
+    "DB-006"
+  ],
+  "resume_condition": "Artist lane makes the two dated post_likes deletions in HF-SOC-007-POST-LIKES-SERVER-READ-CONTRACT (re-confirm the line numbers first); database lane accepts HF-DB-006-SOCIAL-007 and authors the scheduled_posts platform_status migration asked for by HF-SOC-007-SCHEDULED-POSTS-PLATFORM-STATUS-IS-LIVE; QA reruns SIM-20260922-SOC-003 with sim-customer-01 and sim-artist-01 on an approved isolated target and proves the database boundary with a direct PostgREST read. No hosted evidence exists and all 718 QA-004 rows are still not_run.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "social",
+      "condition": "No approved isolated Supabase target with two authenticated actors plus an outsider session exists, so SIM-20260922-SOC-003 cannot be rerun and no hosted denial evidence exists. Every social claim for this task is local and static, against a fake client that models the shipped RLS posture.",
+      "dependency_task_ids": [
+        "DB-006"
+      ]
+    }
+  ]
+}

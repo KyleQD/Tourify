@@ -1,0 +1,34 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB008-UNRESOLVED-ADMIN",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "admin",
+  "status": "accepted",
+  "created_at": "2026-09-25T21:30:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "These objects are recorded `unknown`, not guessed. They are absent from the active migration chain, absent from lib/database.types.ts, absent from every archived or out-of-chain SQL file in the repository, and every consumer is a module nothing imports. The intended contract cannot be decided from the repository, so the database lane recorded them explicitly instead of choosing. audit_logs, access_audit_log, user_roles (16 diagnostic hits). ",
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "lib/services/security-compliance.service.ts",
+    "lib/services/data-isolation.service.ts"
+  ],
+  "completed": [
+    "Recorded 3 objects as unknown with their consumers: audit_logs -> lib/services/security-compliance.service.ts; access_audit_log -> lib/services/data-isolation.service.ts; user_roles -> lib/services/security-compliance.service.ts.",
+    "Searched every non-active SQL source in the repository for each object and recorded zero hits, so the classification is evidence-backed rather than an omission."
+  ],
+  "next_steps": [
+    "Decide per object: delete the dead module, or state the real requirement so a new database task can be raised.",
+    "Do not create the object just to clear the diagnostic. In particular exec_sql must never be created: it is arbitrary-SQL execution and its only repository reference is the 20260717194541 revoke list."
+  ],
+  "blockers": [
+    "The database lane cannot resolve these from the repository alone; the decision is a product/architecture call, not a schema-mechanical one."
+  ],
+  "verification": [
+    "PASS: zero non-active SQL evidence exists for each object (searched supabase/migrations/archive, supabase/migrations_backup, supabase/migration-archive, the legacy root-level scripts and scripts/).",
+    "NOT RUN: no tsc run and no migration apply were performed by the database lane in this wave."
+  ],
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "ADMIN-018",
+  "completion_condition": "Decide per object: delete the dead module, or state the real requirement so a new database task can be raised."
+}

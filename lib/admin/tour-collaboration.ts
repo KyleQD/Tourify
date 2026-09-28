@@ -115,7 +115,11 @@ export function presentTourVendor(row: Record<string, unknown>) {
   }
 }
 
-export function buildTourMemberWrite(input: z.infer<typeof tourMemberInputSchema>, actorUserId: string, teamId: string) {
+export function buildTourMemberWrite(
+  input: z.infer<typeof tourMemberInputSchema>,
+  actorUserId: string,
+  teamId: string,
+) {
   return {
     tour_id: input.tour_id,
     team_id: teamId,

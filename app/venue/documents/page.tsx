@@ -15,6 +15,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
@@ -53,7 +55,7 @@ import {
   Calendar,
   Tag,
   Shield,
-  Link,
+  Link as LinkIcon,
 } from "lucide-react"
 
 interface Document {
@@ -114,6 +116,9 @@ const formatFileSize = (bytes: number) => {
 
 export default function DocumentsPage() {
   const { venue, isLoading: venueLoading } = useCurrentVenue()
+  // VEN-092: event-ops context binding.
+  const searchParamsCtx = useSearchParams()
+  const eventIdContext = searchParamsCtx.get("event_id")
   const { toast } = useToast()
   
   const [documents, setDocuments] = useState<Document[]>([])
@@ -150,30 +155,84 @@ export default function DocumentsPage() {
     
     try {
       setIsLoading(true)
-      const documentsData = await venueService.getVenueDocuments(venue.id)
+      // VEN-092: when opened from event ops, show ONLY that event's documents
+      // (event_documents store) instead of the venue-wide library.
+      let documentsData: Document[] = []
+      if (eventIdContext) {
+        const supabase = (await import("@/lib/supabase/client")).default
+        const { data: eventDocs } = await supabase
+          .from("event_documents")
+          .select("id, title, content, document_type, created_at")
+          .eq("event_id", eventIdContext)
+          .order("created_at", { ascending: false })
+        documentsData = (eventDocs ?? []).map((d): Document => ({
+          id: String(d.id),
+          name: String(d.title ?? "Event document"),
+          document_type: "other" as const,
+          file_url: String(d.content ?? ""),
+          file_size: 0,
+          mime_type: "application/octet-stream",
+          is_public: false,
+          uploaded_by: "Event ops",
+          created_at: String(d.created_at ?? new Date().toISOString()),
+          updated_at: String(d.created_at ?? new Date().toISOString()),
+        }))
+      } else {
+        documentsData = (await venueService.getVenueDocuments(venue.id)) as Document[]
+      }
       
-      // Mock enhanced document data with additional fields
-      const enhancedDocuments: Document[] = documentsData.map((doc, i) => ({
+      const enhancedDocuments: Document[] = documentsData.map((doc) => ({
         ...doc,
         description: doc.description || undefined,
         file_size: doc.file_size || 0,
-        mime_type: doc.mime_type || 'application/octet-stream',
-        uploaded_by: doc.uploaded_by || 'Unknown',
-        tags: i % 3 === 0 ? ["Important", "Updated"] : i % 2 === 0 ? ["Draft"] : [],
-        version: Math.floor(Math.random() * 3) + 1,
-        download_count: Math.floor(Math.random() * 50),
-        last_accessed: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        mime_type: doc.mime_type || "application/octet-stream",
+        uploaded_by: doc.uploaded_by || "Unknown",
+        tags: Array.isArray((doc as { tags?: string[] }).tags)
+          ? ((doc as { tags?: string[] }).tags as string[])
+          : [],
+        version: Number((doc as { version?: number }).version || 1),
+        download_count:
+          typeof (doc as { download_count?: number }).download_count === "number"
+            ? (doc as { download_count?: number }).download_count
+            : undefined,
+        last_accessed:
+          (doc as { last_accessed?: string; updated_at?: string }).last_accessed ||
+          (doc as { updated_at?: string }).updated_at ||
+          doc.created_at,
       }))
-      
+
       setDocuments(enhancedDocuments)
-      
-      // Mock folders
-      setFolders([
-        { id: "folder-1", name: "Contracts", document_count: 5, created_at: "2024-01-15T10:00:00Z", color: "blue" },
-        { id: "folder-2", name: "Marketing Materials", document_count: 12, created_at: "2024-02-01T10:00:00Z", color: "purple" },
-        { id: "folder-3", name: "Technical Specs", document_count: 8, created_at: "2024-02-15T10:00:00Z", color: "green" },
-        { id: "folder-4", name: "Legal Documents", document_count: 3, created_at: "2024-03-01T10:00:00Z", color: "red" },
-      ])
+
+      // VEN-188: folders are persisted rows now. document_folders ships with
+      // migration 20260823190000 — access via a structural shim until the
+      // generated types are regenerated.
+      type FolderRow = { id: string; name: string; created_at: string }
+      const client = (await import("@/lib/supabase/client")).default
+      const fromFolders = client.from as unknown as (
+        table: "document_folders",
+      ) => {
+        select: (columns: string) => {
+          eq: (column: string, value: string) => {
+            order: (
+              column: string,
+              options: { ascending: boolean },
+            ) => PromiseLike<{ data: FolderRow[] | null }>
+          }
+        }
+      }
+      const { data: folderRows } = await fromFolders("document_folders")
+        .select("id, name, created_at")
+        .eq("venue_id", venue.id)
+        .order("name", { ascending: true })
+      setFolders(
+        (folderRows ?? []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          document_count: 0,
+          created_at: f.created_at,
+        })),
+      )
+      setFolders([])
       
     } catch (error) {
       console.error('Error fetching documents:', error)
@@ -232,7 +291,7 @@ export default function DocumentsPage() {
     for (const file of fileArray) {
       try {
         setUploadProgress(prev => ({ ...prev, [file.name]: 10 }))
-        const res = await uploadVenueDocument({ venueId: venue.id, file, name: file.name, documentType: 'other', isPublic: false })
+        const res = await uploadVenueDocument({ venueId: venue.id, file, name: file.name, documentType: 'other', isPublic: false, folderId: currentFolder ?? undefined })
         if (!res.success) {
           toast({ title: 'Upload Failed', description: res.error || `Failed to upload ${file.name}`, variant: 'destructive' })
         } else {
@@ -248,28 +307,69 @@ export default function DocumentsPage() {
     setIsUploadModalOpen(false)
   }
 
-  const handleBulkAction = (action: string) => {
+  // VEN-190: authorized file access via signed URLs.
+  const openDocument = async (docId: string, mode: "view" | "download") => {
+    try {
+      const res = await fetch(
+        `/api/venue/documents/${encodeURIComponent(docId)}?mode=${mode}${venue?.id ? `&venue_id=${encodeURIComponent(venue.id)}` : ""}`,
+        { credentials: "include", cache: "no-store" },
+      )
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.success) throw new Error(json?.error || "Access denied")
+      window.open(json.data.url, "_blank", "noopener")
+    } catch (err) {
+      toast({
+        title: mode === "download" ? "Download failed" : "Preview failed",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBulkAction = async (action: string) => {
     const count = selectedDocuments.length
     
     switch (action) {
-      case "download":
-        toast({
-          title: "Download Started",
-          description: `Downloading ${count} document${count > 1 ? 's' : ''}...`,
-        })
+      case "download": {
+        // VEN-190: real sequential downloads through the signed-URL endpoint.
+        for (const doc of documents.filter((d) => selectedDocuments.includes(d.id))) {
+          await openDocument(doc.id, "download")
+        }
         break
-      case "delete":
-        setDocuments(prev => prev.filter(doc => !selectedDocuments.includes(doc.id)))
-        toast({
-          title: "Documents Deleted",
-          description: `${count} document${count > 1 ? 's' : ''} deleted successfully.`,
-        })
+      }
+      case "delete": {
+        try {
+          const res = await fetch("/api/venue/documents/bulk-delete", {
+            method: "DELETE",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: selectedDocuments }),
+          })
+          const json = await res.json().catch(() => null)
+          if (!res.ok || json.success === false) {
+            throw new Error(json?.error || "Delete failed")
+          }
+          setDocuments(prev => prev.filter(doc => !selectedDocuments.includes(doc.id)))
+          toast({
+            title: "Documents Deleted",
+            description: `${json.deleted?.length ?? count} deleted${
+              (json.failed?.length ?? 0) > 0 ? `, ${json.failed.length} failed` : "."
+            }`,
+          })
+        } catch (err) {
+          toast({
+            title: "Delete failed",
+            description: err instanceof Error ? err.message : "Try again.",
+            variant: "destructive",
+          })
+        }
         break
+      }
       case "share":
         setIsShareModalOpen(true)
         return
     }
-    
+
     setSelectedDocuments([])
   }
 
@@ -308,6 +408,12 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6">
+      {eventIdContext && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-200">
+          Showing documents for event <span className="font-semibold">{eventIdContext}</span>.{" "}
+          <Link href="/venue/documents" className="underline">Clear context</Link>
+        </div>
+      )}
       <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Document Management</h1>
@@ -631,7 +737,11 @@ export default function DocumentsPage() {
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void openDocument(document.id, "view")}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View
                           </Button>
@@ -642,7 +752,7 @@ export default function DocumentsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => void openDocument(document.id, "download")}>
                                 <Download className="h-4 w-4 mr-2" />
                                 Download
                               </DropdownMenuItem>
@@ -717,7 +827,7 @@ export default function DocumentsPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">Public</Badge>
                         <Button variant="outline" size="sm">
-                          <Link className="h-4 w-4 mr-2" />
+                          <LinkIcon className="h-4 w-4 mr-2" />
                           Copy Link
                         </Button>
                       </div>
@@ -830,12 +940,39 @@ export default function DocumentsPage() {
             <Button variant="outline" onClick={() => setIsCreateFolderOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              toast({
-                title: "Folder Created",
-                description: "New folder has been created successfully."
-              })
-              setIsCreateFolderOpen(false)
+            <Button onClick={async () => {
+              const input = document.getElementById("folder-name") as HTMLInputElement | null
+              const name = input?.value?.trim()
+              if (!name || !venue?.id) {
+                toast({ title: "Folder name required", variant: "destructive" })
+                return
+              }
+              try {
+                const mod = await import("@/lib/supabase/client")
+                const client = mod.default
+                const insertIntoFolders = (client.from as unknown as (
+                  table: "document_folders",
+                ) => {
+                  insert: (
+                    values: Record<string, unknown>,
+                  ) => PromiseLike<{ error: { message: string } | null }>
+                })("document_folders")
+                const { error: createError } = await insertIntoFolders.insert({
+                  venue_id: venue.id,
+                  name,
+                  created_by: null,
+                })
+                if (createError) throw createError
+                toast({ title: "Folder Created", description: name })
+                setIsCreateFolderOpen(false)
+                await fetchDocuments()
+              } catch (err) {
+                toast({
+                  title: "Could not create folder",
+                  description: err instanceof Error ? err.message : "Try again.",
+                  variant: "destructive",
+                })
+              }
             }}>
               Create Folder
             </Button>

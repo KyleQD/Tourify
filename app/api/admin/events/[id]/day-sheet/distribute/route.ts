@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import {
   assertAdminEventAccess,
@@ -11,7 +11,7 @@ function extractEventId(url: string): string | null {
   return idx >= 0 ? segments[idx + 1] : null
 }
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('event.live_ops', async (request: NextRequest, { supabase, user }) => {
   const eventId = extractEventId(request.url)
   if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
   await assertAdminEventAccess({ supabase, userId: user.id, eventId })

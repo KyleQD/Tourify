@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_DIGITAL_COMMONS_FLAG_NAMES = [
   "creator_digital_commons_readiness_enabled",
   "creator_digital_commons_steward_entity_enabled",
@@ -49,6 +51,9 @@ export async function resolveCreatorDigitalCommonsFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorDigitalCommonsFlags> {
+  if (!isLaunchCapabilityAvailable("creator_digital_commons"))
+    return { ...DISABLED_CREATOR_DIGITAL_COMMONS_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

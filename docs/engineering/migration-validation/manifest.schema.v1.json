@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tourify.local/schemas/migration-validation-manifest-v1.json",
+  "title": "Tourify migration validation manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "migration", "taskId", "status", "owner", "reviewer",
+    "domains", "riskLevel", "representativeSnapshot", "preflight", "execution",
+    "quarantine", "constraintsAndIndexes", "recovery", "postflight",
+    "verificationOwner", "evidence", "exceptions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "migration": { "type": "string", "pattern": "^[0-9]{14}_[a-z0-9_]+\\.sql$" },
+    "taskId": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["planned", "isolated_validated", "staging_validated", "production_verified"] },
+    "owner": { "type": "string", "minLength": 1 },
+    "reviewer": { "type": "string", "minLength": 1 },
+    "domains": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "riskLevel": { "enum": ["low", "medium", "high", "critical"] },
+    "representativeSnapshot": { "$ref": "#/$defs/snapshot" },
+    "preflight": { "$ref": "#/$defs/preflight" },
+    "execution": { "$ref": "#/$defs/execution" },
+    "quarantine": { "$ref": "#/$defs/quarantine" },
+    "constraintsAndIndexes": { "$ref": "#/$defs/constraints" },
+    "recovery": { "$ref": "#/$defs/recovery" },
+    "postflight": { "$ref": "#/$defs/postflight" },
+    "verificationOwner": { "type": "string", "minLength": 1 },
+    "evidence": { "$ref": "#/$defs/evidence" },
+    "exceptions": { "type": "array", "items": { "$ref": "#/$defs/exception" } }
+  },
+  "$defs": {
+    "snapshot": {
+      "type": "object",
+      "required": ["kind", "evidenceArtifact"],
+      "properties": { "kind": { "type": "string", "minLength": 1 }, "evidenceArtifact": { "type": ["string", "null"] } }
+    },
+    "preflight": {
+      "type": "object",
+      "required": ["rowCountQueries", "expectedAffectedRows", "artifact"],
+      "properties": {
+        "rowCountQueries": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "expectedAffectedRows": { "type": "string", "minLength": 1 },
+        "artifact": { "type": ["string", "null"] }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["lockBudgetMs", "statementTimeoutMs", "batchSize", "resumeStrategy", "resumeCursor", "idempotency"],
+      "properties": {
+        "lockBudgetMs": { "type": "integer", "minimum": 1 },
+        "statementTimeoutMs": { "type": "integer", "minimum": 1 },
+        "batchSize": { "type": "integer", "minimum": 0 },
+        "resumeStrategy": { "type": "string", "minLength": 1 },
+        "resumeCursor": { "type": "string", "minLength": 1 },
+        "idempotency": { "type": "string", "minLength": 1 }
+      }
+    },
+    "quarantine": {
+      "type": "object",
+      "required": ["required", "table", "strategy"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "table": { "type": ["string", "null"] },
+        "strategy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "required": ["constraints", "indexes", "validationPlan"],
+      "properties": {
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "indexes": { "type": "array", "items": { "type": "string" } },
+        "validationPlan": { "type": "string", "minLength": 1 }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "required": ["rollback", "forwardFix"],
+      "properties": { "rollback": { "type": "string", "minLength": 1 }, "forwardFix": { "type": "string", "minLength": 1 } }
+    },
+    "postflight": {
+      "type": "object",
+      "required": ["queries", "artifact", "securityAdvisorArtifact", "performanceAdvisorArtifact"],
+      "properties": {
+        "queries": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "artifact": { "type": ["string", "null"] },
+        "securityAdvisorArtifact": { "type": ["string", "null"] },
+        "performanceAdvisorArtifact": { "type": ["string", "null"] }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["isolated", "staging", "production"],
+      "properties": {
+        "isolated": { "type": ["string", "null"] },
+        "staging": { "type": ["string", "null"] },
+        "production": { "type": ["string", "null"] }
+      }
+    },
+    "exception": {
+      "type": "object",
+      "required": ["id", "type", "owner", "rationale", "issue", "expiresOn", "evidence"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["scoped-insert-select", "blocking-constraint-reviewed", "not-null-reviewed"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "issue": { "type": "string", "minLength": 1 },
+        "expiresOn": { "type": "string", "format": "date" },
+        "evidence": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

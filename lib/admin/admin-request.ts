@@ -62,7 +62,12 @@ export function mapAdminScopeError(
     }
   }
 
-  if (status === 403 || code === 'capability_required' || code === 'organization_access_denied') {
+  if (
+    status === 403
+    || code === 'capability_required'
+    || code === 'capability_denied'
+    || code === 'organization_access_denied'
+  ) {
     return {
       title: 'Access denied',
       message:

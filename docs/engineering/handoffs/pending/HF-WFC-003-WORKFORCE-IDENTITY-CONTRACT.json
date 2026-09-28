@@ -1,0 +1,141 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-003-WORKFORCE-IDENTITY-CONTRACT",
+  "task_id": "WFC-003",
+  "from_agent": "organization",
+  "to_agent": "database",
+  "status": "accepted",
+  "created_at": "2026-09-26T14:20:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "dirty_state_caveat": "The worktree was already dirty with unrelated in-progress work from other live lanes before WFC-003 began (68 entries, including another agent's concurrent full typecheck running against /tmp/full-tsc.log). All of it was preserved untouched. WFC-003's own changes are additive only: one new types module, one new test file, one new contract document, one new scoped tsconfig, and edits confined to docs/engineering/tasks/active/WFC-003.json and docs/engineering/agents/organization/STATE.md. No migration, no existing source file, and no other lane's path was modified. Nothing was committed.",
+  "summary": "WFC-003 is the SOLE author of the canonical workforce organization, active-manager, vendor-identity, and quarantine contract under CP-102. This handoff is the decision-complete input to WFC-004's schema authoring and to DB-012/ORG-007's vendor work. The canonical key is organizations.id. Manager validation is pinned to the real org_members and org_role_permissions tables. Vendor identity is an entity id owned by exactly one organization, never a name. 22 ambiguities are recorded as explicit quarantine outcomes rather than resolved, and the three most consequential are listed under open_questions below. WFC-003 created no tables and no migrations.",
+  "authoritative_source": "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md",
+  "typed_contract_surface": "types/vendor-identity-contract.ts",
+  "tests": "__tests__/admin/workforce-identity-contract.test.ts",
+  "consumers": [
+    {
+      "task": "WFC-004",
+      "agent": "database",
+      "instruction": "Author the schema from contract section 6's nine numbered requirements. Do not re-derive identity. Additive and manual under CP-051: no supabase db reset, no blanket replay, one migration at a time."
+    },
+    {
+      "task": "DB-012",
+      "agent": "database",
+      "instruction": "Establish vendor organization ownership by CONSUMING this contract. Do not define vendor identity, vendor-to-organization ownership, or manager authority. If something you need is not specified here, it is a handoff back to WFC-003, not a local decision."
+    },
+    {
+      "task": "ORG-007",
+      "agent": "organization",
+      "instruction": "First action on unblocking is to READ this contract, not to design vendor identity. ORG-007 may add to the identity contract only via a handoff back to WFC-003."
+    },
+    {
+      "task": "WFC-005, WFC-006",
+      "agent": "work",
+      "instruction": "Use resolveWorkforceOrganizationKey, validateActiveManagerMembership, classifyVendorOwnership, and proveSameOrganization from types/vendor-identity-contract.ts. Do not re-derive."
+    },
+    {
+      "task": "WFC-008 through WFC-010",
+      "agent": "admin",
+      "instruction": "The not_authorized state must not leak whether a quarantined record exists. Quarantine is a server-side outcome, not a UI state."
+    }
+  ],
+  "canonical_organization_key": {
+    "key": "organizations.id",
+    "readable_as_the_key": [
+      "org_members.org_id",
+      "staff_members.org_id",
+      "event_vendor_requests.org_id",
+      "vendor_contracts.org_id",
+      "organizer_accounts.ops_org_id (alias, when non-null)",
+      "staff_members.entity_id where entity_type='org' (alias, when the id also exists in organizations)",
+      "employment_assignments.employer_entity_id where employer_entity_type='organization' (alias)"
+    ],
+    "never_readable_as_the_key": [
+      "organizer_accounts.id and accounts.id - different identifiers / discovery projections",
+      "staff_members.entity_id where entity_type='event' - bridge, needs a join to events_v2.org_id",
+      "staff_members.venue_id and adhoc_venue_id - a different tenant; CP-093 makes a venue a work scope",
+      "staff_members.employer_entity_id where type is venue or artist - a different tenant",
+      "venues.account_id - UNPROVEN, no foreign key exists (lib/database.types.ts:22224)",
+      "tour_vendors.vendor_account_id - UNPROVEN, no foreign key exists (lib/database.types.ts:19492-19500)"
+    ],
+    "vocabulary_warning": "entity_type admits 'org' (20260602120000_unified_staff_roster.sql:7) while employer_entity_type admits 'organization' (20260714015225:146). Matching on the string 'org' alone silently misses every employment_assignments organization row."
+  },
+  "manager_validation": {
+    "rule": "A user is an active manager of an organization iff an org_members row exists for (org_id, user_id) and status = 'active'. Management authority additionally requires has_perm(uid, oid, 'workforce.manage').",
+    "tables_verified": [
+      "org_members - supabase/migrations/20250816132000_org_rbac.sql:16-23, PK (org_id, user_id) at :22 with NO status in the key; status/seat_source/permissions CHECKs at 20260821180438:76-78",
+      "org_role_permissions - 20250816132000:39-42, seeded :44-49",
+      "organizations - 20250816132000:7-14",
+      "organizer_accounts - lib/database.types.ts:12926-12999, bridge column ops_org_id at :12938"
+    ],
+    "existing_implementations_that_must_not_drift": [
+      "is_org_member - 20260821180438:106-120",
+      "has_perm - 20260821180438:122-151",
+      "resolveEffectiveAdminCapabilities - lib/auth/admin-capabilities.ts:228-229 (if status !== 'active' return [])"
+    ],
+    "history_warning": "The ORIGINAL is_org_member and has_perm at 20250816132000:52-63 did NOT filter on status. The current definitions added and m.status = 'active'. A member row with status invited or revoked exists and grants nothing. org_members is validated to admit exactly ('invited','active','revoked')."
+  },
+  "vendor_identity": {
+    "rule": "A vendor is a company entity belonging to exactly one organization, identified by an entity id and never by a name. A vendor record whose identity is a name is quarantined, not resolved.",
+    "ratified_from_existing_code": [
+      "lib/admin/vendor-identity.ts:302-304 - planVendorMerge throws 'Merge is org-scoped only' when org_id differs",
+      "lib/admin/vendor-domain.ts:72-74 and :85 - previewVendorMerge and executeVendorMerge both throw 'Cannot merge vendors across organizations'"
+    ],
+    "adopted_not_re_derived": "VEND-102 (lib/admin/vendor-identity.ts, 354 lines, 143-line test) already defines name normalization, the zod input schema, the 80/40 duplicate thresholds, seven weighted duplicate signals, and the merge plan. This contract adopts it."
+  },
+  "open_questions_deliberately_unresolved": [
+    "No vendor entity table exists anywhere in the migration chain. Only vendor_contracts, event_vendor_requests, and tour_vendors exist, and all three store a free-text vendor_name. Ownership is org-proven on two of them; identity is proven on none.",
+    "Six vendor tables are read by live routes but exist in NEITHER the migration chain NOR lib/database.types.ts: vendors (app/api/admin/vendors/route.ts:20), org_vendors, vendor_compliance_documents, org_contracts, contract_signature_envelopes (app/api/admin/organization/vendor-governance/route.ts:17,33,48,64), and vendor_aliases. A route reading one returns a PostgREST ERROR, not an empty result, so 'no vendors found' is not evidence of no vendors (CP-098). WFC-003 did NOT decide whether `vendors` and `org_vendors` are one entity or two; guessing they are the same is exactly the merge CP-096 forbids.",
+    "org_members has two revocation representations and only one is honored. Both status (20260821180438:76-78) and revoked_at (:57) exist, but NO migration ever sets revoked_at, so it is always null. Only status='revoked' revokes.",
+    "MANAGER_SCOPE_GAP: CP-094's department-scoped manager authority is not expressible in the current capability contract. AdminCapabilityTarget['type'] admits only organization|tour|event|site_map|document (lib/auth/admin-capabilities.ts:193-195), while DEPARTMENT_MANAGER_CAPABILITIES grants workforce.manage unqualified (:113-119, :129) and a scopeless grant is an organization grant (:253-259).",
+    "staff_members has NO tenant-scoped RLS: its only three policies are all auth.role() = 'authenticated' (20250818120000_admin_staffing_core.sql:362,396,427), so any authenticated user can read any org's org_id, email, phone, and hourly_rate. It also has no fail-closed scope CHECK, unlike staff_shifts which has a validated one (20260821031214:51-56), and its org_id is nullable on delete set null. Recorded, not changed.",
+    "staff_members_org_user_key is partial (20260821031214:86-88): it only constrains rows where org_id is not null, so the quarantined population is unconstrained and may duplicate freely.",
+    "No department table exists anywhere in the chain and every department column is free text (lib/database.types.ts:16476, 4556, 3735, 9144, 12431, 15913, 16727). CP-094 already rejected free-text department fields as a responsibility boundary.",
+    "Two VendorCategory vocabularies coexist and are not reconcilable by inference: eight values in lib/admin/vendor-identity.ts:8-17 versus sixteen in lib/admin/vendor-domain.ts:23-26.",
+    "The full 22-row ambiguity table is in the contract document section 5, each row with evidence and an owning lane."
+  ],
+  "working_set_delivered": [
+    "types/vendor-identity-contract.ts (new; inside the declared types/**vendor** glob, which matched no file before)",
+    "__tests__/admin/workforce-identity-contract.test.ts (new)",
+    "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md (new)",
+    "tsconfig.wfc003-slice.json (new; follows the existing tsconfig.admin003-slice.json precedent)",
+    "docs/engineering/tasks/active/WFC-003.json (edited)",
+    "docs/engineering/agents/organization/STATE.md (appended, nothing rewritten or deleted)"
+  ],
+  "scope_expansions_read_only": [
+    "lib/organizations/identity.ts - the ORG-002 canonical mapping named in this agent's own STATE.md; read to avoid contradicting ORG-002. Not modified.",
+    "supabase/migrations/** (12 files, grep-targeted) - the only authoritative source for which of several competing DDL definitions is LAST in the chain, and the proof that the six unproven vendor tables are absent. Not modified.",
+    "lib/auth/admin-capabilities.ts, lib/database.types.ts, lib/accounts/account-types.ts, lib/admin/tour-access.service.ts - read for the third membership-rule implementation, the generated schema of record, and the legacy_owner relation. Not modified.",
+    "lib/admin/vendor-identity.ts, lib/admin/vendor-domain.ts, app/api/admin/vendors/route.ts, app/api/admin/organization/vendor-governance/route.ts - the real vendor surface, located because the recorded types/**vendor** glob matched nothing. Read only; adopting VEND-102 rather than re-deriving it is what keeps this lane from competing with DB-012/ORG-007.",
+    "scripts/verify.mjs, scripts/audit/admin-workflow-registry.ts, package.json - read only to attribute the two verification failures honestly."
+  ],
+  "next_steps": [
+    "WFC-004: author the schema from contract section 6. Nine numbered mandatory requirements: NOT NULL organizations.id on every workforce table; a validated scope CHECK; manager validation reusing org_members and has_perm with no second membership table; revocation truth in org_members.status; a department scope type or equivalent; a vendor entity table with the VEND-102 fields and one organization per entity; an explicit quarantine table with a constrained reason column, a provenance column, and a per-code reconciliation view; backfill only from provable sources in the style of 20260821031214:10-28; and a department entity replacing every free-text department column by explicit link, never by value comparison.",
+    "WFC-004: decide whether `vendors` and `org_vendors` are one entity or two. WFC-003 refused to guess.",
+    "WFC-004: reconcile or drop org_members.revoked_at so revocation has one source of truth.",
+    "WFC-004: close MANAGER_SCOPE_GAP. Until it lands, no lane may treat department_manager as department-scoped.",
+    "DB-012 and ORG-007: read the contract before writing any vendor identity code.",
+    "WFC-003 stays active. Re-evaluate acceptance criterion 2 against real vendor and department entities once WFC-004 lands."
+  ],
+  "blockers": [
+    "WFC-003 acceptance criterion 2 is only partially demonstrable: proveSameOrganization is tested, but no vendor entity table and no department entity exist in the repository, so a vendor cannot yet be validated as an ACTIVE ENTITY of the same organization against real data. WFC-003 deliberately did not close this by inventing schema.",
+    "MANAGER_SCOPE_GAP is unresolved by design and belongs to WFC-004."
+  ],
+  "verification": [
+    "PASS: npx tsc -p tsconfig.wfc003-slice.json --noEmit - no output, clean.",
+    "PASS: npx vitest run __tests__/admin/workforce-identity-contract.test.ts - 32 passed (1 file).",
+    "PASS: npx eslint types/vendor-identity-contract.ts __tests__/admin/workforce-identity-contract.test.ts - no output, exit 0.",
+    "PASS: npx vitest run __tests__/admin - 270 files passed, 1 skipped; 3538 tests passed, 2 skipped; 21.25s.",
+    "PASS: npm run check:admin-route-registry - 291 routes on disk, 54/54 legacy classifications, 'REL-103 check OK'.",
+    "PASS: npm run agents:validate - 'validated 17 agents, 175 tasks, 0 warnings, 0 errors'. Run three times, including after every edit to the task record and STATE.md.",
+    "INCOMPLETE: npm run verify:feature -- --changed - did not return within 600s and was terminated. scripts/verify.mjs:44 runs npm run typecheck UNCONDITIONALLY, not gated on --changed. Every other step of this tier was run individually and is recorded above as pass.",
+    "DID NOT COMPLETE: npm run typecheck - no diagnostics emitted across two attempts (420s, then 6m52s before I killed my own process). lib/database.types.ts is 25,648 lines / ~1.18 MB. A second agent's concurrent full typecheck was observed in the same workspace and was deliberately left running. The task brief anticipated this OOM; scoped tsc was used instead. No typecheck evidence beyond the slice is claimed.",
+    "PRE-EXISTING FAILURE: npm run check:admin-audit - 'Admin audit registry validation failed (3): Generated view drift: STATUS.md; Generated view drift: coverage.json; Workbook registry source hash is stale'. PROVEN pre-existing at base SHA 16fb834f: registrySourceHash() (scripts/audit/admin-workflow-registry.ts:192-208) hashes only docs/audit/registry/**/*.json, docs/audit/evidence/**/*.json, lib/supabase/service-role-import-review.json, lib/admin/api-route-registry.ts and the route baseline, and git status --porcelain on all of those paths is empty, so the computed hash is byte-identical to the base-SHA hash. Not fixed here; regenerating the workbook is outside this lane's working set.",
+    "NOT CLAIMED: no hosted evidence, no browser evidence, no migration-applied evidence. This task created no schema. Every claim in the contract is a claim about source and migration text, cited to file:line."
+  ],
+  "evidence_document": "docs/engineering/tasks/active/WFC-003.json",
+  "decision_record": "CP-102",
+  "accepting_task_id": "DB-012",
+  "completion_condition": "WFC-004: author the schema from contract section 6. Nine numbered mandatory requirements: NOT NULL organizations.id on every workforce table; a validated scope CHECK; manager validation reusing org_members and has_perm with no second membership table; revocation truth in org_members.status; a department scope type or equivalent; a vendor entity table with the VEND-102 fields and one organization per entity; an explicit quarantine table with a constrained reason column, a provenance column, and a per-code reconciliation view; backfill only from provable sources in the style of 20260821031214:10-28; and a department entity replacing every free-text department column by explicit link, never by value comparison.",
+  "completed": []
+}

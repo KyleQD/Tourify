@@ -155,34 +155,41 @@ export function AchievementUnlockProvider({ children }: { children: React.ReactN
     let isMounted = true
 
     async function setup() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user || !isMounted) return
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user || !isMounted) return
 
-      channel = supabase
-        .channel(`recognition-unlocks-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            const row = payload.new as {
-              id?: string
-              type?: string
-              title?: string
-              content?: string
-              metadata?: Record<string, unknown>
+        channel = supabase
+          .channel(`recognition-unlocks-${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const row = payload.new as {
+                id?: string
+                type?: string
+                title?: string
+                content?: string
+                metadata?: Record<string, unknown>
+              }
+              const unlocks = extractUnlocksFromNotification(row)
+              enqueue(unlocks)
             }
-            const unlocks = extractUnlocksFromNotification(row)
-            enqueue(unlocks)
-          }
-        )
-        .subscribe()
+          )
+          .subscribe()
+      } catch (error) {
+        // Achievement notifications are optional. Browser privacy settings or a
+        // temporary realtime outage must not break the authenticated app shell.
+        console.warn('[AchievementUnlockProvider] Realtime subscription unavailable:', error)
+        channel = null
+      }
     }
 
     setup()

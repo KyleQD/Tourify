@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-022",
+  "title": "Retire venue sidebar primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:51.623Z",
+  "updated_at": "2026-09-11T19:46:11.289Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/sidebar.tsx to components/ui/sidebar.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/sidebar.tsx",
+      "components/ui/sidebar.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/sidebar.tsx",
+    "components/ui/sidebar.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical navigation / shell preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/sidebar|@/components/venue/ui/sidebar\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/sidebar.tsx components/ui/sidebar.tsx",
+      "git diff --check -- components/venue/ui/sidebar.tsx components/ui/sidebar.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded source audit across app/, components/, hooks/, lib/, apps/, __tests__, and scripts found 0 references to components/venue/ui/sidebar.tsx, @/components/venue/ui/sidebar, or venue/ui/sidebar.",
+      "The venue navigation surface at components/venue/navigation/main-sidebar.tsx does not import the venue sidebar twin; it renders route-level navigation and imports canonical shared primitives directly.",
+      "The active canonical shared consumers are components/app-sidebar.tsx and app/artist/artist-layout-client.tsx, both importing from @/components/ui/sidebar. The owning surface for the target is therefore the shared design-system primitive, with shared app and artist navigation as its existing consumers; no venue-owned sidebar consumer is present.",
+      "components/venue/ui/sidebar.tsx and components/ui/sidebar.tsx are byte-identical: 763 lines and matching SHA-256 1a4ffdbfeacec0409a4bf82823b466bce09bfddb8e94c9e91aa214b1e9775645.",
+      "Public export parity is exact: both modules export Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarInset, SidebarMenu, SidebarMenuAction, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarMenuSkeleton, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem, SidebarProvider, SidebarRail, SidebarSeparator, SidebarTrigger, and useSidebar.",
+      "The canonical component register records components/venue/ui/sidebar.tsx as DUP-084, retire later, targeting components/ui/sidebar.tsx; the compatibility file remains preserved and the register was not modified in this task.",
+      "Safe migration plan: make no source edits now; preserve the venue twin as an inert compatibility file, treat components/ui/sidebar.tsx as the only target for any future consumer, and require a new owning-surface migration task plus repeated zero-use/parity evidence before retirement.",
+      "Focused consumer audit command exited 1 because rg found no matches, which is the expected zero-use result.",
+      "Focused ESLint passed for components/venue/ui/sidebar.tsx and components/ui/sidebar.tsx.",
+      "Scoped git diff --check passed for the sidebar paths and docs/engineering.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors; task JSON parse also passed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:11.289Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Consumer and parity audit complete. The venue sidebar twin has zero live source consumers, is byte-identical to the canonical shared target, and remains preserved pending separate cleanup authorization.",
+    "completed": [
+      "Audited direct and source-level consumers of components/venue/ui/sidebar.tsx across the bounded repository surfaces; none were found.",
+      "Identified the owning surface as the shared design-system sidebar, with components/app-sidebar.tsx and app/artist/artist-layout-client.tsx as current canonical consumers; venue navigation is route-level and does not consume the twin.",
+      "Confirmed exact implementation and public/export parity between the venue twin and components/ui/sidebar.tsx.",
+      "Documented a no-op migration plan that preserves compatibility files and defers retirement until a separately approved owner task confirms the boundary."
+    ],
+    "next_steps": [
+      "Retain the venue twin while the compatibility boundary remains in force; no live consumer migration is required by current evidence.",
+      "If a future consumer appears, migrate that consumer directly to components/ui/sidebar.tsx, rerun the bounded import and parity checks, and obtain owning-surface approval before any retirement decision."
+    ],
+    "blockers": [
+      "Retirement is intentionally deferred: the user-approved scope prohibits deleting or rewriting compatibility files, and the canonical register requires the retire-later boundary to remain until any future migration and zero-use evidence are complete."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:31:11.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed DESIGN-022 sidebar consumer, owner, and parity audit without changing source, compatibility files, venue behavior, shared design-system state, or the canonical register.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-022.json"
+        ],
+        "verification": [
+          "Bounded rg consumer audit: 0 live venue-sidebar references",
+          "Exact parity: 763 lines and matching SHA-256",
+          "Public export parity audit",
+          "Canonical register disposition review",
+          "Focused ESLint: passed",
+          "Scoped git diff --check: passed",
+          "Task JSON parse: passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "No deletion or compatibility-file rewrite is authorized in this audit task."
+        ],
+        "next_steps": [
+          "Keep the venue twin unchanged; open a separately approved migration task only if a live consumer or retirement authorization is introduced."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:11.289Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consumer and parity audit complete. The venue sidebar twin has zero live source consumers, is byte-identical to the canonical shared target, and remains preserved pending separate cleanup authorization.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

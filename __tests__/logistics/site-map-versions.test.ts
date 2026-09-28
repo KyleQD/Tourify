@@ -20,7 +20,7 @@ describe('site map version integration', () => {
       'utf8'
     )
     expect(versions).toContain('requireSiteMapAccess')
-    expect(versions).toContain("'read'")
+    expect(versions).toMatch(/requireSiteMapAccess\(access,\s*["']read["']\)/)
   })
 
   it('collaborators GET enforces site map access', () => {

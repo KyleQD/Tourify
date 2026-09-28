@@ -1,0 +1,3923 @@
+{
+  "schemaVersion": "world-place-v0.1",
+  "fixtureVersion": "world-seed-fixture-v0.3",
+  "publicationState": "draft_needs_review_not_deployed",
+  "place": {
+    "id": "4febfb31-3fb8-4221-b9ea-13d0ec039f08",
+    "canonicalPath": "us/mi/detroit",
+    "name": "Detroit",
+    "displayName": "Detroit",
+    "placeType": "city",
+    "parent": {
+      "id": "37db9ea3-4d17-4e27-ba38-19b4cbd142e2",
+      "canonicalPath": "us/mi",
+      "name": "Michigan"
+    },
+    "breadcrumb": [
+      {
+        "id": "32784f98-b28b-4efe-9b16-a62914966273",
+        "canonicalPath": "us",
+        "name": "United States",
+        "placeType": "country"
+      },
+      {
+        "id": "37db9ea3-4d17-4e27-ba38-19b4cbd142e2",
+        "canonicalPath": "us/mi",
+        "name": "Michigan",
+        "placeType": "state_province"
+      },
+      {
+        "id": "4febfb31-3fb8-4221-b9ea-13d0ec039f08",
+        "canonicalPath": "us/mi/detroit",
+        "name": "Detroit",
+        "placeType": "city"
+      }
+    ],
+    "countryCode": "US",
+    "admin1Code": "MI",
+    "timezone": null,
+    "languages": [],
+    "center": {
+      "latitude": 42.3316667,
+      "longitude": -83.0475
+    },
+    "aliases": [
+      "Detroit, Michigan",
+      "Detroit, MI"
+    ],
+    "externalRefs": [
+      {
+        "provider": "wikidata",
+        "external_type": "place",
+        "external_id": "Q12439",
+        "canonical_url": "https://www.wikidata.org/wiki/Q12439",
+        "attribution_text": null,
+        "source_key": "wikidata_geo"
+      },
+      {
+        "provider": "musicbrainz",
+        "external_type": "area",
+        "external_id": "b03ff310-d8e2-45cf-9455-769f76641eb2",
+        "canonical_url": "https://musicbrainz.org/area/b03ff310-d8e2-45cf-9455-769f76641eb2",
+        "attribution_text": null,
+        "source_key": "musicbrainz_geo"
+      }
+    ]
+  },
+  "overview": {
+    "shortDescription": null,
+    "musicalIdentity": "Detroit’s pilot history connects the Motown recording ecosystem of Hitsville U.S.A. with the city-area electronic innovations that shaped Detroit techno.",
+    "hero": null,
+    "listenHere": null,
+    "listenHereStatus": {
+      "status": "unavailable",
+      "reason": "Pilot recordings and sound guides are metadata/description-only until playback rights are independently resolved."
+    },
+    "stats": {
+      "publishedClaims": 0,
+      "artists": 7,
+      "tracks": 0,
+      "radioStations": 0,
+      "eventsUpcoming": 0,
+      "culturalEntities": 25
+    },
+    "quality": {
+      "modelVersion": "world-quality-model-v0.1",
+      "averageEntityQuality": 0.913,
+      "averageRelationshipQuality": 0.8822,
+      "corroboratedEntityRate": 0.64,
+      "stableArtistIdentityRate": 1,
+      "recordingYearCoverage": 1,
+      "landmarkIdentityCoverage": 1,
+      "sourceDomainCount": 6,
+      "sourceTypeCount": 4,
+      "publicationEligible": false,
+      "gaps": [
+        "current popularity signals not seeded",
+        "live event/venue signals not seeded",
+        "radio/playback rights not seeded"
+      ]
+    },
+    "explore": {
+      "basis": "draft_quality_heuristic_not_editorial",
+      "suggestedPath": [
+        {
+          "role": "start_with_history",
+          "id": "detroit_motown_founded_1959",
+          "kind": "historical_milestone",
+          "name": "Motown is founded in Detroit"
+        },
+        {
+          "role": "hear_the_signature",
+          "id": "detroit_motown_sound_signature",
+          "kind": "sound_signature",
+          "name": "Motown sound signature",
+          "qualityScore": 0.9653
+        },
+        {
+          "role": "meet_a_key_artist",
+          "id": "detroit_artist_barrett_strong",
+          "kind": "artist_reference",
+          "name": "Barrett Strong",
+          "qualityScore": 0.9398
+        },
+        {
+          "role": "study_a_recording",
+          "id": "detroit_strings_of_life",
+          "kind": "recording_reference",
+          "name": "Strings of Life",
+          "qualityScore": 0.95
+        },
+        {
+          "role": "visit_a_landmark",
+          "id": "detroit_hitsville_usa",
+          "kind": "studio_landmark",
+          "name": "Hitsville U.S.A.",
+          "qualityScore": 0.9509
+        }
+      ]
+    }
+  },
+  "sections": {
+    "fromHere": {
+      "status": "draft_seed_data",
+      "items": [
+        {
+          "id": "detroit_motown_sound",
+          "kind": "genre",
+          "data": {
+            "slug": "detroit-motown-sound",
+            "name": "Motown Sound",
+            "summary": "A Detroit-associated soul sound developed around Motown’s writers, producers, singers, and house musicians.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1959",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "motown_museum_legacy"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9743,
+            "band": "strong_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.945,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "detroit_motown_sound"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno",
+          "kind": "genre",
+          "data": {
+            "slug": "detroit-techno",
+            "name": "Detroit techno",
+            "summary": "An electronic music tradition developed by Detroit-area innovators including Juan Atkins, Derrick May, and Kevin Saunderson.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "detroit_historical_may",
+              "detroit_historical_saunderson"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8735,
+            "band": "solid_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "detroit_techno"
+            }
+          ]
+        },
+        {
+          "id": "detroit_belleville_three",
+          "kind": "scene",
+          "data": {
+            "slug": "detroit-belleville-three",
+            "name": "Belleville Three / early Detroit techno network",
+            "summary": "Juan Atkins, Derrick May, and Kevin Saunderson became known as the Belleville Three and are central to the rise of Detroit techno.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "detroit_historical_may",
+              "detroit_historical_saunderson"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8735,
+            "band": "solid_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "detroit_belleville_three"
+            }
+          ]
+        },
+        {
+          "id": "detroit_motown_electric_bass",
+          "kind": "instrument",
+          "data": {
+            "slug": "electric-bass-guitar-motown",
+            "name": "Electric bass guitar — Motown rhythm section",
+            "summary": "The electric bass is a defining part of the Motown rhythm-section vocabulary, strongly associated with Funk Brothers bassist James Jamerson.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "mobile bass lines beneath vocal melodies",
+                "tight interaction with drums and keyboards"
+              ],
+              "sound_role": "low-register melodic and rhythmic foundation",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electric_string"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1959",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "motown_museum_funk_brothers"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.872,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum"
+            ],
+            "authorityScore": 0.96,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_motown_electric_bass"
+            }
+          ]
+        },
+        {
+          "id": "detroit_motown_drum_kit",
+          "kind": "instrument",
+          "data": {
+            "slug": "drum-kit-motown",
+            "name": "Drum kit — Motown rhythm section",
+            "summary": "Motown sessions relied on Detroit studio drummers including Benny Benjamin and Uriel Jones, placing the drum kit at the center of the Funk Brothers rhythm section.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "firm backbeat",
+                "syncopated interaction with bass and tambourine/percussion"
+              ],
+              "sound_role": "backbeat and rhythmic drive",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "percussion"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.93,
+          "timeScope": {
+            "start": "1959",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "motown_museum_funk_brothers"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.869,
+            "band": "solid_basis",
+            "confidence": 0.93,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum"
+            ],
+            "authorityScore": 0.96,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_motown_drum_kit"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno_synthesizer",
+          "kind": "instrument",
+          "data": {
+            "slug": "synthesizer-detroit-techno",
+            "name": "Synthesizer — early Detroit techno",
+            "summary": "Detroit Historical Society describes early Detroit techno innovators working with a new generation of synthesizers as they shaped the genre in the 1980s.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "synthetic bass and lead timbres",
+                "layered electronic textures"
+              ],
+              "sound_role": "synthetic timbre, harmony, bass and futurist texture",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_demf_tech"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8675,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_techno_synthesizer"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno_drum_machine",
+          "kind": "instrument",
+          "data": {
+            "slug": "drum-machine-detroit-techno",
+            "name": "Drum machine — early Detroit techno",
+            "summary": "A new generation of drum machines was part of the technology used by Detroit techno pioneers as the local electronic style formed.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "precisely programmed kick/snare patterns",
+                "mechanical rhythmic repetition used expressively"
+              ],
+              "sound_role": "machine-driven pulse and programmed rhythm",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic_percussion"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_demf_tech"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8675,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_techno_drum_machine"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_barrett_strong",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "barrett-strong",
+            "name": "Barrett Strong",
+            "summary": "External knowledge-graph identity for Barrett Strong; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q808900",
+                "musicbrainz_artist_mbid": "31ee774b-6248-48d5-a8b5-0d9bebeaba9d",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q808900",
+                "musicbrainz_artist_mbid": "31ee774b-6248-48d5-a8b5-0d9bebeaba9d",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_barrett_strong"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_miracles",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-miracles",
+            "name": "The Miracles",
+            "summary": "External knowledge-graph identity for The Miracles; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q1761222",
+                "musicbrainz_artist_mbid": "6a4c2d34-7f7f-4f87-b17f-b5540aa840db",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q1761222",
+                "musicbrainz_artist_mbid": "6a4c2d34-7f7f-4f87-b17f-b5540aa840db",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_miracles"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_cybotron",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "cybotron-detroit",
+            "name": "Cybotron",
+            "summary": "External knowledge-graph identity for Cybotron; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q939429",
+                "musicbrainz_artist_mbid": "cd1a3be7-a10b-499c-acdd-1defaea473f8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q939429",
+                "musicbrainz_artist_mbid": "cd1a3be7-a10b-499c-acdd-1defaea473f8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_cybotron"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_derrick_may",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "derrick-may",
+            "name": "Derrick May",
+            "summary": "External knowledge-graph identity for Derrick May; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q923104",
+                "musicbrainz_artist_mbid": "371c8525-8111-4497-83ba-1ead9d7ed148",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q923104",
+                "musicbrainz_artist_mbid": "371c8525-8111-4497-83ba-1ead9d7ed148",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_may",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_derrick_may"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_inner_city",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "inner-city-detroit",
+            "name": "Inner City",
+            "summary": "External knowledge-graph identity for Inner City; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "65a8e571-8a08-433f-a5bf-ead38c269ea6",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "65a8e571-8a08-433f-a5bf-ead38c269ea6",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_saunderson",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_inner_city"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_juan_atkins",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "juan-atkins",
+            "name": "Juan Atkins",
+            "summary": "External knowledge-graph identity for Juan Atkins; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_juan_atkins"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_kevin_saunderson",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "kevin-saunderson",
+            "name": "Kevin Saunderson",
+            "summary": "External knowledge-graph identity for Kevin Saunderson; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "bf259ecd-fe89-4738-82fc-ecdd67de1fcc",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "bf259ecd-fe89-4738-82fc-ecdd67de1fcc",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_saunderson",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_kevin_saunderson"
+            }
+          ]
+        }
+      ]
+    },
+    "popularHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No current popularity signal is seeded. Historical prominence must never be represented as current popularity.",
+      "items": []
+    },
+    "happeningHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Live events and venue activity must come from current Tourify operational sources, not historical seed data.",
+      "items": []
+    },
+    "historyHere": {
+      "status": "draft_seed_data",
+      "timeline": [
+        {
+          "id": "detroit_motown_founded_1959",
+          "year": 1959,
+          "startYear": 1959,
+          "endYear": 1959,
+          "precision": "year",
+          "title": "Motown is founded in Detroit",
+          "summary": "Berry Gordy founded Tamla in 1959 and added the Motown label later that year, building the company around Detroit.",
+          "entityRefs": [
+            {
+              "id": "detroit_motown_founded_1959",
+              "kind": "historical_milestone",
+              "name": "Motown is founded in Detroit"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "detroit_historical_motown",
+            "motown_museum_hitsville"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "detroit_motown_sound",
+          "year": null,
+          "startYear": 1959,
+          "endYear": null,
+          "precision": "period",
+          "title": "Motown Sound",
+          "summary": "A Detroit-associated soul sound developed around Motown’s writers, producers, singers, and house musicians.",
+          "entityRefs": [
+            {
+              "id": "detroit_motown_sound",
+              "kind": "genre",
+              "name": "Motown Sound"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "detroit_historical_motown",
+            "motown_museum_legacy"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "detroit_belleville_three",
+          "year": null,
+          "startYear": 1980,
+          "endYear": null,
+          "precision": "period",
+          "title": "Belleville Three / early Detroit techno network",
+          "summary": "Juan Atkins, Derrick May, and Kevin Saunderson became known as the Belleville Three and are central to the rise of Detroit techno.",
+          "entityRefs": [
+            {
+              "id": "detroit_belleville_three",
+              "kind": "scene",
+              "name": "Belleville Three / early Detroit techno network"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "detroit_historical_atkins",
+            "detroit_historical_may",
+            "detroit_historical_saunderson"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "detroit_techno",
+          "year": null,
+          "startYear": 1980,
+          "endYear": null,
+          "precision": "period",
+          "title": "Detroit techno",
+          "summary": "An electronic music tradition developed by Detroit-area innovators including Juan Atkins, Derrick May, and Kevin Saunderson.",
+          "entityRefs": [
+            {
+              "id": "detroit_techno",
+              "kind": "genre",
+              "name": "Detroit techno"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "detroit_historical_atkins",
+            "detroit_historical_may",
+            "detroit_historical_saunderson"
+          ],
+          "reviewed": false
+        }
+      ],
+      "genresAndScenes": [
+        {
+          "id": "detroit_motown_sound",
+          "kind": "genre",
+          "data": {
+            "slug": "detroit-motown-sound",
+            "name": "Motown Sound",
+            "summary": "A Detroit-associated soul sound developed around Motown’s writers, producers, singers, and house musicians.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.96,
+          "timeScope": {
+            "start": "1959",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "motown_museum_legacy"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9743,
+            "band": "strong_basis",
+            "confidence": 0.96,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.945,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "detroit_motown_sound"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno",
+          "kind": "genre",
+          "data": {
+            "slug": "detroit-techno",
+            "name": "Detroit techno",
+            "summary": "An electronic music tradition developed by Detroit-area innovators including Juan Atkins, Derrick May, and Kevin Saunderson.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "detroit_historical_may",
+              "detroit_historical_saunderson"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8735,
+            "band": "solid_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "detroit_techno"
+            }
+          ]
+        },
+        {
+          "id": "detroit_belleville_three",
+          "kind": "scene",
+          "data": {
+            "slug": "detroit-belleville-three",
+            "name": "Belleville Three / early Detroit techno network",
+            "summary": "Juan Atkins, Derrick May, and Kevin Saunderson became known as the Belleville Three and are central to the rise of Detroit techno.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "detroit_historical_may",
+              "detroit_historical_saunderson"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8735,
+            "band": "solid_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "detroit_belleville_three"
+            }
+          ]
+        }
+      ],
+      "instruments": [
+        {
+          "id": "detroit_motown_electric_bass",
+          "kind": "instrument",
+          "data": {
+            "slug": "electric-bass-guitar-motown",
+            "name": "Electric bass guitar — Motown rhythm section",
+            "summary": "The electric bass is a defining part of the Motown rhythm-section vocabulary, strongly associated with Funk Brothers bassist James Jamerson.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "mobile bass lines beneath vocal melodies",
+                "tight interaction with drums and keyboards"
+              ],
+              "sound_role": "low-register melodic and rhythmic foundation",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electric_string"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1959",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "motown_museum_funk_brothers"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.872,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum"
+            ],
+            "authorityScore": 0.96,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_motown_electric_bass"
+            }
+          ]
+        },
+        {
+          "id": "detroit_motown_drum_kit",
+          "kind": "instrument",
+          "data": {
+            "slug": "drum-kit-motown",
+            "name": "Drum kit — Motown rhythm section",
+            "summary": "Motown sessions relied on Detroit studio drummers including Benny Benjamin and Uriel Jones, placing the drum kit at the center of the Funk Brothers rhythm section.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "firm backbeat",
+                "syncopated interaction with bass and tambourine/percussion"
+              ],
+              "sound_role": "backbeat and rhythmic drive",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "percussion"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.93,
+          "timeScope": {
+            "start": "1959",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "motown_museum_funk_brothers"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.869,
+            "band": "solid_basis",
+            "confidence": 0.93,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum"
+            ],
+            "authorityScore": 0.96,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_motown_drum_kit"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno_synthesizer",
+          "kind": "instrument",
+          "data": {
+            "slug": "synthesizer-detroit-techno",
+            "name": "Synthesizer — early Detroit techno",
+            "summary": "Detroit Historical Society describes early Detroit techno innovators working with a new generation of synthesizers as they shaped the genre in the 1980s.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "synthetic bass and lead timbres",
+                "layered electronic textures"
+              ],
+              "sound_role": "synthetic timbre, harmony, bass and futurist texture",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_demf_tech"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8675,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_techno_synthesizer"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno_drum_machine",
+          "kind": "instrument",
+          "data": {
+            "slug": "drum-machine-detroit-techno",
+            "name": "Drum machine — early Detroit techno",
+            "summary": "A new generation of drum machines was part of the technology used by Detroit techno pioneers as the local electronic style formed.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "precisely programmed kick/snare patterns",
+                "mechanical rhythmic repetition used expressively"
+              ],
+              "sound_role": "machine-driven pulse and programmed rhythm",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "electronic_percussion"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1980",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_demf_tech"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8675,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "detroit_techno_drum_machine"
+            }
+          ]
+        }
+      ],
+      "soundSignatures": [
+        {
+          "id": "detroit_motown_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "detroit-motown-sound-signature",
+            "name": "Motown sound signature",
+            "summary": "A listening guide to recurring traits described by Motown Museum and Detroit Historical Society.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "The traits vary by recording and period; this is a listening guide, not a rule."
+              ],
+              "listen_for": [
+                "driving backbeat",
+                "gospel-influenced call and response",
+                "jazz-influenced syncopation and improvisation",
+                "studio echo/reverb character"
+              ],
+              "techniques": [
+                "Funk Brothers house-band interplay",
+                "echo-chamber processing"
+              ],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.93,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "motown_museum_legacy"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9653,
+            "band": "strong_basis",
+            "confidence": 0.93,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "motownmuseum.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "first_party_museum",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.945,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "detroit_motown_sound_signature"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "detroit-techno-sound-signature",
+            "name": "Early Detroit techno sound signature",
+            "summary": "A listening guide to the futurist electronic palette documented around the early Detroit techno network.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "Influences documented by Detroit Historical Society include Parliament-Funkadelic, Kraftwerk, Gary Numan, The Electrifying Mojo, and cross-pollination with Chicago house."
+              ],
+              "listen_for": [
+                "synthesized electronic textures",
+                "machine-driven rhythm",
+                "futurist atmosphere",
+                "funk-informed rhythmic sensibility"
+              ],
+              "techniques": [
+                "electronic synthesis",
+                "DJ mix culture"
+              ],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "detroit_historical_may"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8525,
+            "band": "solid_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "detroit_techno_sound_signature"
+            }
+          ]
+        }
+      ],
+      "notableArtists": [
+        {
+          "id": "detroit_artist_barrett_strong",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "barrett-strong",
+            "name": "Barrett Strong",
+            "summary": "External knowledge-graph identity for Barrett Strong; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q808900",
+                "musicbrainz_artist_mbid": "31ee774b-6248-48d5-a8b5-0d9bebeaba9d",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q808900",
+                "musicbrainz_artist_mbid": "31ee774b-6248-48d5-a8b5-0d9bebeaba9d",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_barrett_strong"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_miracles",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-miracles",
+            "name": "The Miracles",
+            "summary": "External knowledge-graph identity for The Miracles; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q1761222",
+                "musicbrainz_artist_mbid": "6a4c2d34-7f7f-4f87-b17f-b5540aa840db",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q1761222",
+                "musicbrainz_artist_mbid": "6a4c2d34-7f7f-4f87-b17f-b5540aa840db",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_miracles"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_cybotron",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "cybotron-detroit",
+            "name": "Cybotron",
+            "summary": "External knowledge-graph identity for Cybotron; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q939429",
+                "musicbrainz_artist_mbid": "cd1a3be7-a10b-499c-acdd-1defaea473f8",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q939429",
+                "musicbrainz_artist_mbid": "cd1a3be7-a10b-499c-acdd-1defaea473f8",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_cybotron"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_derrick_may",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "derrick-may",
+            "name": "Derrick May",
+            "summary": "External knowledge-graph identity for Derrick May; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q923104",
+                "musicbrainz_artist_mbid": "371c8525-8111-4497-83ba-1ead9d7ed148",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q923104",
+                "musicbrainz_artist_mbid": "371c8525-8111-4497-83ba-1ead9d7ed148",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_may",
+              "musicbrainz_artist_identity",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9398,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.7833,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_derrick_may"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_inner_city",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "inner-city-detroit",
+            "name": "Inner City",
+            "summary": "External knowledge-graph identity for Inner City; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "65a8e571-8a08-433f-a5bf-ead38c269ea6",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "65a8e571-8a08-433f-a5bf-ead38c269ea6",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_saunderson",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_inner_city"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_juan_atkins",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "juan-atkins",
+            "name": "Juan Atkins",
+            "summary": "External knowledge-graph identity for Juan Atkins; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_juan_atkins"
+            }
+          ]
+        },
+        {
+          "id": "detroit_artist_kevin_saunderson",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "kevin-saunderson",
+            "name": "Kevin Saunderson",
+            "summary": "External knowledge-graph identity for Kevin Saunderson; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "bf259ecd-fe89-4738-82fc-ecdd67de1fcc",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "bf259ecd-fe89-4738-82fc-ecdd67de1fcc",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_saunderson",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_kevin_saunderson"
+            }
+          ]
+        }
+      ],
+      "notableRecordings": [
+        {
+          "id": "detroit_money_barrett_strong",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "detroit-money-barrett-strong",
+            "name": "Money (That’s What I Want)",
+            "summary": "An early Motown/Tamla breakthrough widely identified by Detroit institutions as the company’s first hit.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Money (That’s What I Want)",
+              "artist_name": "Barrett Strong",
+              "release_year": 1959,
+              "place_context": "recorded_in_detroit_motown_ecosystem",
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "detroit_artist_barrett_strong"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Barrett Strong Money (That’s What I Want)"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1959",
+            "end": "1959"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8675,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "detroit_money_barrett_strong"
+            }
+          ]
+        },
+        {
+          "id": "detroit_shop_around_miracles",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "detroit-shop-around-miracles",
+            "name": "Shop Around",
+            "summary": "Motown’s first million-selling record, an early marker of the label’s national breakthrough.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Shop Around",
+              "artist_name": "The Miracles",
+              "release_year": 1960,
+              "place_context": "recorded_in_detroit_motown_ecosystem",
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "detroit_artist_miracles"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "The Miracles Shop Around"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1960",
+            "end": "1960"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.8675,
+            "band": "solid_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "detroit_shop_around_miracles"
+            }
+          ]
+        },
+        {
+          "id": "detroit_clear_cybotron",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "detroit-clear-cybotron",
+            "name": "Clear",
+            "summary": "Juan Atkins’s Cybotron recording is identified by Detroit Historical Society as one of the group’s most notable hits.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Clear",
+              "artist_name": "Cybotron",
+              "release_year": 1983,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "detroit_artist_cybotron"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Cybotron Clear"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_recording_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9263,
+            "band": "strong_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "detroit_clear_cybotron"
+            }
+          ]
+        },
+        {
+          "id": "detroit_strings_of_life",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "detroit-strings-of-life",
+            "name": "Strings of Life",
+            "summary": "A landmark Derrick May / Rhythim Is Rhythim recording that helped carry Detroit techno to audiences overseas.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Strings of Life",
+              "artist_name": "Rhythim Is Rhythim",
+              "release_year": 1987,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "credited_as": "Rhythim Is Rhythim",
+                  "artist_seed_id": "detroit_artist_derrick_may"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Rhythim Is Rhythim Strings of Life"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1987",
+            "end": "1987"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_may",
+              "detroit_historical_transmat",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.95,
+            "band": "strong_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.86,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "detroit_strings_of_life"
+            }
+          ]
+        },
+        {
+          "id": "detroit_good_life_inner_city",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "detroit-good-life-inner-city",
+            "name": "Good Life",
+            "summary": "A popular Inner City dance recording associated with Kevin Saunderson’s Detroit techno lineage.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Good Life",
+              "artist_name": "Inner City",
+              "release_year": 1988,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "detroit_artist_inner_city"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Inner City Good Life"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.88,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_saunderson",
+              "musicbrainz_recording_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9203,
+            "band": "strong_basis",
+            "confidence": 0.88,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "detroit_good_life_inner_city"
+            }
+          ]
+        },
+        {
+          "id": "detroit_techno_city_atkins",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "detroit-techno-city-juan-atkins",
+            "name": "Techno City",
+            "summary": "Juan Atkins’s recording “Techno City” helped establish the term “techno” in the genre’s international naming history.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Techno City",
+              "artist_name": "Cybotron",
+              "release_year": 1984,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "detroit_artist_cybotron"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Cybotron Techno City"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": {
+            "start": "1984",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_recording_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9263,
+            "band": "strong_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "detroit_techno_city_atkins"
+            }
+          ]
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "detroit_hitsville_usa",
+          "kind": "studio_landmark",
+          "data": {
+            "slug": "detroit-hitsville-usa",
+            "name": "Hitsville U.S.A.",
+            "summary": "The West Grand Boulevard property became Motown’s headquarters and Studio A, where many Motown recordings were made.",
+            "entityType": "studio_landmark",
+            "metadata": {
+              "address_text": "2648 W. Grand Blvd., Detroit, Michigan",
+              "external_ids": {
+                "wikidata_qid": "Q1987935",
+                "musicbrainz_place_mbid": "71939dd5-5b2f-442c-b984-b19f4ba38be7"
+              },
+              "media_policy": "link_only_until_cleared",
+              "landmark_type": "recording_studio_and_museum"
+            }
+          },
+          "placeRelation": "historically_significant_in",
+          "confidence": 0.98,
+          "timeScope": {
+            "start": "1959",
+            "end": "1972"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_motown",
+              "motown_museum_hitsville",
+              "musicbrainz_geo",
+              "wikidata_geo"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9509,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 4,
+            "distinctDomains": 4,
+            "domains": [
+              "detroithistorical.org",
+              "motownmuseum.org",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "geographic_metadata",
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "first_party_museum",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.8275,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "studio_landmark",
+              "entityId": "detroit_hitsville_usa"
+            }
+          ]
+        },
+        {
+          "id": "detroit_music_institute",
+          "kind": "studio_landmark",
+          "data": {
+            "slug": "detroit-music-institute",
+            "name": "The Music Institute",
+            "summary": "The Music Institute at 1315 Broadway was a short-lived downtown after-hours club that gave Detroit techno a dedicated dancefloor and gathering place.",
+            "entityType": "studio_landmark",
+            "metadata": {
+              "address_text": "1315 Broadway St., Detroit, Michigan",
+              "media_policy": "link_only_until_cleared",
+              "landmark_type": "club"
+            }
+          },
+          "placeRelation": "historically_significant_in",
+          "confidence": 0.86,
+          "timeScope": {
+            "start": "1988",
+            "end": "1990"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_may",
+              "detroit_news_music_institute",
+              "rbma_music_institute"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9122,
+            "band": "strong_basis",
+            "confidence": 0.86,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "content-static.detroitnews.com",
+              "daily.redbullmusicacademy.com",
+              "detroithistorical.org"
+            ],
+            "sourceTypes": [
+              "editorial",
+              "museum"
+            ],
+            "authorities": [
+              "local_history_institution",
+              "local_newspaper",
+              "music_history_editorial"
+            ],
+            "authorityScore": 0.8167,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "studio_landmark",
+              "entityId": "detroit_music_institute"
+            }
+          ]
+        }
+      ]
+    },
+    "tourifyHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No exact pilot historical artist identities currently match Tourify Demo artist profiles; fake profiles are forbidden.",
+      "items": []
+    },
+    "radio": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Radio station ingestion and stream-rights review are not part of this static history fixture.",
+      "items": []
+    }
+  },
+  "relationships": {
+    "count": 15,
+    "items": [
+      {
+        "subject": {
+          "id": "detroit_belleville_three",
+          "name": "Belleville Three / early Detroit techno network",
+          "kind": "scene"
+        },
+        "relationKey": "part_of",
+        "object": {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "detroit_historical_atkins"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.84,
+          "band": "solid_basis",
+          "confidence": 0.95,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "detroithistorical.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "local_history_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "detroit_techno_synthesizer",
+          "name": "Synthesizer — early Detroit techno",
+          "kind": "instrument"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "detroit_historical_demf_tech"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.84,
+          "band": "solid_basis",
+          "confidence": 0.95,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "detroithistorical.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "local_history_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "detroit_techno_drum_machine",
+          "name": "Drum machine — early Detroit techno",
+          "kind": "instrument"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "detroit_historical_demf_tech"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.84,
+          "band": "solid_basis",
+          "confidence": 0.95,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "detroithistorical.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "local_history_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_motown_sound",
+          "name": "Motown Sound",
+          "kind": "genre"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "detroit_motown_electric_bass",
+          "name": "Electric bass guitar — Motown rhythm section",
+          "kind": "instrument"
+        },
+        "confidence": 0.92,
+        "sourceKeys": [
+          "motown_museum_funk_brothers"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.837,
+          "band": "solid_basis",
+          "confidence": 0.92,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "motownmuseum.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "first_party_museum"
+          ],
+          "authorityScore": 0.96,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_motown_sound",
+          "name": "Motown Sound",
+          "kind": "genre"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "detroit_motown_drum_kit",
+          "name": "Drum kit — Motown rhythm section",
+          "kind": "instrument"
+        },
+        "confidence": 0.92,
+        "sourceKeys": [
+          "motown_museum_funk_brothers"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.837,
+          "band": "solid_basis",
+          "confidence": 0.92,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "motownmuseum.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "first_party_museum"
+          ],
+          "authorityScore": 0.96,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_money_barrett_strong",
+          "name": "Money (That’s What I Want)",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "detroit_artist_barrett_strong",
+          "name": "Barrett Strong",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "detroit_historical_motown",
+          "musicbrainz_artist_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9283,
+          "band": "strong_basis",
+          "confidence": 0.95,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "detroithistorical.org",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "local_history_institution"
+          ],
+          "authorityScore": 0.7833,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_shop_around_miracles",
+          "name": "Shop Around",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "detroit_artist_miracles",
+          "name": "The Miracles",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "detroit_historical_motown",
+          "musicbrainz_artist_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9283,
+          "band": "strong_basis",
+          "confidence": 0.95,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "detroithistorical.org",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "local_history_institution"
+          ],
+          "authorityScore": 0.7833,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_clear_cybotron",
+          "name": "Clear",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "detroit_artist_cybotron",
+          "name": "Cybotron",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.9,
+        "sourceKeys": [
+          "detroit_historical_atkins",
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9069,
+          "band": "strong_basis",
+          "confidence": 0.9,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "detroithistorical.org",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "local_history_institution"
+          ],
+          "authorityScore": 0.7675,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_strings_of_life",
+          "name": "Strings of Life",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "detroit_artist_derrick_may",
+          "name": "Derrick May",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "detroit_historical_may",
+          "detroit_historical_transmat",
+          "musicbrainz_artist_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist",
+          "credited_as": "Rhythim Is Rhythim"
+        },
+        "quality": {
+          "score": 0.9375,
+          "band": "strong_basis",
+          "confidence": 0.95,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "detroithistorical.org",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "local_history_institution"
+          ],
+          "authorityScore": 0.82,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_good_life_inner_city",
+          "name": "Good Life",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "detroit_artist_inner_city",
+          "name": "Inner City",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.88,
+        "sourceKeys": [
+          "detroit_historical_saunderson",
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9055,
+          "band": "strong_basis",
+          "confidence": 0.88,
+          "sourceCount": 3,
+          "distinctDomains": 2,
+          "domains": [
+            "detroithistorical.org",
+            "musicbrainz.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "local_history_institution"
+          ],
+          "authorityScore": 0.79,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_techno_city_atkins",
+          "name": "Techno City",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "detroit_artist_cybotron",
+          "name": "Cybotron",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.9,
+        "sourceKeys": [
+          "detroit_historical_atkins",
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9069,
+          "band": "strong_basis",
+          "confidence": 0.9,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "detroithistorical.org",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "museum",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "local_history_institution"
+          ],
+          "authorityScore": 0.7675,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_artist_juan_atkins",
+          "name": "Juan Atkins",
+          "kind": "artist_reference"
+        },
+        "relationKey": "part_of",
+        "object": {
+          "id": "detroit_belleville_three",
+          "name": "Belleville Three / early Detroit techno network",
+          "kind": "scene"
+        },
+        "confidence": 0.99,
+        "sourceKeys": [
+          "detroit_historical_atkins"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "relationship_note": "Detroit Historical Society identifies Atkins, May, and Saunderson as the Belleville Three."
+        },
+        "quality": {
+          "score": 0.854,
+          "band": "solid_basis",
+          "confidence": 0.99,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "detroithistorical.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "local_history_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_artist_kevin_saunderson",
+          "name": "Kevin Saunderson",
+          "kind": "artist_reference"
+        },
+        "relationKey": "part_of",
+        "object": {
+          "id": "detroit_belleville_three",
+          "name": "Belleville Three / early Detroit techno network",
+          "kind": "scene"
+        },
+        "confidence": 0.99,
+        "sourceKeys": [
+          "detroit_historical_saunderson"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "relationship_note": "Detroit Historical Society identifies Saunderson, Atkins, and May as the Belleville Three."
+        },
+        "quality": {
+          "score": 0.854,
+          "band": "solid_basis",
+          "confidence": 0.99,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "detroithistorical.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "local_history_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_hitsville_usa",
+          "name": "Hitsville U.S.A.",
+          "kind": "studio_landmark"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "detroit_motown_sound",
+          "name": "Motown Sound",
+          "kind": "genre"
+        },
+        "confidence": 0.99,
+        "sourceKeys": [
+          "motown_museum_hitsville",
+          "motown_museum_legacy"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "relationship_note": "Motown Museum identifies Hitsville Studio A as the place where the Motown Sound was created and recorded."
+        },
+        "quality": {
+          "score": 0.8615,
+          "band": "solid_basis",
+          "confidence": 0.99,
+          "sourceCount": 2,
+          "distinctDomains": 1,
+          "domains": [
+            "motownmuseum.org"
+          ],
+          "sourceTypes": [
+            "museum"
+          ],
+          "authorities": [
+            "first_party_museum"
+          ],
+          "authorityScore": 0.96,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "detroit_music_institute",
+          "name": "The Music Institute",
+          "kind": "studio_landmark"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "detroit_techno",
+          "name": "Detroit techno",
+          "kind": "genre"
+        },
+        "confidence": 0.98,
+        "sourceKeys": [
+          "detroit_historical_may",
+          "rbma_music_institute"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "relationship_note": "Detroit Historical Society and RBMA describe the Music Institute as a dedicated Detroit techno platform."
+        },
+        "quality": {
+          "score": 0.9568,
+          "band": "strong_basis",
+          "confidence": 0.98,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "daily.redbullmusicacademy.com",
+            "detroithistorical.org"
+          ],
+          "sourceTypes": [
+            "editorial",
+            "museum"
+          ],
+          "authorities": [
+            "local_history_institution",
+            "music_history_editorial"
+          ],
+          "authorityScore": 0.855,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "reviewed": false,
+    "sourceCount": 16,
+    "sourceTypes": [
+      "editorial",
+      "geographic_metadata",
+      "museum",
+      "music_metadata"
+    ],
+    "sourceRefs": [
+      {
+        "key": "detroit_historical_atkins",
+        "name": "Detroit Historical Society — Juan Atkins",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/encyclopedia-of-detroit/atkins-juan",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "detroit_historical_demf_tech",
+        "name": "Detroit Historical Society — Flashback to the 2002 Detroit Electronic Music Festival",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/blog/flashback-2002-detroit-electronic-music-festival",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "detroit_historical_may",
+        "name": "Detroit Historical Society — Derrick May",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/encyclopedia-of-detroit/may-derrick",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "detroit_historical_motown",
+        "name": "Detroit Historical Society — Motown Records",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/encyclopedia-of-detroit/motown-records",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "detroit_historical_saunderson",
+        "name": "Detroit Historical Society — Kevin Saunderson",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/encyclopedia-of-detroit/saunderson-kevin",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "detroit_historical_transmat",
+        "name": "Detroit Historical Society — Transmat / Rhythim Is Rhythim label artifact",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/collection/archive/label-transmat-rhythim-rhythim",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "detroit_news_music_institute",
+        "name": "The Detroit News — Detroit underground key scenes: Music Institute",
+        "canonicalUrl": "https://content-static.detroitnews.com/projects/detroit-underground-key-scenes/embed.html",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "local_newspaper",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "motown_museum_funk_brothers",
+        "name": "Motown Museum — Tribute to an Original Funk Brother / Funk Brothers instrumentation",
+        "canonicalUrl": "https://www.motownmuseum.org/henry-hank-cosby-tribute/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "first_party_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "motown_museum_hitsville",
+        "name": "Motown Museum — Hitsville U.S.A.",
+        "canonicalUrl": "https://www.motownmuseum.org/visit/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "first_party_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "motown_museum_legacy",
+        "name": "Motown Museum — The Motown Sound",
+        "canonicalUrl": "https://www.motownmuseum.org/legacy/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "first_party_museum",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "musicbrainz_artist_identity",
+        "name": "MusicBrainz — core artist identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "musicbrainz_geo",
+        "name": "MusicBrainz — core area metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "musicbrainz_recording_identity",
+        "name": "MusicBrainz — core recording and release identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "rbma_music_institute",
+        "name": "Red Bull Music Academy Daily — Nightclubbing: The Music Institute",
+        "canonicalUrl": "https://daily.redbullmusicacademy.com/2017/05/music-institute-nightclubbing/",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "music_history_editorial",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "wikidata_geo",
+        "name": "Wikidata — geographic structured data",
+        "canonicalUrl": "https://www.wikidata.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_structured_data",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "wikidata_identity",
+        "name": "Wikidata — structured artist and cultural identity data",
+        "canonicalUrl": "https://www.wikidata.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_structured_data",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      }
+    ],
+    "missingSourceKeys": [],
+    "lastReviewedAt": null
+  },
+  "freshness": {
+    "knowledgeSeedRetrievedAt": "2026-08-22T15:18:12.699555+00:00",
+    "historicalDataClass": "long_lived_reviewed_on_publish",
+    "currentSignalDataPresent": false
+  },
+  "permissions": {
+    "previewOnly": true,
+    "publicEligible": false,
+    "playbackEligible": false,
+    "containsPrivateStreamLocators": false,
+    "containsRawIngestionPayloads": false
+  },
+  "generatedAt": "2026-08-22T16:41:47.686Z"
+}

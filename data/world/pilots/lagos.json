@@ -1,0 +1,629 @@
+{
+  "schema_version": "world-history-seed-v0.1",
+  "pilot_key": "lagos",
+  "place_path": "ng/lagos",
+  "overview": {
+    "musical_identity": "Lagos’s pilot history distinguishes Fela Kuti’s Afrobeat from the later Afrobeats umbrella and includes the city’s Shrine tradition, political performance history, and Alté-era experimentation.",
+    "source_keys": [
+      "smithsonian_fela_book",
+      "fela_official_shrine",
+      "grammy_kuti_guide",
+      "grammy_afrobeats_evolution",
+      "grammy_alte"
+    ],
+    "confidence": 0.94,
+    "review_status": "needs_review",
+    "publication_status": "draft"
+  },
+  "entities": [
+    {
+      "seed_id": "lagos_afrobeat",
+      "entity_type": "genre",
+      "slug": "lagos-afrobeat",
+      "canonical_name": "Afrobeat",
+      "short_description": "A genre pioneered by Fela Kuti that combined African musical traditions with funk, jazz, rock and related diasporic influences, and became deeply linked with Lagos cultural and political life.",
+      "start_year": 1960,
+      "end_year": null,
+      "place_relation": "developed_in",
+      "source_keys": [
+        "smithsonian_fela_book",
+        "grammy_kuti_guide"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {}
+    },
+    {
+      "seed_id": "lagos_afrobeat_sound_signature",
+      "entity_type": "sound_signature",
+      "slug": "lagos-afrobeat-sound-signature",
+      "canonical_name": "Afrobeat sound signature",
+      "short_description": "A listening guide to broad traits documented in accounts of Fela Kuti’s Afrobeat.",
+      "start_year": null,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "grammy_kuti_guide"
+      ],
+      "confidence": 0.88,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "listen_for": [
+          "layered percussion and rhythm",
+          "prominent horn writing",
+          "extended instrumental development",
+          "funk- and jazz-informed groove",
+          "repeated vocal/political refrain structures"
+        ],
+        "techniques": [
+          "improvisation",
+          "long-form ensemble arrangement"
+        ],
+        "context": [
+          "Afrobeat is distinct from the later umbrella term Afrobeats."
+        ],
+        "audio_policy": "description_only_until_rights_cleared"
+      }
+    },
+    {
+      "seed_id": "lagos_old_afrika_shrine",
+      "entity_type": "studio_landmark",
+      "slug": "lagos-old-afrika-shrine",
+      "canonical_name": "Afrika Shrine (Fela-era Lagos venue)",
+      "short_description": "The Fela-era Afrika Shrine functioned as a Lagos performance, political and cultural hub; it is historically distinct from the later New Afrika Shrine in Ikeja.",
+      "start_year": 1972,
+      "end_year": null,
+      "place_relation": "historically_significant_in",
+      "source_keys": [
+        "fela_official_shrine",
+        "smithsonian_fela_book"
+      ],
+      "confidence": 0.96,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "landmark_type": "performance_space_and_cultural_hub",
+        "media_policy": "link_only_until_cleared",
+        "identity_note": "Do not conflate with New Afrika Shrine; exact historical site identity remains under review."
+      }
+    },
+    {
+      "seed_id": "lagos_afrobeat_political_stage",
+      "entity_type": "movement",
+      "slug": "lagos-afrobeat-political-stage",
+      "canonical_name": "Afrobeat as political performance",
+      "short_description": "Fela’s Lagos-based Afrobeat combined music and anti-establishment political expression, making the scene inseparable from postcolonial social history.",
+      "start_year": 1970,
+      "end_year": null,
+      "place_relation": "developed_in",
+      "source_keys": [
+        "smithsonian_fela_book",
+        "grammy_kuti_guide"
+      ],
+      "confidence": 0.94,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {}
+    },
+    {
+      "seed_id": "lagos_zombie_fela",
+      "entity_type": "recording_reference",
+      "slug": "lagos-zombie-fela",
+      "canonical_name": "Zombie",
+      "short_description": "A major Fela recording associated with the confrontational political phase of 1970s Afrobeat.",
+      "start_year": 1977,
+      "end_year": 1977,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "fela_official_1977",
+        "grammy_kuti_guide",
+        "musicbrainz_artist_identity"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "artist_name": "Fela Kuti & Africa 70",
+        "title": "Zombie",
+        "release_year": 1977,
+        "playback_policy": "metadata_only",
+        "rights_status": "unresolved",
+        "provider_lookup_hints": {
+          "query": "Fela Kuti & Africa 70 Zombie"
+        },
+        "release_year_note": "Official catalog presents the release as 1976/1977; seed uses 1977 for the timeline and preserves the note.",
+        "credit_components": [
+          {
+            "artist_seed_id": "lagos_artist_fela_kuti",
+            "role": "primary_artist"
+          },
+          {
+            "artist_seed_id": "lagos_artist_africa_70",
+            "role": "ensemble"
+          }
+        ]
+      }
+    },
+    {
+      "seed_id": "lagos_afrobeats",
+      "entity_type": "genre",
+      "slug": "lagos-afrobeats",
+      "canonical_name": "Afrobeats",
+      "short_description": "A broad, fluid umbrella for contemporary West African pop sounds, distinct from Fela Kuti’s singular Afrobeat genre.",
+      "start_year": 2010,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "grammy_afrobeats_evolution"
+      ],
+      "confidence": 0.93,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {}
+    },
+    {
+      "seed_id": "lagos_afrobeats_sound_signature",
+      "entity_type": "sound_signature",
+      "slug": "lagos-afrobeats-sound-signature",
+      "canonical_name": "Afrobeats listening frame",
+      "short_description": "A deliberately broad listening frame for the Lagos-centered contemporary pop ecosystem rather than a fixed sonic formula.",
+      "start_year": null,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "grammy_afrobeats_evolution"
+      ],
+      "confidence": 0.82,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "listen_for": [
+          "beat-forward contemporary production",
+          "cross-genre pop synthesis",
+          "frequent movement between local and diaspora influences"
+        ],
+        "techniques": [],
+        "context": [
+          "Afrobeats is an umbrella term; Tourify should not reduce it to one rhythm or production template."
+        ],
+        "audio_policy": "description_only_until_rights_cleared"
+      }
+    },
+    {
+      "seed_id": "lagos_ojuelegba_wizkid",
+      "entity_type": "recording_reference",
+      "slug": "lagos-ojuelegba-wizkid",
+      "canonical_name": "Ojuelegba",
+      "short_description": "An autobiographical Afrobeats landmark named for a Lagos mainland intersection/neighborhood and associated with the genre’s international crossover.",
+      "start_year": 2014,
+      "end_year": 2014,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "grammy_afrobeats_evolution",
+        "musicbrainz_artist_identity"
+      ],
+      "confidence": 0.96,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "artist_name": "Wizkid",
+        "title": "Ojuelegba",
+        "release_year": 2014,
+        "playback_policy": "metadata_only",
+        "rights_status": "unresolved",
+        "provider_lookup_hints": {
+          "query": "Wizkid Ojuelegba"
+        },
+        "credit_components": [
+          {
+            "artist_seed_id": "lagos_artist_wizkid",
+            "role": "primary_artist"
+          }
+        ]
+      }
+    },
+    {
+      "seed_id": "lagos_alte",
+      "entity_type": "scene",
+      "slug": "lagos-alte",
+      "canonical_name": "Alté",
+      "short_description": "A Nigerian alternative scene/genre label coined by DRB LasGidi in 2014 and associated with cross-genre experimentation in Lagos and beyond.",
+      "start_year": 2014,
+      "end_year": null,
+      "place_relation": "developed_in",
+      "source_keys": [
+        "grammy_alte"
+      ],
+      "confidence": 0.92,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {}
+    },
+    {
+      "seed_id": "lagos_alte_sound_signature",
+      "entity_type": "sound_signature",
+      "slug": "lagos-alte-sound-signature",
+      "canonical_name": "Alté listening frame",
+      "short_description": "A listening frame for the intentionally hybrid Alté ecosystem.",
+      "start_year": null,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "grammy_alte"
+      ],
+      "confidence": 0.86,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "listen_for": [
+          "Afrobeats-adjacent rhythmic language",
+          "R&B and soul influence",
+          "rap and pop crossover",
+          "dancehall influence",
+          "visual/aesthetic experimentation"
+        ],
+        "techniques": [],
+        "context": [
+          "Alté functions as both a music and creative-cultural identity; artists vary widely."
+        ],
+        "audio_policy": "description_only_until_rights_cleared"
+      }
+    },
+    {
+      "seed_id": "lagos_fela_tenor_saxophone",
+      "entity_type": "instrument",
+      "slug": "fela-tenor-saxophone",
+      "canonical_name": "Tenor saxophone in Fela’s Afrobeat practice",
+      "short_description": "The Kalakuta Museum preserves Fela Kuti’s painted signature tenor saxophone, making the instrument a tangible link to his performance practice.",
+      "start_year": 1970,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "fela_kalakuta_museum"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "instrument_family": "woodwind",
+        "sound_role": "lead melodic voice, solos and horn-section color",
+        "listen_for": [
+          "forceful saxophone lines and solos",
+          "dialogue with repeated horn figures"
+        ],
+        "audio_policy": "description_only_until_rights_cleared"
+      }
+    },
+    {
+      "seed_id": "lagos_afrobeat_percussion",
+      "entity_type": "instrument",
+      "slug": "afrobeat-percussion-ensemble",
+      "canonical_name": "Layered percussion in Afrobeat",
+      "short_description": "Afrobeat’s ensemble sound prominently uses layered percussion alongside horns, rhythm section and call-and-response vocals.",
+      "start_year": 1970,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "grammy_kuti_guide"
+      ],
+      "confidence": 0.9,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "instrument_family": "percussion_ensemble",
+        "sound_role": "interlocking rhythmic layers and groove",
+        "listen_for": [
+          "multiple repeating percussion patterns",
+          "rhythmic layering beneath horns and vocals"
+        ],
+        "audio_policy": "description_only_until_rights_cleared"
+      }
+    },
+    {
+      "seed_id": "lagos_kalakuta_museum",
+      "entity_type": "studio_landmark",
+      "slug": "lagos-kalakuta-museum",
+      "canonical_name": "Kalakuta Museum",
+      "short_description": "Fela Kuti’s former Lagos home is preserved as the Kalakuta Museum, with historic materials and instruments including his tenor saxophone.",
+      "start_year": 2012,
+      "end_year": null,
+      "place_relation": "historically_significant_in",
+      "source_keys": [
+        "fela_kalakuta_museum"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "landmark_type": "museum_and_former_residence",
+        "address_text": "7 Gbemisola Street, Allen, Ikeja, Lagos, Nigeria",
+        "media_policy": "link_only_until_cleared",
+        "identity_note": "Do not use Wikidata Q3743182 as the museum identifier; that item represents the historical Kalakuta Republic context."
+      }
+    },
+    {
+      "seed_id": "lagos_africa_shrine_1972",
+      "entity_type": "historical_milestone",
+      "slug": "lagos-africa-shrine-1972",
+      "canonical_name": "Africa Shrine opens at the Empire Hotel site",
+      "short_description": "In 1972 Fela renamed his Surulere venue the Africa Shrine, developing it as a performance space and political-cultural salon.",
+      "start_year": 1972,
+      "end_year": null,
+      "place_relation": "historically_significant_in",
+      "source_keys": [
+        "fela_1972_shrine"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "context_type": "venue_history"
+      }
+    },
+    {
+      "seed_id": "lagos_artist_fela_kuti",
+      "entity_type": "artist_reference",
+      "slug": "fela-kuti",
+      "canonical_name": "Fela Kuti",
+      "short_description": "External knowledge-graph identity for Fela Kuti; this record is not a Tourify user or artist profile.",
+      "start_year": null,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "musicbrainz_artist_identity",
+        "wikidata_identity",
+        "fela_official_shrine"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "identity_kind": "person",
+        "identity_policy": "external_reference_not_tourify_profile",
+        "external_ids": {
+          "musicbrainz_artist_mbid": "6514cffa-fbe0-4965-ad88-e998ead8a82a",
+          "wikidata_qid": "Q313868",
+          "tourify_artist_profile_id": null
+        },
+        "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+      }
+    },
+    {
+      "seed_id": "lagos_artist_africa_70",
+      "entity_type": "artist_reference",
+      "slug": "africa-70",
+      "canonical_name": "Africa 70",
+      "short_description": "External knowledge-graph identity for Africa 70; this record is not a Tourify user or artist profile.",
+      "start_year": null,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "musicbrainz_artist_identity",
+        "fela_official_shrine"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "identity_kind": "group",
+        "identity_policy": "external_reference_not_tourify_profile",
+        "external_ids": {
+          "musicbrainz_artist_mbid": "dc45f2dc-ef36-4a7a-aa52-97495fca8ced",
+          "wikidata_qid": null,
+          "tourify_artist_profile_id": null
+        },
+        "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+      }
+    },
+    {
+      "seed_id": "lagos_artist_wizkid",
+      "entity_type": "artist_reference",
+      "slug": "wizkid",
+      "canonical_name": "Wizkid",
+      "short_description": "External knowledge-graph identity for Wizkid; this record is not a Tourify user or artist profile.",
+      "start_year": null,
+      "end_year": null,
+      "place_relation": "associated_with",
+      "source_keys": [
+        "musicbrainz_artist_identity",
+        "grammy_afrobeats_evolution"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "identity_kind": "person",
+        "identity_policy": "external_reference_not_tourify_profile",
+        "external_ids": {
+          "musicbrainz_artist_mbid": "efc5d365-a448-4e2f-9b5f-4a7c84be725c",
+          "wikidata_qid": null,
+          "tourify_artist_profile_id": null
+        },
+        "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+      }
+    },
+    {
+      "seed_id": "lagos_new_afrika_shrine",
+      "entity_type": "studio_landmark",
+      "slug": "lagos-new-afrika-shrine",
+      "canonical_name": "New Afrika Shrine",
+      "short_description": "The New Afrika Shrine is a present-day performance and cultural venue in Ikeja that continues the Shrine tradition associated with Fela Kuti’s legacy.",
+      "start_year": 2000,
+      "end_year": null,
+      "place_relation": "historically_significant_in",
+      "source_keys": [
+        "wikidata_geo",
+        "fela_official_shrine"
+      ],
+      "confidence": 0.94,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "landmark_type": "performance_space_and_cultural_hub",
+        "address_text": "NERDC Rd, Agidingbi 101233, Ikeja, Lagos State, Nigeria",
+        "media_policy": "link_only_until_cleared",
+        "external_ids": {
+          "wikidata_qid": "Q25045334",
+          "musicbrainz_place_mbid": "1de41090-0afd-4e43-bb03-2bba7d41e2f3"
+        },
+        "center": {
+          "lat": 6.6228379,
+          "lng": 3.3568144
+        }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "subject_seed_id": "lagos_afrobeats",
+      "relation_key": "influenced_by",
+      "object_seed_id": "lagos_afrobeat",
+      "source_keys": [
+        "grammy_kuti_guide",
+        "grammy_afrobeats_evolution"
+      ],
+      "confidence": 0.75,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "lagos_alte",
+      "relation_key": "related_to",
+      "object_seed_id": "lagos_afrobeats",
+      "source_keys": [
+        "grammy_alte"
+      ],
+      "confidence": 0.86,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "lagos_afrobeat",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "lagos_fela_tenor_saxophone",
+      "source_keys": [
+        "fela_kalakuta_museum"
+      ],
+      "confidence": 0.9,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "lagos_afrobeat",
+      "relation_key": "uses_instrument",
+      "object_seed_id": "lagos_afrobeat_percussion",
+      "source_keys": [
+        "grammy_kuti_guide"
+      ],
+      "confidence": 0.9,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "lagos_afrobeat_political_stage",
+      "relation_key": "related_to",
+      "object_seed_id": "lagos_africa_shrine_1972",
+      "source_keys": [
+        "fela_1972_shrine"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft"
+    },
+    {
+      "subject_seed_id": "lagos_zombie_fela",
+      "relation_key": "credited_to",
+      "object_seed_id": "lagos_artist_fela_kuti",
+      "source_keys": [
+        "fela_official_1977",
+        "grammy_kuti_guide",
+        "musicbrainz_artist_identity",
+        "wikidata_identity",
+        "fela_official_shrine"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "credit_role": "primary_artist"
+      }
+    },
+    {
+      "subject_seed_id": "lagos_zombie_fela",
+      "relation_key": "credited_to",
+      "object_seed_id": "lagos_artist_africa_70",
+      "source_keys": [
+        "fela_official_1977",
+        "grammy_kuti_guide",
+        "musicbrainz_artist_identity",
+        "fela_official_shrine"
+      ],
+      "confidence": 0.95,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "credit_role": "ensemble"
+      }
+    },
+    {
+      "subject_seed_id": "lagos_ojuelegba_wizkid",
+      "relation_key": "credited_to",
+      "object_seed_id": "lagos_artist_wizkid",
+      "source_keys": [
+        "grammy_afrobeats_evolution",
+        "musicbrainz_artist_identity"
+      ],
+      "confidence": 0.96,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "credit_role": "primary_artist"
+      }
+    },
+    {
+      "subject_seed_id": "lagos_old_afrika_shrine",
+      "relation_key": "related_to",
+      "object_seed_id": "lagos_afrobeat",
+      "source_keys": [
+        "fela_official_shrine",
+        "smithsonian_fela_book"
+      ],
+      "confidence": 0.98,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "relationship_note": "Fela’s archive documents the Shrine as a core performance/political space during Afrobeat’s development."
+      }
+    },
+    {
+      "subject_seed_id": "lagos_kalakuta_museum",
+      "relation_key": "related_to",
+      "object_seed_id": "lagos_artist_fela_kuti",
+      "source_keys": [
+        "fela_kalakuta_museum"
+      ],
+      "confidence": 0.99,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "relationship_note": "The museum occupies Fela’s former Kalakuta home and preserves objects from his life and career."
+      }
+    },
+    {
+      "subject_seed_id": "lagos_new_afrika_shrine",
+      "relation_key": "related_to",
+      "object_seed_id": "lagos_artist_fela_kuti",
+      "source_keys": [
+        "fela_official_shrine"
+      ],
+      "confidence": 0.97,
+      "review_status": "needs_review",
+      "publication_status": "draft",
+      "metadata": {
+        "relationship_note": "Fela’s family built the New Afrika Shrine to preserve Fela and the original Shrine’s community/cultural legacy."
+      }
+    }
+  ]
+}

@@ -5,6 +5,7 @@
  */
 import { randomUUID } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
 import {
   MUSIC_RIGHTS_ANCHOR_EVENT,
   doesAnchorFailureInvalidatePassport,
@@ -13,7 +14,6 @@ import {
   type AnchorOutboxPayload,
 } from "../lib/music-rights/blockchain-anchor"
 
-const BATCH_SIZE = Number(process.env.MUSIC_RIGHTS_ANCHOR_BATCH || 20)
 const MAX_ATTEMPTS = 8
 
 type OutboxRow = {
@@ -50,7 +50,11 @@ function canSubmitToChain() {
   return { ok: true as const, network, mode: "stub_confirm" as const }
 }
 
-async function claimOutbox(supabase: ReturnType<typeof createWorkerClient>, workerId: string) {
+async function claimOutbox(
+  supabase: ReturnType<typeof createWorkerClient>,
+  workerId: string,
+  batchSize: number,
+) {
   const { data: candidates, error } = await supabase
     .from("music_rights_outbox_events")
     .select("*")
@@ -59,7 +63,7 @@ async function claimOutbox(supabase: ReturnType<typeof createWorkerClient>, work
     .or(`next_retry_at.is.null,next_retry_at.lte.${new Date().toISOString()}`)
     .lt("attempts", MAX_ATTEMPTS)
     .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE)
+    .limit(batchSize)
   if (error) throw error
 
   const claimed: OutboxRow[] = []
@@ -178,9 +182,16 @@ async function processAnchor(
 }
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("music_testnet_anchoring")) {
+    console.error("[music-rights-anchor-worker] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
+  const batchSize = Number(process.env.MUSIC_RIGHTS_ANCHOR_BATCH || 20)
   const workerId = `anchor-worker:${randomUUID()}`
   const supabase = createWorkerClient()
-  const claimed = await claimOutbox(supabase, workerId)
+  const claimed = await claimOutbox(supabase, workerId, batchSize)
   const results = []
   for (const event of claimed) {
     try {

@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { 
+import {
   ZoomIn, ZoomOut, Save, Trash2, Eye, EyeOff,
   Layers, Grid, Square, MapPin, Zap,
   Building, Download, Share, Plus, Minus,
@@ -72,6 +72,7 @@ import { ToolPalette } from './tool-palette'
 import { SiteMapContextDrawer, type SelectedMapObject, type ContextDrawerTab } from './site-map-context-drawer'
 import { SiteMapFilterBar, hasActiveCanvasFilters as filtersAreActive, defaultFilters, type CanvasFilters as FilterBarFilters } from './site-map-filter-bar'
 import { SiteMapTaskForm } from './site-map-task-form'
+import { useAdminActingRequest } from '@/hooks/use-admin-acting-request'
 
 interface SiteMap {
   id: string
@@ -90,7 +91,6 @@ interface SiteMap {
   gridEnabled?: boolean
   gridSize?: number
 }
-
 interface SiteMapElement {
   id: string
   type: string
@@ -169,6 +169,7 @@ function CanvasDropZone({ children }: { children: React.ReactNode }) {
 }
 
 export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPublish, isReadOnly = false, eventId }: SimCitySiteMapViewerProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const [viewportCss, setViewportCss] = useState({ width: 800, height: 600 })
@@ -372,35 +373,48 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   // Load zones, tents, layers
   useEffect(() => {
+    if (!isAdminReady) return
+    let cancelled = false
     const id = siteMap.id
+    setZones([])
+    setTents([])
+    setLayers([])
+    setMeasurements([])
+    setIssues([])
+    setTasks([])
+    setNotes([])
     Promise.allSettled([
-      fetch(`/api/admin/logistics/site-maps/${id}/zones`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/${id}/tents`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/layers?siteMapId=${id}`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/measurements?siteMapId=${id}`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/issues?siteMapId=${id}`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/${id}/tasks`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/${id}/notes`, { credentials: 'include' }).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/${id}/zones`).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/${id}/tents`).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/layers?siteMapId=${id}`).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/measurements?siteMapId=${id}`).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/issues?siteMapId=${id}`).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/${id}/tasks`).then(r => r.json()),
+      adminFetch(`/api/admin/logistics/site-maps/${id}/notes`).then(r => r.json()),
     ]).then(([zr, tr, lr, mr, ir, tar, nr]) => {
+      if (cancelled) return
       if (zr.status === 'fulfilled') setZones((zr.value as any).data || (zr.value as any).zones || [])
       if (tr.status === 'fulfilled') setTents((tr.value as any).data || (tr.value as any).tents || [])
       if (lr.status === 'fulfilled') {
         const list = (lr.value as any).data || (lr.value as any).layers || []
         setLayers(list)
         setHiddenLayers(new Set(list.filter((layer: any) => layer.is_visible === false || layer.isVisible === false).map((layer: any) => layer.id)))
-        if (list.length > 0 && !activeLayerId) setActiveLayerId(list[0].id)
+        if (list.length > 0) setActiveLayerId((current) => current || list[0].id)
       }
       if (mr.status === 'fulfilled') setMeasurements((mr.value as any).data || (mr.value as any).measurements || [])
       if (ir.status === 'fulfilled') setIssues((ir.value as any).data || (ir.value as any).issues || [])
       if (tar.status === 'fulfilled') setTasks((tar.value as any).data || (tar.value as any).tasks || [])
       if (nr.status === 'fulfilled') setNotes((nr.value as any).data || (nr.value as any).notes || [])
     })
-  }, [siteMap.id]) // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true
+    }
+  }, [actingContextKey, adminFetch, isAdminReady, siteMap.id])
 
   async function addZone() {
     if (!zoneForm.name.trim()) return
     const offset = zones.length * 28
-    const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones`, {
+    const res = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -424,7 +438,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
   }
 
   async function deleteZone(zoneId: string) {
-    await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${zoneId}`, { method: 'DELETE', credentials: 'include' })
+    await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${zoneId}`, { method: 'DELETE' })
     setZones(prev => prev.filter(z => z.id !== zoneId))
   }
 
@@ -433,7 +447,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     if (!tentForm.capacity.trim()) return
     const width = tentForm.width_ft ? Number(tentForm.width_ft) : 100
     const height = tentForm.depth_ft ? Number(tentForm.depth_ft) : 80
-    const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents`, {
+    const res = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -454,13 +468,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
   }
 
   async function deleteTent(tentId: string) {
-    await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${tentId}`, { method: 'DELETE', credentials: 'include' })
+    await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${tentId}`, { method: 'DELETE' })
     setTents(prev => prev.filter(t => t.id !== tentId))
   }
 
   async function addLayer() {
     if (!layerForm.name.trim()) return
-    const res = await fetch(`/api/admin/logistics/site-maps/layers`, {
+    const res = await adminFetch(`/api/admin/logistics/site-maps/layers`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -489,7 +503,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       return next
     })
     const currentlyHidden = hiddenLayers.has(layerId)
-    void fetch(`/api/admin/logistics/site-maps/layers/${layerId}`, {
+    void adminFetch(`/api/admin/logistics/site-maps/layers/${layerId}`, {
       method: 'PATCH',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -517,8 +531,8 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     async function refreshActivityBackedData() {
       try {
         const [issuesResponse, notesResponse] = await Promise.all([
-          fetch(`/api/admin/logistics/site-maps/issues?siteMapId=${siteMap.id}`, { credentials: 'include' }),
-          fetch(`/api/admin/logistics/site-maps/${siteMap.id}/notes`, { credentials: 'include' }),
+          adminFetch(`/api/admin/logistics/site-maps/issues?siteMapId=${siteMap.id}`),
+          adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/notes`),
         ])
         const [issuesPayload, notesPayload] = await Promise.all([
           issuesResponse.json().catch(() => null),
@@ -531,28 +545,28 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     }
     void refreshActivityBackedData()
     return () => { cancelled = true }
-  }, [activityVersion, siteMap.id])
+  }, [activityVersion, adminFetch, siteMap.id])
 
   useEffect(() => {
     if (tasksVersion === 0) return
     let cancelled = false
     async function refreshTasks() {
       try {
-        const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, { credentials: 'include' })
+        const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`)
         const payload = await response.json()
         if (!cancelled && payload.success) setTasks(payload.data || [])
       } catch {}
     }
     void refreshTasks()
     return () => { cancelled = true }
-  }, [siteMap.id, tasksVersion])
+  }, [adminFetch, siteMap.id, tasksVersion])
 
   useEffect(() => {
     if (geometryVersion === 0) return
     let cancelled = false
     async function refreshGeometry() {
       try {
-        const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}`, { credentials: 'include' })
+        const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}`)
         const payload = await response.json()
         const map = payload.data || payload.siteMap
         if (cancelled || !map) return
@@ -578,13 +592,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     }
     void refreshGeometry()
     return () => { cancelled = true }
-  }, [geometryVersion, siteMap.id])
+  }, [adminFetch, geometryVersion, siteMap.id])
 
   // Load element statuses from activity log
   useEffect(() => {
     async function loadStatuses() {
       try {
-        const resp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/activity?limit=200`, { credentials: 'include' })
+        const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/activity?limit=200`)
         const data = await resp.json()
         if (data.success) {
           const statuses: Record<string, string> = {}
@@ -599,7 +613,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       } catch {}
     }
     loadStatuses()
-  }, [siteMap.id, activityVersion])
+  }, [activityVersion, adminFetch, siteMap.id])
 
   // Undo/Redo history
   const [history, setHistory] = useState<SiteMapElement[][]>([])
@@ -646,13 +660,18 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const createElementId = useCallback(() => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-    return `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    if (typeof crypto === 'undefined') throw new Error('Secure element IDs are unavailable in this browser')
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
   }, [])
 
 
   // Save to API
   const saveToAPI = useCallback(async () => {
-    if (isReadOnly) return
+    if (isReadOnly || !isAdminReady) return
     setIsSaving(true)
     setSaveError(null)
     try {
@@ -675,7 +694,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
         }
       }))
 
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -696,7 +715,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     } finally {
       setIsSaving(false)
     }
-  }, [activeLayerId, elements, siteMap, onSave, isReadOnly])
+  }, [activeLayerId, adminFetch, elements, isAdminReady, siteMap, onSave, isReadOnly])
 
   useEffect(() => {
     if (isReadOnly || !hasUnsavedChanges) return
@@ -924,15 +943,20 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   // Load elements from API — show empty state instead of demo data on failure
   useEffect(() => {
+    if (!isAdminReady) return
+    let cancelled = false
+    setElements([])
     async function loadElements() {
       try {
-        const resp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, { credentials: 'include' })
+        const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`)
+        if (cancelled) return
         if (!resp.ok) {
           setLoadError('Failed to load map elements')
           return
         }
         setLoadError(null)
         const data = await resp.json()
+        if (cancelled) return
         if (data.success && Array.isArray(data.data)) {
           const mapped: SiteMapElement[] = data.data.map((el: any) => ({
             id: el.id,
@@ -942,7 +966,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
             width: el.width ?? 60,
             height: el.height ?? 60,
             rotation: el.rotation ?? 0,
-            fill: el.color || 'rgba(147, 51, 234, 0.3)',
+            fill: el.color || '#9333ea',
             stroke: el.stroke_color || el.strokeColor || '#9333ea',
             strokeWidth: el.stroke_width || el.strokeWidth || 2,
             label: el.name || 'Element',
@@ -954,12 +978,16 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
         }
         // If data.data is empty array, elements stays [] — canvas shows empty state hint
       } catch {
+        if (cancelled) return
         console.warn('[SiteMapViewer] Failed to load elements — showing empty canvas')
         setLoadError('Failed to load map elements')
       }
     }
-    loadElements()
-  }, [siteMap.id])
+    void loadElements()
+    return () => {
+      cancelled = true
+    }
+  }, [actingContextKey, adminFetch, isAdminReady, siteMap.id])
 
   // Canvas drawing functions
   const drawCanvas = useCallback(() => {
@@ -1496,32 +1524,32 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const drawPlacementPreview = (ctx: CanvasRenderingContext2D, element: CannedElement, position: { x: number; y: number }) => {
     ctx.save()
-    
+
     // Snap position to grid and align dimensions
     const snappedPosition = snapToGridPosition(position.x, position.y)
     const alignedDimensions = getGridAlignedDimensions(element.width, element.height)
-    
+
     // Center the element on the snapped position
     const centeredX = snappedPosition.x - alignedDimensions.width / 2
     const centeredY = snappedPosition.y - alignedDimensions.height / 2
     const finalPosition = snapToGridPosition(centeredX, centeredY)
-    
+
     // Check placement validity
     const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-    
+
     // Draw semi-transparent preview with validity color
-    const previewColor = isValid 
-      ? element.color.replace('0.3', '0.6') 
+    const previewColor = isValid
+      ? element.color.replace('0.3', '0.6')
       : 'rgba(239, 68, 68, 0.6)' // Red for invalid
-    
+
     ctx.fillStyle = previewColor
     ctx.strokeStyle = isValid ? element.strokeColor : '#ef4444'
     ctx.lineWidth = 2
     ctx.setLineDash([5, 5])
-    
+
     ctx.fillRect(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
     ctx.strokeRect(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-    
+
     // Draw enhanced grid alignment indicator
     if (snapToGrid) {
       ctx.strokeStyle = isValid ? '#22c55e' : '#ef4444' // Green for valid, red for invalid
@@ -1529,21 +1557,21 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       ctx.setLineDash([])
       ctx.strokeRect(finalPosition.x - 2, finalPosition.y - 2, alignedDimensions.width + 4, alignedDimensions.height + 4)
     }
-    
+
     // Draw label with validity indicator
     ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
     ctx.fillRect(finalPosition.x, finalPosition.y + alignedDimensions.height - 30, alignedDimensions.width, 30)
-    
+
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 12px Inter, sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(element.name, finalPosition.x + alignedDimensions.width / 2, finalPosition.y + alignedDimensions.height - 15)
-    
+
     // Draw validity status
     ctx.font = '10px Inter, sans-serif'
     ctx.fillStyle = isValid ? '#22c55e' : '#ef4444'
     ctx.fillText(isValid ? 'VALID' : 'INVALID', finalPosition.x + alignedDimensions.width / 2, finalPosition.y + alignedDimensions.height - 5)
-    
+
     ctx.restore()
   }
 
@@ -1573,7 +1601,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const persistZonePosition = useCallback(async (zoneId: string, bounds: MapBounds) => {
     try {
-      await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${zoneId}`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${zoneId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1583,11 +1611,11 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       console.error('Failed to persist zone position', error)
       setToolError('Failed to save zone position')
     }
-  }, [siteMap.id])
+  }, [adminFetch, siteMap.id])
 
   const persistTentPosition = useCallback(async (tentId: string, bounds: MapBounds) => {
     try {
-      await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${tentId}`, {
+      await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${tentId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1597,7 +1625,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       console.error('Failed to persist tent position', error)
       setToolError('Failed to save structure position')
     }
-  }, [siteMap.id])
+  }, [adminFetch, siteMap.id])
 
   const placeCannedElementAt = useCallback((canned: CannedElement | LibraryDragPayload, rawX: number, rawY: number) => {
     const width = 'width' in canned ? canned.width : 60
@@ -1641,7 +1669,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     if (isReadOnly) return
     setElementStatuses(prev => ({ ...prev, [elementId]: status }))
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/activity`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/activity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1660,7 +1688,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       console.error('Failed to update element status:', error)
       setToolError(error instanceof Error ? error.message : 'Failed to update status')
     }
-  }, [isReadOnly, siteMap.id])
+  }, [adminFetch, isReadOnly, siteMap.id])
 
   const createMeasurementAt = useCallback(async (x: number, y: number) => {
     if (isReadOnly) return
@@ -1678,7 +1706,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     const value = Number((distance * scale).toFixed(2))
 
     try {
-      const response = await fetch('/api/admin/logistics/site-maps/measurements', {
+      const response = await adminFetch('/api/admin/logistics/site-maps/measurements', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1706,7 +1734,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       console.error('Failed to create measurement:', error)
       setToolError(error instanceof Error ? error.message : 'Failed to create measurement')
     }
-  }, [getNumber, isReadOnly, measureStart, siteMap.id, siteMap.scale, siteMap.scaleUnit, siteMap.scale_unit])
+  }, [adminFetch, getNumber, isReadOnly, measureStart, siteMap.id, siteMap.scale, siteMap.scaleUnit, siteMap.scale_unit])
 
   const createIssueAt = useCallback(async (x: number, y: number) => {
     if (isReadOnly) return
@@ -1718,7 +1746,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     if (!issueDraft.title.trim()) return
     setToolError(null)
     try {
-      const response = await fetch('/api/admin/logistics/site-maps/issues', {
+      const response = await adminFetch('/api/admin/logistics/site-maps/issues', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -1744,7 +1772,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       console.error('Failed to create issue:', error)
       setToolError(error instanceof Error ? error.message : 'Failed to create issue')
     }
-  }, [issueDraft, siteMap.id])
+  }, [adminFetch, issueDraft, siteMap.id])
 
   const submitTextLabel = useCallback(() => {
     if (!textDraft.label.trim()) return
@@ -1758,7 +1786,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       width: aligned.width,
       height: aligned.height,
       rotation: 0,
-      fill: 'rgba(15, 23, 42, 0.7)',
+      fill: '#0f172a',
       stroke: '#94a3b8',
       strokeWidth: 1,
       label: textDraft.label.trim(),
@@ -1772,7 +1800,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const deleteSelectedMeasurementOrIssue = useCallback(async () => {
     if (selectedMeasurementId) {
-      const res = await fetch(`/api/admin/logistics/site-maps/measurements/${selectedMeasurementId}`, {
+      const res = await adminFetch(`/api/admin/logistics/site-maps/measurements/${selectedMeasurementId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -1783,7 +1811,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       return
     }
     if (selectedIssueId) {
-      const res = await fetch(`/api/admin/logistics/site-maps/issues/${selectedIssueId}`, {
+      const res = await adminFetch(`/api/admin/logistics/site-maps/issues/${selectedIssueId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -1792,7 +1820,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
         setSelectedIssueId(null)
       }
     }
-  }, [selectedIssueId, selectedMeasurementId])
+  }, [adminFetch, selectedIssueId, selectedMeasurementId])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -2199,16 +2227,16 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
         {/* Compact Header */}
         <div className="relative border-b border-teal-900/40 bg-[#0a1017] px-4 py-2.5">
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
-          
+
           <div className="relative flex items-center justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <div className="rounded-lg border border-teal-500/30 bg-teal-500/15 p-2">
                 <MapPin className="h-4 w-4 text-teal-300" />
               </div>
-              
+
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <h1 className="truncate text-lg font-semibold tracking-tight text-white">{siteMap.name}</h1>
+                  <h1 className="min-w-0 line-clamp-2 break-words text-lg font-semibold tracking-tight text-white" title={siteMap.name}>{siteMap.name}</h1>
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -2749,7 +2777,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
               }}
               onUpdateZone={async (id, updates) => {
                 setZones((prev) => prev.map((z) => (z.id === id ? { ...z, ...updates } : z)))
-                await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${id}`, {
+                await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${id}`, {
                   method: 'PUT',
                   credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
@@ -2758,7 +2786,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
               }}
               onUpdateTent={async (id, updates) => {
                 setTents((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
-                await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${id}`, {
+                await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${id}`, {
                   method: 'PUT',
                   credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
@@ -2767,7 +2795,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
               }}
               onCreateTask={() => setContextTab('tasks')}
               onCompleteTask={async (taskId) => {
-                await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, {
+                await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, {
                   method: 'POST',
                   credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
@@ -2784,7 +2812,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
                       elementId={selectedObject?.id || null}
                       elementType={selectedObject?.kind || 'element'}
                       onSubmit={async (payload) => {
-                        const resp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, {
+                        const resp = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, {
                           method: 'POST',
                           credentials: 'include',
                           headers: { 'Content-Type': 'application/json' },
@@ -2806,7 +2834,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
                         })
                         const result = await resp.json()
                         if (resp.ok) {
-                          const tasksResp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, { credentials: 'include' })
+                          const tasksResp = await adminFetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`)
                           const tasksData = await tasksResp.json()
                           setTasks(tasksData.data || tasksData.tasks || [])
                         } else {

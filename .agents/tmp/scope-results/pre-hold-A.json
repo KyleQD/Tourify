@@ -1,0 +1,18 @@
+{
+  "label": "pre-hold-A",
+  "roots": [
+    "lib/services/venue-scheduling.service.ts",
+    "lib/services/venue-roles-permissions.service.ts",
+    "lib/services/social-interactions.service.ts",
+    "lib/services/organization-social-integrations.service.ts"
+  ],
+  "tscExitCode": 0,
+  "elapsedSeconds": 3.3,
+  "primaryDiagnosticLines": 0,
+  "filesWithDiagnostics": 0,
+  "byFile": {},
+  "byCode": {},
+  "tsFilesParsed": "902",
+  "tsLines": null,
+  "stderr": ""
+}

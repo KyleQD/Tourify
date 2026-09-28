@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sanitizeMarketplaceIntegration } from "@/lib/marketplace/integration-credentials"
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from "@/lib/config/audit-feature-gates"
 
 export const dynamic = "force-dynamic"
 
 export async function GET() {
+  if (!isAuditFeatureApproved("marketplace_integrations"))
+    return auditFeatureUnavailable("marketplace_integrations")
   try {
     const supabase = await createClient()
     const {

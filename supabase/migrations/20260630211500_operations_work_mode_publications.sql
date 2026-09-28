@@ -1,6 +1,5 @@
 -- Operations tab completion: Work Mode publications, day sheet receipts, and logistics storage policy foundations.
 
-create extension if not exists "pgcrypto";
 
 alter table if exists public.day_sheets
   add column if not exists version integer not null default 1;
@@ -11,6 +10,9 @@ alter table if exists public.day_sheets
 alter table if exists public.event_bulletins
   add column if not exists moderation_status text not null default 'approved'
   check (moderation_status in ('pending', 'approved', 'rejected'));
+
+alter table if exists public.tours
+  add column if not exists org_id uuid references public.organizations(id) on delete cascade;
 
 create table if not exists public.work_mode_publications (
   id uuid primary key default gen_random_uuid(),
@@ -167,41 +169,92 @@ create policy day_sheet_receipts_acknowledge on public.day_sheet_receipts
   for update using (recipient_user_id = auth.uid())
   with check (recipient_user_id = auth.uid() and status = 'acknowledged');
 
-insert into storage.buckets (id, name, public)
-values
-  ('logistics-documents', 'logistics-documents', false),
-  ('site-map-images', 'site-map-images', false),
-  ('rental-attachments', 'rental-attachments', false)
-on conflict (id) do update set public = excluded.public;
+-- [CP-059 replay guard] storage.buckets is owned by the Supabase storage role,
+-- so a replay role outside that owning role set must not be able to abort the
+-- whole chain here. The server decides; a refusal is reported as a warning.
+do $operations_logistics_buckets$
+begin
+  insert into storage.buckets (id, name, public)
+  values
+    ('logistics-documents', 'logistics-documents', false),
+    ('site-map-images', 'site-map-images', false),
+    ('rental-attachments', 'rental-attachments', false)
+  on conflict (id) do update set public = excluded.public;
+exception when others then
+  raise warning
+    'Skipping operations logistics bucket seed on %.%: % %',
+    'storage', 'buckets', sqlstate, sqlerrm;
+end
+$operations_logistics_buckets$;
 
-drop policy if exists "operations logistics read" on storage.objects;
-create policy "operations logistics read" on storage.objects
-  for select using (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+-- [CP-059 replay guard] The previous guard here compared
+-- pg_get_userbyid(relowner) = current_user and then reported with `raise notice`.
+-- Both halves were wrong for a fresh replay:
+--   * `relowner = current_user` is a strict SUBSET of the server's
+--     pg_class_ownercheck predicate, which also admits a superuser and any
+--     member of the owning role. In the standard Supabase layout the migration
+--     role is `postgres` (superuser, not owner), so the guard skipped every
+--     policy while the server would have accepted all of them: silent loss.
+--   * `raise notice` is suppressed by `set client_min_messages = warning`, so
+--     the skip reported nothing at all.
+-- The server is now asked directly: each statement runs in its own
+-- subtransaction and a refusal is reported as a warning carrying sqlstate.
+do $operations_logistics_storage_policies$
+begin
+  begin
+    drop policy if exists "operations logistics read" on storage.objects;
+    create policy "operations logistics read" on storage.objects
+      for select using (
+        bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+        and auth.uid() is not null
+      );
+  exception when others then
+    raise warning
+      'Skipping policy operations logistics read on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
 
-drop policy if exists "operations logistics upload" on storage.objects;
-create policy "operations logistics upload" on storage.objects
-  for insert with check (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+  begin
+    drop policy if exists "operations logistics upload" on storage.objects;
+    create policy "operations logistics upload" on storage.objects
+      for insert with check (
+        bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+        and auth.uid() is not null
+      );
+  exception when others then
+    raise warning
+      'Skipping policy operations logistics upload on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
 
-drop policy if exists "operations logistics update" on storage.objects;
-create policy "operations logistics update" on storage.objects
-  for update using (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  )
-  with check (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+  begin
+    drop policy if exists "operations logistics update" on storage.objects;
+    create policy "operations logistics update" on storage.objects
+      for update using (
+        bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+        and auth.uid() is not null
+      )
+      with check (
+        bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+        and auth.uid() is not null
+      );
+  exception when others then
+    raise warning
+      'Skipping policy operations logistics update on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
 
-drop policy if exists "operations logistics delete" on storage.objects;
-create policy "operations logistics delete" on storage.objects
-  for delete using (
-    bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
-    and auth.uid() is not null
-  );
+  begin
+    drop policy if exists "operations logistics delete" on storage.objects;
+    create policy "operations logistics delete" on storage.objects
+      for delete using (
+        bucket_id in ('logistics-documents', 'site-map-images', 'rental-attachments')
+        and auth.uid() is not null
+      );
+  exception when others then
+    raise warning
+      'Skipping policy operations logistics delete on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+end
+$operations_logistics_storage_policies$;

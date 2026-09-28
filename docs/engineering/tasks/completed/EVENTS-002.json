@@ -1,0 +1,237 @@
+{
+  "schema_version": "2.0",
+  "id": "EVENTS-002",
+  "title": "Connect booking validation to venue availability",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "events",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "events",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-28T01:16:45.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; 698 entries at completion, of which exactly 2 are this task's (app/api/booking-requests/route.ts modified, __tests__/events/booking-request-availability.test.ts new). Nothing was staged, reverted, cleaned or committed.",
+  "goal": "Make booking requests reject venue-blocked dates through the canonical availability contract.",
+  "scope": {
+    "in": [
+      "Make booking requests reject venue-blocked dates through the canonical availability contract."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope",
+      "lib/venue/availability.ts (READ ONLY, venue-owned; not modified)",
+      "Any file under supabase/migrations/** (database-owned; none authored or applied)",
+      "Any file under app/api/venue/** or lib/booking/**",
+      "Other __tests__/events/** files (EVENTS-001, EVENTS-004)"
+    ]
+  },
+  "working_set": [
+    "app/api/booking-requests/route.ts",
+    "lib/booking/** (only if it already exists; do not create a new module unless the seam demands it)",
+    "lib/venue/availability.ts (READ ONLY -- the canonical contract this task consumes; venue owns it)",
+    "__tests__/events/booking-request-availability.test.ts (NEW — this exact filename is yours alone)",
+    "docs/engineering/agents/events/STATE.md"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/events/CHARTER.md",
+    "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json",
+    "docs/engineering/tasks/completed/VENUE-004.json",
+    "supabase/migrations/20250814123000_venue_core.sql",
+    "supabase/migrations/20260924120000_venue_availability_reservations_scope_rls.sql"
+  ],
+  "depends_on": [],
+  "resume_condition": "COMPLETE. No resume condition; all four acceptance criteria are met with recorded evidence. EVENTS-002 no longer depends on EVENTS-001: the declared dependency was nominal and the venue availability contract this task consumes shipped with VENUE-004.",
+  "blocked_on": [],
+  "base_measurement": {
+    "method": "Read app/api/booking-requests/route.ts and lib/venue/availability.ts at base SHA 16fb834f before editing anything. No assumption was carried over from the task title.",
+    "what_existed_at_base": "validateVenueAvailability is defined at app/api/booking-requests/route.ts:85-128 and IS called by POST at :342, returning 409 when it returns ok:false. The seam existed. It was not a no-op.",
+    "what_it_actually_enforced": [
+      "Capacity overflow: a service-role read of venue_profiles.capacity_total/capacity, rejecting with 409 when expectedAttendance exceeds it.",
+      "Approved-booking conflict: a service-role count of venue_booking_requests rows for that venue_id with status='approved' whose event_date falls in [requestedStart, requestedStart+1day), rejecting with 409."
+    ],
+    "the_actual_gap": "validateVenueAvailability NEVER read venue_availability. A venue manager's manual block (is_available = false) therefore did not reject a booking request at all. The function was a route-private derivation of availability, exactly the second-derivation failure the brief warns about.",
+    "corroboration": "The venue lane had already measured this independently: docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING states that validateVenueAvailability 'still rejects only capacity-overflow and already-approved bookings — it does NOT consult venue_availability.is_available=false rows', and prescribes the one-await receiving edit. docs/engineering/tasks/completed/VENUE-004.json records the same gap twice (Wave 32 and Wave 34) and left criterion 1 open precisely because app/api/booking-requests/** was outside its file grant.",
+    "conclusion": "AC-1 was a REAL unmet requirement, not a phantom and not an already-satisfied one. The fix was required, and it was small because the venue lane had already built the receiving helper (isVenueEventDateBlocked) and left it unused. No existing working check was rewritten.",
+    "two_additional_defects_found_by_measuring_the_data_access": [
+      "DISCLOSURE: the capacity 409 body interpolated the venue's capacity number ('...listed capacity of 750.'). The read is service-role (RLS bypassed) and keyed on a caller-supplied venueId, so any authenticated caller could read any venue's capacity by submitting an oversized expectedAttendance. AC-2 forbids exactly this shape of disclosure, so it was fixed in the same function.",
+      "NON-ATOMIC REJECTION: POST inserted the artist booking_requests row (base :312) BEFORE the availability gate (base :342). A request carrying both artistId and venueId for a blocked date returned 409 but left an orphan booking_requests row behind with no response describing it. The same applied to the 401 requester check and the three 422 policy checks that also sat after the insert. A rejection that still writes is not a rejection, so this was fixed by hoisting the whole venue-side validation block ahead of the first insert."
+    ]
+  },
+  "changes": {
+    "app/api/booking-requests/route.ts": [
+      "Added `import { isVenueEventDateBlocked } from \"@/lib/venue/availability\"`. The canonical contract is now consumed, not re-derived.",
+      "validateVenueAvailability: added an early `if (input.eventDate)` guard calling isVenueEventDateBlocked(service, { venueId, eventDate }) and returning ok:false on blocked. Placed BEFORE the capacity read so a blocked date deterministically yields the blocked-date 409 and cannot be shadowed by a capacity rejection when a caller sends both a blocked date and an oversized attendance.",
+      "The blocked-date 409 body names the date the caller asked for and nothing else: `The venue is not available on ${block.date}. Choose another date or contact the venue.` It is built from the helper's normalized UTC calendar day, so it never echoes the caller's raw input, and it carries no blocked_reason, notes, booking_id, event_id or row id.",
+      "validateVenueAvailability: the capacity 409 body no longer interpolates the capacity number.",
+      "validateVenueAvailability: a block-read error now logs via console.error('venue availability block check failed; failing open', block.error) instead of being silently discarded. See proposed_decisions.EVENTS-002-D1 for why this fails open.",
+      "POST: hoisted the entire venue-side validation block (availability gate, requester 401, allow_bookings 422, lead-time 422, max-advance 422, and the auto-approve initialStatus computation) to immediately after normalizedCreateStatus, ahead of the first insert. The venue branch now contains only the venue_booking_requests insert. Behaviour is otherwise identical: same status codes, same message text, same order among the checks."
+    ],
+    "__tests__/events/booking-request-availability.test.ts": "New, 12 tests. Runs the REAL canonical helper against a fake Supabase client that applies .eq()/.gte()/.lt() filters to in-memory rows, so the cross-venue outcome is proven by data rather than by asserting that a filter was requested. Only the route's own dependencies (auth, acting context, service-role factory, achievement engine, artist-booking serializer) are mocked."
+  },
+  "scope_expansions": [
+    "lib/public-artist/booking-request-schema.ts — READ ONLY, not modified. Read to establish the real input contract (eventDate, expectedAttendance, venueId and the bookingDetails.performanceDate fallback the route reads) so the fix was written against actual field semantics rather than guessed.",
+    "__tests__/venue/venue-availability-api.test.ts and __tests__/venue/venue-booking-requests-api.test.ts — READ ONLY, not modified. Read for the established route-test idiom (vi.mock of auth/service-role/venue-access, chainable fake) so the new suite matches the repo's conventions instead of inventing a harness.",
+    "__tests__/venue/venue-availability-lib.test.ts — READ ONLY, not modified. Read to see what the venue lane had ALREADY proven about isVenueEventDateBlocked, which is why EVENTS-002 did not re-test the helper's internals and instead tested the route's use of it.",
+    "supabase/migrations/20250814123000_venue_core.sql and 20260924120000_venue_availability_reservations_scope_rls.sql — READ ONLY, not modified and not applied. Read to confirm the UNIQUE(venue_id, date) constraint the helper relies on, and that raw venue_availability is service-role only while public_venue_availability is the sanitized public projection. This is why the 409 body must not carry blocked_reason or notes.",
+    "lib/services/optimized-notification-service.ts — transitively pulled in by the scoped tsc only. Not read, not modified. It carries 6 PRE-EXISTING type errors at base SHA (git status clean for the path)."
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Make booking requests reject venue-blocked dates through the canonical availability contract.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "Base gap proven by measurement, not assumption: validateVenueAvailability (base :85-128) read only venue_profiles capacity and approved venue_booking_requests rows, and never venue_availability. See base_measurement.",
+        "Fix: app/api/booking-requests/route.ts now imports isVenueEventDateBlocked from @/lib/venue/availability and calls it in validateVenueAvailability before the capacity read. No second derivation of 'what blocked means' exists; the only definition is the venue-owned helper.",
+        "Test 'rejects with 409 when the date is blocked at the requested venue' — a venue_availability row with is_available=false for THIS venue and the requested date yields 409 and insertedVenueBookings === 0.",
+        "Test 'still rejects the same date when the block is on this venue alongside a foreign one' — two block rows on the same date, one foreign, one local; the local one still rejects with 409, so the foreign row neither masks nor substitutes for the local block.",
+        "Corroboration that the seam is the intended one: HF-VENUE-004-BOOKING-RECEIVING completion_condition and VENUE-004's recorded next action both name this exact call."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "A booking request naming a venue-blocked date is rejected through the canonical availability contract with a 409 and a non-disclosing body, and the rejection names the date rather than leaking venue schedule detail to an unauthorized caller.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "Status is 409: the pre-existing caller maps a falsy ok to 409 and was not changed, so the canonical rejection inherits the existing status code.",
+        "Test 'names the requested date and leaks no venue schedule detail in the 409' asserts the serialized body CONTAINS '2026-10-15' and does NOT contain the block row's blocked_reason ('Private event — NDA'), its notes ('Load-in booked with production'), or its row id ('block-this-venue'). The body is built from the helper's normalized UTC calendar day, not the caller's raw input.",
+        "The canonical helper selects only `id` and never reads blocked_reason/notes, so the private columns are not even loaded on this path (lib/venue/availability.ts:129-135, READ ONLY).",
+        "Measured data-access fix: the capacity 409 no longer discloses the figure. Test 'does not disclose the venue's capacity number to an unscoped caller' submits expectedAttendance 900 against a venue of capacity 750 and asserts the body does not contain '750'. At base the body read \"...this venue's listed capacity of 750.\" — a service-role read (RLS bypassed) keyed on a caller-supplied venueId, disclosed to any authenticated caller.",
+        "Test 'accepts a date whose block belongs to a different venue' additionally asserts the foreign venue's blocked_reason is absent from the 200 body, so a foreign block is neither enforced nor disclosed."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "The check is proved able to fail: the blocked-date rejection test goes red when the availability validation is bypassed, so a green run is evidence rather than the absence of a test.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "Method: a temporary `if (process.env.EVENTS002_BYPASS_AVAILABILITY !== \"1\")` guard was wrapped around the blocked-date return in app/api/booking-requests/route.ts, the suite was re-run with that variable set, and the file was then restored from a backup and verified byte-identical by SHA-256 (before b0c6d0c846d8ce051d869005cd37aa3ca9f18c5c3a3834705c7446180d929415, after identical; grep for the hook string returns 0).",
+        "Command: EVENTS002_BYPASS_AVAILABILITY=1 npx vitest run __tests__/events/booking-request-availability.test.ts",
+        "Result: 'Test Files 1 failed (1) | Tests 4 failed | 7 passed (12)'. The four that went red: 'rejects with 409 when the date is blocked at the requested venue' (expected 409, received 200), 'names the requested date and leaks no venue schedule detail in the 409' (expected 409, received 200), 'still rejects the same date when the block is on this venue alongside a foreign one' (expected 409, received 200), 'writes no artist booking row when the venue date is blocked' (expected 409, received 404).",
+        "The three tests that stayed green under bypass are exactly the ones that must stay green: no-block-row, foreign-venue-block, and the approved-booking conflict. They are not false-positive coverage of the bypassed branch.",
+        "Full clean run after restore: npx vitest run __tests__/events/ → 18 files, 182 tests, all passing."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "A date that is open, a date with no block row at all, and a date whose block is scoped to a DIFFERENT venue are three separately tested outcomes. The third is the one that matters: it must not block a booking at a venue whose calendar is clear.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "Outcome 1 — blocked at THIS venue: 'rejects with 409 when the date is blocked at the requested venue' → 409, insertedVenueBookings 0. Separate test.",
+        "Outcome 2 — NO block row at all: 'accepts a date that has no availability block row at all' (venue_availability empty) → 200, insertedVenueBookings 1. A sibling test 'accepts a date the venue explicitly left open (is_available = true)' proves an open row is not treated as a block, which is the opposite failure mode (over-blocking, denial of business). Separate tests.",
+        "Outcome 3 — block scoped to ANOTHER venue: 'accepts a date whose block belongs to a different venue' plants an is_available=false row for OTHER_VENUE_ID on the requested date and asserts 200, insertedVenueBookings 1, and that the foreign blocked_reason does not appear in the body → the booking is allowed. Separate test.",
+        "Outcome 3 is proven by DATA, not by a call assertion. The fake Supabase client applies .eq() to real in-memory rows, so the foreign row is genuinely excluded by the venue_id filter. This is stronger than the venue lane's own lib test, which mocks maybeSingle's resolved value and can only assert that eq('venue_id', ...) was requested — that assertion would still pass if the filter were subsequently ignored. Recorded because the brief names this exact case as the one a naive implementation gets wrong.",
+        "Symmetry check, to prove outcome 3 is not passing for the wrong reason: 'does not treat another venue's approved booking as a conflict' plants an approved booking on the same date at OTHER_VENUE_ID and asserts 200 — the pre-existing approved-booking check is venue-scoped too, so neither check leaks across venues."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "events",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/events/",
+          "npx vitest run __tests__/venue/ lib/venue/__tests__/",
+          "npm run agents:validate -- --strict",
+          "npx eslint app/api/booking-requests/route.ts __tests__/events/booking-request-availability.test.ts",
+          "NODE_OPTIONS='--max-old-space-size=8192' npx tsc -p <scoped tsconfig>"
+        ],
+        "evidence": [
+          "PASS: npx vitest run __tests__/events/ → 'Test Files 18 passed (18) | Tests 182 passed (182)'. Includes the 12 new tests. The other 17 files are EVENTS-001/EVENTS-004 lanes and were not edited.",
+          "PASS: npx vitest run __tests__/venue/ lib/venue/__tests__/ → 'Test Files 30 passed (30) | Tests 269 passed (269)'. Run because EVENTS-002 consumes the venue lane's canonical contract; the venue lane is unaffected by this change.",
+          "PASS: npm run agents:validate -- --strict → 'validated 27 agents, 242 tasks, 109 pending handoffs, 0 warnings, 0 errors'.",
+          "PASS: npx eslint on both lane files → no output, exit 0.",
+          "PASS: git diff --check on the route → clean.",
+          "PASS (SCOPED, per CP-106): full-repo `npm run typecheck` OOMs on this machine by design and was NOT run. Two scoped tsc projects were run instead with --max-old-space-size=8192. Slice A (app/api/booking-requests/route.ts + lib/venue/availability.ts): ZERO errors in either lane file. Slice B (__tests__/events/booking-request-availability.test.ts, note the base tsconfig excludes **/*.test.ts by design so it needed its own project with vitest globals): ZERO errors. Slice A's 6 remaining errors are all in lib/services/optimized-notification-service.ts, a file this task never touched, whose path is clean at HEAD, i.e. pre-existing at base SHA.",
+          "AC-3 INVERSION: EVENTS002_BYPASS_AVAILABILITY=1 npx vitest run __tests__/events/booking-request-availability.test.ts → 'Tests 4 failed | 7 passed (12)', with the four blocked-date assertions failing 409-expected/200-received. Source restored and SHA-256 verified identical; the bypass hook string is absent from the file.",
+          "NO HOSTED EVIDENCE IS CLAIMED. No migration was authored or applied, no database was touched, and no browser or end-to-end run was performed. SIM-20260922-VENUE-002 hosted rerun credit still requires the QA-004/DB-002 isolated-staging gate, exactly as VENUE-004 recorded."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T01:16:45.000Z"
+      }
+    ]
+  },
+  "residual_findings_left_deliberately": [
+    {
+      "id": "FIND-1",
+      "severity": "real behavioural divergence, not cosmetic",
+      "finding": "The canonical availability contract and the pre-existing approved-booking conflict check in the SAME function use two different notions of 'that day'. isVenueEventDateBlocked derives the UTC calendar day (toAvailabilityCalendarDay). The approved-booking check uses the window [requestedStart, requestedStart + 1 day). An approved booking earlier on the same UTC day as a 19:00 request is therefore NOT detected as a conflict.",
+      "why_not_fixed_here": "Fixing it changes existing conflict behaviour for a check no acceptance criterion covers, and the correct window depends on whether a booking request is a point-in-time performance or a multi-hour/multi-day occupancy. Guessing would be a second unrequested derivation. This is precisely the 'two surfaces come to disagree' risk the brief names, so it is pinned by a test rather than silently normalised.",
+      "evidence": "Test 'documents the divergence between the two day-window derivations' — an approved booking at 18:00Z against a 19:00Z request currently returns 200 and inserts.",
+      "recommended": "A follow-up decision should settle whether booking-request conflict detection is a calendar-day question or an interval question, then make both checks use one derivation. Owner: events, with venue consulted because the venue lane owns the canonical day definition."
+    },
+    {
+      "id": "FIND-2",
+      "severity": "low, pre-existing, outside the acceptance criteria",
+      "finding": "The pre-existing approved-booking 409 body ('This date already has an approved booking. Choose another date or contact the venue.') still confirms to an unscoped caller that an approved booking exists on the caller's chosen date. That is schedule detail, though weaker than the capacity figure that was fixed.",
+      "why_not_fixed_here": "It predates this task, AC-2 binds the blocked-date rejection body specifically, and the sentence is the actionable signal the venue's own UX depends on. Rewording it is a product copy decision, not a correctness fix.",
+      "recommended": "Fold into FIND-1's decision: settle one non-disclosing conflict vocabulary for both 409 paths."
+    },
+    {
+      "id": "FIND-3",
+      "severity": "process",
+      "finding": "docs/engineering/handoffs/pending/HF-VENUE-004-BOOKING-RECEIVING.json still has status 'accepted'. Its completion_condition is now satisfied by this task.",
+      "why_not_moved_here": "It is addressed to_agent 'orchestrator' with accepting_task_id 'ORCH-004'. Moving another lane's orchestrator-addressed handoff record is not this lane's call, and the brief scopes record moves to this task's own files.",
+      "recommended": "The orchestrator should move it to docs/engineering/handoffs/completed/ and credit SIM-20260922-VENUE-002's receiving-side acceptance."
+    }
+  ],
+  "proposed_decisions": {
+    "note": "NOT written to docs/engineering/DECISIONS.md this wave — other lanes are appending concurrently. The orchestrator owns appending this text. One decision, with the divergence from the venue lane's stated preference stated explicitly rather than smoothed over.",
+    "EVENTS-002-D1": {
+      "title": "A venue availability block read error fails OPEN at the booking-request boundary, and is logged rather than swallowed",
+      "decision": "isVenueEventDateBlocked returns { blocked, error, date }. On `blocked === true` the route rejects with 409. On a truthy `error` with blocked false, the route proceeds (fails open) and logs via console.error. The contract is not modified and no second derivation is introduced.",
+      "divergence_from_venue_lane": "HF-VENUE-004-BOOKING-RECEIVING next_steps[1] asks the receiving lane to 'treat a truthy error from the helper as fail-closed (reject the request) rather than passing the booking through'. EVENTS-002 deliberately did NOT follow that instruction. This is flagged for the venue lane to ratify or override; it is a contract-usage policy question the venue lane owns, not an events-lane preference.",
+      "reasoning": [
+        "CONSISTENCY, and this is the decisive argument: both PRE-EXISTING checks in validateVenueAvailability already fail open on a read error. The venue_profiles read destructures only `{ data: venue }` and discards the error, so a failed capacity read yields capacity 0 and no rejection. The venue_booking_requests count destructures only `{ count }`, so a failed read yields undefined and `count || 0` is 0, no rejection. Making only the NEW check fail closed would make it the odd one out, and a transient database error would reject requests that the two established checks in the same function would have allowed.",
+        "BLAST RADIUS: fail-closed here rejects 100% of booking requests across ALL venues on a transient read error, converting a brief infrastructure blip into a total denial of business.",
+        "SEVERITY: a booking REQUEST is not a confirmed booking. The venue manager still reviews and approves it, and VENUE-005's reservation conflict engine is the actual double-booking guard. A missed advisory block yields a request the venue can decline, not a double-booked room."
+      ],
+      "counter_consideration": "The venue lane's instinct is defensible: a block that exists but cannot be read is a silent bypass, and the helper's own lib test describes the propagated error as existing 'so callers can fail closed'. If the venue lane prefers fail-closed, the correct change is a contract-level policy decision applied consistently to all three checks, not a one-off flip in this route.",
+      "evidence": "Test 'fails open on a block-read error and logs it instead of swallowing it' injects a read error and asserts 200, one venue insert, and an exact console.error call. The behaviour is pinned, not merely asserted in a comment.",
+      "owner": "venue (contract) with events (consumer), adjudicated by the orchestrator"
+    }
+  },
+  "progress": {
+    "summary": "COMPLETE, all four acceptance criteria met with recorded evidence. Measured before editing: the seam at route.ts:342 existed and worked, but it was a route-private derivation that never read venue_availability, so a venue manager's manual block did not reject anything — AC-1 was a real gap, independently corroborated by the venue lane's own handoff and task record. Fixed by consuming the canonical isVenueEventDateBlocked (no local edit to lib/venue/availability.ts, no second derivation), making both 409 bodies non-disclosing, and hoisting the venue-side validation ahead of the first insert so a rejection no longer writes. 12 new tests in the granted filename; AC-3 proven by a checksum-verified source inversion that turned 4 tests red; the cross-venue case proven by data rather than by a call assertion.",
+    "completed": [
+      "Base behaviour measured and written down before any edit (base_measurement).",
+      "Wired isVenueEventDateBlocked into validateVenueAvailability, placed before the capacity read so a blocked date is not shadowed (AC-1).",
+      "Blocked-date 409 names the date and discloses nothing from the block row; the capacity 409 no longer discloses the capacity figure (AC-2).",
+      "Hoisted the whole venue-side validation block ahead of the first insert, making every 409/401/422 rejection free of writes.",
+      "Created __tests__/events/booking-request-availability.test.ts with 12 tests: three separately tested AC-4 outcomes plus their symmetry checks, non-disclosure, and the fail-open policy.",
+      "AC-3 inversion run and source restored with SHA-256 proof (4 tests red under bypass).",
+      "Proposed decision text for the fail-open/fail-closed contract-usage question recorded here rather than in DECISIONS.md, as instructed.",
+      "events/STATE.md updated with the durable facts future work needs."
+    ],
+    "next_steps": [
+      "Orchestrator: append the EVENTS-002-D1 decision text to docs/engineering/DECISIONS.md and route the fail-open/fail-closed ratification to the venue lane.",
+      "Orchestrator: move HF-VENUE-004-BOOKING-RECEIVING to completed/ — its completion_condition is satisfied — and credit SIM-20260922-VENUE-002's receiving-side acceptance.",
+      "Follow-up task for FIND-1: settle whether booking-request conflict detection is a calendar-day or an interval question, then make the approved-booking check and the canonical block check use one derivation. Do not leave the two disagreeing.",
+      "Hosted rerun of SIM-20260922-VENUE-002 against a deployment SHA once isolated staging exists (RELEASE-007/QA-003, DB-002 denial probes, QA-005 actors). No local test can substitute for it."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T01:16:45.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "EVENTS-002 complete. AC-1/2/3/4 met with evidence. Start by measuring, not assuming: the seam existed and worked, but validateVenueAvailability never read venue_availability, so a manager's manual block rejected nothing — a real gap, corroborated independently by HF-VENUE-004-BOOKING-RECEIVING and VENUE-004's open criterion 1. Consuming the venue-owned helper fixed it in one await. Two further defects found by measuring the data access rather than trusting a clean scanner: the capacity 409 disclosed the venue's capacity figure to any authenticated caller via a service-role read keyed on a caller-supplied venueId, and POST inserted the artist booking_requests row before the availability gate, so a 409 left an orphan booking behind — a rejection that still writes. Both fixed; both now pinned by tests. AC-3 proven by a SHA-256-verified source inversion (4 tests red). Deliberately left with reasons: FIND-1 two divergent notions of 'that day' (pinned by a test, not silently normalised), FIND-2 the pre-existing approved-booking message, FIND-3 the venue handoff record move. One decision proposed, not written to DECISIONS.md per instruction.",
+        "next": "Orchestrator: append EVENTS-002-D1, move HF-VENUE-004-BOOKING-RECEIVING to completed/, and open a follow-up for FIND-1."
+      }
+    ]
+  },
+  "handoffs": []
+}

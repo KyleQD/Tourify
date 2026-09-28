@@ -39,6 +39,12 @@ import { formatDistanceToNow } from 'date-fns'
 import { listPublicSocialLinks } from '@/lib/artist/resolve-public-social-url'
 import { useAuth } from "@/contexts/auth-context"
 import { PublicMusicDisplay } from "@/components/music/public-music-display"
+import {
+  createPostComment,
+  getPostComments,
+  setPostLike,
+  sharePostExternally,
+} from "@/lib/feed/post-engagement-client"
 
 interface Comment {
   id: string
@@ -140,25 +146,9 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
   const loadComments = async (postId: string) => {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }))
-      
-      console.log('🔍 Loading comments for post:', postId)
-      
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        credentials: 'include'
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Comments API error:', response.status, errorText)
-        throw new Error(`Failed to load comments: ${response.status}`)
-      }
-
-      const result = await response.json()
-      console.log('💬 Comments API response:', result)
+      const result = await getPostComments(postId)
       
       setComments(prev => ({ ...prev, [postId]: result.comments || [] }))
-      
-      console.log('✅ Successfully loaded comments for post:', postId)
     } catch (error) {
       console.error('Error loading comments:', error)
       // Set empty array on error so UI shows properly
@@ -185,25 +175,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
     if (!currentUser || !content.trim()) return
 
     try {
-      console.log('💬 Adding comment to post:', postId)
-
-      // Call the new API
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ content: content.trim() })
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Comments API error:', response.status, errorText)
-        throw new Error(`Failed to add comment: ${response.status}`)
-      }
-
-      const result = await response.json()
+      const result = await createPostComment(postId, content.trim())
       
       // Add the new comment to the local state
       setComments(prev => ({
@@ -216,7 +188,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
         post.id === postId 
           ? { 
               ...post, 
-              comments_count: post.comments_count + 1
+              comments_count: result.comments_count
             }
           : post
       ))
@@ -224,7 +196,6 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
       // Ensure comments are shown after adding one
       setShowComments(postId)
 
-      console.log('✅ Successfully added comment')
       return result.comment
     } catch (error) {
       console.error('Error adding comment:', error)
@@ -483,21 +454,16 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
 
       try {
         const action = isLiked ? 'unlike' : 'like'
-        
-        const response = await fetch(`/api/posts/${postId}/likes`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ action })
+        const result = await setPostLike(postId, action)
+        setLikedPosts(prev => {
+          const next = new Set(prev)
+          if (result.is_liked) next.add(postId)
+          else next.delete(postId)
+          return next
         })
-
-        if (!response.ok) {
-          throw new Error('Failed to toggle like')
-        }
-
-        console.log('✅ Successfully toggled like')
+        setPosts(prev => prev.map(post =>
+          post.id === postId ? { ...post, likes_count: result.likes_count } : post
+        ))
       } catch (error) {
         // Revert optimistic update on error
         setLikedPosts(prev => {
@@ -534,22 +500,22 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
 
   const handleSharePost = async (post: any) => {
     try {
-      // Use native share API if available
-      if (navigator.share) {
-        await navigator.share({
-          title: `Post by ${profile.profile_data?.name || profile.username}`,
-          text: post.content,
-          url: window.location.href
-        })
-        toast.success('Post shared successfully!')
-      } else {
-        // Fallback to copying link to clipboard
-        await navigator.clipboard.writeText(window.location.href)
-        toast.success('Link copied to clipboard!')
-      }
+      const result = await sharePostExternally(post.id, {
+        title: `Post by ${profile.profile_data?.name || profile.username}`,
+        text: post.content,
+      })
+      setPosts(prev => prev.map(item =>
+        item.id === post.id ? { ...item, shares_count: result.shares_count } : item
+      ))
+      toast.success(
+        result.share.destination === 'native'
+          ? 'Post shared successfully!'
+          : 'Link copied and share saved!',
+      )
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
       console.error('Error sharing post:', error)
-      toast.error('Failed to share post')
+      toast.error(error instanceof Error ? error.message : 'Failed to share post')
     }
   }
 

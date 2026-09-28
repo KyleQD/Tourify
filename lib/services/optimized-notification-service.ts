@@ -255,6 +255,7 @@ export class OptimizedNotificationService {
       offset?: number
       unreadOnly?: boolean
       type?: string
+      types?: string[]
       priority?: string
       includeExpired?: boolean
       targetProfileId?: string | null
@@ -271,6 +272,7 @@ export class OptimizedNotificationService {
         offset = 0,
         unreadOnly = false,
         type,
+        types,
         priority,
         includeExpired = false,
         targetProfileId,
@@ -302,6 +304,8 @@ export class OptimizedNotificationService {
 
       if (type) {
         query = query.eq('type', type)
+      } else if (types?.length) {
+        query = query.in('type', types)
       }
 
       if (priority) {
@@ -325,7 +329,7 @@ export class OptimizedNotificationService {
       let profiles: Array<{
         id: string
         full_name: string | null
-        username: string
+        username: string | null
         avatar_url: string | null
       }> = []
 

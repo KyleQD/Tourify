@@ -92,7 +92,7 @@ export const jobPostingFormSchema = z
     event_id: z.string().uuid().nullable().optional().or(z.literal("")),
     tour_id: z.string().uuid().nullable().optional().or(z.literal("")),
     event_date: z.string().nullable().optional().or(z.literal("")),
-    status: z.enum(["draft", "published", "closed", "archived"]).default("draft"),
+    status: z.enum(["draft", "published", "paused", "closed", "filled", "archived"]).default("draft"),
   })
   .superRefine((data, context) => {
     const min = data.salary_range?.min

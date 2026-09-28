@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import {
   formatAttendingEventTimeLabel,
-  getUpcomingAttendingEvents,
 } from "@/lib/events/get-upcoming-attending-events"
+import { loadUpcomingEventsForUser } from "@/lib/ticketing/guest-list.server"
 
 export async function GET(_request: NextRequest) {
   try {
@@ -16,8 +16,7 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const events = await getUpcomingAttendingEvents({
-      supabase,
+    const events = await loadUpcomingEventsForUser({
       userId: user.id,
       limit: 5,
     })

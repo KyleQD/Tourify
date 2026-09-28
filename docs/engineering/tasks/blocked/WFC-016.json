@@ -1,0 +1,127 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-016",
+  "title": "Implement department communications and receipts",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "social",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Provide secure department, selected-person, and assignment communication audiences with durable delivery, read, and acknowledgment receipts.",
+  "scope": {
+    "in": [
+      "Department and assignment audiences",
+      "Normalized recipients and receipts",
+      "Idempotent reminders and partial-delivery retry",
+      "Legacy workforce communication compatibility"
+    ],
+    "out": [
+      "Granting all organization members access to every department message",
+      "Rewriting historical recipients"
+    ]
+  },
+  "working_set": [
+    "app/api/**communications**",
+    "lib/social/**",
+    "lib/work-mode/**communication**",
+    "__tests__/social/**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-004.json",
+    "docs/engineering/agents/social/CHARTER.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Managers communicate only with authorized departments",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Recipients are explicit and historical receipt rows are durable",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Delivery, read, and acknowledgment are separate states",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Failed recipients retry without duplicating successful deliveries",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Current workforce message consumers remain compatible during rollout",
+      "owner": "social",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "social",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/social",
+          "npm run test:rls-matrix",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on canonical departments, memberships, and authority.",
+    "completed": [],
+    "next_steps": [
+      "CP-103: app/api/admin/workforce/** communications endpoints are yours; the other four WFC service lanes own disjoint subtrees. components/admin/workforce/** communications UI is the admin lane's (WFC-017) — build the service, not the surface.",
+      "SOCIAL-004 and SOCIAL-007 remain active; keep lib/messaging/** and the notification/follow paths disjoint from this lane.",
+      "Consume WFC-004 authorization contract",
+      "Implement audiences, receipts, retries, and compatibility"
+    ],
+    "blockers": [
+      "WFC-004 must complete",
+      "SOCIAL-004/SOCIAL-007 working-set overlap must be cleared"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Social → Admin: communication audience, receipt, retry, and authorization contract for WFC-017",
+    "Social → QA: delivery and acknowledgment failure fixtures"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "social",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103: app/api/admin/workforce/** communications endpoints are yours; the other four WFC service lanes own disjoint subtrees. components/admin/workforce/** communications UI is the admin lane's (WFC-017) — build the service, not the surface.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "social",
+      "condition": "WFC-004 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

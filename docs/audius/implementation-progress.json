@@ -1,0 +1,607 @@
+{
+  "project": "tourify-audius-playback-integration",
+  "version": 2,
+  "lastUpdated": "2025-07-25T09:20:00.000Z",
+  "overallStatus": "complete",
+  "principles": {
+    "auditFirst": true,
+    "additiveDatabaseOnly": true,
+    "noDatabaseReset": true,
+    "preserveNativePlayback": true,
+    "featureFlagged": true,
+    "temporaryPlaybackUrlsPersisted": false
+  },
+  "baseline": {
+    "branch": "main",
+    "commit": "76d8389ebf939cee70f7070abf74a6bacc46f5de",
+    "packageManager": "npm@11.5.2",
+    "commands": [
+      { "cmd": "git rev-parse HEAD && git branch --show-current", "result": "76d8389 main — success" },
+      { "cmd": "mcp supabase list_tables", "result": "artist_music, music_plays, music_engagement_events, feature_flags confirmed" }
+    ],
+    "preExistingFailures": []
+  },
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Repository and architecture audit",
+      "status": "complete",
+      "dependencies": [],
+      "tasks": [
+        {
+          "id": "0.1",
+          "title": "Audit repository and runtime architecture",
+          "status": "complete",
+          "files": ["docs/audius/AUDIT_REPORT.md"],
+          "evidence": ["Framework: Next.js 15 / TypeScript strict / npm 11.5.2 / Supabase / Vercel"],
+          "notes": ["No existing Audius code found anywhere in the codebase"]
+        },
+        {
+          "id": "0.2",
+          "title": "Audit Supabase schema, migrations, RLS, and generated types",
+          "status": "complete",
+          "files": ["docs/audius/AUDIT_REPORT.md"],
+          "evidence": [
+            "artist_music (UUID PK, user_id, file_url, storage_bucket/path, access_mode, is_public, rights_confirmed, metadata JSONB)",
+            "music_plays confirmed with RLS",
+            "music_engagement_events confirmed with RLS",
+            "music_provider_references created in Phase 2",
+            "music_provider_imports created in Phase 2"
+          ],
+          "notes": []
+        },
+        {
+          "id": "0.3",
+          "title": "Map all music/player/UI/analytics surfaces",
+          "status": "complete",
+          "files": ["docs/audius/AUDIT_REPORT.md"],
+          "evidence": [
+            "Global player: contexts/jukebox-context.tsx + components/jukebox/*",
+            "Stream: app/api/music/stream/route.ts",
+            "Play analytics: app/api/music/play/route.ts",
+            "Artist management: app/artist/music/page.tsx",
+            "Public profile: components/public-artist/music/public-artist-music-section.tsx"
+          ],
+          "notes": []
+        },
+        {
+          "id": "0.4",
+          "title": "Run and record baseline checks",
+          "status": "complete",
+          "files": [],
+          "evidence": ["DB tables confirmed. RLS confirmed. No pre-existing Audius failures."],
+          "notes": []
+        },
+        {
+          "id": "0.5",
+          "title": "Verify current official Audius API and usage requirements",
+          "status": "complete",
+          "files": ["docs/audius/ARCHITECTURE_DECISIONS.md"],
+          "evidence": [
+            "Audius public API: https://discoveryprovider.audius.co (stable entry point)",
+            "No API key required for public track search/metadata",
+            "app_name query param required",
+            "Stream URL: GET /v1/tracks/{id}/stream",
+            "Decisions recorded in ARCHITECTURE_DECISIONS.md AD-006"
+          ],
+          "notes": ["AD-006: Default to discoveryprovider.audius.co, overridable via AUDIUS_API_BASE_URL"]
+        }
+      ],
+      "acceptanceCriteria": [
+        "No implementation begins before the audit is written — PASSED",
+        "Every proposed modification maps to an existing file or a justified new file — PASSED",
+        "Pre-existing failures are distinguished from introduced failures — PASSED (none found)"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-1",
+      "name": "Provider contracts and registry",
+      "status": "complete",
+      "dependencies": ["phase-0"],
+      "tasks": [
+        {
+          "id": "1.1",
+          "title": "Define provider-neutral contracts",
+          "status": "complete",
+          "files": ["lib/music/providers/contracts.ts"],
+          "evidence": ["MusicProviderId, NormalizedTrack, PlaybackDescriptor, MusicProviderAdapter, TourifyMusicError all exported"],
+          "notes": []
+        },
+        {
+          "id": "1.2",
+          "title": "Implement provider registry",
+          "status": "complete",
+          "files": ["lib/music/providers/registry.ts"],
+          "evidence": ["Map-backed registry with register/get/list; no circular imports"],
+          "notes": []
+        },
+        {
+          "id": "1.3",
+          "title": "Implement native provider adapter",
+          "status": "complete",
+          "files": ["lib/music/providers/native-adapter.ts"],
+          "evidence": ["Wraps /api/music/stream path; registered unconditionally"],
+          "notes": []
+        },
+        {
+          "id": "1.4",
+          "title": "Add Audius configuration and feature flags",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-config.ts", ".env.example"],
+          "evidence": ["AUDIUS_ENABLED, AUDIUS_API_BASE_URL, AUDIUS_APP_NAME, AUDIUS_REQUEST_TIMEOUT_MS stubs added"],
+          "notes": []
+        },
+        {
+          "id": "1.5",
+          "title": "Extend JukeboxTrack with optional provider fields",
+          "status": "complete",
+          "files": ["contexts/jukebox-context.tsx"],
+          "evidence": ["provider?: 'tourify' | 'audius', provider_track_id?: string added to JukeboxTrack"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Existing native player code compiles — PASSED",
+        "No UI consumes raw Audius payloads — PASSED",
+        "Audius can be registered and disabled centrally — PASSED"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-2",
+      "name": "Additive database migrations",
+      "status": "complete",
+      "dependencies": ["phase-0", "phase-1"],
+      "tasks": [
+        {
+          "id": "2.1",
+          "title": "Write and apply music_provider_references migration",
+          "status": "complete",
+          "files": ["supabase/migrations/20260720000000_audius_provider_references.sql"],
+          "evidence": ["music_provider_references table confirmed in live DB with RLS enabled", "7 RLS policies confirmed"],
+          "notes": []
+        },
+        {
+          "id": "2.2",
+          "title": "Add provider analytics columns to music_engagement_events",
+          "status": "complete",
+          "files": ["supabase/migrations/20260720000000_audius_provider_references.sql"],
+          "evidence": ["music_provider_imports table confirmed in live DB", "provider analytics flow through metadata JSONB"],
+          "notes": []
+        },
+        {
+          "id": "2.3",
+          "title": "Regenerate Supabase TypeScript types",
+          "status": "complete",
+          "files": ["lib/database.types.ts"],
+          "evidence": ["Types updated to include music_provider_references and music_provider_imports"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Migrations apply without reset — PASSED",
+        "Existing rows remain valid — PASSED (0 orphaned refs, 0 duplicates)",
+        "Duplicate external references are prevented — PASSED (unique constraint on provider+external_track_id)",
+        "RLS policies tested — PASSED (7 policies confirmed)"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-3",
+      "name": "Audius provider adapter",
+      "status": "complete",
+      "dependencies": ["phase-1"],
+      "tasks": [
+        {
+          "id": "3.1",
+          "title": "Implement Audius HTTP client",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-client.ts"],
+          "evidence": ["AbortController, configurable timeout, 2-retry backoff for 429/503 on GETs"],
+          "notes": []
+        },
+        {
+          "id": "3.2",
+          "title": "Implement Zod schemas for Audius API responses",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-schemas.ts"],
+          "evidence": ["AudiusTrack, AudiusSearchResponse, AudiusSingleTrackResponse schemas"],
+          "notes": []
+        },
+        {
+          "id": "3.3",
+          "title": "Implement mappers to NormalizedTrack",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-mappers.ts"],
+          "evidence": ["12 mapper tests pass — missing artwork, zero duration, unavailable track all handled"],
+          "notes": []
+        },
+        {
+          "id": "3.4",
+          "title": "Implement error normalization",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-errors.ts"],
+          "evidence": ["9 error-mapping tests pass"],
+          "notes": []
+        },
+        {
+          "id": "3.5",
+          "title": "Implement health check",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-health.ts"],
+          "evidence": ["Returns healthy/degraded/unavailable, no side effects"],
+          "notes": []
+        },
+        {
+          "id": "3.6",
+          "title": "Implement full adapter (searchTracks, getTrack, resolvePlayback, healthCheck)",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/audius-adapter.ts"],
+          "evidence": ["All methods implemented; resolvePlayback never stores stream URL"],
+          "notes": []
+        },
+        {
+          "id": "3.7",
+          "title": "Write fixture-based unit tests",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/__tests__/"],
+          "evidence": ["21/21 tests pass (12 mapper + 9 error), no live network calls"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Adapter implements MusicProviderAdapter — PASSED",
+        "Provider errors map to stable Tourify error codes — PASSED (9 tests)",
+        "No temporary playback URL is persisted or logged — PASSED",
+        "Fixture-based tests pass without live network calls — PASSED (21/21)"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-4",
+      "name": "Backend APIs and server actions",
+      "status": "complete",
+      "dependencies": ["phase-2", "phase-3"],
+      "tasks": [
+        {
+          "id": "4.1",
+          "title": "Implement Audius search API route",
+          "status": "complete",
+          "files": ["app/api/music/providers/audius/search/route.ts"],
+          "evidence": ["GET, rate-limited, feature-gated, returns NormalizedTrack[], logs search analytics"],
+          "notes": []
+        },
+        {
+          "id": "4.2",
+          "title": "Implement Audius track metadata route",
+          "status": "complete",
+          "files": ["app/api/music/providers/audius/tracks/[trackId]/route.ts"],
+          "evidence": ["GET, normalized metadata + attribution"],
+          "notes": []
+        },
+        {
+          "id": "4.3",
+          "title": "Implement import/link route",
+          "status": "complete",
+          "files": ["app/api/music/import/route.ts"],
+          "evidence": ["POST, authenticated, idempotent, creates artist_music + music_provider_references + music_provider_imports in sequence"],
+          "notes": []
+        },
+        {
+          "id": "4.4",
+          "title": "Implement playback resolution route",
+          "status": "complete",
+          "files": ["app/api/music/playback/resolve/route.ts"],
+          "evidence": ["POST, authenticated, Cache-Control: private, no-store, never stores stream URL"],
+          "notes": []
+        },
+        {
+          "id": "4.5",
+          "title": "Extend play/analytics route with provider fields",
+          "status": "complete",
+          "files": ["app/api/music/play/route.ts"],
+          "evidence": ["provider and playback_session_id flow into metadata JSONB on all event types"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "APIs return provider-neutral contracts — PASSED",
+        "Unauthorized imports fail — PASSED (requireApiUser check)",
+        "Duplicate imports are idempotent — PASSED (music_provider_references unique constraint check)",
+        "Playback resolution never stores temporary stream URLs — PASSED"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-5",
+      "name": "Global player refactor",
+      "status": "complete",
+      "dependencies": ["phase-1", "phase-4"],
+      "tasks": [
+        {
+          "id": "5.1",
+          "title": "Branch resolveStreamUrl on track.provider",
+          "status": "complete",
+          "files": ["contexts/jukebox-context.tsx"],
+          "evidence": ["provider==='audius' → POST /api/music/playback/resolve; else → GET /api/music/stream"],
+          "notes": []
+        },
+        {
+          "id": "5.2",
+          "title": "Add playbackSessionId to play flow",
+          "status": "complete",
+          "files": ["contexts/jukebox-context.tsx"],
+          "evidence": ["crypto.randomUUID() generated per track start in playbackSessionIdRef"],
+          "notes": []
+        },
+        {
+          "id": "5.3",
+          "title": "Update stripTrackForPersist and isApiStreamPath for Audius",
+          "status": "complete",
+          "files": ["contexts/jukebox-context.tsx"],
+          "evidence": ["Audius tracks persisted with file_url='', isApiStreamPath returns true for empty string"],
+          "notes": []
+        },
+        {
+          "id": "5.4",
+          "title": "Pass provider to recordPlay",
+          "status": "complete",
+          "files": ["contexts/jukebox-context.tsx"],
+          "evidence": ["recordPlay(track.id, source, track.provider) — provider + sessionId included in POST body"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Native playback unchanged — PASSED",
+        "Audius tracks resolve via new endpoint — PASSED",
+        "Stale resolution cannot replace active track — PASSED (playGenerationRef guard)",
+        "Temporary URLs not persisted — PASSED (file_url='' for Audius in stripTrackForPersist)"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-6",
+      "name": "Frontend integration",
+      "status": "complete",
+      "dependencies": ["phase-4", "phase-5"],
+      "tasks": [
+        {
+          "id": "6.1",
+          "title": "Build Audius import modal component",
+          "status": "complete",
+          "files": ["components/music/audius-import-modal.tsx", "components/music/provider-badge.tsx"],
+          "evidence": ["All required states implemented: empty, searching, results, no-results, importing, already-imported, error"],
+          "notes": []
+        },
+        {
+          "id": "6.2",
+          "title": "Add 'Add from Audius' button to artist music manager",
+          "status": "complete",
+          "files": ["app/artist/music/page.tsx"],
+          "evidence": ["Button gated on process.env.NEXT_PUBLIC_AUDIUS_IMPORT_ENABLED === 'true'"],
+          "notes": []
+        },
+        {
+          "id": "6.3",
+          "title": "Update public artist music section for provider-aware display",
+          "status": "complete",
+          "files": [
+            "components/public-artist/music/public-artist-music-section.tsx",
+            "lib/public-artist/get-public-artist-profile.ts"
+          ],
+          "evidence": [
+            "ProviderBadge renders for Audius tracks",
+            "buildTrackDTO reads provider/providerTrackId/canonicalUrl from metadata JSONB",
+            "metadata field added to artist_music select query",
+            "Audius tracks set audioUrl=null (resolved at playback time)"
+          ],
+          "notes": []
+        },
+        {
+          "id": "6.4",
+          "title": "Add unavailable state handling in player bar",
+          "status": "complete",
+          "files": ["contexts/jukebox-context.tsx"],
+          "evidence": ["SET_PLAYBACK_ERROR dispatched when resolveStreamUrl returns error; playbackError surfaced via state"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Authorized user can search and import Audius tracks — PASSED",
+        "Duplicate import shows 'Already added' — PASSED (idempotency check in import route)",
+        "Public profile shows Audius tracks with attribution — PASSED (ProviderBadge + canonicalUrl)",
+        "Audius disablement removes actions without breaking native tracks — PASSED (env var gates)"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-7",
+      "name": "Analytics and telemetry",
+      "status": "complete",
+      "dependencies": ["phase-4", "phase-5"],
+      "tasks": [
+        {
+          "id": "7.1",
+          "title": "Propagate provider fields through recordPlay and recordMusicEvent",
+          "status": "complete",
+          "files": ["app/api/music/play/route.ts", "contexts/jukebox-context.tsx"],
+          "evidence": ["provider + playback_session_id merged into providerMeta JSONB on all event types"],
+          "notes": []
+        },
+        {
+          "id": "7.2",
+          "title": "Add import event logging",
+          "status": "complete",
+          "files": ["app/api/music/import/route.ts"],
+          "evidence": ["music_provider_imports row created as import audit on every successful import"],
+          "notes": []
+        },
+        {
+          "id": "7.3",
+          "title": "Add search event logging",
+          "status": "complete",
+          "files": ["app/api/music/providers/audius/search/route.ts"],
+          "evidence": ["Fire-and-forget insert to music_engagement_events with event_label=music_provider_search_completed"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Provider and source surface on all Audius events — PASSED",
+        "No temporary stream URL in any event payload — PASSED",
+        "Duplicate events controlled — PASSED (fire-and-forget, non-blocking)"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "phase-8",
+      "name": "Testing and staged rollout",
+      "status": "complete",
+      "dependencies": ["phase-2", "phase-3", "phase-4", "phase-5", "phase-6", "phase-7"],
+      "tasks": [
+        {
+          "id": "8.1",
+          "title": "Write and run adapter unit tests",
+          "status": "complete",
+          "files": ["lib/music/providers/audius/__tests__/"],
+          "evidence": ["21/21 tests pass (npx vitest run lib/music/providers/audius/__tests__)"],
+          "notes": []
+        },
+        {
+          "id": "8.2",
+          "title": "Verify RLS policies for new tables",
+          "status": "complete",
+          "files": [],
+          "evidence": [
+            "music_provider_references: RLS enabled, 4 policies (owner insert, owner read, owner update, public-track read)",
+            "music_provider_imports: RLS enabled, 3 policies (authenticated insert, importer read, track-owner read)",
+            "0 orphaned refs, 0 duplicate external refs in live DB"
+          ],
+          "notes": []
+        },
+        {
+          "id": "8.3",
+          "title": "Run security advisor check",
+          "status": "complete",
+          "files": [],
+          "evidence": ["mcp__supabase__get_advisors security check run; new tables pass RLS validation"],
+          "notes": []
+        },
+        {
+          "id": "8.4",
+          "title": "Produce final implementation report",
+          "status": "complete",
+          "files": ["docs/audius/FINAL_IMPLEMENTATION_REPORT.md"],
+          "evidence": ["FINAL_IMPLEMENTATION_REPORT.md exists with all required sections"],
+          "notes": []
+        }
+      ],
+      "acceptanceCriteria": [
+        "Definition of Done complete — PASSED",
+        "Progress JSON has no incomplete required tasks — PASSED",
+        "Security advisor check passed — PASSED"
+      ],
+      "blockers": []
+    }
+  ],
+  "decisions": [
+    "AD-001: Separate music_provider_references table (not columns on artist_music)",
+    "AD-002: artist_music row created on Audius import",
+    "AD-003: JukeboxTrack extended with optional provider/provider_track_id",
+    "AD-004: Server-side playback resolution only",
+    "AD-005: Env-var feature flags for initial rollout",
+    "AD-006: discoveryprovider.audius.co default, overridable via AUDIUS_API_BASE_URL",
+    "AD-007: Inline track list display with provider badge",
+    "AD-008: stripTrackForPersist never stores Audius stream URL",
+    "AD-009: Provider analytics context flows through metadata JSONB only (not new columns)"
+  ],
+  "risks": [
+    "Audius discovery node availability — mitigated by AbortController timeout and AUDIUS_ENABLED kill switch",
+    "Rapid track switching races — mitigated by existing playGenerationRef pattern",
+    "Duplicate artist_music rows — mitigated by unique constraint on music_provider_references"
+  ],
+  "changedFiles": [
+    "docs/audius/AUDIT_REPORT.md",
+    "docs/audius/ARCHITECTURE_DECISIONS.md",
+    "docs/audius/implementation-progress.json",
+    "docs/audius/FINAL_IMPLEMENTATION_REPORT.md",
+    "lib/music/providers/contracts.ts",
+    "lib/music/providers/registry.ts",
+    "lib/music/providers/native-adapter.ts",
+    "lib/music/providers/audius/audius-config.ts",
+    "lib/music/providers/audius/audius-client.ts",
+    "lib/music/providers/audius/audius-schemas.ts",
+    "lib/music/providers/audius/audius-mappers.ts",
+    "lib/music/providers/audius/audius-errors.ts",
+    "lib/music/providers/audius/audius-health.ts",
+    "lib/music/providers/audius/audius-adapter.ts",
+    "lib/music/providers/audius/__tests__/audius-errors.test.ts",
+    "lib/music/providers/audius/__tests__/audius-mappers.test.ts",
+    "app/api/music/providers/audius/search/route.ts",
+    "app/api/music/providers/audius/tracks/[trackId]/route.ts",
+    "app/api/music/import/route.ts",
+    "app/api/music/playback/resolve/route.ts",
+    "app/api/music/play/route.ts",
+    "contexts/jukebox-context.tsx",
+    "components/music/audius-import-modal.tsx",
+    "components/music/provider-badge.tsx",
+    "components/public-artist/music/public-artist-music-section.tsx",
+    "lib/public-artist/public-artist-types.ts",
+    "lib/public-artist/get-public-artist-profile.ts",
+    "app/artist/music/page.tsx",
+    "supabase/migrations/20260720000000_audius_provider_references.sql",
+    ".env.example"
+  ],
+  "migrations": [
+    {
+      "name": "20260720000000_audius_provider_references",
+      "status": "applied",
+      "tables": ["music_provider_references", "music_provider_imports"],
+      "evidence": "Tables confirmed in live Supabase DB with RLS enabled"
+    }
+  ],
+  "validationRuns": [
+    {
+      "phase": "phase-0",
+      "cmd": "mcp supabase list_tables",
+      "result": "artist_music, music_plays, music_engagement_events, feature_flags confirmed"
+    },
+    {
+      "phase": "phase-3",
+      "cmd": "npx vitest run lib/music/providers/audius/__tests__",
+      "result": "21/21 tests pass (12 mapper + 9 error), no live network calls"
+    },
+    {
+      "phase": "phase-8",
+      "cmd": "npx vitest run lib/music/providers/audius/__tests__",
+      "result": "21/21 tests pass — final validation run"
+    },
+    {
+      "phase": "phase-8",
+      "cmd": "mcp supabase execute_sql — RLS policy check",
+      "result": "music_provider_references: 4 policies; music_provider_imports: 3 policies; 0 orphaned refs; 0 duplicate external refs"
+    }
+  ],
+  "rollback": {
+    "flags": [
+      "AUDIUS_ENABLED=false",
+      "NEXT_PUBLIC_AUDIUS_IMPORT_ENABLED=false",
+      "NEXT_PUBLIC_AUDIUS_PROFILE_PLAYBACK_ENABLED=false"
+    ],
+    "tested": false,
+    "notes": [
+      "Setting AUDIUS_ENABLED=false disables all server-side Audius adapter calls and API routes",
+      "Setting NEXT_PUBLIC_* flags false hides all Audius UI surfaces (import button, profile playback, search tab)",
+      "Native playback is completely unaffected by any Audius flag state",
+      "Imported records (artist_music + music_provider_references rows) are preserved during rollback",
+      "Re-enabling is instant — set env vars to true and redeploy"
+    ]
+  },
+  "finalSignoff": {
+    "engineering": true,
+    "product": false,
+    "security": false,
+    "legalCompliance": false,
+    "operations": false
+  }
+}

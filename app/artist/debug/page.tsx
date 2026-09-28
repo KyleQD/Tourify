@@ -1,6 +1,7 @@
 "use client"
 
 import { supabase } from '@/lib/supabase'
+import Link from "next/link"
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -445,10 +446,10 @@ export default function ArtistDebugPage() {
                   asChild
                   className="bg-purple-600 hover:bg-purple-700"
                 >
-                  <a href="/artist/profile">
+                  <Link href="/artist/profile">
                     <Settings className="h-4 w-4 mr-2" />
                     Go to Profile Settings
-                  </a>
+                  </Link>
                 </Button>
               </CardContent>
             </Card>

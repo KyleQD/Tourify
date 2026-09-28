@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260819210230_connected_worker_work_hub_security_hardening.sql",
+  "taskId": "CONNECTED-WORKER-SECURITY-HARDENING",
+  "status": "planned",
+  "owner": "workforce-platform",
+  "reviewer": "security-data",
+  "domains": ["workforce", "rpc", "security", "performance"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase snapshot with the connected worker work-hub migrations applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Inspect execute grants for work-hub functions and foreign-key coverage for channel and publication actor columns"
+    ],
+    "expectedAffectedRows": "No rows are modified; function grants and supporting indexes are hardened",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply deterministic revokes, authenticated grant, and guarded indexes",
+    "resumeCursor": "Supabase migration version 20260819210230",
+    "idempotency": "Revokes and grants converge, while indexes use IF NOT EXISTS"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data mutation; fail closed if prerequisite functions or tables are absent"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [
+      "workforce_channel_links_created_by_idx",
+      "work_mode_publication_audiences_assigned_by_idx"
+    ],
+    "validationPlan": "Verify public and anon cannot execute internal sync functions, authenticated users can call only the actor-bound response RPC, and advisors no longer flag missing indexes"
+  },
+  "recovery": {
+    "rollback": "Disable affected work-hub commands and apply a reviewed forward grant correction",
+    "forwardFix": "Repair grants or indexes additively and rerun direct RPC and advisor checks"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect function execute grants, function security properties, index validity, and direct unauthenticated RPC denial"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

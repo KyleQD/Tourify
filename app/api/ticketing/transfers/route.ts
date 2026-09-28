@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
     .or(`from_user_id.eq.${auth.user.id},to_user_id.eq.${auth.user.id}`)
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('Failed to list transfers:', error)
+    return NextResponse.json({ error: 'Failed to load transfers' }, { status: 500 })
+  }
   return NextResponse.json({ transfers: data || [] })
 }
 
@@ -57,6 +60,9 @@ export async function POST(request: NextRequest) {
     if ((ticket.ticket_types as any)?.is_transferable === false)
       return NextResponse.json({ error: 'This ticket type is not transferable' }, { status: 400 })
 
+    if ((ticket.metadata as Record<string, unknown> | null)?.non_transferable === true)
+      return NextResponse.json({ error: 'Guest list and crew admissions cannot be transferred' }, { status: 400 })
+
     const { data: transfer, error } = await supabase
       .from('ticket_transfers')
       .insert({
@@ -71,7 +77,10 @@ export async function POST(request: NextRequest) {
       .select('*')
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('Failed to create transfer:', error)
+      return NextResponse.json({ error: 'Failed to create transfer' }, { status: 500 })
+    }
 
     await supabase.from('ticket_ownership_events').insert({
       ticket_id: parsed.ticket_id,
@@ -107,14 +116,29 @@ export async function POST(request: NextRequest) {
     if (transfer.status !== 'pending')
       return NextResponse.json({ error: 'Transfer is not pending' }, { status: 400 })
 
+    if (action !== 'cancel' && transfer.expires_at && new Date(transfer.expires_at).getTime() <= Date.now()) {
+      await supabase
+        .from('ticket_transfers')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('id', transferId)
+        .eq('status', 'pending')
+      return NextResponse.json({ error: 'Transfer has expired' }, { status: 410 })
+    }
+
     if (action === 'cancel') {
       if (transfer.from_user_id !== auth.user.id)
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-      await supabase
+      const { data: canceled } = await supabase
         .from('ticket_transfers')
         .update({ status: 'canceled', updated_at: new Date().toISOString() })
         .eq('id', transferId)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle()
+
+      if (!canceled)
+        return NextResponse.json({ error: 'Transfer is not pending' }, { status: 409 })
 
       await supabase.from('ticket_ownership_events').insert({
         ticket_id: transfer.ticket_id,
@@ -126,14 +150,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
+    // SECURITY: for user-addressed transfers only the named recipient may act.
+    // For email-addressed transfers the caller's VERIFIED account email must
+    // match the destination email — otherwise any signed-in user could steal
+    // the ticket by guessing/knowing the transfer id.
+    const authEmail = String(auth.user.email || '').trim().toLowerCase()
+    const targetEmail = String(transfer.to_email || '').trim().toLowerCase()
     if (transfer.to_user_id && transfer.to_user_id !== auth.user.id)
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!transfer.to_user_id && (!targetEmail || !authEmail || targetEmail !== authEmail))
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     if (action === 'decline') {
-      await supabase
+      const { data: declined } = await supabase
         .from('ticket_transfers')
         .update({ status: 'declined', updated_at: new Date().toISOString() })
         .eq('id', transferId)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle()
+
+      if (!declined)
+        return NextResponse.json({ error: 'Transfer is not pending' }, { status: 409 })
 
       await supabase.from('ticket_ownership_events').insert({
         ticket_id: transfer.ticket_id,
@@ -155,7 +193,9 @@ export async function POST(request: NextRequest) {
     if (!ticket)
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
 
-    await supabase
+    // Claim ownership conditionally: only succeeds if the current owner is
+    // still the original transferor (guards against concurrent cancel/re-transfer).
+    const { data: claimedTicket } = await supabase
       .from('tickets')
       .update({
         owner_user_id: auth.user.id,
@@ -164,6 +204,12 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', transfer.ticket_id)
+      .eq('owner_user_id', transfer.from_user_id)
+      .select('id')
+      .maybeSingle()
+
+    if (!claimedTicket)
+      return NextResponse.json({ error: 'Ticket is no longer transferable' }, { status: 409 })
 
     const newToken = await revokeAndReissueCredential({
       supabase,
@@ -176,7 +222,7 @@ export async function POST(request: NextRequest) {
       .update({ status: 'valid', updated_at: new Date().toISOString() })
       .eq('id', transfer.ticket_id)
 
-    await supabase
+    const { data: finalizedTransfer, error: finalizeError } = await supabase
       .from('ticket_transfers')
       .update({
         status: 'accepted',
@@ -185,6 +231,25 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', transferId)
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle()
+
+    if (finalizeError || !finalizedTransfer) {
+      console.error('Failed to finalize transfer:', finalizeError)
+      // Compensate: restore original ownership so a lost race cannot leave
+      // the ticket transferred without an accepted transfer record.
+      await supabase
+        .from('tickets')
+        .update({
+          owner_user_id: transfer.from_user_id,
+          status: 'valid',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', transfer.ticket_id)
+        .eq('owner_user_id', auth.user.id)
+      return NextResponse.json({ error: 'Transfer is not pending' }, { status: 409 })
+    }
 
     await supabase.from('ticket_ownership_events').insert({
       ticket_id: transfer.ticket_id,

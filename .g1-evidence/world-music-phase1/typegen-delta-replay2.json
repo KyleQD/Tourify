@@ -1,0 +1,38 @@
+{
+  "additions": [
+    "geo_external_references",
+    "geo_place_aliases",
+    "geo_places",
+    "world_artist_places",
+    "world_claim_evidence",
+    "world_claims",
+    "world_cultural_entities",
+    "world_cultural_entity_places",
+    "world_cultural_relationships",
+    "world_geo_signals",
+    "world_ingestion_candidates",
+    "world_ingestion_runs",
+    "world_media_assets",
+    "world_media_sources",
+    "world_radio_station_places",
+    "world_radio_stations",
+    "world_radio_streams",
+    "world_relation_types",
+    "world_sources",
+    "world_track_places"
+  ],
+  "baseline_table_count": 299,
+  "candidate_table_count": 319,
+  "expected_addition_count": 20,
+  "failures": [
+    "isolated baseline is missing one or more protected Tourify tables"
+  ],
+  "missing_expected_additions": [],
+  "protected_tables_changed": [],
+  "protected_tables_missing_from_baseline": [
+    "artist_music_provider_refs"
+  ],
+  "removals": [],
+  "status": "FAIL",
+  "unexpected_additions": []
+}

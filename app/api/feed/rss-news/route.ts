@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+import { toPlainText } from '@/lib/news/text-sanitize'
+
 // RSS Feed Sources — deduplicated, one entry per unique URL
 const RSS_SOURCES = [
   // Major Music Publications
@@ -85,15 +87,20 @@ interface RSSItem {
 const RSS_CACHE = new Map<string, { data: RSSItem[], timestamp: number }>()
 const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
 
+/**
+ * Security decision DISC-XSS-002 (CodeQL alert #40, `js/double-escaping`).
+ *
+ * The previous body decoded `&lt;` / `&gt;` back into markup characters, so a
+ * decoded value could contain angle brackets that no strip step had removed.
+ * `toPlainText` fixes the ORDERING instead: it decodes once in a
+ * semicolon-terminated pass (so `&amp;lt;` stays literal and cannot be
+ * re-decoded), strips markup second, then removes any residual `<` / `>`. The
+ * CDATA unwrap stays in front of it, because `toPlainText` treats a `<![CDATA[…]]>`
+ * wrapper as markup and would otherwise discard the payload — which for `<link>`
+ * is the URL itself.
+ */
 function decodeXmlText(value: string) {
-  return String(value || '')
-    .replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, '$1')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim()
+  return toPlainText(String(value || '').replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, '$1'))
 }
 
 function pickFirstMatch(xml: string, patterns: RegExp[]) {

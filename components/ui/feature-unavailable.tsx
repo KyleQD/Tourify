@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface FeatureUnavailableProps {
   title: string
@@ -17,17 +17,16 @@ export function FeatureUnavailable({
 }: FeatureUnavailableProps) {
   return (
     <div className="flex min-h-[50vh] items-center justify-center p-6">
-      <Card className="w-full max-w-xl">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <EmptyState
+        className="w-full max-w-xl"
+        title={title}
+        description={description}
+        action={
           <Button asChild>
             <Link href={fallbackHref}>{fallbackLabel}</Link>
           </Button>
-        </CardContent>
-      </Card>
+        }
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 
 function buildWorkerSiteMapUrl(siteMapId: string) {
@@ -10,12 +10,14 @@ function buildWorkerSiteMapUrl(siteMapId: string) {
   return base ? `${base}${path}` : path
 }
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('site_map.edit', async (request: NextRequest, { supabase, user, admin }) => {
   const segments = new URL(request.url).pathname.split('/')
   const siteMapId = segments[segments.indexOf('site-maps') + 1]
   if (!siteMapId) return NextResponse.json({ error: 'Missing site map id' }, { status: 400 })
 
-  const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+  const access = await getSiteMapAccess(supabase, siteMapId, user.id, {
+    requiredOrgId: admin.orgId,
+  })
   const accessCheck = requireSiteMapAccess(access, 'edit')
   if (!accessCheck.ok) {
     return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })

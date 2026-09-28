@@ -1,0 +1,62 @@
+BEGIN
+SELECT 1
+GRANT
+INSERT 0 3
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 2
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+INSERT 0 1
+RESET
+SET
+SET
+INSERT 0 1
+RESET
+UPDATE 1
+SET
+SET
+INSERT 0 1
+RESET
+INSERT 0 1
+              case_name              | passed | verdict 
+-------------------------------------+--------+---------
+ auth_uid_only_signature             | t      | PASS
+ expired_assignment_denied_view      | t      | PASS
+ no_world_role_denied                | t      | PASS
+ org_admin_without_world_role_denied | t      | PASS
+ publisher_can_publish               | t      | PASS
+ reviewer_can_review                 | t      | PASS
+ reviewer_can_view                   | t      | PASS
+ reviewer_cannot_manage_sources      | t      | PASS
+ reviewer_cannot_publish             | t      | PASS
+(9 rows)
+
+   ?column?    
+---------------
+ ALL_PASS=true
+(1 row)
+
+ROLLBACK

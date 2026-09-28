@@ -1,0 +1,134 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-023",
+  "title": "Give the four unguarded admin handlers an explicit principal and boundary",
+  "status": "completed",
+  "execution_state": "superseded",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T23:46:22.919Z",
+  "updated_at": "2026-09-28T00:30:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (589 entries)",
+  "goal": "Move each of the four unguarded methods onto a named guard with a resource boundary, or retire the route from the core launch surface.",
+  "scope": {
+    "in": [
+      "The four methods with no route-level guard"
+    ],
+    "out": [
+      "The registry proof harness"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/logistics/vendor/dashboard/route.ts",
+    "app/api/admin/onboarding/documents/[documentId]/review/route.ts",
+    "app/api/admin/onboarding/enhanced-invite/route.ts",
+    "app/api/admin/staffing/job-postings/route.ts",
+    "__tests__/admin/**",
+    "lib/admin/api-route-registry.ts"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "ADMIN-019",
+    "ADMIN-022"
+  ],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete ADMIN-019.",
+      "dependency_task_ids": [
+        "ADMIN-019"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "AC-1: each method is on withAdminCapability, withPlatformAdmin, or an explicitly registered non-user principal, proven by the ADMIN-016 proof test with no no_route_guard method left.",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Split by Admin segment into ADMCOM-001 and ADMWORK-001."
+      ],
+      "transferred_to": "ADMCOM-001, ADMWORK-001"
+    },
+    {
+      "id": "AC-2",
+      "criterion": "AC-2: each route declares a resource boundary whose verifiedAt marker is present in the source, or is recorded none_recorded with a named owner and a stated reason.",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Split by Admin segment into ADMCOM-001 and ADMWORK-001."
+      ],
+      "transferred_to": "ADMCOM-001, ADMWORK-001"
+    },
+    {
+      "id": "AC-3",
+      "criterion": "AC-3: an unauthenticated request to each of the four is proven to receive 401.",
+      "owner": "admin",
+      "state": "transferred",
+      "evidence": [
+        "Split by Admin segment into ADMCOM-001 and ADMWORK-001."
+      ],
+      "transferred_to": "ADMCOM-001, ADMWORK-001"
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Superseded without implementation by two segment-owned successors. ADMCOM-001 owns the vendor dashboard handler; ADMWORK-001 owns the onboarding and staffing handlers. All acceptance criteria and the ADMIN-022 dependency are preserved.",
+    "completed": [],
+    "next_steps": [],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:55:08.894Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "State-only correction, no implementation started. ADMIN-019 is completed, so this task's ADMIN-019 waiting_dependency no longer holds and --strict was failing on it. Left active/ready for the dispatcher to pick up. See docs/engineering/tasks/active/ADMIN-019.json for the per-method registry record the admin lane measured while repairing the four events/[id] siblings.",
+        "completed": [],
+        "next_steps": [
+          "Dispatcher decides whether to start this task; the dependency it was blocked on is resolved. No code, registry, or test change was made by this checkpoint."
+        ],
+        "blockers": [],
+        "depends_on_added": "ADMIN-022"
+      },
+      {
+        "at": "2026-09-27T23:56:11.408Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Re-serialized by ADMIN-019, not a regression. ADMIN-019 is completed, so this task's ADMIN-019 dependency is satisfied; a dependency edge to the previous task in the admin registry chain was added because the control plane enforces one active implementation task per agent and these tasks all declare lib/admin/api-route-registry.ts and/or __tests__/admin/**, so they cannot be active at the same time. Only ADMIN-020 is left active/ready. No implementation was started and no working set was changed.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": [
+          "Serialized behind ADMIN-020/021/022/023 by the control-plane WIP limit (one active implementation task per agent) and working-set collisions on lib/admin/api-route-registry.ts and __tests__/admin/**. Next-action owner: the admin dispatcher, which activates exactly one at a time in chain order."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "ADMCOM-001",
+    "ADMWORK-001"
+  ]
+}

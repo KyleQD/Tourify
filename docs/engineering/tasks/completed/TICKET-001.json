@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "id": "TICKET-001",
+  "title": "Audit Ticketing workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "ticketing",
+  "created_at": "2026-09-09T06:17:41.863Z",
+  "updated_at": "2026-09-09T08:28:52.625Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Ticketing area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: tickets, allocations, transfers, wallet, guest list, door operations, and settlement interfaces",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/ticketing/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The ticketing default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/ticketing/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/ticketing/BASELINE.md: what the ticketing area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/ticketing/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task TICKET-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/ticketing/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/ticketing/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/ticketing/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "validated 17 agents, 21 tasks, 8 warnings, 0 errors"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T08:28:52.625Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Ticketing audit complete: BASELINE, GAPS (18 missing / 16 incomplete / 9 improve), QUESTIONS (5 P1) written; STATE and BACKLOG updated. No production code changed.",
+    "completed": [
+      "Wrote docs/engineering/agents/ticketing/BASELINE.md with real path refs for routes, components, services, API surface, DB objects, tests, and intended direction (TIX-001/ADR-007/TIX-002/09-spec)",
+      "Wrote docs/engineering/agents/ticketing/GAPS.md — 43 items triaged (missing/incomplete/improve), each with evidence + location + target",
+      "Wrote docs/engineering/agents/ticketing/QUESTIONS.md — 5 P1 questions + P2/P3 and cross-agent handoff candidates",
+      "Updated STATE.md (reviewed SHA, durable facts, current focus, risks) and BACKLOG.md (active/candidate/done)",
+      "Ran npm run agents:validate: 0 errors, 8 pre-existing SHA warning only"
+    ],
+    "next_steps": [
+      "Owner answers P1 questions; convert answers into bounded build/fix tasks (see GAPS.md priority ordering and BACKLOG.md candidates)"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T08:28:52.625Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Ticketing audit complete: BASELINE, GAPS (18 missing / 16 incomplete / 9 improve), QUESTIONS (5 P1) written; STATE and BACKLOG updated. No production code changed.",
+        "completed": [
+          "Wrote docs/engineering/agents/ticketing/BASELINE.md with real path refs for routes, components, services, API surface, DB objects, tests, and intended direction (TIX-001/ADR-007/TIX-002/09-spec)",
+          "Wrote docs/engineering/agents/ticketing/GAPS.md — 43 items triaged (missing/incomplete/improve), each with evidence + location + target",
+          "Wrote docs/engineering/agents/ticketing/QUESTIONS.md — 5 P1 questions + P2/P3 and cross-agent handoff candidates",
+          "Updated STATE.md (reviewed SHA, durable facts, current focus, risks) and BACKLOG.md (active/candidate/done)",
+          "Ran npm run agents:validate: 0 errors, 8 pre-existing SHA warning only"
+        ],
+        "next_steps": [
+          "Owner answers P1 questions; convert answers into bounded build/fix tasks (see GAPS.md priority ordering and BACKLOG.md candidates)"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

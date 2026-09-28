@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823221000_event_hq_rls_tighten.sql",
+  "taskId": "M20-EVENT-HQ-RLS",
+  "status": "staging_validated",
+  "owner": "security-data",
+  "reviewer": "release-engineering",
+  "domains": [
+    "events",
+    "rls"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": "Post-apply staging inspection: zero anon policies, creator-scoped writes, authenticated reads unchanged (task DB-002 evidence)"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "to_regclass probes; allocation row counts per event before/after in staging"
+    ],
+    "expectedAffectedRows": "DDL only at apply time; RPCs mutate only when later invoked by authorized routes",
+    "artifact": "Chain + validation scans clean (277 files); named policy drop/create review; read-only probes only"
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Named policy drops/creates inside one transaction guarded by to_regclass; retry-safe",
+    "resumeCursor": "supabase migration version 20260823221000",
+    "idempotency": "drop policy if exists before each create; re-running converges"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Function definitions, grants, search_path pinning; behavior parity checks vs legacy paths"
+  },
+  "recovery": {
+    "rollback": "Re-create prior open policies explicitly with security sign-off if rollback demanded (not recommended while anon exposure remains)",
+    "forwardFix": "Scope-tightening follow-ups without reopening anon access"
+  },
+  "postflight": {
+    "queries": [
+      "no policy on these tables applies to anon",
+      "writes are creator-scoped or platform-admin",
+      "authenticated reads unchanged"
+    ],
+    "artifact": "Post-apply pg_policies probes; results recorded in task DB-002 evidence (2026-09-09)",
+    "securityAdvisorArtifact": "Not run as separate artifact \u2014 RLS posture verified via pg_policies probes in staging (DB-002 evidence)",
+    "performanceAdvisorArtifact": "Not applicable \u2014 policy-only migration; no hot-path plan changes"
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": "Reviewed against production-shaped staging and applied via Management API (HTTP 201) on 2026-09-09. Postflight: zero anon policies on event_resources/event_calendar_items/event_bulletins; all writes creator-scoped or platform-admin; authenticated reads unchanged.",
+    "staging": "Applied via Management API (HTTP 201) on 2026-09-09. Postflight: zero anon policies on event_resources/event_calendar_items/event_bulletins; all writes creator-scoped or platform-admin; authenticated reads unchanged.",
+    "production": null
+  },
+  "exceptions": []
+}

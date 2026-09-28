@@ -1,0 +1,19 @@
+{
+  "schema_version": "2.0",
+  "agent": "admin",
+  "description": "Lead the Admin portfolio, route specialist work, resolve overlaps, and maintain cross-segment execution truth.",
+  "paths": [
+    "docs/engineering/agents/admin/**",
+    "docs/engineering/admin-reviews/**",
+    "docs/engineering/tasks/**",
+    "docs/engineering/handoffs/**",
+    "scripts/agent-tools/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced",
+    "Post-launch paths unless the task outcome authorizes them"
+  ],
+  "expansion_rule": "The parent reads every Admin segment but writes product code only for the already-active ADMIN-020 exception or an explicit shared lease. New implementation belongs to a specialist."
+}

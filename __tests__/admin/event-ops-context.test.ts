@@ -50,7 +50,7 @@ describe("admin ops context links", () => {
     expect(logisticsHref).toContain("display_name=Test+Events+%26+Tours+LLC")
 
     const siteMapHref = buildAdminSiteMapHref(scopedParams)
-    expect(siteMapHref).toContain("tab=site-maps")
+    expect(siteMapHref).toContain("tab=maps")
     expect(siteMapHref).toContain("eventId=33333333-3333-4333-8333-333333333333")
   })
 

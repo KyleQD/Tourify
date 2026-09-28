@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 import {
   defaultDenyTransferSnapshot,
@@ -30,10 +31,10 @@ const createSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireMarketplaceAccount(request)
   if (!authResult.success) return authResult.response
-  const { user, supabase } = authResult.auth
-  const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+  const { userId, supabase } = authResult.account
+  const flags = await resolveMusicMarketplaceFlags(supabase, userId)
   if (!flags.music_marketplace_transfers_enabled)
     return jsonError({
       status: 404,
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("music_marketplace_transfer_requests")
     .select("id, position_id, status, eligibility_passed, eligibility_snapshot, quantity_minor, partner_transfer_id, created_at")
-    .eq("requested_by", user.id)
+    .eq("requested_by", userId)
     .order("created_at", { ascending: false })
     .limit(100)
 
@@ -57,10 +58,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireMarketplaceAccount(request)
     if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
-    const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+    const { userId, supabase } = authResult.account
+    const flags = await resolveMusicMarketplaceFlags(supabase, userId)
     if (!flags.music_marketplace_transfers_enabled)
       return jsonError({
         status: 404,
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
       .from("music_marketplace_positions")
       .select("id, investor_user_id, reconciliation_status, restriction_status")
       .eq("id", payload.position_id)
-      .eq("investor_user_id", user.id)
+      .eq("investor_user_id", userId)
       .maybeSingle()
     if (!position)
       return jsonError({ status: 404, code: "position_not_found", message: "Position not found.", retryable: false })
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       .from("music_marketplace_transfer_requests")
       .insert({
         position_id: payload.position_id,
-        requested_by: user.id,
+        requested_by: userId,
         transferee_user_id: payload.transferee_user_id || null,
         quantity_minor: payload.quantity_minor,
         eligibility_snapshot: { input: eligibilityInput, result: eligibility },

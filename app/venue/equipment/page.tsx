@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import QRCode from "qrcode"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
@@ -56,6 +59,12 @@ interface VenueEquipment {
   purchase_date: string | null
   last_maintenance: string | null
   next_maintenance: string | null
+  manufacturer?: string | null
+  model?: string | null
+  serial_number?: string | null
+  purchase_price?: number | null
+  replacement_value?: number | null
+  insurance_policy?: string | null
   is_available_for_rent: boolean
   rental_price: number | null
   created_at: string
@@ -88,18 +97,230 @@ const conditionIcons = {
   out_of_service: XCircle,
 }
 
+type EquipmentFormState = {
+  name: string
+  category: VenueEquipment["category"]
+  description: string
+  quantity: number
+  condition: NonNullable<VenueEquipment["condition"]>
+  purchase_date: string
+  last_maintenance: string
+  next_maintenance: string
+  is_available_for_rent: boolean
+  rental_price: string | number
+  manufacturer: string
+  model: string
+  serial_number: string
+  purchase_price: string | number
+  replacement_value: string | number
+  insurance_policy: string
+}
+
+function EquipmentForm({
+  form,
+  setForm,
+}: {
+  form: EquipmentFormState
+  setForm: React.Dispatch<React.SetStateAction<EquipmentFormState>>
+}) {
+  const set = (field: keyof EquipmentFormState, value: any) =>
+    setForm(prev => ({ ...prev, [field]: value }))
+
+  return (
+    <div className="grid gap-4 py-2">
+      <div className="grid gap-1.5">
+        <Label htmlFor="eq-name">Name <span className="text-red-500">*</span></Label>
+        <Input id="eq-name" value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Shure SM58 Microphone" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
+          <Label>Category</Label>
+          <Select value={form.category} onValueChange={v => set("category", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(["sound","lighting","stage","seating","catering","security","other"] as const).map(c => (
+                <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label>Condition</Label>
+          <Select value={form.condition} onValueChange={v => set("condition", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="excellent">Excellent</SelectItem>
+              <SelectItem value="good">Good</SelectItem>
+              <SelectItem value="fair">Fair</SelectItem>
+              <SelectItem value="needs_repair">Needs Repair</SelectItem>
+              <SelectItem value="out_of_service">Out of Service</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid gap-1.5">
+        <Label>Description</Label>
+        <Textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="Optional notes…" rows={2} />
+      </div>
+
+      {/* VEN-207: identity & value fields */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-manufacturer">Manufacturer</Label>
+          <Input id="eq-manufacturer" value={form.manufacturer} onChange={e => set("manufacturer", e.target.value)} placeholder="e.g. Shure" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-model">Model</Label>
+          <Input id="eq-model" value={form.model} onChange={e => set("model", e.target.value)} placeholder="e.g. SM58" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-serial">Serial Number</Label>
+          <Input id="eq-serial" value={form.serial_number} onChange={e => set("serial_number", e.target.value)} placeholder="Serial #" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-purchase-price">Purchase Price ($)</Label>
+          <Input id="eq-purchase-price" type="number" min={0} step="0.01" value={form.purchase_price} onChange={e => set("purchase_price", e.target.value)} placeholder="Optional" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-replacement">Replacement Value ($)</Label>
+          <Input id="eq-replacement" type="number" min={0} step="0.01" value={form.replacement_value} onChange={e => set("replacement_value", e.target.value)} placeholder="Optional" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-insurance">Insurance Policy #</Label>
+          <Input id="eq-insurance" value={form.insurance_policy} onChange={e => set("insurance_policy", e.target.value)} placeholder="Optional" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-qty">Quantity</Label>
+          <Input id="eq-qty" type="number" min={1} value={form.quantity} onChange={e => set("quantity", e.target.value)} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-rental">Rental Price ($)</Label>
+          <Input id="eq-rental" type="number" min={0} step="0.01" value={form.rental_price} onChange={e => set("rental_price", e.target.value)} placeholder="Optional" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-last-maint">Last Maintenance</Label>
+          <Input id="eq-last-maint" type="date" value={form.last_maintenance} onChange={e => set("last_maintenance", e.target.value)} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="eq-next-maint">Next Maintenance</Label>
+          <Input id="eq-next-maint" type="date" value={form.next_maintenance} onChange={e => set("next_maintenance", e.target.value)} />
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Switch
+          id="eq-rent"
+          checked={form.is_available_for_rent}
+          onCheckedChange={v => set("is_available_for_rent", v)}
+        />
+        <Label htmlFor="eq-rent">Available for rent</Label>
+      </div>
+    </div>
+  )
+}
+
+const emptyForm = {
+  name: "",
+  manufacturer: "",
+  model: "",
+  serial_number: "",
+  purchase_price: "" as string | number,
+  replacement_value: "" as string | number,
+  insurance_policy: "",
+  category: "other" as VenueEquipment["category"],
+  description: "",
+  quantity: 1,
+  condition: "good" as VenueEquipment["condition"],
+  purchase_date: "",
+  last_maintenance: "",
+  next_maintenance: "",
+  is_available_for_rent: false,
+  rental_price: "" as string | number,
+}
+
 export default function EquipmentPage() {
   const router = useRouter()
   const { venue, isLoading: venueLoading } = useCurrentVenue()
   const { toast } = useToast()
 
   const [equipment, setEquipment] = useState<VenueEquipment[]>([])
+
   const [isLoading, setIsLoading] = useState(true)
   const [selectedEquipment, setSelectedEquipment] = useState<VenueEquipment | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isQrModalOpen, setIsQrModalOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [addForm, setAddForm] = useState({ ...emptyForm })
+  const [editForm, setEditForm] = useState({ ...emptyForm })
   
+  const [maintenanceLog, setMaintenanceLog] = useState<any[]>([])
+
+  // VEN-208/209 — canonical maintenance work-order log. Table ships with
+  // migration 20260823210000; loose shim until types regenerate.
+  // Loose accessor for equipment_maintenance_log (migration 210000; types lag).
+  const getLogDb = async () => {
+    const mod = await import("@/lib/supabase/client")
+    return mod.default as unknown as {
+      from: (
+        table: "equipment_maintenance_log",
+      ) => any
+    }
+  }
+
+  const fetchMaintenanceLog = async () => {
+    if (!venue?.id) return
+    const db = await getLogDb()
+    const { data } = await db
+      .from("equipment_maintenance_log")
+      .select(
+        "id, equipment_id, title, type, status, scheduled_date, completed_date, performed_by, cost, notes",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100)
+    setMaintenanceLog(data ?? [])
+  }
+
+  const scheduleMaintenance = async (equipmentId: string, name: string) => {
+    const db = await getLogDb()
+    const scheduledDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+    const { error } = await db
+      .from("equipment_maintenance_log")
+      .insert({
+        equipment_id: equipmentId,
+        title: `${name} - scheduled service`,
+        type: "service",
+        status: "scheduled",
+        scheduled_date: scheduledDate,
+      })
+    if (error) {
+      toast({ title: "Could not schedule maintenance", description: error.message, variant: "destructive" })
+      return
+    }
+    toast({ title: "Maintenance scheduled", description: `Service visit on ${scheduledDate}.` })
+    await fetchMaintenanceLog()
+  }
+
+  const completeMaintenance = async (logId: string, equipmentId: string) => {
+    const db = await getLogDb()
+    const today = new Date().toISOString().slice(0, 10)
+    const { error } = await db
+      .from("equipment_maintenance_log")
+      .update({ status: "completed", completed_date: today })
+      .eq("id", logId)
+    if (error) {
+      toast({ title: "Could not complete entry", description: error.message, variant: "destructive" })
+      return
+    }
+    toast({ title: "Marked completed", description: "Asset's last-maintenance date updated." })
+    await Promise.all([fetchEquipment(), fetchMaintenanceLog()])
+  }
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -109,6 +330,7 @@ export default function EquipmentPage() {
   useEffect(() => {
     if (venue?.id) {
       fetchEquipment()
+      void fetchMaintenanceLog()
     }
   }, [venue?.id])
 
@@ -184,15 +406,152 @@ export default function EquipmentPage() {
       "Next Maintenance": item.next_maintenance ? format(new Date(item.next_maintenance), "PPP") : "N/A",
     }))
     
+    // VEN-213: produce and download the actual CSV file.
+    const header = Object.keys(csvData[0] ?? { Name: "" }).join(",")
+    const rows = csvData.map((row) =>
+      Object.values(row)
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(","),
+    )
+    const csv = [header, ...rows].join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `equipment-inventory-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    URL.revokeObjectURL(url)
+
     toast({
-      title: "Export Started",
-      description: "Equipment inventory has been exported to CSV.",
+      title: "Export Complete",
+      description: `${csvData.length} item(s) exported.`,
     })
   }
 
-  const generateQRCode = (equipmentItem: VenueEquipment) => {
+  const handleAddSubmit = async () => {
+    if (!venue?.id || !addForm.name) return
+    setIsSaving(true)
+    try {
+      const created = await venueService.addVenueEquipment(venue.id, {
+        ...addForm,
+        quantity: Number(addForm.quantity) || 1,
+        rental_price: addForm.rental_price !== "" ? Number(addForm.rental_price) : null,
+        manufacturer: addForm.manufacturer || null,
+        model: addForm.model || null,
+        serial_number: addForm.serial_number || null,
+        purchase_price: addForm.purchase_price !== "" ? Number(addForm.purchase_price) : null,
+        replacement_value: addForm.replacement_value !== "" ? Number(addForm.replacement_value) : null,
+        insurance_policy: addForm.insurance_policy || null,
+        purchase_date: addForm.purchase_date || null,
+        last_maintenance: addForm.last_maintenance || null,
+        next_maintenance: addForm.next_maintenance || null,
+        description: addForm.description || null,
+      })
+      setEquipment(prev => [created as VenueEquipment, ...prev])
+      setIsAddModalOpen(false)
+      setAddForm({ ...emptyForm })
+      toast({ title: "Equipment added", description: `${created.name} has been added to inventory.` })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to add equipment", variant: "destructive" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleEditSubmit = async () => {
+    if (!venue?.id || !selectedEquipment) return
+    setIsSaving(true)
+    try {
+      const updated = await venueService.updateVenueEquipment(selectedEquipment.id, venue.id, {
+        ...editForm,
+        quantity: Number(editForm.quantity) || 1,
+        rental_price: editForm.rental_price !== "" ? Number(editForm.rental_price) : null,
+        manufacturer: editForm.manufacturer || null,
+        model: editForm.model || null,
+        serial_number: editForm.serial_number || null,
+        purchase_price: editForm.purchase_price !== "" ? Number(editForm.purchase_price) : null,
+        replacement_value: editForm.replacement_value !== "" ? Number(editForm.replacement_value) : null,
+        insurance_policy: editForm.insurance_policy || null,
+        purchase_date: editForm.purchase_date || null,
+        last_maintenance: editForm.last_maintenance || null,
+        next_maintenance: editForm.next_maintenance || null,
+        description: editForm.description || null,
+      })
+      setEquipment(prev => prev.map(e => (e.id === updated.id ? (updated as VenueEquipment) : e)))
+      setIsEditModalOpen(false)
+      toast({ title: "Equipment updated", description: `${updated.name} has been updated.` })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update equipment", variant: "destructive" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async (item: VenueEquipment) => {
+    if (!venue?.id) return
+    try {
+      await venueService.deleteVenueEquipment(item.id, venue.id)
+      setEquipment(prev => prev.filter(e => e.id !== item.id))
+      toast({ title: "Equipment removed", description: `${item.name} has been removed from inventory.` })
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to delete equipment", variant: "destructive" })
+    }
+  }
+
+  const openEdit = (item: VenueEquipment) => {
+    setSelectedEquipment(item)
+    setEditForm({
+      name: item.name,
+      manufacturer: item.manufacturer ?? "",
+      model: item.model ?? "",
+      serial_number: item.serial_number ?? "",
+      purchase_price: item.purchase_price ?? "",
+      replacement_value: item.replacement_value ?? "",
+      insurance_policy: item.insurance_policy ?? "",
+      category: item.category,
+      description: item.description || "",
+      quantity: item.quantity,
+      condition: item.condition || "good",
+      purchase_date: item.purchase_date || "",
+      last_maintenance: item.last_maintenance || "",
+      next_maintenance: item.next_maintenance || "",
+      is_available_for_rent: item.is_available_for_rent,
+      rental_price: item.rental_price ?? "",
+    })
+    setIsEditModalOpen(true)
+  }
+
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const generateQRCode = async (equipmentItem: VenueEquipment) => {
     setSelectedEquipment(equipmentItem)
-    setIsQrModalOpen(true)
+    try {
+      const deepLink = `${window.location.origin}/venue/equipment?asset=${equipmentItem.id}`
+      const url = await QRCode.toDataURL(deepLink, { width: 320, margin: 2 })
+      setQrDataUrl(url)
+      setIsQrModalOpen(true)
+
+      // VEN-210: persist a scanner token row when the instance ledger is wired.
+      try {
+        const mod = await import("@/lib/supabase/client")
+        const db = mod.default as unknown as {
+          from: (table: "equipment_qr_codes") => {
+            insert: (values: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>
+          }
+        }
+        await db.from("equipment_qr_codes").insert({
+          qr_data: deepLink,
+          is_active: true,
+        })
+      } catch {
+        // Ledger optional — QR remains functional without it.
+      }
+    } catch {
+      // QR rendering failed — show the modal with the placeholder icon.
+      setQrDataUrl(null)
+      setIsQrModalOpen(true)
+    }
   }
 
   if (venueLoading || isLoading) {
@@ -226,10 +585,7 @@ export default function EquipmentPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
+          
           <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
@@ -441,10 +797,7 @@ export default function EquipmentPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedEquipment(item)
-                              setIsEditModalOpen(true)
-                            }}>
+                            <DropdownMenuItem onClick={() => openEdit(item)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
@@ -452,11 +805,7 @@ export default function EquipmentPage() {
                               <QrCode className="h-4 w-4 mr-2" />
                               Generate QR Code
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <History className="h-4 w-4 mr-2" />
-                              View History
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(item)}>
                               <Trash className="h-4 w-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -542,10 +891,49 @@ export default function EquipmentPage() {
                             </Badge>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
+                        {/* VEN-209: schedule action persists a work order */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void scheduleMaintenance(item.id, item.name)}
+                        >
                           <Wrench className="h-4 w-4 mr-2" />
                           Schedule
                         </Button>
+                      </div>
+                    ))}
+                </div>
+              )}
+              </CardContent>
+            </Card>
+
+            {/* VEN-208: work-order history from the canonical log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Maintenance History</CardTitle>
+                <CardDescription>Work orders, inspections and repairs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {maintenanceLog.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground">No maintenance logged yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {maintenanceLog.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center gap-3">
+                          {entry.status === "scheduled" ? (
+                            <Button size="sm" variant="outline" onClick={() => void completeMaintenance(entry.id, entry.equipment_id)}>
+                              Complete
+                            </Button>
+                          ) : null}
+                          <div>
+                            <p className="font-medium">{entry.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {entry.status}
+                              {entry.completed_date ? ` · completed ${entry.completed_date}` : entry.scheduled_date ? ` · due ${entry.scheduled_date}` : ""}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -660,6 +1048,40 @@ export default function EquipmentPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Add Equipment Modal */}
+      <Dialog open={isAddModalOpen} onOpenChange={(open) => { setIsAddModalOpen(open); if (!open) setAddForm({ ...emptyForm }) }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Equipment</DialogTitle>
+            <DialogDescription>Add a new item to your venue's equipment inventory.</DialogDescription>
+          </DialogHeader>
+          <EquipmentForm form={addForm} setForm={setAddForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddSubmit} disabled={isSaving || !addForm.name}>
+              {isSaving ? "Saving…" : "Add Equipment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Equipment Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Equipment</DialogTitle>
+            <DialogDescription>Update the details for this equipment item.</DialogDescription>
+          </DialogHeader>
+          <EquipmentForm form={editForm} setForm={setEditForm} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit} disabled={isSaving || !editForm.name}>
+              {isSaving ? "Saving…" : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* QR Code Modal */}
       <Dialog open={isQrModalOpen} onOpenChange={setIsQrModalOpen}>
         <DialogContent>
@@ -673,8 +1095,12 @@ export default function EquipmentPage() {
               </DialogHeader>
               
               <div className="flex flex-col items-center space-y-4">
-                <div className="w-48 h-48 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                  <QrCode className="h-16 w-16 text-gray-400" />
+                <div className="flex h-48 w-48 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white">
+                  {qrDataUrl ? (
+                    <img src={qrDataUrl} alt="Equipment QR code" className="h-full w-full object-contain" />
+                  ) : (
+                    <QrCode className="h-16 w-16 text-gray-400" />
+                  )}
                 </div>
                 <div className="text-center">
                   <p className="font-medium">{selectedEquipment.name}</p>
@@ -686,10 +1112,18 @@ export default function EquipmentPage() {
                 <Button variant="outline" onClick={() => setIsQrModalOpen(false)}>
                   Close
                 </Button>
-                <Button onClick={() => {
-                  toast({ title: "QR Code Downloaded", description: "QR code saved to downloads" })
-                  setIsQrModalOpen(false)
-                }}>
+                <Button
+                  onClick={() => {
+                    if (!qrDataUrl) return
+                    const a = document.createElement("a")
+                    a.href = qrDataUrl
+                    a.download = `qr-${selectedEquipment?.name ?? "equipment"}.png`
+                    document.body.appendChild(a)
+                    a.click()
+                    document.body.removeChild(a)
+                    toast({ title: "QR Code Downloaded", description: "Label saved as PNG." })
+                  }}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Download
                 </Button>

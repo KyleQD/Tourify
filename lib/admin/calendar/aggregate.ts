@@ -5,6 +5,8 @@ import type {
   AdminCalendarKind,
   AdminCalendarPriority,
   AdminCalendarScopeMode,
+  AdminCalendarSourceHealth,
+  AdminCalendarSourceId,
   AdminCalendarSummary,
 } from './types'
 import { ADMIN_CALENDAR_KINDS } from './types'
@@ -14,6 +16,11 @@ import {
   hrefForKind,
   toIsoOrNull,
 } from './helpers'
+import type { AdminCapability } from '@/lib/auth/admin-capabilities'
+import {
+  canAccessCalendarKind,
+  canAccessCalendarSource,
+} from '@/lib/admin/calendar/source-access'
 
 type AnySupabase = any
 
@@ -22,12 +29,56 @@ export interface AggregateCalendarArgs {
   userId: string
   orgId: string | null
   filters: AdminCalendarFilters
+  /** CAL-102 — when set, kinds/sources are gated by capability */
+  capabilities?: readonly AdminCapability[] | null
 }
 
 export interface AggregateCalendarResult {
   items: AdminCalendarItem[]
   summary: AdminCalendarSummary
   context: AdminCalendarContext | null
+  sources: AdminCalendarSourceHealth[]
+  isDegraded: boolean
+}
+
+function createSourceTracker() {
+  const map = new Map<AdminCalendarSourceId, AdminCalendarSourceHealth>()
+
+  function record(args: {
+    id: AdminCalendarSourceId
+    error?: { code?: string; message?: string } | null
+    itemCount?: number
+    message?: string | null
+  }) {
+    const itemCount = args.itemCount ?? 0
+    if (args.error) {
+      map.set(args.id, {
+        id: args.id,
+        status: 'degraded',
+        itemCount,
+        errorCode: args.error.code || 'source_error',
+        message: args.error.message || args.message || 'Source query failed',
+      })
+      return
+    }
+    map.set(args.id, {
+      id: args.id,
+      status: itemCount === 0 ? 'empty' : 'ok',
+      itemCount,
+      errorCode: null,
+      message: args.message ?? null,
+    })
+  }
+
+  function list(): AdminCalendarSourceHealth[] {
+    return [...map.values()]
+  }
+
+  function isDegraded(): boolean {
+    return [...map.values()].some((s) => s.status === 'degraded')
+  }
+
+  return { record, list, isDegraded }
 }
 
 function shouldInclude(kind: AdminCalendarKind, types?: AdminCalendarKind[]): boolean {
@@ -43,6 +94,7 @@ function emptySummary(): AdminCalendarSummary {
     shift: 0,
     production: 0,
     hiring: 0,
+    travel: 0,
   }
 }
 
@@ -69,7 +121,10 @@ function resolveScopeMode(filters: AdminCalendarFilters): AdminCalendarScopeMode
   return 'org'
 }
 
-async function resolveTourEventIds(supabase: AnySupabase, tourId: string): Promise<string[]> {
+async function resolveTourEventIds(
+  supabase: AnySupabase,
+  tourId: string,
+): Promise<{ eventIds: string[]; error: { code?: string; message?: string } | null }> {
   const { data, error } = await supabase
     .from('tour_events')
     .select('event_id')
@@ -77,12 +132,18 @@ async function resolveTourEventIds(supabase: AnySupabase, tourId: string): Promi
 
   if (error) {
     console.warn('[Admin Calendar] tour_events query error:', error.message)
-    return []
+    return {
+      eventIds: [],
+      error: { code: error.code, message: error.message },
+    }
   }
 
-  return (data || [])
-    .map((row: { event_id: string | null }) => row.event_id)
-    .filter((id: string | null): id is string => Boolean(id))
+  return {
+    eventIds: (data || [])
+      .map((row: { event_id: string | null }) => row.event_id)
+      .filter((id: string | null): id is string => Boolean(id)),
+    error: null,
+  }
 }
 
 async function loadTourContext(
@@ -132,26 +193,56 @@ async function loadEventContext(
 
 async function resolveOrgEventIds(supabase: AnySupabase, orgId: string | null, userId: string): Promise<string[]> {
   let query = supabase.from('events_v2').select('id')
-  if (orgId) query = query.or(`org_id.eq.${orgId},created_by.eq.${userId}`)
+  // CAL-102: signed org scope is exclusive — never OR created_by across orgs
+  if (orgId) query = query.eq('org_id', orgId)
   else query = query.eq('created_by', userId)
   const { data } = await query
   return (data || []).map((row: { id: string }) => row.id)
 }
 
+function allowKind(
+  kind: AdminCalendarKind,
+  types: AdminCalendarKind[] | undefined,
+  capabilities: readonly AdminCapability[] | null | undefined,
+): boolean {
+  if (!shouldInclude(kind, types)) return false
+  if (!capabilities) return true
+  return canAccessCalendarKind(capabilities, kind)
+}
+
+function allowSource(
+  sourceId: AdminCalendarSourceId,
+  capabilities: readonly AdminCapability[] | null | undefined,
+): boolean {
+  if (!capabilities) return true
+  return canAccessCalendarSource(capabilities, sourceId)
+}
+
 export async function aggregateAdminCalendarItems(
   args: AggregateCalendarArgs,
 ): Promise<AggregateCalendarResult> {
-  const { supabase, userId, orgId, filters } = args
+  const { supabase, userId, orgId, filters, capabilities } = args
   const { startDate, endDate, types, status, priority, tourId, eventId } = filters
   const scopeMode = resolveScopeMode(filters)
   const items: AdminCalendarItem[] = []
+  const sources = createSourceTracker()
 
   let scopedEventIds: string[] | null = null
   let context: AdminCalendarContext | null = null
 
   if (scopeMode === 'tour' && tourId) {
-    scopedEventIds = await resolveTourEventIds(supabase, tourId)
-    context = await loadTourContext(supabase, tourId, scopedEventIds)
+    if (allowSource('tour_events', capabilities)) {
+      const tourEvents = await resolveTourEventIds(supabase, tourId)
+      scopedEventIds = tourEvents.eventIds
+      sources.record({
+        id: 'tour_events',
+        error: tourEvents.error,
+        itemCount: tourEvents.eventIds.length,
+      })
+    } else {
+      scopedEventIds = []
+    }
+    context = await loadTourContext(supabase, tourId, scopedEventIds || [])
   } else if (scopeMode === 'event' && eventId) {
     scopedEventIds = [eventId]
     context = await loadEventContext(supabase, eventId)
@@ -169,18 +260,23 @@ export async function aggregateAdminCalendarItems(
   }
 
   const wants = {
-    event: shouldInclude('event', types) && scopeMode !== 'event',
+    event: allowKind('event', types, capabilities) && scopeMode !== 'event',
     // Parent tour spans are never day-cell items; context chrome replaces them.
     tour: false,
-    task: shouldInclude('task', types),
-    shift: shouldInclude('shift', types),
-    production: shouldInclude('production', types),
+    task: allowKind('task', types, capabilities),
+    shift: allowKind('shift', types, capabilities),
+    production: allowKind('production', types, capabilities),
     // Hiring is org-overview only (no reliable tour/event FK for MVP).
-    hiring: shouldInclude('hiring', types) && scopeMode === 'org',
+    hiring: allowKind('hiring', types, capabilities) && scopeMode === 'org',
+    travel: allowKind('travel', types, capabilities),
   }
 
   // 1. Events / shows
-  if (wants.event && !(scopedEventIds && scopedEventIds.length === 0)) {
+  if (
+    wants.event
+    && allowSource('events_v2', capabilities)
+    && !(scopedEventIds && scopedEventIds.length === 0)
+  ) {
     try {
       let eventsQuery = supabase
         .from('events_v2')
@@ -190,16 +286,20 @@ export async function aggregateAdminCalendarItems(
 
       if (scopedEventIds)
         eventsQuery = eventsQuery.in('id', scopedEventIds)
-      if (orgId) eventsQuery = eventsQuery.or(`org_id.eq.${orgId},created_by.eq.${userId}`)
+      if (orgId) eventsQuery = eventsQuery.eq('org_id', orgId)
       else eventsQuery = eventsQuery.eq('created_by', userId)
       if (status) eventsQuery = eventsQuery.eq('status', status)
 
       const { data: events, error } = await eventsQuery
-      if (error) console.error('[Admin Calendar] Events query error:', error)
-      else {
+      if (error) {
+        console.error('[Admin Calendar] Events query error:', error)
+        sources.record({ id: 'events_v2', error, itemCount: 0 })
+      } else {
+        let eventCount = 0
         for (const event of events || []) {
           const start = toIsoOrNull(event.start_at)
           if (!start) continue
+          eventCount += 1
           const end = toIsoOrNull(event.end_at) || start
           const itemPriority: AdminCalendarPriority = 'medium'
           const settings = event.settings && typeof event.settings === 'object'
@@ -227,9 +327,14 @@ export async function aggregateAdminCalendarItems(
             },
           })
         }
+        sources.record({ id: 'events_v2', itemCount: eventCount })
       }
     } catch (error) {
       console.error('[Admin Calendar] Events fetch error:', error)
+      sources.record({
+        id: 'events_v2',
+        error: { message: error instanceof Error ? error.message : 'events fetch failed' },
+      })
     }
   }
 
@@ -246,7 +351,11 @@ export async function aggregateAdminCalendarItems(
   }
 
   // 3a. Generic tasks (event-linked)
-  if (wants.task && !(scopedEventIds && scopedEventIds.length === 0)) {
+  if (
+    wants.task
+    && allowSource('tasks', capabilities)
+    && !(scopedEventIds && scopedEventIds.length === 0)
+  ) {
     try {
       let tasksQuery = supabase
         .from('tasks')
@@ -263,11 +372,15 @@ export async function aggregateAdminCalendarItems(
       if (priority) tasksQuery = tasksQuery.eq('priority', priority)
 
       const { data: tasks, error } = await tasksQuery
-      if (error) console.error('[Admin Calendar] Tasks query error:', error)
-      else {
+      if (error) {
+        console.error('[Admin Calendar] Tasks query error:', error)
+        sources.record({ id: 'tasks', error })
+      } else {
+        let taskCount = 0
         for (const task of tasks || []) {
           const start = toIsoOrNull(task.due_at)
           if (!start) continue
+          taskCount += 1
           const itemPriority = (task.priority || 'medium') as AdminCalendarPriority
           pushItem(items, {
             id: `task-${task.id}`,
@@ -291,13 +404,18 @@ export async function aggregateAdminCalendarItems(
             },
           })
         }
+        sources.record({ id: 'tasks', itemCount: taskCount })
       }
     } catch (error) {
       console.error('[Admin Calendar] Tasks fetch error:', error)
+      sources.record({
+        id: 'tasks',
+        error: { message: error instanceof Error ? error.message : 'tasks skipped' },
+      })
     }
   }
 
-  if (wants.task) {
+  if (wants.task && allowSource('logistics_tasks', capabilities)) {
 
     // 3b. Logistics tasks
     try {
@@ -321,11 +439,15 @@ export async function aggregateAdminCalendarItems(
       if (priority) logisticsQuery = logisticsQuery.eq('priority', priority)
 
       const { data: logisticsTasks, error } = await logisticsQuery
-      if (error) console.warn('[Admin Calendar] logistics_tasks query error:', error.message)
-      else {
+      if (error) {
+        console.warn('[Admin Calendar] logistics_tasks query error:', error.message)
+        sources.record({ id: 'logistics_tasks', error })
+      } else {
+        let logisticsCount = 0
         for (const task of logisticsTasks || []) {
           const due = task.due_date
           if (!due) continue
+          logisticsCount += 1
           const start = toIsoOrNull(due) || combineDateAndTime(String(due).slice(0, 10))
           const itemPriority = (task.priority || 'medium') as AdminCalendarPriority
           pushItem(items, {
@@ -353,12 +475,82 @@ export async function aggregateAdminCalendarItems(
             },
           })
         }
+        sources.record({ id: 'logistics_tasks', itemCount: logisticsCount })
       }
     } catch (error) {
       console.warn('[Admin Calendar] logistics_tasks missing or error, skipping', error)
+      sources.record({
+        id: 'logistics_tasks',
+        error: { message: error instanceof Error ? error.message : 'logistics_tasks skipped' },
+      })
     }
+  }
 
-    // 3c. Travel / lodging / catering windows (permission-filtered by event/tour scope)
+  // 3c. Catering windows stay under Tasks
+  if (wants.task && allowSource('catering_services', capabilities)) {
+    try {
+      const applyCateringScope = (query: any) => {
+        let q = query
+        if (scopeMode === 'tour' && tourId) {
+          if (scopedEventIds && scopedEventIds.length > 0)
+            q = q.or(`tour_id.eq.${tourId},event_id.in.(${scopedEventIds.join(',')})`)
+          else
+            q = q.eq('tour_id', tourId)
+        } else if (scopeMode === 'event' && eventId) {
+          q = q.eq('event_id', eventId)
+        }
+        return q
+      }
+
+      let cateringQuery = applyCateringScope(
+        supabase
+          .from('catering_services')
+          .select('id, title, window_start, window_end, status, event_id, tour_id, org_id')
+          .gte('window_start', startDate)
+          .lte('window_start', endDate)
+      )
+      if (orgId) cateringQuery = cateringQuery.eq('org_id', orgId)
+      const { data: cateringRows, error: cateringError } = await cateringQuery
+      if (cateringError) {
+        sources.record({ id: 'catering_services', error: cateringError })
+      } else {
+        let cateringCount = 0
+        for (const row of cateringRows || []) {
+          const start = toIsoOrNull(row.window_start)
+          if (!start) continue
+          cateringCount += 1
+          pushItem(items, {
+            id: `logistics-catering-${row.id}`,
+            sourceId: row.id,
+            kind: 'task',
+            title: `Catering: ${row.title}`,
+            start,
+            end: toIsoOrNull(row.window_end) || start,
+            status: row.status || 'requested',
+            priority: 'medium',
+            href: '/admin/dashboard/logistics?tab=catering',
+            color: getCalendarItemColor('task', 'medium'),
+            allDay: false,
+            meta: {
+              source: 'catering_services',
+              eventId: row.event_id || null,
+              tourId: row.tour_id || tourId || null,
+            },
+          })
+        }
+        sources.record({ id: 'catering_services', itemCount: cateringCount })
+      }
+    } catch (error) {
+      console.warn('[Admin Calendar] catering windows skipped', error)
+      sources.record({
+        id: 'catering_services',
+        error: { message: error instanceof Error ? error.message : 'catering skipped' },
+      })
+    }
+  }
+
+  // 3d. Travel arrangements (flights, ground transport, lodging)
+  if (wants.travel) {
     try {
       const applyTravelScope = (query: any) => {
         let q = query
@@ -373,28 +565,41 @@ export async function aggregateAdminCalendarItems(
         return q
       }
 
-      let transportQuery = applyTravelScope(
-        supabase
-          .from('ground_transportation_coordination')
-          .select('id, pickup_location, dropoff_location, pickup_time, estimated_dropoff_time, status, event_id, tour_id')
-          .gte('pickup_time', startDate)
-          .lte('pickup_time', endDate)
-      )
-      const { data: transportRows } = await transportQuery
-      for (const row of transportRows || []) {
+      let transportRows: any[] | null = null
+      let transportError: { code?: string; message?: string } | null = null
+      if (allowSource('ground_transportation_coordination', capabilities)) {
+        let transportQuery = applyTravelScope(
+          supabase
+            .from('ground_transportation_coordination')
+            .select('id, pickup_location, dropoff_location, pickup_time, estimated_dropoff_time, status, event_id, tour_id, driver_name, org_id')
+            .gte('pickup_time', startDate)
+            .lte('pickup_time', endDate)
+        )
+        if (orgId) transportQuery = transportQuery.eq('org_id', orgId)
+        const transportResult = await transportQuery
+        transportRows = transportResult.data
+        transportError = transportResult.error
+        if (transportError) {
+          sources.record({ id: 'ground_transportation_coordination', error: transportError })
+        }
+      }
+      let transportCount = 0
+      for (const row of transportError ? [] : transportRows || []) {
         const start = toIsoOrNull(row.pickup_time)
         if (!start) continue
+        transportCount += 1
+        const driver = row.driver_name ? ` · ${row.driver_name}` : ''
         pushItem(items, {
           id: `logistics-transport-${row.id}`,
           sourceId: row.id,
-          kind: 'task',
-          title: `Transport: ${row.pickup_location} → ${row.dropoff_location}`,
+          kind: 'travel',
+          title: `Transport: ${row.pickup_location} → ${row.dropoff_location}${driver}`,
           start,
           end: toIsoOrNull(row.estimated_dropoff_time) || start,
           status: row.status || 'scheduled',
           priority: 'medium',
           href: '/admin/dashboard/logistics?tab=transportation',
-          color: getCalendarItemColor('task', 'medium'),
+          color: getCalendarItemColor('travel', 'medium'),
           allDay: false,
           meta: {
             source: 'ground_transportation_coordination',
@@ -403,61 +608,100 @@ export async function aggregateAdminCalendarItems(
           },
         })
       }
+      if (allowSource('ground_transportation_coordination', capabilities) && !transportError)
+        sources.record({ id: 'ground_transportation_coordination', itemCount: transportCount })
 
-      let flightQuery = applyTravelScope(
-        supabase
-          .from('flight_coordination')
-          .select('id, airline, flight_number, departure_airport, arrival_airport, departure_time, arrival_time, status, event_id, tour_id')
-          .gte('departure_time', startDate)
-          .lte('departure_time', endDate)
-      )
-      const { data: flightRows } = await flightQuery
-      for (const row of flightRows || []) {
+      let flightRows: any[] | null = null
+      let flightError: { code?: string; message?: string } | null = null
+      if (allowSource('flight_coordination', capabilities)) {
+        let flightQuery = applyTravelScope(
+          supabase
+            .from('flight_coordination')
+            .select(`
+            id, airline, flight_number, departure_airport, arrival_airport,
+            departure_time, arrival_time, status, event_id, tour_id, org_id,
+            flight_passenger_assignments(travel_group_members(member_name))
+          `)
+            .gte('departure_time', startDate)
+            .lte('departure_time', endDate)
+        )
+        if (orgId) flightQuery = flightQuery.eq('org_id', orgId)
+        const flightResult = await flightQuery
+        flightRows = flightResult.data
+        flightError = flightResult.error
+        if (flightError) sources.record({ id: 'flight_coordination', error: flightError })
+      }
+      let flightCount = 0
+      for (const row of flightError ? [] : flightRows || []) {
         const start = toIsoOrNull(row.departure_time)
         if (!start) continue
+        flightCount += 1
+        const passengers = (row.flight_passenger_assignments || [])
+          .map((a: any) => {
+            const member = Array.isArray(a.travel_group_members)
+              ? a.travel_group_members[0]
+              : a.travel_group_members
+            return member?.member_name
+          })
+          .filter(Boolean)
+        const passengerLabel = passengers.length ? ` · ${passengers.join(', ')}` : ''
         pushItem(items, {
           id: `logistics-flight-${row.id}`,
           sourceId: row.id,
-          kind: 'task',
-          title: `Flight: ${row.airline} ${row.flight_number}`,
+          kind: 'travel',
+          title: `Flight: ${row.airline} ${row.flight_number}${passengerLabel}`,
           start,
           end: toIsoOrNull(row.arrival_time) || start,
           status: row.status || 'scheduled',
           priority: 'high',
           href: '/admin/dashboard/logistics?tab=accommodations',
-          color: getCalendarItemColor('task', 'high'),
+          color: getCalendarItemColor('travel', 'high'),
           allDay: false,
           description: `${row.departure_airport} → ${row.arrival_airport}`,
           meta: {
             source: 'flight_coordination',
             eventId: row.event_id || null,
             tourId: row.tour_id || tourId || null,
+            passengers,
           },
         })
       }
+      if (allowSource('flight_coordination', capabilities) && !flightError)
+        sources.record({ id: 'flight_coordination', itemCount: flightCount })
 
-      let lodgingQuery = applyTravelScope(
-        supabase
-          .from('lodging_bookings')
-          .select('id, primary_guest_name, check_in_date, check_out_date, status, event_id, tour_id')
-          .gte('check_in_date', startDate.slice(0, 10))
-          .lte('check_in_date', endDate.slice(0, 10))
-      )
-      const { data: lodgingRows } = await lodgingQuery
-      for (const row of lodgingRows || []) {
+      let lodgingRows: any[] | null = null
+      let lodgingError: { code?: string; message?: string } | null = null
+      if (allowSource('lodging_bookings', capabilities)) {
+        let lodgingQuery = applyTravelScope(
+          supabase
+            .from('lodging_bookings')
+            .select('id, primary_guest_name, confirmation_number, check_in_date, check_out_date, status, event_id, tour_id, org_id')
+            .gte('check_in_date', startDate.slice(0, 10))
+            .lte('check_in_date', endDate.slice(0, 10))
+        )
+        if (orgId) lodgingQuery = lodgingQuery.eq('org_id', orgId)
+        const lodgingResult = await lodgingQuery
+        lodgingRows = lodgingResult.data
+        lodgingError = lodgingResult.error
+        if (lodgingError) sources.record({ id: 'lodging_bookings', error: lodgingError })
+      }
+      let lodgingCount = 0
+      for (const row of lodgingError ? [] : lodgingRows || []) {
         const start = combineDateAndTime(String(row.check_in_date).slice(0, 10))
         if (!start) continue
+        lodgingCount += 1
+        const conf = row.confirmation_number ? ` · #${row.confirmation_number}` : ''
         pushItem(items, {
           id: `logistics-lodging-${row.id}`,
           sourceId: row.id,
-          kind: 'task',
-          title: `Hotel: ${row.primary_guest_name || 'Booking'}`,
+          kind: 'travel',
+          title: `Hotel: ${row.primary_guest_name || 'Booking'}${conf}`,
           start,
           end: combineDateAndTime(String(row.check_out_date).slice(0, 10)) || start,
           status: row.status || 'confirmed',
           priority: 'medium',
           href: '/admin/dashboard/logistics?tab=accommodations',
-          color: getCalendarItemColor('task', 'medium'),
+          color: getCalendarItemColor('travel', 'medium'),
           allDay: true,
           meta: {
             source: 'lodging_bookings',
@@ -466,44 +710,31 @@ export async function aggregateAdminCalendarItems(
           },
         })
       }
-
-      let cateringQuery = applyTravelScope(
-        supabase
-          .from('catering_services')
-          .select('id, title, window_start, window_end, status, event_id, tour_id')
-          .gte('window_start', startDate)
-          .lte('window_start', endDate)
-      )
-      const { data: cateringRows } = await cateringQuery
-      for (const row of cateringRows || []) {
-        const start = toIsoOrNull(row.window_start)
-        if (!start) continue
-        pushItem(items, {
-          id: `logistics-catering-${row.id}`,
-          sourceId: row.id,
-          kind: 'task',
-          title: `Catering: ${row.title}`,
-          start,
-          end: toIsoOrNull(row.window_end) || start,
-          status: row.status || 'requested',
-          priority: 'medium',
-          href: '/admin/dashboard/logistics?tab=catering',
-          color: getCalendarItemColor('task', 'medium'),
-          allDay: false,
-          meta: {
-            source: 'catering_services',
-            eventId: row.event_id || null,
-            tourId: row.tour_id || tourId || null,
-          },
-        })
-      }
+      if (allowSource('lodging_bookings', capabilities) && !lodgingError)
+        sources.record({ id: 'lodging_bookings', itemCount: lodgingCount })
     } catch (error) {
-      console.warn('[Admin Calendar] logistics travel/catering windows skipped', error)
+      console.warn('[Admin Calendar] travel windows skipped', error)
+      for (const id of [
+        'ground_transportation_coordination',
+        'flight_coordination',
+        'lodging_bookings',
+      ] as const) {
+        if (!sources.list().some((s) => s.id === id)) {
+          sources.record({
+            id,
+            error: { message: error instanceof Error ? error.message : 'travel skipped' },
+          })
+        }
+      }
     }
   }
 
   // 4. Staff shifts
-  if (wants.shift && !(scopedEventIds && scopedEventIds.length === 0)) {
+  if (
+    wants.shift
+    && allowSource('staff_shifts', capabilities)
+    && !(scopedEventIds && scopedEventIds.length === 0)
+  ) {
     try {
       let shiftsQuery = supabase
         .from('staff_shifts')
@@ -517,17 +748,42 @@ export async function aggregateAdminCalendarItems(
       if (status) shiftsQuery = shiftsQuery.eq('status', status)
 
       const { data: shifts, error } = await shiftsQuery
-      if (error) console.warn('[Admin Calendar] staff_shifts query error:', error.message)
-      else {
+      if (error) {
+        console.warn('[Admin Calendar] staff_shifts query error:', error.message)
+        sources.record({ id: 'staff_shifts', error })
+      } else {
+        let shiftCount = 0
         for (const shift of shifts || []) {
           if (!shift.shift_date) continue
+          shiftCount += 1
           const start = combineDateAndTime(String(shift.shift_date).slice(0, 10), shift.start_time)
           const end = combineDateAndTime(String(shift.shift_date).slice(0, 10), shift.end_time || shift.start_time)
+          // WORK-103 — attach canonical assignment identity when resolvable.
+          let assignmentMeta: Record<string, unknown> = {}
+          if (shift.staff_member_id || shift.id) {
+            try {
+              const { enrichShiftMetaWithAssignment } = await import(
+                '@/lib/admin/workforce-assignment.service'
+              )
+              assignmentMeta = await enrichShiftMetaWithAssignment({
+                supabase,
+                staffMemberId: shift.staff_member_id,
+                staffShiftId: shift.id,
+                orgId: orgId || shift.org_id || null,
+              })
+            } catch {
+              assignmentMeta = {}
+            }
+          }
+
           pushItem(items, {
             id: `shift-${shift.id}`,
             sourceId: shift.id,
             kind: 'shift',
-            title: shift.role_assignment || 'Staff shift',
+            title:
+              (typeof assignmentMeta.roleTitle === 'string' && assignmentMeta.roleTitle)
+              || shift.role_assignment
+              || 'Staff shift',
             start,
             end,
             status: shift.status || 'scheduled',
@@ -537,21 +793,31 @@ export async function aggregateAdminCalendarItems(
             allDay: false,
             description: shift.notes || null,
             meta: {
+              source: 'staff_shifts',
               eventId: shift.event_id,
               venueId: shift.venue_id,
               staffMemberId: shift.staff_member_id,
               tourId: tourId || null,
+              userId: assignmentMeta.userId ?? null,
+              employmentAssignmentId: assignmentMeta.employmentAssignmentId ?? null,
+              assignmentStatus: assignmentMeta.assignmentStatus ?? null,
+              roleTitle: assignmentMeta.roleTitle ?? shift.role_assignment ?? null,
             },
           })
         }
+        sources.record({ id: 'staff_shifts', itemCount: shiftCount })
       }
     } catch (error) {
       console.warn('[Admin Calendar] staff_shifts missing or error, skipping', error)
+      sources.record({
+        id: 'staff_shifts',
+        error: { message: error instanceof Error ? error.message : 'staff_shifts skipped' },
+      })
     }
   }
 
   // 5. Event HQ production calendar items
-  if (wants.production) {
+  if (wants.production && allowSource('event_calendar_items', capabilities)) {
     try {
       const eventIds = productionEventIds
       if (eventIds.length > 0) {
@@ -562,11 +828,15 @@ export async function aggregateAdminCalendarItems(
           .gte('start_time', startDate)
           .lte('start_time', `${endDate}T23:59:59.999Z`)
 
-        if (error) console.warn('[Admin Calendar] event_calendar_items query error:', error.message)
-        else {
+        if (error) {
+          console.warn('[Admin Calendar] event_calendar_items query error:', error.message)
+          sources.record({ id: 'event_calendar_items', error })
+        } else {
+          let productionCount = 0
           for (const item of productionItems || []) {
             const start = toIsoOrNull(item.start_time)
             if (!start) continue
+            productionCount += 1
             const end = toIsoOrNull(item.end_time) || start
             pushItem(items, {
               id: `production-${item.id}`,
@@ -583,6 +853,7 @@ export async function aggregateAdminCalendarItems(
               description: item.description || null,
               location: item.location || null,
               meta: {
+                source: 'event_calendar_items',
                 productionType: item.type,
                 calendarItemId: item.id,
                 eventId: item.event_id,
@@ -590,80 +861,53 @@ export async function aggregateAdminCalendarItems(
               },
             })
           }
+          sources.record({ id: 'event_calendar_items', itemCount: productionCount })
         }
+      } else {
+        sources.record({
+          id: 'event_calendar_items',
+          itemCount: 0,
+          message: 'No scoped events for production calendar items',
+        })
       }
     } catch (error) {
       console.warn('[Admin Calendar] event_calendar_items missing or error, skipping', error)
+      sources.record({
+        id: 'event_calendar_items',
+        error: { message: error instanceof Error ? error.message : 'event_calendar_items skipped' },
+      })
     }
   }
 
-  // 6. Hiring — interviews / offers / posting deadlines (org overview only)
-  if (wants.hiring) {
+  // 6. Hiring — interviews / offers from migrated columns + JSON dates (org overview)
+  if (wants.hiring && allowSource('job_applications', capabilities)) {
     try {
+      // CAL-101: only select columns present in deployed job_applications schema
       let appsQuery = supabase
         .from('job_applications')
-        .select('id, applicant_name, status, interview_scheduled, interview_date, offer_made, offer_date, offer_details, form_responses, applied_at, employer_entity_id, job_posting_id')
-        .or(`and(interview_date.gte.${startDate},interview_date.lte.${endDate}T23:59:59.999Z),and(offer_date.gte.${startDate},offer_date.lte.${endDate}T23:59:59.999Z)`)
+        .select('id, applicant_name, status, interview_scheduled, offer_made, offer_details, form_responses, applied_at, employer_entity_id, job_posting_id')
+        .limit(200)
 
       if (orgId) appsQuery = appsQuery.eq('employer_entity_id', orgId)
 
       const { data: applications, error } = await appsQuery
       if (error) {
-        let fallbackQuery = supabase
-          .from('job_applications')
-          .select('id, applicant_name, status, interview_scheduled, offer_made, offer_details, form_responses, applied_at, employer_entity_id, job_posting_id')
-          .limit(200)
-
-        if (orgId) fallbackQuery = fallbackQuery.eq('employer_entity_id', orgId)
-
-        const fallback = await fallbackQuery
-        if (fallback.error) {
-          console.warn('[Admin Calendar] job_applications query error:', fallback.error.message)
-        } else {
-          for (const app of fallback.data || []) {
-            const interviewDate =
-              extractJsonDate(app.offer_details, ['interview_date', 'interviewAt', 'interview_at'])
-              || extractJsonDate(app.form_responses, ['interview_date', 'interviewAt'])
-            const offerDate =
-              extractJsonDate(app.offer_details, ['offer_date', 'offerAt', 'offer_at'])
-              || extractJsonDate(app.form_responses, ['offer_date', 'offerAt'])
-
-            for (const [label, iso] of [
-              ['Interview', interviewDate],
-              ['Offer', offerDate],
-            ] as const) {
-              if (!iso) continue
-              const day = iso.slice(0, 10)
-              if (day < startDate || day > endDate) continue
-              pushItem(items, {
-                id: `hiring-${label.toLowerCase()}-${app.id}`,
-                sourceId: app.id,
-                kind: 'hiring',
-                title: `${label}: ${app.applicant_name || 'Candidate'}`,
-                start: iso,
-                end: iso,
-                status: app.status || 'pending',
-                priority: 'medium',
-                href: hrefForKind('hiring', app.id),
-                color: getCalendarItemColor('hiring', 'medium'),
-                allDay: false,
-                meta: { applicationId: app.id, hiringKind: label.toLowerCase() },
-              })
-            }
-          }
-        }
+        console.warn('[Admin Calendar] job_applications query error:', error.message)
+        sources.record({ id: 'job_applications', error })
       } else {
+        let hiringCount = 0
         for (const app of applications || []) {
           const interviewDate =
-            toIsoOrNull(app.interview_date)
-            || extractJsonDate(app.offer_details, ['interview_date', 'interviewAt'])
+            extractJsonDate(app.offer_details, ['interview_date', 'interviewAt', 'interview_at'])
+            || extractJsonDate(app.form_responses, ['interview_date', 'interviewAt'])
           const offerDate =
-            toIsoOrNull(app.offer_date)
-            || extractJsonDate(app.offer_details, ['offer_date', 'offerAt'])
+            extractJsonDate(app.offer_details, ['offer_date', 'offerAt', 'offer_at'])
+            || extractJsonDate(app.form_responses, ['offer_date', 'offerAt'])
 
           if (interviewDate && app.interview_scheduled !== false) {
             const day = interviewDate.slice(0, 10)
             if (day >= startDate && day <= endDate) {
+              hiringCount += 1
               pushItem(items, {
                 id: `hiring-interview-${app.id}`,
                 sourceId: app.id,
@@ -684,6 +928,7 @@ export async function aggregateAdminCalendarItems(
           if (offerDate && app.offer_made !== false) {
             const day = offerDate.slice(0, 10)
             if (day >= startDate && day <= endDate) {
+              hiringCount += 1
               pushItem(items, {
                 id: `hiring-offer-${app.id}`,
                 sourceId: app.id,
@@ -701,12 +946,20 @@ export async function aggregateAdminCalendarItems(
             }
           }
         }
+        sources.record({ id: 'job_applications', itemCount: hiringCount })
       }
     } catch (error) {
       console.warn('[Admin Calendar] hiring applications missing or error, skipping', error)
+      sources.record({
+        id: 'job_applications',
+        error: { message: error instanceof Error ? error.message : 'hiring skipped' },
+      })
     }
+  }
 
+  if (wants.hiring && allowSource('organization_job_postings', capabilities)) {
     try {
+      // CAL-101: postings table has no application_deadline column — mark empty/ok only
       let postingsQuery = supabase
         .from('organization_job_postings')
         .select('id, title, status, organization_id, created_at, updated_at')
@@ -716,35 +969,23 @@ export async function aggregateAdminCalendarItems(
       if (orgId) postingsQuery = postingsQuery.eq('organization_id', orgId)
 
       const { data: postings, error } = await postingsQuery
-      if (error) console.warn('[Admin Calendar] organization_job_postings query error:', error.message)
-      else {
-        for (const posting of postings || []) {
-          const deadline =
-            toIsoOrNull((posting as { application_deadline?: string }).application_deadline)
-            || toIsoOrNull((posting as { closes_at?: string }).closes_at)
-            || extractJsonDate((posting as { metadata?: unknown }).metadata, ['application_deadline', 'closes_at', 'deadline'])
-
-          if (!deadline) continue
-          const day = deadline.slice(0, 10)
-          if (day < startDate || day > endDate) continue
-          pushItem(items, {
-            id: `hiring-deadline-${posting.id}`,
-            sourceId: posting.id,
-            kind: 'hiring',
-            title: `Deadline: ${posting.title || 'Job posting'}`,
-            start: deadline,
-            end: deadline,
-            status: posting.status || 'published',
-            priority: 'high',
-            href: `/admin/dashboard/jobs/${posting.id}`,
-            color: getCalendarItemColor('hiring', 'high'),
-            allDay: true,
-            meta: { hiringKind: 'deadline', postingId: posting.id },
-          })
-        }
+      if (error) {
+        console.warn('[Admin Calendar] organization_job_postings query error:', error.message)
+        sources.record({ id: 'organization_job_postings', error })
+      } else {
+        sources.record({
+          id: 'organization_job_postings',
+          itemCount: 0,
+          message: 'Deadline fields not in deployed schema; posting dates omitted',
+        })
+        void postings
       }
     } catch (error) {
       console.warn('[Admin Calendar] job posting deadlines missing or error, skipping', error)
+      sources.record({
+        id: 'organization_job_postings',
+        error: { message: error instanceof Error ? error.message : 'postings skipped' },
+      })
     }
   }
 
@@ -756,7 +997,13 @@ export async function aggregateAdminCalendarItems(
       summary[item.kind] += 1
   }
 
-  return { items, summary, context }
+  return {
+    items,
+    summary,
+    context,
+    sources: sources.list(),
+    isDegraded: sources.isDegraded(),
+  }
 }
 
 export async function resolveCalendarOrgId(

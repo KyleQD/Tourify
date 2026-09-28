@@ -5,6 +5,7 @@ import { Disc3, Pause, Play } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SurfaceCard } from "@/components/surface/surface-primitives"
+import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 import type { DiscoverAlbum } from "@/lib/discover/types"
 
 export function DiscoverAlbumCard({
@@ -38,8 +39,8 @@ export function DiscoverAlbumCard({
       >
         <div className="relative aspect-square overflow-hidden bg-slate-800">
           {album.cover_art_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <TrackCoverImage
+              trackId={album.id}
               src={album.cover_art_url}
               alt={album.title}
               className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]"

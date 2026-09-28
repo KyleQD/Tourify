@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-07-28T17:18:21Z",
+  "access_mode": "READ_ONLY",
+  "database_writes_performed": false,
+  "candidate_project": {
+    "project_ref": "auqddrodjezjlypkzfpi",
+    "supabase_name": "Tourify Demo",
+    "supabase_status": "ACTIVE_HEALTHY",
+    "postgres_version": "15.14.1.063",
+    "region": "us-east-2",
+    "remote_migration_count": 180
+  },
+  "deployment_evidence": {
+    "vercel_project_id": "prj_H9Dgawpmj2dAuwfcuuiy1O7kXS1n",
+    "vercel_project_name": "tourify-beta-k2",
+    "vercel_node_version": "22.x",
+    "repository_node_contract": "20.x",
+    "node_version_status": "MISMATCH_REQUIRES_PHASE_4_DECISION",
+    "production_domains": [
+      "tourify.live",
+      "demo.tourify.live",
+      "www.tourify.live"
+    ],
+    "tracked_production_supabase_url": "https://auqddrodjezjlypkzfpi.supabase.co",
+    "linked_local_project_ref": "auqddrodjezjlypkzfpi",
+    "status": "CONFIRMED_PRODUCTION_BY_PROJECT_OWNER_2026_07_28"
+  },
+  "object_counts": {
+    "public_tables": 543,
+    "public_views": 10,
+    "public_functions": 231,
+    "public_security_definer_functions": 136,
+    "public_policies": 1315,
+    "rls_tables_without_policies": 4,
+    "storage_buckets": 31
+  },
+  "rls_tables_without_policies": [
+    "public.application_form_templates",
+    "public.marketplace_payment_events",
+    "public.onboarding_steps",
+    "public.work_mode_publications"
+  ],
+  "anonymous_security_definer_functions": [
+    "public.can_view_hiring_pii(p_user_id uuid, p_entity_type text, p_entity_id uuid)",
+    "public.get_or_create_conversation(user1_id uuid, user2_id uuid, user1_profile_id uuid, user1_account_type text, user2_profile_id uuid, user2_account_type text)",
+    "public.is_thread_admin(p_thread_id uuid, p_user_id uuid)",
+    "public.is_thread_member(p_thread_id uuid, p_user_id uuid)",
+    "public.notify_dm_recipient()",
+    "public.send_dm_request(p_sender uuid, p_recipient uuid, p_content text, p_sender_profile_id uuid, p_sender_account_type text, p_recipient_profile_id uuid, p_recipient_account_type text)",
+    "public.set_post_appearances_updated_at()",
+    "public.set_post_style_profiles_updated_at()"
+  ],
+  "security_advisor_highlights": [
+    "four RLS-enabled public tables have no policies",
+    "five public functions have mutable search paths",
+    "pg_net is installed in public",
+    "music_finance_offering_orders has an authenticated INSERT policy with WITH CHECK (true)",
+    "avatars permits broad public listing",
+    "eight SECURITY DEFINER functions are executable by anon",
+    "leaked-password protection is disabled",
+    "available MFA options are insufficient"
+  ],
+  "performance_advisor_summary": {
+    "status": "CAPTURED_REQUIRES_MACHINE_READABLE_EXPORT",
+    "categories_observed": [
+      "unindexed_foreign_keys",
+      "duplicate_indexes"
+    ],
+    "remediation_rule": "Do not remove indexes during remediation; optimize only after measured workload and authorization-equivalence evidence."
+  },
+  "open_evidence": [
+    "backup and PITR readiness",
+    "complete machine-readable remote migration export",
+    "schema-only dump and object definitions",
+    "grants and complete function identities",
+    "row-count bands and data-quality baselines",
+    "storage bucket and policy manifest",
+    "complete advisor exports"
+  ]
+}

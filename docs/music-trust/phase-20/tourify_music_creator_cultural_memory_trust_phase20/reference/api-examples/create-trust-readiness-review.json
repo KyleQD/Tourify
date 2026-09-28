@@ -1,0 +1,11 @@
+{
+  "requestId": "uuid",
+  "entityCandidateId": "uuid",
+  "jurisdictions": [
+    "US-NV"
+  ],
+  "requestedScope": [
+    "sandbox_preservation"
+  ],
+  "idempotencyKey": "uuid"
+}

@@ -1,0 +1,21 @@
+{
+  "evidenceId": "EVD-BASELINE-CHECKPOINT",
+  "kind": "commit",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-27T02:25:00-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "a043d35d4304cc8181078a17e2138c1f47baf199",
+  "artifact": "git:codex/admin-workflow-completion@a043d35d4304cc8181078a17e2138c1f47baf199",
+  "sha256": null,
+  "findingIds": [
+    "AOA-002",
+    "AOA-015"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Immutable checkpoint of the 138-path August 21 workspace baseline. Human inventory sign-off remains a separate release control."
+}

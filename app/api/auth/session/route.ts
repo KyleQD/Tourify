@@ -1,22 +1,28 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
-export async function GET(request: Request) {
-  try {
-    // In Next.js 15, we avoid using cookies() and headers() APIs 
-    // which require await and cause issues with Supabase
-    return NextResponse.json({
-      message: "Session verification should be handled client-side",
-      serverInfo: {
-        time: new Date().toISOString(),
-        info: "Due to Next.js 15 API changes, server-side session verification is disabled",
-        note: "Use client-side authentication checks instead"
-      }
-    })
-  } catch (error) {
-    console.error('[API] Error:', error)
+const PRIVATE_HEADERS = {
+  'Cache-Control': 'private, no-store, max-age=0',
+  Vary: 'Cookie, Authorization',
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await authenticateApiRequest(request)
+  if (!auth) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      { authenticated: false },
+      { status: 401, headers: PRIVATE_HEADERS },
     )
   }
-} 
+
+  return NextResponse.json(
+    {
+      authenticated: true,
+      user: {
+        id: auth.user.id,
+        email: auth.user.email ?? null,
+      },
+    },
+    { headers: PRIVATE_HEADERS },
+  )
+}

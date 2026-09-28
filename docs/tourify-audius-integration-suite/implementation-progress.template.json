@@ -1,0 +1,127 @@
+{
+  "project": "tourify-audius-playback-integration",
+  "version": 1,
+  "lastUpdated": null,
+  "overallStatus": "pending",
+  "principles": {
+    "auditFirst": true,
+    "additiveDatabaseOnly": true,
+    "noDatabaseReset": true,
+    "preserveNativePlayback": true,
+    "featureFlagged": true,
+    "temporaryPlaybackUrlsPersisted": false
+  },
+  "baseline": {
+    "branch": null,
+    "commit": null,
+    "packageManager": null,
+    "commands": [],
+    "preExistingFailures": []
+  },
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Repository and architecture audit",
+      "status": "pending",
+      "dependencies": [],
+      "tasks": [
+        {"id": "0.1", "title": "Audit repository and runtime architecture", "status": "pending", "files": [], "evidence": [], "notes": []},
+        {"id": "0.2", "title": "Audit Supabase schema, migrations, RLS, and generated types", "status": "pending", "files": [], "evidence": [], "notes": []},
+        {"id": "0.3", "title": "Map all music/player/UI/analytics surfaces", "status": "pending", "files": [], "evidence": [], "notes": []},
+        {"id": "0.4", "title": "Run and record baseline checks", "status": "pending", "files": [], "evidence": [], "notes": []},
+        {"id": "0.5", "title": "Verify current official Audius API and usage requirements", "status": "pending", "files": [], "evidence": [], "notes": []}
+      ],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-1",
+      "name": "Provider contracts and registry",
+      "status": "pending",
+      "dependencies": ["phase-0"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-2",
+      "name": "Additive database migrations",
+      "status": "pending",
+      "dependencies": ["phase-0", "phase-1"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-3",
+      "name": "Audius provider adapter",
+      "status": "pending",
+      "dependencies": ["phase-1"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-4",
+      "name": "Backend APIs and server actions",
+      "status": "pending",
+      "dependencies": ["phase-2", "phase-3"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-5",
+      "name": "Global player refactor",
+      "status": "pending",
+      "dependencies": ["phase-1", "phase-4"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-6",
+      "name": "Frontend integration",
+      "status": "pending",
+      "dependencies": ["phase-4", "phase-5"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-7",
+      "name": "Analytics and telemetry",
+      "status": "pending",
+      "dependencies": ["phase-4", "phase-5"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    },
+    {
+      "id": "phase-8",
+      "name": "Testing and staged rollout",
+      "status": "pending",
+      "dependencies": ["phase-2", "phase-3", "phase-4", "phase-5", "phase-6", "phase-7"],
+      "tasks": [],
+      "acceptanceCriteria": [],
+      "blockers": []
+    }
+  ],
+  "decisions": [],
+  "risks": [],
+  "changedFiles": [],
+  "migrations": [],
+  "validationRuns": [],
+  "rollback": {
+    "flags": [],
+    "tested": false,
+    "notes": []
+  },
+  "finalSignoff": {
+    "engineering": false,
+    "product": false,
+    "security": false,
+    "legalCompliance": false,
+    "operations": false
+  }
+}

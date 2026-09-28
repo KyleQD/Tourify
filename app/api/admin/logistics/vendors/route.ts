@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { z } from 'zod'
 
 const createSchema = z.object({
@@ -12,7 +12,7 @@ const createSchema = z.object({
   notes: z.string().optional(),
 })
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { supabase }) => {
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
   const vendorType = searchParams.get('vendor_type')
@@ -42,7 +42,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('logistics.manage', async (request: NextRequest, { supabase, user }) => {
   try {
     const body = await request.json()
     const validated = createSchema.parse(body)

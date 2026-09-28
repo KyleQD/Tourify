@@ -8,6 +8,12 @@ import {
   buildVenueJobPostingPayload,
   buildWorkforceJobPostingPayload,
 } from "@/lib/job-posting/job-posting-adapters"
+import {
+  buildEventJobInitialValues,
+  buildTourJobInitialValues,
+  normalizeJobDate,
+  normalizeJobTime,
+} from "@/lib/job-posting/job-posting-prefill"
 import { getJobPostingWizardStepState } from "@/lib/job-posting/job-posting-wizard-state"
 import type { CreateJobFormData } from "@/types/artist-jobs"
 import type { HiringEntity } from "@/types/hiring-entity"
@@ -154,5 +160,75 @@ describe("job posting wizard shell", () => {
     expect(getJobPostingWizardStepState(1, 2)).toEqual({ isActive: false, isDone: true, isFuture: false })
     expect(getJobPostingWizardStepState(2, 2)).toEqual({ isActive: true, isDone: false, isFuture: false })
     expect(getJobPostingWizardStepState(3, 2)).toEqual({ isActive: false, isDone: false, isFuture: true })
+  })
+})
+
+describe("event and tour job prefills", () => {
+  it("maps persisted event details into matching job fields", () => {
+    const values = buildEventJobInitialValues({
+      description: "An outdoor headline show.",
+      eventDate: "2026-08-20T19:30:00.000Z",
+      eventTime: "19:30:00",
+      venueName: "Music Box San Diego",
+      venueAddress: "1337 India St",
+      venueCity: "San Diego",
+      venueState: "CA",
+      venueCountry: "US",
+      venueWebsite: "https://musicboxsd.com",
+      venueContactEmail: "ops@example.com",
+      venueContactPhone: "555-0100",
+      durationMinutes: 150,
+      soundRequirements: "House console",
+      specialRequirements: "All ages",
+    })
+
+    expect(values).toMatchObject({
+      description: "An outdoor headline show.",
+      location: "Music Box San Diego",
+      city: "San Diego",
+      state: "CA",
+      country: "US",
+      event_date: "2026-08-20",
+      event_time: "19:30",
+      duration_hours: 2.5,
+      contact_email: "ops@example.com",
+      contact_phone: "555-0100",
+      external_link: "https://musicboxsd.com",
+    })
+    expect(values.special_requirements).toContain("Special requirements: All ages")
+    expect(values.special_requirements).toContain("Sound: House console")
+  })
+
+  it("maps tour details and distinct stop locations into matching job fields", () => {
+    const values = buildTourJobInitialValues({
+      description: "West Coast summer run.",
+      startDate: "2026-09-01T00:00:00.000Z",
+      transportation: "Sleeper bus",
+      accommodation: "Hotels provided",
+      equipmentRequirements: "PA System, Microphones\nLighting Equipment",
+      specialRequirements: "Valid passport",
+      stops: [
+        { venueName: "Music Box", venueCity: "San Diego", venueState: "CA", venueCountry: "US" },
+        { venueName: "The Wiltern", venueCity: "Los Angeles", venueState: "CA", venueCountry: "US" },
+      ],
+    })
+
+    expect(values).toMatchObject({
+      description: "West Coast summer run.",
+      location: "Music Box, The Wiltern",
+      city: "San Diego, Los Angeles",
+      state: "CA",
+      country: "US",
+      event_date: "2026-09-01",
+      required_equipment: ["PA System", "Microphones", "Lighting Equipment"],
+    })
+    expect(values.special_requirements).toContain("Transportation: Sleeper bus")
+    expect(values.special_requirements).toContain("Accommodation: Hotels provided")
+  })
+
+  it("normalizes ISO and local date/time values for native inputs", () => {
+    expect(normalizeJobDate("2026-08-20T19:30:00Z")).toBe("2026-08-20")
+    expect(normalizeJobTime("2026-08-20T19:30:00Z")).toBe("19:30")
+    expect(normalizeJobTime("7:30 PM")).toBe("")
   })
 })

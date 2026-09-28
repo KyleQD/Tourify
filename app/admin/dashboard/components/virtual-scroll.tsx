@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 
 interface VirtualScrollProps<T> {
   items: T[]
@@ -12,16 +11,7 @@ interface VirtualScrollProps<T> {
   onScroll?: (scrollTop: number) => void
   className?: string
   containerClassName?: string
-  loadingComponent?: React.ReactNode
   emptyComponent?: React.ReactNode
-}
-
-interface VirtualScrollState {
-  scrollTop: number
-  containerHeight: number
-  startIndex: number
-  endIndex: number
-  visibleItems: number
 }
 
 export function VirtualScroll<T>({
@@ -33,51 +23,28 @@ export function VirtualScroll<T>({
   onScroll,
   className = "",
   containerClassName = "",
-  loadingComponent,
   emptyComponent
 }: VirtualScrollProps<T>) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [state, setState] = useState<VirtualScrollState>({
-    scrollTop: 0,
-    containerHeight: height,
-    startIndex: 0,
-    endIndex: 0,
-    visibleItems: 0
-  })
+  const [scrollTop, setScrollTop] = useState(0)
 
   // Calculate virtual scroll state
   const virtualState = useMemo(() => {
     const totalHeight = items.length * itemHeight
-    const visibleCount = Math.ceil(height / itemHeight)
-    const startIndex = Math.max(0, Math.floor(state.scrollTop / itemHeight) - overscan)
-    const endIndex = Math.min(
-      items.length - 1,
-      Math.ceil((state.scrollTop + height) / itemHeight) + overscan
-    )
+    const startIndex = Math.max(0, Math.min(items.length - 1, Math.floor(scrollTop / itemHeight) - overscan))
+    const endIndex = Math.min(items.length, Math.ceil((scrollTop + height) / itemHeight) + overscan)
 
     return {
       totalHeight,
-      visibleCount,
       startIndex,
-      endIndex,
-      visibleItems: endIndex - startIndex + 1
+      endIndex
     }
-  }, [items.length, itemHeight, height, state.scrollTop, overscan])
-
-  // Update state when virtual state changes
-  useEffect(() => {
-    setState(prev => ({
-      ...prev,
-      startIndex: virtualState.startIndex,
-      endIndex: virtualState.endIndex,
-      visibleItems: virtualState.visibleItems
-    }))
-  }, [virtualState])
+  }, [items.length, itemHeight, height, scrollTop, overscan])
 
   // Handle scroll events
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = event.currentTarget.scrollTop
-    setState(prev => ({ ...prev, scrollTop }))
+    setScrollTop(scrollTop)
     onScroll?.(scrollTop)
   }, [onScroll])
 
@@ -98,34 +65,7 @@ export function VirtualScroll<T>({
   }, [scrollToItem])
 
   // Get visible items
-  const visibleItems = useMemo(() => {
-    return items.slice(state.startIndex, state.endIndex + 1)
-  }, [items, state.startIndex, state.endIndex])
-
-  // Calculate transform for virtual positioning
-  const getItemTransform = useCallback((index: number) => {
-    return `translateY(${index * itemHeight}px)`
-  }, [itemHeight])
-
-  // Handle container resize
-  useEffect(() => {
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const newHeight = entry.contentRect.height
-        if (newHeight !== state.containerHeight) {
-          setState(prev => ({ ...prev, containerHeight: newHeight }))
-        }
-      }
-    })
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
-    }
-
-    return () => {
-      resizeObserver.disconnect()
-    }
-  }, [state.containerHeight])
+  const visibleItems = items.slice(virtualState.startIndex, virtualState.endIndex)
 
   // Expose scroll methods
   useEffect(() => {
@@ -158,31 +98,23 @@ export function VirtualScroll<T>({
         className={`relative ${className}`}
         style={{ height: virtualState.totalHeight }}
       >
-        <AnimatePresence>
           {visibleItems.map((item, index) => {
-            const actualIndex = state.startIndex + index
-            const itemData = items[actualIndex]
-            
-            if (!itemData) return null
-
+            const actualIndex = virtualState.startIndex + index
             return (
-              <motion.div
+              <div
                 key={actualIndex}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.2 }}
                 className="absolute left-0 right-0"
                 style={{
-                  transform: getItemTransform(actualIndex),
+                  // Use layout positioning so row offsets cannot be overwritten
+                  // by transforms from an animation or a consuming component.
+                  top: actualIndex * itemHeight,
                   height: itemHeight
                 }}
               >
-                {renderItem(itemData, actualIndex)}
-              </motion.div>
+                {renderItem(item, actualIndex)}
+              </div>
             )
           })}
-        </AnimatePresence>
       </div>
     </div>
   )
@@ -328,4 +260,4 @@ export function VirtualList<T>({
       }
     />
   )
-} 
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMWORK-001-DOMAIN041-LEASE-REVERT",
+  "task_id": "ADMWORK-001",
+  "from_agent": "admin-workforce",
+  "to_agent": "admin-governance",
+  "status": "pending",
+  "accepting_task_id": "ADMIN-025",
+  "completion_condition": "The __tests__/admin/admin-registry-guard-proof.test.ts entry is removed from the shared: list in docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml and its owner is set back to admin-governance, npm run agents:validate -- --strict is green, and ADMIN-025 records the exact evidence. admin-governance then owns the whole file again with no residual admin-workforce claim. This is the DOMAIN-041 obligation and is SEPARATE from the DOMAIN-039 obligation in HF-ADMIN-021-DOMAIN039-LEASE-REVERT and the DOMAIN-040 obligation in HF-ADMIN-022-DOMAIN040-LEASE-REVERT: three overrides, three reverts, and none discharges another.",
+  "created_at": "2026-09-28T02:58:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "decision_record": [
+    "DOMAIN-041"
+  ],
+  "summary": "DOMAIN-041 granted admin-workforce a TEMPORARY single-task shared lease on __tests__/admin/admin-registry-guard-proof.test.ts so ADMWORK-001 could pay three routesWithoutResourceBoundary figures and re-point the ADMIN-016 pinned baseline in the same atomic change. ADMWORK-001 is complete and the lease is spent. This record is the revert obligation: admin-governance removes the shared: entry at SEGMENT_OWNERSHIP.yaml (the __tests__/admin/admin-registry-guard-proof.test.ts block whose reason names DOMAIN-041 and ADMWORK-001) and restores owner admin-governance. admin-workforce does not remove it, because the override is the orchestrator's to grant and to revoke.",
+  "working_set": [
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "__tests__/admin/admin-registry-guard-proof.test.ts"
+  ],
+  "what_the_lease_was_used_for": {
+    "authority_as_granted": "The routesWithoutResourceBoundary figure (pinned at 48) for exactly three named routes, expected 48 to 45. That is the grant as written.",
+    "deviation_from_the_grant_and_why": "The grant named one figure; the change moved five, and all five had to move or the suite would be red. Converting the three routes to capability_gated takes them out of the legacy set, so legacyRoutes fell 51 to 48; adding the two named capability gates removes two of the four noSourceGuardMethods, so that fell 4 to 2; and declaring the invite route as a registered non-user principal (public_share_token) makes it the one method that cannot be compared against a guard in the source, so nonSourceComparableClasses rose 0 to 1. Recording the deviation is the point: the alternative was a half-moved set, and the direction of every movement is a measurement of real code, observed in both directions by negative controls.",
+    "actual_change": "Four BASELINE numbers moved (legacyRoutes 51 to 48, routesWithoutResourceBoundary 48 to 45, noSourceGuardMethods 4 to 2, nonSourceComparableClasses 0 to 1) and one test was ADDED, not relaxed: it(\"keeps the workforce document-review, invite-token and job-posting boundaries named\"), which pins the enforced class, the code-exact capability, the boundary kind and the source markers of all three routes, and names the two surviving noSourceGuardMethods in full. Five BASELINE keys were left byte-identical: routeFiles 291, registryEntries 291, handlerMethods 483, legacyGuardDrift 5, capabilityGapMethods 32, and policyGateCoherenceGaps 3 is unchanged too.",
+    "why_the_harness_and_the_boundaries_had_to_land_together": "The harness IS the baseline, and routesWithoutResourceBoundary is machine-enforced from two opposite directions: the registry's own none_recorded set, and the separate assertion that routeFiles minus routesWithoutResourceBoundary is the number of routes whose verifiedAt and boundBy markers are present in real source. Control D, with the three registry entries reverted to none_recorded and the routes and harness figures left as landed, went red on five tests including 'expected 243 to be 246', 'expected 51 to be 48' and the five harness errors naming the three routes. Control B, with route B reverted to git show 16fb834f, went red with '/api/admin/onboarding/enhanced-invite shareToken: expected false to be true'.",
+    "the_ceiling_was_lowered_after_a_measurement_not_to_silence_a_gate": "scripts/ci/admin-route-registry-baseline.json legacyRouteLimit went 51 to 48. The true count was measured first and independently twice: the checker's own count and the proof test's exact-equality assertion, both at 48 while the ceiling was still 51, which is the state the checker reported as 'Legacy route classifications: 48/51'. Control D then drove the true count back to 51 and the checker failed with 'Legacy classification growth: 51 exceeds baseline ceiling 48', proving the ceiling is a live gate in this direction. Control D3 lowered the ceiling to 47 against a true 48 and the checker failed with 'Legacy classification growth: 48 exceeds baseline ceiling 47' while the proof test stayed 11/11 green, which is the sharper form of the point: the exact figure is pinned by the proof test, never by the ceiling."
+  },
+  "completed": [
+    "PATCH /api/admin/onboarding/documents/[documentId]/review moves onto withAdminCapability('hiring.manage') with a source-proven organization_entity boundary at resolveHiringEntity( plus an acting-organization binding at admin.orgId (AC-1, AC-2).",
+    "GET /api/admin/onboarding/enhanced-invite is registered as the public_share_token non-user principal with a public_share boundary at shareToken, and an absent or unrecognised invitation credential is now 401 rather than 400/404 (AC-1, AC-3).",
+    "POST /api/admin/staffing/job-postings moves onto withAdminCapability('workforce.manage') with a source-proven organization_entity boundary at hasEntityPermission( on the caller-named venue (AC-1, AC-2).",
+    "All three registry entries move from legacy_pending_migration / none_recorded to a declared principal and a source-proven resourceBoundary (AC-2).",
+    "Unauthenticated requests to all three handlers are proven to receive 401, from the production withAuth rather than a stub (AC-3).",
+    "Five negative controls observed red and reverted byte-exactly: A, A2, B, C, C2, D and D3, with sha256 recorded for every restored file."
+  ],
+  "next_steps": [
+    "admin-governance removes the __tests__/admin/admin-registry-guard-proof.test.ts entry (and only that entry) from the shared: list in docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml, restoring owner admin-governance, then runs npm run agents:validate -- --strict and records the result in ADMIN-025.",
+    "Discharge HF-ADMIN-021-DOMAIN039-LEASE-REVERT and HF-ADMIN-022-DOMAIN040-LEASE-REVERT separately. Do not close one and treat the others as done: they are different files, different decisions and different pinned figures.",
+    "SPLIT THE PROOF HARNESS PER SEGMENT. This path has now had three holders in two days (admin-governance, then admin-experience-insights under DOMAIN-040, then admin-workforce under DOMAIN-041) and every lease was needed for the same structural reason: the harness is part of the change that asserts it, so a lane that moves a pinned figure cannot land without it. A fourth lease is the signal to stop granting them. ADMIN-025 is the natural home.",
+    "ADMCOM-001 is still serialized behind this figure and still needs its own decision: its registry entry lives in lib/admin/route-registry/logistics.ts (admin-logistics) rather than the commerce.ts its record declares, so it needs a grant that names the right fragment before it can move routesWithoutResourceBoundary again.",
+    "GET /api/admin/onboarding/enhanced-invite now has a registered principal but no invitation expiry: staff_onboarding_candidates has no expires_at column, so getCandidateByToken matches the token alone. A migration and a policy decision are needed and neither is in ADMWORK-001's scope."
+  ],
+  "blockers": [
+    "ADMIN-025 exists but is blocked/waiting_decision, so the obligation is recorded and cannot be discharged in this wave."
+  ],
+  "verification": [
+    "npx vitest run __tests__/admin/admin-registry-guard-proof.test.ts -> 11 passed (11) on the landed state.",
+    "npx vitest run __tests__/admin/ -> 285 passed | 1 skipped (286 files); 3772 passed | 12 skipped (3784).",
+    "npm run check:admin-route-registry -> 'Admin API route files on disk: 291; Legacy route classifications: 48/48; REL-103 check OK'.",
+    "node --test scripts/ci/check-admin-route-registry.test.mjs -> 3 pass, 0 fail.",
+    "npm run agents:validate -- --strict -> validated 27 agents, 248 tasks, 113 pending handoffs, 0 warnings, 0 errors."
+  ]
+}

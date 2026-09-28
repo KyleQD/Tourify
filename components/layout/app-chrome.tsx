@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { JukeboxProvider } from '@/contexts/jukebox-context'
 import { AchievementUnlockProvider } from '@/components/achievements/achievement-unlock-provider'
+import { getAppChromeVisibility } from '@/lib/routing/app-chrome-visibility'
 
 const Nav = dynamic(() => import('@/components/nav').then((mod) => ({ default: mod.Nav })))
 const PersistentPlayerBar = dynamic(() =>
@@ -27,20 +28,29 @@ interface AppChromeProps {
  */
 export function AppChrome({ children }: AppChromeProps) {
   const pathname = usePathname() || ''
-  const isAdminRoute = pathname.startsWith('/admin')
-  const hideRootNav =
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/login')
+  const { hideRootNav, hidePlayer, isAdminRoute, isVenueRoute } =
+    getAppChromeVisibility(pathname)
+  const showMobileAppNav =
+    !hideRootNav && !isAdminRoute && !pathname.startsWith('/artist') && pathname !== '/'
+  const contentClassName = `min-w-0 flex-1 ${
+    isAdminRoute || isVenueRoute
+      ? ''
+      : showMobileAppNav
+        ? 'pb-[calc(var(--player-height,0px)+4rem+env(safe-area-inset-bottom))] md:pb-[var(--player-height,0px)]'
+        : 'pb-[var(--player-height,0px)]'
+  }`
 
   return (
     <JukeboxProvider>
       <AchievementUnlockProvider>
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen w-full min-w-0 flex-col overflow-x-clip">
           {!hideRootNav ? <Nav /> : null}
-          <main className={`flex-1 ${isAdminRoute ? '' : 'pb-[var(--player-height,0px)]'}`}>
-            {children}
-          </main>
-          {!isAdminRoute ? (
+          {pathname === '/' ? (
+            <div className={contentClassName}>{children}</div>
+          ) : (
+            <main className={contentClassName}>{children}</main>
+          )}
+          {!hidePlayer ? (
             <>
               <PersistentPlayerBar />
               <FullPlayerView />

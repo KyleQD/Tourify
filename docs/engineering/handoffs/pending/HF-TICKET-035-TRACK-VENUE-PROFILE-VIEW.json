@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW",
+  "task_id": "TICKET-005",
+  "from_agent": "ticketing",
+  "to_agent": "venue",
+  "status": "accepted",
+  "created_at": "2026-09-25T16:30:00.000Z",
+  "updated_at": "2026-09-25T16:30:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "dirty_state_caveat": "Wave 35 worktree, 6 concurrent lanes, HEAD ca3bb0b0, nothing committed. The ticketing lane changed no venue file. Note the consumer path is app/api/venues/ (plural), which is not the same as the app/api/venue/ path the ticketing grant names; either way it is a venue-domain route and outside the ticketing grant.",
+  "summary": "DB-008 code-drift cluster object `track_venue_profile_view` resolves to a single live caller in the venue domain: app/api/venues/[id]/route.ts:109. This lane independently confirms the correction the venue lane already filed — app/api/ticketing/webhook/route.ts contains NO reference to this object anywhere in the tree, so the inventory's attribution of it to the ticketing webhook route is wrong, exactly as the venue lane reported. After that correction there is nothing left in the ticketing file set: rg over app/ lib/ components/ returns exactly one occurrence of the name, and it is the venue route. The relation is also absent from the active chain and from the generated type surface, so the call is a PostgREST/RPC failure at runtime, not merely a type error. Severity is low: the call is already wrapped in try/catch with a console.warn, so a missing RPC degrades the analytics side effect and does not fail the route. The disposition is still a real drift item, because an rpc() call to a function no migration creates is either dead code that should go or a capability the venue surface believes it has and does not.",
+  "working_set": [
+    "app/api/venues/[id]/route.ts:102-121 — the `if (track_view)` block whose `.rpc('track_venue_profile_view', {...})` at line 109 is the only reference in the repository",
+    "Read-only context: supabase/migrations_backup/20250120300000_enhance_venue_profiles_comprehensive.sql:377 — the only CREATE OR REPLACE FUNCTION for this name, and it is under migrations_backup/, not supabase/migrations/, so the active chain never creates it"
+  ],
+  "completed": [
+    "Confirmed the venue lane's correction with an independent search: zero occurrences of track_venue_profile_view in app/api/ticketing/**, and the single occurrence in the whole app/ lib/ components/ tree is app/api/venues/[id]/route.ts:109.",
+    "Established that the RPC is absent from the active chain (it exists only in supabase/migrations_backup/) and from the generated types (no match in lib/database.types.ts), so the call cannot succeed on a deployment built from the active chain.",
+    "Classified the blast radius: the call is guarded by try/catch with a console.warn, so the failure is silent-and-degraded rather than a broken route. No money path, no authorization boundary and no user-visible field depends on it.",
+    "Scoped the disposition for the venue lane: there is no repoint target to name, so the honest options are delete the tracking call (and the track_view parameter's effect) or land the function. The venue lane owns which."
+  ],
+  "next_steps": [
+    "venue: decide between deleting the tracking block and landing track_venue_profile_view in the active chain. Deleting is the correct default under the repository's rule that migrations are the source of truth and an rpc() to a function no migration creates is not a capability the surface has; the analytics loss is the profile-view counter, which nothing else depends on.",
+    "venue: if the call is kept, the drift cannot be closed by editing app/api/venues/[id]/route.ts alone — it needs a forward-only migration authored by the database lane. In that case record the dependency rather than a route-local suppression.",
+    "database (secondary): if the venue lane elects to land the function, note the archived definition at supabase/migrations_backup/20250120300000_enhance_venue_profiles_comprehensive.sql:377 as the source shape; it must be re-authored as a forward-only migration, never copied from migrations_backup/ into the active chain."
+  ],
+  "blockers": [
+    "File-scope boundary: app/api/venues/** is a venue-domain route and is outside the ticketing grant, so the ticketing lane did not edit it. After the venue lane's correction there is no remaining reference in the ticketing file set, so this lane can take no action at all.",
+    "The disposition needs a product decision, not only a technical one: profile-view tracking may be a capability the venue surface is expected to have, in which case deleting the call silently drops a promised feature. That judgement belongs to the venue lane, not to the lane that found the drift."
+  ],
+  "verification": [
+    "rg -n 'track_venue_profile_view' app/ lib/ components/ returns exactly one line: app/api/venues/[id]/route.ts:109. The ticketing webhook route has none.",
+    "rg -no 'create or replace function (public\\.)?track_venue_profile_view' supabase/migrations/*.sql returns no rows; the only definition is under supabase/migrations_backup/20250120300000_enhance_venue_profiles_comprehensive.sql:377.",
+    "rg -n 'track_venue_profile_view' lib/database.types.ts returns no rows.",
+    "Read app/api/venues/[id]/route.ts:102-121 directly: the rpc call is inside try/catch with console.warn, confirming the low blast radius.",
+    "Not verified from this lane: any typecheck reduction, because the file is outside the ticketing grant and was not in the scoped tsc include set."
+  ],
+  "accepting_task_id": "VENUE-006",
+  "completion_condition": "venue: decide between deleting the tracking block and landing track_venue_profile_view in the active chain. Deleting is the correct default under the repository's rule that migrations are the source of truth and an rpc() to a function no migration creates is not a capability the surface has; the analytics loss is the profile-view counter, which nothing else depends on."
+}

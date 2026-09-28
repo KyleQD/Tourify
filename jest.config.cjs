@@ -5,7 +5,19 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
     '^@tourify/api-contracts$': '<rootDir>/packages/api-contracts/src/index.ts',
+    '^server-only$': '<rootDir>/scripts/test/server-only.ts',
   },
+  // These suites import Vitest directly and are owned by the Vitest runner.
+  testPathIgnorePatterns: [
+    '<rootDir>/lib/appearance/__tests__/appearance.test.ts',
+    '<rootDir>/lib/auth/__tests__/acting-context.test.ts',
+    '<rootDir>/lib/auth/__tests__/request-public-origin.test.ts',
+    '<rootDir>/lib/auth/__tests__/tourify-auth-helpers.test.ts',
+    '<rootDir>/lib/marketplace/__tests__/music-commerce-boundary.test.ts',
+    '<rootDir>/lib/music/__tests__/music-commerce-boundary.test.ts',
+    '<rootDir>/lib/music/providers/audius/__tests__/audius-mappers.test.ts',
+    '<rootDir>/lib/music/providers/audius/__tests__/audius-errors.test.ts',
+  ],
   testMatch: [
     '<rootDir>/lib/**/__tests__/**/*.test.ts',
     '<rootDir>/lib/**/*.test.ts',

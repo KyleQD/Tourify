@@ -1,6 +1,7 @@
 /**
  * Ticketing feature flag — env or per-request override.
- * When off, legacy purchase/check-in paths remain unchanged.
+ * This gates the canonical ticketing implementation. Purchase authentication
+ * is a separate GA contract and is always required.
  */
 export function isTicketingV2Enabled(): boolean {
   const raw = (process.env.FEATURE_TICKETING_V2 || process.env.NEXT_PUBLIC_FEATURE_TICKETING_V2 || '')

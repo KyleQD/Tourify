@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "review_id": "EXAMPLE-TOUR-SIM-001",
+  "record_status": "example",
+  "reviewer": "admin-tour-manager",
+  "review_type": "tour_simulation",
+  "created_at": "2026-09-27T00:10:00.000Z",
+  "source_sha": "EXAMPLE",
+  "environment": "non_production_example",
+  "contains_production_data": false,
+  "actor_goal": "Demonstrate a synthetic organization manager creating one event and a three-stop West Coast tour, coordinating artists and venues, budgeting, staffing, logistics, publication, show-day execution, settlement, reporting, and follow-up.",
+  "evidence": [
+    {
+      "category": "reproduction",
+      "reference": "example://tour-simulation/create-plan",
+      "observation": "Synthetic example traces event creation plus Los Angeles, San Francisco, and Seattle stops without asserting that the current product was exercised."
+    },
+    {
+      "category": "reproduction",
+      "reference": "example://tour-simulation/manage-execute",
+      "observation": "Synthetic example records where duplicate entry, context switching, unclear ownership, recovery friction, and missing next actions would be captured across budgeting, staffing, logistics, publication, and show day."
+    },
+    {
+      "category": "receiving_side",
+      "reference": "example://tour-simulation/closeout-followup",
+      "observation": "Synthetic example demonstrates verifying settlement, reporting, and follow-up from the receiving side; no API bypass or seed is counted as UI success."
+    }
+  ],
+  "expected_outcome": "A manager can complete the event and three-stop tour lifecycle with clear ownership, preserved context, visible next actions, and receiving-side confirmation at every handoff.",
+  "severity": "P2",
+  "recommendation": "Route the hypothetical cross-stop planning friction to Admin tour planning, then have the parent Admin create separate bounded findings for any logistics, workforce, commerce, event-operations, or experience issue proven by real isolated-staging evidence.",
+  "proposed_specialist": "admin-tour-planning",
+  "disposition": "accepted_and_routed",
+  "disposition_rationale": "Parent Admin accepted this non-production proof record and routed its evidence-only closure to the proposed specialist. It is not a product finding and authorizes no product change.",
+  "linked_task_ids": [
+    "ADMTOUR-REV-001"
+  ],
+  "verification": {
+    "state": "verified",
+    "verified_by": "admin",
+    "verified_at": "2026-09-27T00:15:00.000Z",
+    "evidence": [
+      "Example is explicitly non-production and synthetic.",
+      "Three-stop workflow and single-event lifecycle are named.",
+      "Receiving-side verification and UI-evidence constraints are present.",
+      "ADMTOUR-REV-001 records the specialist receiving-side closure without changing product code."
+    ]
+  }
+}

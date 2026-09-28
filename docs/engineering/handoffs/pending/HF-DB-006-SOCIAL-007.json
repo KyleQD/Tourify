@@ -1,0 +1,63 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB-006-SOCIAL-007",
+  "task_id": "SOCIAL-007",
+  "from_agent": "social",
+  "to_agent": "database",
+  "status": "accepted",
+  "created_at": "2026-09-25T00:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "Shared worktree with five concurrent lanes. Social changed only app/api interaction routes and __tests__/social; it authored no migration.",
+  "summary": "The shipped RLS posture leaves two interaction tables readable by any caller at the database layer: `post_likes` has SELECT policy \"Anyone can view likes\" USING (true) and `post_comments` has SELECT policy \"Comments are viewable by everyone\" USING (true). SOCIAL-007 closed the service-role read leak in app/api, but it cannot make the database itself refuse a cross-user interaction read: an authenticated or anonymous PostgREST caller can still select every row of those two tables for any post id. Social therefore made the application-layer post-visibility gate mandatory and fail-closed, but that is defense in depth only. Tightening the two SELECT policies is the durable fix and needs database ownership because it has client-side blast radius.",
+  "working_set": [
+    "supabase/migrations/20240430000000_create_posts.sql",
+    "supabase/migrations/20241220000010_enhance_feed_system.sql",
+    "supabase/migrations/<new additive migration>",
+    "components/artist/artist-home-feed.tsx",
+    "components/profile/public-profile-view.tsx",
+    "app/api/feed/posts/route.ts",
+    "app/api/community/activity/route.ts"
+  ],
+  "findings": [
+    {
+      "table": "post_likes",
+      "current_policy": "CREATE POLICY \"Anyone can view likes\" ON post_likes FOR SELECT USING (true)",
+      "source": "supabase/migrations/20240430000000_create_posts.sql:47-49",
+      "impact": "Any caller can enumerate every liker of every post, including followers-only and private posts, straight through PostgREST."
+    },
+    {
+      "table": "post_comments",
+      "current_policy": "CREATE POLICY \"Comments are viewable by everyone\" ON post_comments FOR SELECT USING (true)",
+      "source": "supabase/migrations/20241220000010_enhance_feed_system.sql:131-134",
+      "impact": "Any caller can read every comment body on every post, including followers-only and private posts."
+    },
+    {
+      "table": "post_shares",
+      "current_policy": "CREATE POLICY \"Users can view their own shares\" ON post_shares FOR SELECT USING (auth.uid() = user_id)",
+      "source": "supabase/migrations/20241220000010_enhance_feed_system.sql:208-212",
+      "impact": "Already correct. This is the reference shape the other two tables should converge on."
+    }
+  ],
+  "completed": [
+    "Application-layer boundary is now mandatory and fail-closed: GET /api/notifications/social and GET /api/posts/[id]/poll/vote call resolvePostCommentAccess before any interaction read and return one indistinguishable 404.",
+    "app/api/notifications/social no longer holds a service-role read path at all; it reads through the caller-scoped client so post_shares RLS genuinely applies.",
+    "19 focused negative tests in __tests__/social/interaction-notification-isolation.test.ts and 10 in __tests__/social/poll-interaction-isolation.test.ts prove the app gate and the fail-closed behavior."
+  ],
+  "next_steps": [
+    "Author one strictly additive, forward-only migration that replaces the two USING (true) SELECT policies on post_likes and post_comments with a policy set that requires an entitled viewer, and never apply it locally (CP-051) — author and hand the manifest to the operator.",
+    "Decide the entitlement predicate with the feed lane before writing the policy. A reusable SECURITY DEFINER helper that answers 'may auth.uid() read interactions for post <id>?' is preferable to duplicating the visibility CASE expression in two policies, because posts.visibility, posts.is_visible, posts.moderation_status, follows and account_follows must all agree with lib/feed/post-comment-access.ts.",
+    "Audit the client-side blast radius before the policy lands: components/artist/artist-home-feed.tsx:186 and components/profile/public-profile-view.tsx:284 read post_likes directly from the browser and currently rely on USING (true). If the new policy would break those surfaces, move them behind an authorized API first, in the owning lanes.",
+    "After the policy is applied on an approved target, rerun SIM-20260922-SOC-003 with sim-customer-01 (outsider) and sim-artist-01 (owner) against a direct PostgREST read, not just the app route, so the database boundary itself is proven."
+  ],
+  "blockers": [
+    "No approved Supabase target was available to social for a hosted two-actor run; all social evidence for this task is local and static.",
+    "CP-051: migrations are applied manually by an operator. Social authored no migration and applied none."
+  ],
+  "verification": [
+    "npx vitest run __tests__/social --testNamePattern SOCIAL-007 (35 negative isolation tests) — all passed",
+    "rg policy inspection of the migration chain — the USING (true) policies are confirmed present at HEAD, not hypothetical",
+    "npm run check:migration-chain — passed (301 files scanned, no duplicate policy creations)"
+  ],
+  "accepting_task_id": "DB-006",
+  "completion_condition": "Author one strictly additive, forward-only migration that replaces the two USING (true) SELECT policies on post_likes and post_comments with a policy set that requires an entitled viewer, and never apply it locally (CP-051) — author and hand the manifest to the operator."
+}

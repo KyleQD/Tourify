@@ -1,0 +1,222 @@
+{
+  "schema_version": "2.0",
+  "id": "EVENTS-006",
+  "title": "Close the anon-readable event posts read path",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "events",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "events",
+  "created_at": "2026-09-28T02:05:00.000Z",
+  "updated_at": "2026-09-28T19:52:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree (736 entries at session start, other lanes in flight); one component, one new test file, one assertion inverted in the previous lane's test file, one scoped tsconfig. No migration authored, no migration applied, no database touched, nothing staged, nothing committed (CP-051).",
+  "goal": "Make canAccessEventAsViewer the gate on every product reader of public.event_posts, so a public-visibility post on an unpublished event is no longer readable through the anon key by anyone who knows the event id.",
+  "scope": {
+    "in": [
+      "Routing the loadEventPosts READ in components/events/enhanced-event-page.tsx through GET /api/events/[id]/posts, which reuses the existing gate and removes a duplicate profile-hydration derivation",
+      "Stating, rather than leaving as a surprise, the cross-store behaviour change: a duplicate id across two event stores will 404 where the component previously read through",
+      "Proving the anon-reachable path is closed, and proving the closure can fail"
+    ],
+    "out": [
+      "Asking the database lane for a publication predicate on public.event_posts. Measured, it cannot exist for the anon role and asking for it would put the public event page behind 42501",
+      "Modifying supabase/migrations/20260928010000_event_posts_and_event_claims.sql, which is READ ONLY reference here",
+      "The operator apply of that migration, which is HF-DB023-EVENT-POSTS-CLAIMS-APPLY, addressed to the release lane and owner-gated",
+      "Removing either API-side gate. A now-existing RLS policy is not a reason to remove the application gate",
+      "The component's client-side read of public.events in loadEventData. It is a different table with a different exposure and it is not named by any acceptance criterion here; recorded as an observation below rather than absorbed"
+    ]
+  },
+  "working_set": [
+    "components/events/enhanced-event-page.tsx (loadEventPosts and the profile-hydration helper it owned; the loadEventData and handleCreatePost regions were read, not written)",
+    "__tests__/events/event-posts-anon-read-closure.test.ts (NEW \u2014 this exact filename is yours alone)",
+    "docs/engineering/agents/events/STATE.md",
+    "docs/engineering/handoffs/pending/HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL.json (discharge)",
+    "__tests__/events/event-posts-chain-contract.test.ts (PATH EXPANSION \u2014 one assertion inverted; see checkpoints)",
+    "tsconfig.events006-slice.json (NEW, PATH EXPANSION \u2014 scoped typecheck project; the base tsconfig excludes **/*.test.ts)"
+  ],
+  "shared_working_set": [
+    "app/events/[slug]/page.tsx (READ ONLY)",
+    "supabase/migrations/20260928010000_event_posts_and_event_claims.sql (READ ONLY -- installed policies and the measured ACL reasoning in the header)",
+    "app/api/events/[id]/posts/route.ts and app/api/events/[id]/page/route.ts (READ ONLY -- both already call canAccessEventAsViewer and both are EVENTS-005's completed work; consume, do not edit)"
+  ],
+  "references": [
+    "docs/engineering/handoffs/pending/HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL.json",
+    "docs/engineering/tasks/completed/EVENTS-005.json",
+    "docs/engineering/tasks/completed/DB-023.json",
+    "docs/engineering/agents/events/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Closed. No resume condition; the residual is discharged into HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL's completion condition.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "No product reader of public.event_posts is reachable through the anon key. A test asserts the component's post read goes through the gated API and that no direct public.event_posts browser-client read remains on the public event path. A green run must mean the anon path is closed, not that nobody wrote the assertion.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "THE READ IS ROUTED. `components/events/enhanced-event-page.tsx:197-290` \u2014 `loadEventPosts` now does `fetch('/api/events/${encodeURIComponent(eventId)}/posts', { credentials: 'same-origin', headers: { Accept: 'application/json' } })` and maps the response. No `supabase.from(\"event_posts\")` remains anywhere in the file; measured by `rg`: the only `supabase` uses left are `from(\"events\")` in `loadEventData` and `supabase.storage` in the media upload. `GET /api/events/[id]/posts` already did the read, already hydrated the authors, and already called `canAccessEventAsViewer`, so the gate is now on every product reader of the table.",
+        "THE PROOF IS BEHAVIOURAL, NOT A REGEX, because a source assertion alone is satisfied by a comment. `__tests__/events/event-posts-anon-read-closure.test.ts` RENDERS `EnhancedEventPage` in jsdom with a recording fake standing in for the browser client, lets the effects run, and then asks the recorder what it was called with. Measured: `event_posts` operations recorded on the browser client across the AC-1 render cases: 0. The same case asserts the fetch went to `/api/events/${EVENT_A}/posts` as a GET with `credentials: 'same-origin'` \u2014 so the test cannot be satisfied by a component that simply stopped reading.",
+        "THE POSITIVE CONTROL, WHICH IS WHAT MAKES THE ABOVE TRUSTWORTHY. The second AC-1 case renders with NO `initialEvent`, which drives `loadEventData`'s `supabase.from(\"events\")` read through the SAME recorder in the SAME test, and asserts `expect(tablesOf(browserOps)).toContain(\"events\")` while also asserting it does not contain `event_posts`. A readable `event_posts` row is deliberately left in that fixture as the negative control, and its body text is asserted absent from the DOM. So the assertion distinguishes \"the recorder caught the wrong table\" from \"the recorder caught nothing\", which is the failure mode DB-022 hit with its permanently-zero violation counter.",
+        "THE GATE IS PROVED TO RUN BEFORE THE READ, NOT AFTER IT. Executing the real `GET /api/events/[id]/posts` against a fake caller client with a DRAFT `events` row and a non-owner caller: status 404, and the caller client recorded NEITHER `event_posts` NOR `profiles`. The assertion is on absence of the read, not on absence of the rows in the body, so a gate moved below the query would fail it. The converse is also pinned: the same draft event with the owner as caller is 200 and the read happens exactly once.",
+        "THE ANON CONFIGURATION SPECIFICALLY. With no session at all \u2014 the exact state in which the anon key read was reachable \u2014 the component issues its only posts request to `/api/events/<id>/posts` and the browser client records zero `event_posts` operations, and the page renders \"No posts yet\".",
+        "A 404 IS TAKEN AS AN ANSWER, AND THE LIST IS CLEARED. `setPosts([])` in the catch, and `setPosts([])` for any non-2xx. The previous direct read left whatever was already in state on screen; on a public page that is one event's posts rendered under another's header, which is the same class of disclosure this task exists to close. Tested: a 404 renders \"No posts yet\" and the browser client is never asked for the table.",
+        "THE VISIBILITY SEMANTICS ARE UNCHANGED, and that is worth stating rather than leaving implied. The route reads through the CALLER's own server client, not a service-role client, so the installed policies still select the rows: anonymous and non-attending readers get `visibility = 'public'` rows, an attending one additionally gets `visibility = 'attendees'`. What changed is who decides whether the reader may ask at all.",
+        "SCOPE NOTE, STATED SO IT IS NOT A SILENT OMISSION: the component still reads `public.events` directly in `loadEventData` through the same browser client. That is a DIFFERENT table with a DIFFERENT exposure, it is not `public.event_posts`, and no criterion here names it. On the public path it is also not reached: `app/events/[slug]/page.tsx` always passes `event={enriched}`, and the effect that calls `loadEventData` is gated on `!initialEvent`. It is recorded as an observation, not absorbed and not silently ignored."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The cross-store behaviour change is stated in the task record and in the component rather than discovered later: the component hardcodes event_table 'events' and loads from supabase.from('events'), while GET /api/events/[id]/posts uses resolveEventReference with events_v2 first. For a legacy id both resolve to 'events'; a duplicate id across the two event stores will 404 in the route where the component previously read through. That is fail-closed and correct, and the record says so explicitly.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "STATED IN THE COMPONENT, at `components/events/enhanced-event-page.tsx:241-255`, under the heading 'BEHAVIOUR CHANGE, STATED RATHER THAN DISCOVERED (AC-2)'. It names both halves: that this is a legacy-`events` surface (`loadEventData` reads `supabase.from(\"events\")`, the old read filtered `event_table = 'events'`), that `resolveEventReference`'s lookup order is `events_v2`, `artist_events`, `events`, that a legacy id therefore resolves to `'events'` and the filter is unchanged \u2014 and that an id present in MORE THAN ONE store resolves to null, the route 404s, and the component previously read straight through. It calls out the 404 specifically, because a 404 in a log is the kind of thing somebody debugs twice before finding the comment.",
+        "STATED HERE TOO, in this evidence list and in the file header of the test.",
+        "PINNED IN BOTH DIRECTIONS, so the statement cannot drift from the code. (a) The alarming half: a fake caller client with the SAME id in `events` and `events_v2` drives the real route to a 404, and the component renders \"No posts yet\". (b) The reassuring half, which is the one that keeps the page working: a legacy `events` id is 200, and the route's read is asserted to carry the filters `['event_id', EVENT_A]` and `['event_table', 'events']` \u2014 the same pair the deleted component read used. Read and write therefore still agree on the same store, which is also what EVENTS-005's write routing depends on.",
+        "A TEST GUARDS THE STATEMENT ITSELF: `expect(raw).toMatch(/cross-store duplicate as ambiguous/)` and `expect(raw).toMatch(/the route[\\s\\S]{0,40}then 404s/)` against the RAW file, comments included. The point of AC-2 is that a maintainer MEETS the consequence, so the assertion is that the words are still in the file they open \u2014 a comment-stripped structural guard would delete the very thing the criterion is about. The first draft of that pair was `/cross-store duplicate/i` plus a bare `/404/`, and it was tightened because a bare `404` is satisfied by the new error handling alone and would have guarded nothing. Tightening it immediately failed on `/the route\\s+then 404s/` \u2014 the sentence is wrapped across `//` lines \u2014 so the pattern carries a bounded `[{sS}]{0,40}`; a reflow of the comment must not be able to delete the record of a behaviour change."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "The closure is proved able to fail: the test goes red when the read is routed back to a direct anon browser-client query, so the gate is demonstrably what is holding the line rather than a coincidence of the current route implementation.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "THE INVERSION WAS RUN, NOT DESCRIBED. Procedure: back up `components/events/enhanced-event-page.tsx` (sha256 2a679e533accedd0ae6d8bf5b1a76056a985ad7c0f4d09488aaacc98d4a6badd), re-insert `fetchProfilesByIds`, and replace the body of `loadEventPosts` with the pre-EVENTS-006 anon read verbatim \u2014 `supabase.from(\"event_posts\").select(\"*\").eq(\"event_id\", eventId).eq(\"event_table\", \"events\").order(...).order(...)` plus its own `public.profiles` hydration. Then `npx vitest run __tests__/events/event-posts-anon-read-closure.test.ts`, then restore from the backup and verify the sha256 matches.",
+        "RESULT: `Tests 8 failed | 9 passed (17)`. The eight red cases: reads the posts through GET /api/events/[id]/posts and issues no PostgREST read of the table; the recorder is live; a 404 from the gate renders no posts rather than falling back to the browser client; no product reader of event_posts is left in the component source at all; the anon-reachable path is closed for an anonymous reader specifically; the component states the change in its own source; the duplicate derivation is gone from the component source; the component issues no profiles read at all.",
+        "THE CRISPEST RED NAMES THE TABLE, which is the point. `a 404 from the gate renders no posts rather than falling back to the browser client` failed with `AssertionError: expected [ 'event_posts' ] to not include 'event_posts'` against `expect(tablesOf(mocks.browserOps)).not.toContain(\"event_posts\")`. The structural backstop failed on the literal: `AssertionError: the component still names the event_posts table: expected '\"use client\"...' not to match /\\.from\\(\\s*[\"']event_posts[\"']\\s*\\)/`.",
+        "THE INSTRUMENT WAS SUSPECTED BEFORE IT WAS TRUSTED, which is the DB-022 lesson applied to myself. Three specific ways this instrument could have been vacuous were found and closed rather than discovered later: (1) a case that renders nothing would satisfy \"no event_posts operation recorded\", so the positive-control case drives the browser client's `events` read through the same recorder in the same test; (2) a fake that could not serve the old query would make the inverted component CRASH rather than produce a finding, so the fake implements `.eq/.in/.order/.limit/.single/.maybeSingle` and is thenable, and it was run under the inversion to confirm it serves the old chain \u2014 the red came from assertions, not from a TypeError in the double; (3) the first draft of the fake returned an ARRAY from `.single()`, which handed `loadEventData` an array where it expects a row and crashed `EventHero` \u2014 an unhandled error, which vitest flags precisely because it can turn a green run into a false positive. That was caught on the first run, not shipped.",
+        "THE PROCEDURE IS RECORDED IN THE TEST FILE HEADER so the next person does not have to reconstruct it, including the exact edit and the exact command."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The duplicate profile-hydration derivation is gone rather than left alongside the new one, since routing through the API is justified partly by removing the second copy. One derivation, not two that happen to agree today.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "DELETED, NOT DELEGATED. `fetchProfilesByIds` \u2014 the component's own `public.profiles` read keyed on the distinct `user_id` values, with its own `Map` and its own error handling \u2014 is gone from `components/events/enhanced-event-page.tsx`, along with its only call site. Measured by `rg`: the file contains no `.from(\"profiles\")` at all, and no `fetchProfilesByIds` identifier.",
+        "WHAT REPLACED IT IS NOT A THIRD DERIVATION. `eventPostAuthorFrom` and `normalizeEventPost` (lines 122-158) read fields off the response the route already returned \u2014 `profiles` for the author, the row's own columns for the rest \u2014 and issue no query. They are the shape adaptation between the route's `EventPostOwnerProfile` (every display field nullable) and the `EventPost` prop the tab renders, and they are named as such in their doc comments so a later reader does not mistake them for a hydration.",
+        "THE TYPE BOUNDARY IS NOW STATED RATHER THAN INHERITED. `EventPostApiRow` and `EventPostApiProfile` are declared in the component. Previously the row type came from the ungenerated `event_posts` table falling through to the PostgREST fallback, which is not even assignable to `Record<string, any>` \u2014 which is why the old `.map()` could destructure `post.*` without ever naming a shape. The row now crosses a `fetch` boundary and is genuinely untyped JSON, so the shape the component depends on is written down once. `type` and `visibility` are cast rather than re-validated, at the same trust level as the old direct read, and the reason is in a comment: the installed CHECK constraints admit those literals and the write side zod-checks the same two sets.",
+        "MEASURED ACROSS BOTH SIDES, so 'one derivation' is a number and not a claim. (a) The component issues 0 `profiles` reads while loading the posts tab, and the author still renders \u2014 from the response. (b) Executing the real route with two posts by two different authors, the caller client records exactly ONE `profiles` query, and both posts come back hydrated with the right author. The shared step is `app/api/events/_lib/event-post-owners.ts`, which `GET /api/events/[id]/page` also uses; this asserts the sharing is real rather than asserted."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "The record states plainly what is NOT closed: the anon-readable-unpublished post surface is closed at the application layer only, the underlying policy has no publication predicate because one cannot exist for the anon role, and the migration has not been applied to any environment. No hosted claim is made.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "STATED HERE, IN THE TEST FILE HEADER, AND IN THE COMPONENT COMMENT. The three things that remain open: (1) THE POLICY IS STILL OPEN \u2014 `event_posts_visibility_read` still has no predicate on the parent event's publication state, and `anon` still holds `SELECT`; the closure is at the application layer only. (2) THE MIGRATION IS NOT APPLIED \u2014 `20260928010000` is authored and proved on a throwaway cluster; the operator apply is `HF-DB023-EVENT-POSTS-CLAIMS-APPLY`, release, owner-gated. No hosted claim is made anywhere in this record. (3) ANY FUTURE FIX THAT ASKS FOR A PUBLICATION PREDICATE IN THE POLICY WOULD BE AN OUTAGE, not a fix.",
+        "ASSERTED IN THE TEST FILE SO A GREEN RUN CANNOT BE MISREAD AS SCHEMA CLOSURE. Four cases read the migration and assert the residual state rather than working around it: the `event_posts_visibility_read` body still matches `visibility = 'public' or auth.uid() = user_id`; no arm in that policy names a parent event table, checked by slicing the policy and rejecting `public.events`, `public.artist_events`, `public.events_v2` or an `event_posts where` subquery; `grant select on public.event_posts to anon;` is still present; and the file still carries its `NOT APPLIED TO ANY ENVIRONMENT` header. If a future migration changes any of that, this suite goes red and the residual has to be re-stated rather than inherited.",
+        "A FOURTH CASE GUARDS THE TRAP DIRECTLY, because the most likely future wrong move is someone 'fixing' the policy: the attendees arm must stay `to authenticated` and separate. Moving it into the unscoped read policy is what put every anonymous read of an event post behind 42501 when it was tried \u2014 a policy `OR` containing a subplan over a table the evaluating role cannot read fails the WHOLE query, because the table-level ACL is checked when the subplan node runs, not per row and not per disjunct. That measurement is the migration header's, and the assertion is here so nobody re-derives it from scratch.",
+        "NO MIGRATION WAS AUTHORED OR APPLIED. `supabase/migrations/**` is database-owned and is READ ONLY in this task. No `supabase db reset`, no forced or full-chain replay, no psql against anything (CP-051). The `event_posts` table is not assumed to exist on any host.",
+        "NEITHER API GATE WAS REMOVED, and a fifth case fails if either stops calling `canAccessEventAsViewer`."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "events",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/events/",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "PASS `npx vitest run __tests__/events/` \u2014 `Test Files 20 passed (20), Tests 227 passed (227)`, final run at 19:51:23. Baseline before this task was 19 files / 210 tests; the delta is +1 file and +17 tests, the new file being `__tests__/events/event-posts-anon-read-closure.test.ts`. The 19 pre-existing events files all still pass, including `event-subresource-authorization.test.ts` (unchanged: this task adds no route file) and `event-posts-chain-contract.test.ts` (one assertion inverted \u2014 see checkpoints).",
+          "PASS `npm run agents:validate -- --strict` \u2014 `validated 27 agents, 248 tasks, 115 pending handoffs, 0 warnings, 0 errors`.",
+          "ALSO RUN, NOT REQUIRED: `npx vitest run __tests__/feed/` \u2014 10 files / 87 tests pass. `__tests__/feed/event-share.test.ts` is the only suite outside `__tests__/events/` that names this component, and it is unaffected.",
+          "AC-3 INVERSION, EXECUTED: `Tests 8 failed | 9 passed (17)` with the read reverted to the anon browser-client query. Full per-test list and the two decisive assertion messages are in the AC-3 evidence. The component was then restored from a sha256-verified backup (2a679e533accedd0ae6d8bf5b1a76056a985ad7c0f4d09488aaacc98d4a6badd before and after).",
+          "SCOPED TYPECHECK, REPORTED AS SCOPED. A full-repo typecheck OOMs on this machine by design (CP-106) and the base tsconfig excludes `**/*.test.ts`, so a new test file needs its own project. One new scoped project was added, `tsconfig.events006-slice.json`, extending the base tsconfig with `incremental: false` over the component, the posts route, both `_lib` modules and the new test file \u2014 following the `tsconfig.*-slice.json` convention already in the tree. `npx tsc -p tsconfig.events006-slice.json --noEmit` was run.",
+          "TYPECHECK RESULT, SEPARATED BY OWNERSHIP RATHER THAN SUMMED. NEW TEST FILE: 0 errors. REGIONS THIS TASK WROTE (component lines 60-158 and 197-290): 0 errors. REMAINING ERRORS, all pre-existing and all outside what this task wrote: 6 in the component at lines 304-309, all inside `loadEventData`'s pre-existing `setEvent({...})` mapping \u2014 `title`/`type` are `string | null` and the four venue fields are `string | null` against `string | undefined`, because `Database['public']['Tables']['events']['Row']` declares `name`, `event_type`, `address`, `city`, `state` and `country` as nullable (checked in `lib/database.types.ts`). That region was read, not written, and neither the generated types nor the query changed. 4 in `app/api/events/[id]/posts/route.ts` at 99/100 and 243/244 \u2014 the known `event_posts` types gap EVENTS-005 already recorded (the table is absent from the generated types, so `.from('event_posts')` yields TS2589 + TS2769), in a READ ONLY file. Plus errors in transitively imported `hooks/use-event-attendance.ts` and `lib/services/*`, none of which this task touched.",
+          "ONE NEW TYPE ERROR WAS INTRODUCED AND FIXED: the test file's `RecordedOp` interface was missing the `payload` field its own fake assigns. Caught by the scoped run, fixed, re-run clean.",
+          "TWO OF THE NEW ASSERTIONS FAILED ON THEIR FIRST RUN AND WERE FIXED, recorded because a suite that only ever passed the first time would be the DB-022 shape. (1) The test fake's `.single()` returned a LIST, which handed `loadEventData` an array where it expects a row and crashed `EventHero` as an unhandled error \u2014 vitest flags those precisely because they can turn a green run into a false positive. Fixed by giving `.single()`/`.maybeSingle()` their own single-row terminal. (2) The AC-2 raw-text guard was written as `/cross-store duplicate/i` plus a bare `/404/`; the bare `404` is satisfied by the new error handling alone and guards nothing, so it was tightened to the two specific sentences, and the tightened pattern then failed on `/the route\\s+then 404s/` because the sentence is wrapped across `//` lines. Final form carries a bounded gap. Both were caught before the final run, not after."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T19:51:23.000Z"
+      }
+    ]
+  },
+  "proposed_decisions": [
+    {
+      "id": "EVENTS-006-D1",
+      "for": "docs/engineering/DECISIONS.md",
+      "not_written_because": "other lanes were appending to DECISIONS.md concurrently in this wave; the events lane did not write to it",
+      "text": "EVENTS-006 / the event-posts read path. The anon-readable-unpublished-post surface is closed at the APPLICATION layer and the schema-side gap is left open deliberately. `public.event_posts` has no RLS predicate on its parent event's publication state, and one cannot be added for the `anon` role: a publication predicate must branch on three parent relations, and a policy `OR` containing a subplan over a table the evaluating role cannot read fails the whole query with 42501, because the table-level ACL is checked when the subplan node runs rather than per row or per disjunct. `anon` holds no SELECT on `public.events`, `public.artist_events` or `public.events_v2`, so such a policy would make every anonymous read of an event post fail \u2014 a launch outage on the public event page. The database lane's installed posture is therefore correct for a migration that does not own the event publication contract, and the correct answer to the exposure is to route the product readers through `canAccessEventAsViewer`. Corollary that this decision commits the repository to: a now-existing RLS policy is never by itself a reason to remove an application gate."
+    },
+    {
+      "id": "EVENTS-006-D2",
+      "for": "docs/engineering/DECISIONS.md",
+      "not_written_because": "same as EVENTS-006-D1",
+      "text": "EVENTS-006 / cross-store event identity. An id visible in more than one of the three event stores is AMBIGUOUS and must fail closed. `resolveEventReference` returns null for it and the API routes 404, so a duplicate id renders an empty posts tab and a 404 in the log rather than one store's posts under another's header. Consumers that hardcode a store \u2014 `components/events/enhanced-event-page.tsx` is a legacy-`events` surface \u2014 will therefore lose a read they previously had. That loss is the correct direction and is a deliberate consequence, not a regression to be fixed by re-adding a direct client read."
+    }
+  ],
+  "progress": {
+    "summary": "Routed the component's `event_posts` READ through `GET /api/events/[id]/posts`, so `canAccessEventAsViewer` is now the gate on every product reader of the table, and deleted the component's own duplicate profile-hydration derivation rather than leaving two that agree today. No migration authored, none applied, no application gate removed, no request filed with the database lane for a publication predicate \u2014 that predicate cannot exist for `anon` and asking for it would put the public event page behind 42501. The closure is proved behaviourally (the component is rendered against a recording fake, which recorded zero `event_posts` operations) and the instrument is proved able to fail (the read was reverted to the anon query and 8 of 17 tests went red, the decisive one naming the table).",
+    "completed": [
+      "AC-1: the anon-reachable read is gone. `components/events/enhanced-event-page.tsx:197-290` reads through the gated route; the browser client records zero `event_posts` operations across the render cases, and the gate is proved to run BEFORE the server-side read (draft event + non-owner: 404 with neither `event_posts` nor `profiles` read at all).",
+      "AC-2: the cross-store behaviour change is stated in the component (lines 241-255), in this record, and in the test file header, and pinned in both directions \u2014 a duplicate id 404s, a legacy id still resolves to `event_table = 'events'` with the same filter pair the old read used.",
+      "AC-3: the closure is proved able to fail. The inversion was run for real: 8 of 17 tests red with the anon read restored, the decisive failure being `expected [ 'event_posts' ] to not include 'event_posts'`. The instrument was audited for the vacuity modes DB-022 hit before being trusted, and one was found and fixed in the fake itself (`.single()` returning a list, which crashed the render as an unhandled error).",
+      "AC-4: `fetchProfilesByIds` and the component's own `public.profiles` read are deleted. What remains is a declared shape adaptation over the route's response, measured at 0 `profiles` queries from the component against exactly 1 from the route for two authors.",
+      "AC-5: the open items are stated in three places and ASSERTED in the test file, so a green run cannot be read as schema-level closure. Neither API gate was removed, and a case fails if either stops calling `canAccessEventAsViewer`.",
+      "Discharged HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL's completion condition by completing it; the handoff moved to completed/ with a disposition that names the residual it does NOT close."
+    ],
+    "next_steps": [
+      "OPEN, NOT CLOSED BY THIS TASK: the underlying `event_posts_visibility_read` policy still has no predicate on the parent event's publication state, and `anon` still holds SELECT on the table. The exposure is closed at the application layer only. This is deliberate and measured \u2014 see AC-5 and proposed decision EVENTS-006-D1 \u2014 and it must not be 'fixed' by adding a publication predicate, which would make every anonymous read of an event post fail 42501.",
+      "OPEN: `supabase/migrations/20260928010000_event_posts_and_event_claims.sql` has NOT been applied to any environment, local or hosted. The operator apply is `HF-DB023-EVENT-POSTS-CLAIMS-APPLY` (release, owner-gated, CP-051). Until it is applied, `public.event_posts` and `public.event_claims` are not assumed to exist on any host. No hosted claim is made by this task.",
+      "OPEN, OBSERVED AND NOT ABSORBED: `components/events/enhanced-event-page.tsx`'s `loadEventData` still reads `public.events` directly through the browser client. That is a different table with a different exposure, it is not `public.event_posts`, and no criterion here named it \u2014 so it is recorded rather than fixed. It is not reached on the public path today (`app/events/[slug]/page.tsx` always passes `event={enriched}`, and the `loadEventData` effect is gated on `!initialEvent`), but the read exists in the file and a future caller that omits `initialEvent` would reach it. The events lane should decide whether it gets the same treatment in a task that names it.",
+      "THE ORCHESTRATOR STILL OWES: the DECISIONS.md appends for `EVENTS-005-D1` and `EVENTS-005-D2`, and now for `EVENTS-006-D1` and `EVENTS-006-D2` in this record's `proposed_decisions`. The events lane did not write to DECISIONS.md this wave because other lanes were appending concurrently.",
+      "EVENTS-001 remains blocked only on the operator apply of `20260927110000_events_v2_delete_rls.sql`. EVENTS-003 remains blocked on DB-008 and is unaffected. Next product gate for the events lane is still EVENTS-001."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T19:30:00.000Z",
+        "summary": "Startup read complete. Confirmed the exposure at source: `event_posts_visibility_read` is unscoped by role with no publication predicate, `grant select on public.event_posts to anon` is present, `lib/supabase/client.ts:11` is the anon key, and `loadEventPosts` read the table through the browser client filtered on `(event_id, event_table = 'events')` only. Read both API routes and confirmed both still call `canAccessEventAsViewer`. Baseline `npx vitest run __tests__/events/` green at 19 files / 210 tests.",
+        "next": "Route the read; delete the duplicate hydration; write the closure test with a positive control."
+      },
+      {
+        "at": "2026-09-28T19:33:00.000Z",
+        "summary": "Component changed in the `loadEventPosts` region only. `supabase.from(\"event_posts\")` replaced by `fetch('/api/events/${encodeURIComponent(eventId)}/posts')`; `fetchProfilesByIds` deleted; `EventPostApiRow` / `EventPostApiProfile` / `eventPostAuthorFrom` / `normalizeEventPost` added as a declared shape adaptation over the response. `loadEventData` and `handleCreatePost` (EVENTS-005's region) read, not written.",
+        "next": "Write the test file with a recording fake for the browser client and the route's caller client."
+      },
+      {
+        "at": "2026-09-28T19:37:00.000Z",
+        "summary": "PATH EXPANSION 1, forced by a FAILING CHECK: `__tests__/events/event-posts-chain-contract.test.ts`. EVENTS-005 left a deliberate tripwire there \u2014 `it(\"still reads event_posts directly (that is a read, not the second write path)\")`, commented 'Pinned so a future reader cannot fix the write by also moving the read into the API without noticing this file asserted the read stays'. It went red on the first full run. That is the pin working as designed, and the right response is to invert the assertion rather than to work around it: it now asserts the component touches the table through no client at all, which subsumes the write assertion and leaves nothing to re-open by accident. The full original text and the reason for the inversion are quoted in the replacement so the pin's history is not lost. The AC-2 write assertions in that file are untouched.",
+        "next": "Build the AC-3 inversion and capture the red output."
+      },
+      {
+        "at": "2026-09-28T19:39:00.000Z",
+        "summary": "AC-3 INVERSION RUN AND REVERTED. Backed the component up (sha256 2a679e53\u2026), re-inserted `fetchProfilesByIds`, replaced the `loadEventPosts` body with the pre-EVENTS-006 anon read verbatim, ran the suite: 8 failed / 9 passed of 17. Decisive failure: `expected [ 'event_posts' ] to not include 'event_posts'`. Restored from the backup and confirmed the sha256 matches. The fake double was complete enough to serve the old chain, so the red came from assertions and not from a crash in the instrument.",
+        "next": "Run the full events suite, then the scoped typecheck."
+      },
+      {
+        "at": "2026-09-28T19:44:00.000Z",
+        "summary": "Verification green. `npx vitest run __tests__/events/` 20 files / 227 tests pass; `npm run agents:validate -- --strict` 0 warnings / 0 errors. PATH EXPANSION 2: `tsconfig.events006-slice.json` (NEW) \u2014 a scoped typecheck project following the existing `tsconfig.*-slice.json` convention, needed because the base tsconfig excludes `**/*.test.ts` and a full-repo typecheck OOMs (CP-106). One new type error was introduced and fixed (the test fake's `RecordedOp` was missing `payload`). Remaining errors are pre-existing and outside this task's writes: 6 in the component's untouched `loadEventData` mapping (nullable `events` row columns, confirmed in `lib/database.types.ts`) and 4 in the READ ONLY posts route (the known `event_posts` generated-types gap).",
+        "next": "Update STATE.md, discharge the handoff, move the record, refresh state."
+      },
+      {
+        "at": "2026-09-28T19:48:00.000Z",
+        "summary": "Record completed. All five acceptance criteria met with evidence; the two open items AC-5 requires stated in three places and asserted in the suite. `HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL` discharged to `handoffs/completed/` with a disposition that names what it does NOT close. Two proposed decisions left in this record for the orchestrator to append; DECISIONS.md not written this wave.",
+        "next": "Orchestrator: append EVENTS-006-D1/D2 (and the still-owed EVENTS-005-D1/D2) to DECISIONS.md. Release lane: the operator apply of 20260928010000 remains HF-DB023-EVENT-POSTS-CLAIMS-APPLY and is still unapplied."
+      },
+      {
+        "at": "2026-09-28T19:52:00.000Z",
+        "summary": "Record finalised. Two of the new assertions failed on their first run and were fixed rather than reported green: the fake's `.single()` returned a list (an unhandled error, which vitest flags as a false-positive risk) and the AC-2 raw-text guard was initially a bare `/404/` that the new error handling alone satisfies. Final run: 20 files / 227 tests pass; `agents:validate -- --strict` 0 warnings / 0 errors. Note for the record: one earlier validate run reported `ERROR ADMIN-026: invalid execution_state completed for completed` \u2014 that was the ADMIN lane's file mid-write (it now reads `done`), not this task's. Separately, `npm run agents:generate -- --help` was run to inspect the generator's options and the flag was ignored, so the eight `docs/engineering/generated/*.md` topology files were rewritten from the current worktree at 19:49:43-47. That is a deterministic recompute of shared generated artifacts, and this task adds no route or component file, so its own contribution to those maps is nil.",
+        "next": "Orchestrator: append EVENTS-006-D1/D2 (and the still-owed EVENTS-005-D1/D2) to DECISIONS.md. Release lane: the operator apply of 20260928010000 remains HF-DB023-EVENT-POSTS-CLAIMS-APPLY and is still unapplied."
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL (discharged into this task; moved to handoffs/completed/)"
+  ]
+}

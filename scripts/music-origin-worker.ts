@@ -9,6 +9,7 @@ import { pipeline } from "node:stream/promises"
 import { promisify } from "node:util"
 import { createWriteStream } from "node:fs"
 import { createClient } from "@supabase/supabase-js"
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
 import { buildMusicOriginManifest, hashMusicOriginManifest } from "../lib/music/music-origin-manifest"
 import { MUSIC_ORIGIN_SCHEMA_VERSION } from "../lib/music/music-trust"
 import { buildPrivateFingerprintMatchSignals, computeOriginRetry, staleLockCutoff } from "../lib/music/music-origin-job-policy"
@@ -236,6 +237,12 @@ async function runOnce() {
 }
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("music_origin_processing")) {
+    console.error("[music-origin-worker] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
   const loop = process.env.MUSIC_ORIGIN_WORKER_LOOP === "true"
   const intervalMs = Math.max(Number(process.env.MUSIC_ORIGIN_WORKER_INTERVAL_MS) || 15_000, 1_000)
   do {

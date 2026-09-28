@@ -1,0 +1,10 @@
+{
+  "depositId": "uuid",
+  "preservationProfileVersion": "0.1.0",
+  "sourceManifestId": "uuid",
+  "custodianIds": [
+    "uuid",
+    "uuid"
+  ],
+  "idempotencyKey": "uuid"
+}

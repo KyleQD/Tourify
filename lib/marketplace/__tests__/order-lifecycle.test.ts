@@ -1,4 +1,11 @@
-import { getFailedPaymentPatch, getPaidLifecycleTransition, getRefundPatch } from "../order-lifecycle"
+import {
+  getCancellationLifecycleTransition,
+  getFailedPaymentPatch,
+  getPaidLifecycleTransition,
+  getRefundLifecycleTransition,
+  getRefundPatch,
+  isFullStripeChargeRefund,
+} from "../order-lifecycle"
 
 describe("marketplace order lifecycle transitions", () => {
   it("skips paid transition when order is already paid", () => {
@@ -42,5 +49,74 @@ describe("marketplace order lifecycle transitions", () => {
       payment_reference: "pi_refund",
     })
     expect(refunded.payoutPatch).toEqual({ payout_status: "on_hold", payout_reference: "pi_refund" })
+  })
+
+  it("does not revive cancelled or refunded orders from a late paid webhook", () => {
+    expect(getPaidLifecycleTransition({
+      currentOrderStatus: "cancelled",
+      currentPaymentStatus: "failed",
+      paymentReference: "pi_late",
+    }).shouldApplyPaidTransition).toBe(false)
+    expect(getPaidLifecycleTransition({
+      currentOrderStatus: "refunded",
+      currentPaymentStatus: "refunded",
+      paymentReference: "pi_late",
+    }).shouldApplyPaidTransition).toBe(false)
+  })
+
+  it("allows only unpaid pending orders to be cancelled", () => {
+    expect(getCancellationLifecycleTransition({ orderStatus: "pending", paymentStatus: "processing" })).toEqual({
+      allowed: true,
+      orderPatch: { status: "cancelled", payment_status: "failed" },
+      payoutPatch: { payout_status: "on_hold" },
+    })
+    expect(getCancellationLifecycleTransition({ orderStatus: "confirmed", paymentStatus: "paid" })).toEqual({
+      allowed: false,
+      reason: "refund_required",
+    })
+    expect(getCancellationLifecycleTransition({ orderStatus: "pending", paymentStatus: "processing", actorRole: "seller" })).toEqual({
+      allowed: false,
+      reason: "buyer_required",
+    })
+    expect(getCancellationLifecycleTransition({ orderStatus: "fulfilled", paymentStatus: "paid" })).toEqual({
+      allowed: false,
+      reason: "refund_required",
+    })
+  })
+
+  it("allows only sellers to refund paid orders", () => {
+    expect(getRefundLifecycleTransition({
+      orderStatus: "confirmed",
+      paymentStatus: "paid",
+      paymentReference: "pi_123",
+      actorRole: "seller",
+    })).toEqual({
+      allowed: true,
+      payoutPatch: { payout_status: "on_hold" },
+    })
+    expect(getRefundLifecycleTransition({
+      orderStatus: "confirmed",
+      paymentStatus: "paid",
+      paymentReference: "pi_123",
+      actorRole: "buyer",
+    })).toEqual({
+      allowed: false,
+      reason: "seller_required",
+    })
+    expect(getRefundLifecycleTransition({
+      orderStatus: "pending",
+      paymentStatus: "processing",
+      paymentReference: null,
+      actorRole: "seller",
+    })).toEqual({
+      allowed: false,
+      reason: "order_not_refundable",
+    })
+  })
+
+  it("distinguishes partial refunds from full refunds", () => {
+    expect(isFullStripeChargeRefund({ amount: 2500, amountRefunded: 500, refunded: false })).toBe(false)
+    expect(isFullStripeChargeRefund({ amount: 2500, amountRefunded: 2500, refunded: false })).toBe(true)
+    expect(isFullStripeChargeRefund({ amount: 2500, amountRefunded: 500, refunded: true })).toBe(true)
   })
 })

@@ -159,7 +159,18 @@ export function buildCustomProfilePromptSnapshot(input: {
     showPhone,
     showLocation,
     email: showEmail ? asString(profile.email) : null,
-    phone: showPhone ? asString(profile.phone) : null,
+    // DB-008 / Wave 35 (USER-005): this used to be
+    // `showPhone ? asString(profile.phone) : null`. `profiles.phone` is a phantom
+    // column — it exists in no active migration and in no generated contract — so
+    // the expression always evaluated to `null` and the `showPhone` gate was
+    // protecting nothing. Repointing it at the canonical storage
+    // (`profile_data.phone`) would be correct as a *value*, but this snapshot is
+    // serialized into a third-party model prompt, so making a real phone number
+    // reachable here is a privacy widening and not a drift repair. The value stays
+    // `null` and is stated explicitly rather than derived from a column that does
+    // not exist. Publication of a phone number remains governed solely by
+    // `profiles.show_phone` in lib/profile/general-public-profile.ts.
+    phone: null,
     portfolio,
     experiences,
     certifications,

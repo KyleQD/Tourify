@@ -1,0 +1,1983 @@
+{
+  "schema_version": 1,
+  "program_id": "organization-ticketing-redesign",
+  "statuses": [
+    "pending",
+    "in_progress",
+    "blocked",
+    "done",
+    "wont_fix"
+  ],
+  "current_phase": "TKT-P00",
+  "current_task": "TKT-0001",
+  "execution_rule": "One task at a time; each phase gate must pass before the next phase starts.",
+  "destructive_actions_prohibited": true,
+  "dual_write_prohibited": true,
+  "phases": [
+    {
+      "id": "TKT-P00",
+      "title": "Organization Context & Tenant Isolation",
+      "status": "in_progress",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0001",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [
+            "TIX-101"
+          ],
+          "title": "Capture repository/live-schema drift, policies, RPC grants, migration history, and dirty ticketing changes",
+          "status": "in_progress",
+          "depends_on": [],
+          "artifacts": [
+            "docs/implementation/organization-ticketing/00_MASTER_ROADMAP.md",
+            "docs/implementation/organization-ticketing/01_ARCHITECTURE_SOURCE_OF_TRUTH.md",
+            "docs/implementation/organization-ticketing/02_DATABASE_COMPATIBILITY_MAP.md",
+            ".agents/organization-ticketing/INVENTORY.md"
+          ],
+          "database_changes": [],
+          "verification": [
+            "git status --short",
+            "read-only connected-schema and migration inventory",
+            "ticketing security and performance advisor review"
+          ],
+          "acceptance_criteria": [
+            "Capture repository/live-schema drift, policies, RPC grants, migration history, and dirty ticketing changes is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": [
+            "Baseline captured in the compatibility map and organization-ticketing inventory",
+            "Execution start recorded in the append-only task log"
+          ]
+        },
+        {
+          "id": "TKT-0002",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [],
+          "title": "Introduce route-authoritative organization resolution and server membership validation",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0001"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Introduce route-authoritative organization resolution and server membership validation is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0003",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [],
+          "title": "Audit ticketing consumers for verified organization and events_v2 authority",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0002"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Audit ticketing consumers for verified organization and events_v2 authority is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0004",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [],
+          "title": "Standardize organization-scoped query, cache, and invalidation keys",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0002"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Standardize organization-scoped query, cache, and invalidation keys is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0005",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [],
+          "title": "Move privileged inventory authorization behind private server boundaries",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0001",
+            "TKT-0002"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Move privileged inventory authorization behind private server boundaries is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0006",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [],
+          "title": "Reconcile overlapping policies and add indexed capability-aware RLS helpers",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0005"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Reconcile overlapping policies and add indexed capability-aware RLS helpers is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0007",
+          "phase_id": "TKT-P00",
+          "legacy_ids": [],
+          "title": "Add cross-organization, guessed-identifier, stale-membership, and account-switch tests",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0002",
+            "TKT-0004",
+            "TKT-0006"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add cross-organization, guessed-identifier, stale-membership, and account-switch tests is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Application routing may return to verified session selection before rollout; tightened privileges are not made permissive.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P01",
+      "title": "Canonical Ticketing Contract",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0101",
+          "phase_id": "TKT-P01",
+          "legacy_ids": [
+            "TIX-001"
+          ],
+          "title": "Revalidate ADR-007 and publish the architecture source of truth",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0007"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Revalidate ADR-007 and publish the architecture source of truth is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0102",
+          "phase_id": "TKT-P01",
+          "legacy_ids": [],
+          "title": "Define canonical ticketing domain contracts",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0101"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Define canonical ticketing domain contracts is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0103",
+          "phase_id": "TKT-P01",
+          "legacy_ids": [],
+          "title": "Define ticketing state machines and freshness states",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0102"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Define ticketing state machines and freshness states is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0104",
+          "phase_id": "TKT-P01",
+          "legacy_ids": [],
+          "title": "Publish the capability-to-command-to-RLS matrix",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0102"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Publish the capability-to-command-to-RLS matrix is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0105",
+          "phase_id": "TKT-P01",
+          "legacy_ids": [],
+          "title": "Define money, currency, time-zone, and timestamp rules",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0102"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Define money, currency, time-zone, and timestamp rules is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0106",
+          "phase_id": "TKT-P01",
+          "legacy_ids": [],
+          "title": "Define the private ticketing outbox contract",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0102",
+            "TKT-0103"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Define the private ticketing outbox contract is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P02",
+      "title": "Compatibility & Repository Layer",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0201",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Complete the deployed database compatibility map and retirement gates",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0106"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Complete the deployed database compatibility map and retirement gates is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0202",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Create the authorized events_v2 event repository",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0201"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Create the authorized events_v2 event repository is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0203",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Create typed ticketing domain repositories",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0202"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Create typed ticketing domain repositories is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0204",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Replace nonexistent-table queries with deployed-schema adapters",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0203"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Replace nonexistent-table queries with deployed-schema adapters is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0205",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Reconstruct the live promoter schema as an idempotent forward migration",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0201"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Reconstruct the live promoter schema as an idempotent forward migration is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0206",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Move comparison data to internal observability repositories",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0203"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Move comparison data to internal observability repositories is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0207",
+          "phase_id": "TKT-P02",
+          "legacy_ids": [],
+          "title": "Add compatibility identifier and response contract tests",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0202",
+            "TKT-0203",
+            "TKT-0204"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add compatibility identifier and response contract tests is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P03",
+      "title": "Organization Ticketing Dashboard",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0301",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Build the truthful organization dashboard BFF",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0207"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build the truthful organization dashboard BFF is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0302",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Convert ticketing to a server-validated shell and focused client dashboard",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0301"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Convert ticketing to a server-validated shell and focused client dashboard is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0303",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Add truthful operational KPI cards",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0301",
+            "TKT-0302"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add truthful operational KPI cards is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0304",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Add lifecycle, readiness, health, venue, and tour filters",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0302"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add lifecycle, readiness, health, venue, and tour filters is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0305",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Add actionable needs-attention cards",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0301",
+            "TKT-0302"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add actionable needs-attention cards is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0306",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Navigate event selection to the dedicated workspace",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0302"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Navigate event selection to the dedicated workspace is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0307",
+          "phase_id": "TKT-P03",
+          "legacy_ids": [],
+          "title": "Remove migration and feature-flag language from customer UI",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0302"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Remove migration and feature-flag language from customer UI is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P04",
+      "title": "Event Ticketing Workspace",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0401",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Preserve and refactor the existing event workspace",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0307"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Preserve and refactor the existing event workspace is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0402",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Implement the exact seven-tab workspace information architecture",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0401"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement the exact seven-tab workspace information architecture is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0403",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Move refunds into Orders & Attendees",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0402"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Move refunds into Orders & Attendees is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0404",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Unify guest, comp, credential, lookup, scan, re-entry, and history under Admissions & Access",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0402"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Unify guest, comp, credential, lookup, scan, re-entry, and history under Admissions & Access is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0405",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Add URL tabs, breadcrumbs, identity, readiness, and dashboard return",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0402"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add URL tabs, breadcrumbs, identity, readiness, and dashboard return is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0406",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Apply capability-aware views and server command denial",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0402"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Apply capability-aware views and server command denial is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0407",
+          "phase_id": "TKT-P04",
+          "legacy_ids": [],
+          "title": "Reuse Admin chrome and add responsive workspace navigation",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0402",
+            "TKT-0405"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Reuse Admin chrome and add responsive workspace navigation is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P05",
+      "title": "Inventory & Pricing",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0501",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Build explicit ticketing setup and readiness without default inventory",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0407"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build explicit ticketing setup and readiness without default inventory is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0502",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Extend singular setup and immutable versioned products",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0501"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Extend singular setup and immutable versioned products is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0503",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Add immutable ticket inventory movements",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0502"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add immutable ticket inventory movements is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0504",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Implement one private inventory command and snapshot service",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0503"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement one private inventory command and snapshot service is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0505",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Implement the authoritative availability formula",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0504"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement the authoritative availability formula is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0506",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Expose negative availability as inventory_error",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0505"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Expose negative availability as inventory_error is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0507",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Reconcile allocations and invitations with audited release deadlines",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0504"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Reconcile allocations and invitations with audited release deadlines is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0508",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Add pricing, tier, channel, window, limit, and readiness editors",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0502",
+            "TKT-0505"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add pricing, tier, channel, window, limit, and readiness editors is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0509",
+          "phase_id": "TKT-P05",
+          "legacy_ids": [],
+          "title": "Add deterministic reservation-expiry and allocation-release workers",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0504",
+            "TKT-0507"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add deterministic reservation-expiry and allocation-release workers is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P06",
+      "title": "Orders & Attendees",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0601",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Add canonical order, item, payment, refund, and ticket projections",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0509"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add canonical order, item, payment, refund, and ticket projections is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0602",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Build cursor-paginated scoped order and attendee BFFs",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0601"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build cursor-paginated scoped order and attendee BFFs is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0603",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Build complete order detail and audit history",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0602"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build complete order detail and audit history is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0604",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Implement idempotent order, holder, ticket, and refund commands",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0601",
+            "TKT-0603"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement idempotent order, holder, ticket, and refund commands is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0605",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Require reason, capability, version, state, and impact preview",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0604"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Require reason, capability, version, state, and impact preview is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0606",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Protect and redact attendee PII by capability",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0602"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Protect and redact attendee PII by capability is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0607",
+          "phase_id": "TKT-P06",
+          "legacy_ids": [],
+          "title": "Replace offset pagination and direct exports with cursor and audited jobs",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0602",
+            "TKT-0606"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Replace offset pagination and direct exports with cursor and audited jobs is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P07",
+      "title": "Admissions & Access",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0701",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Add explicit commercial, comp, guest, staff, and crew admission kinds",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0607"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add explicit commercial, comp, guest, staff, and crew admission kinds is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0702",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Add scanner, operator, checkpoint, package, sync, and conflict records",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0701"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add scanner, operator, checkpoint, package, sync, and conflict records is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0703",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Add signed rotatable admission credentials and backward validity",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0702"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add signed rotatable admission credentials and backward validity is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0704",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Make admission operations transactional, idempotent, attributed, and reasoned",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0702",
+            "TKT-0703"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Make admission operations transactional, idempotent, attributed, and reasoned is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0705",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Build mobile event-day admissions mode",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0704"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build mobile event-day admissions mode is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0706",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Implement expiring offline packages and deterministic reconciliation",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0703",
+            "TKT-0704"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement expiring offline packages and deterministic reconciliation is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0707",
+          "phase_id": "TKT-P07",
+          "legacy_ids": [],
+          "title": "Add admission anomaly alerts",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0704",
+            "TKT-0706"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add admission anomaly alerts is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P08",
+      "title": "Promotions & Distribution",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0801",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Reconcile and activate the live promoter migration chain",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0607"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Reconcile and activate the live promoter migration chain is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0802",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Build the existing-network promotions BFF",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0801"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build the existing-network promotions BFF is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0803",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Connect canonical orders and payments to sale attribution",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0601",
+            "TKT-0801"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Connect canonical orders and payments to sale attribution is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0804",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Govern promo code bindings and remove duplicate policy paths",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0801",
+            "TKT-0803"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Govern promo code bindings and remove duplicate policy paths is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0805",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Build promotion, conversion, commission, risk, and payout views",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0802",
+            "TKT-0803"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build promotion, conversion, commission, risk, and payout views is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0806",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Emit promotion financial events through the ticketing outbox",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0803",
+            "TKT-0106"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Emit promotion financial events through the ticketing outbox is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0807",
+          "phase_id": "TKT-P08",
+          "legacy_ids": [],
+          "title": "Add promotion fraud, replay, expiry, budget, and redemption controls",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0803",
+            "TKT-0804"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add promotion fraud, replay, expiry, budget, and redemption controls is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P09",
+      "title": "Finance, Payments & Refund Integration",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-0901",
+          "phase_id": "TKT-P09",
+          "legacy_ids": [],
+          "title": "Define the versioned ticketing-to-Finance handoff",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0607",
+            "TKT-0807"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Define the versioned ticketing-to-Finance handoff is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0902",
+          "phase_id": "TKT-P09",
+          "legacy_ids": [],
+          "title": "Build read-only Ticketing operational Finance projections",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0901"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build read-only Ticketing operational Finance projections is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0903",
+          "phase_id": "TKT-P09",
+          "legacy_ids": [],
+          "title": "Route accounting adjustments, settlement approvals, and payouts to Finance",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0901"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Route accounting adjustments, settlement approvals, and payouts to Finance is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0904",
+          "phase_id": "TKT-P09",
+          "legacy_ids": [],
+          "title": "Add versioned settlement handoff and variance evidence",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0901",
+            "TKT-0903"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add versioned settlement handoff and variance evidence is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0905",
+          "phase_id": "TKT-P09",
+          "legacy_ids": [],
+          "title": "Use the private outbox for Finance notifications and retries",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0901",
+            "TKT-0106"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Use the private outbox for Finance notifications and retries is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-0906",
+          "phase_id": "TKT-P09",
+          "legacy_ids": [],
+          "title": "Reconcile provider statements to canonical orders and payments",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0901",
+            "TKT-0904"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Reconcile provider statements to canonical orders and payments is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P10",
+      "title": "Analytics & Reporting",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-1001",
+          "phase_id": "TKT-P10",
+          "legacy_ids": [],
+          "title": "Version and enrich canonical ticketing analytics events",
+          "status": "pending",
+          "depends_on": [
+            "TKT-0509",
+            "TKT-0607",
+            "TKT-0707",
+            "TKT-0807",
+            "TKT-0906"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Version and enrich canonical ticketing analytics events is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1002",
+          "phase_id": "TKT-P10",
+          "legacy_ids": [],
+          "title": "Build governed organization and event ticketing read models",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1001"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Build governed organization and event ticketing read models is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1003",
+          "phase_id": "TKT-P10",
+          "legacy_ids": [],
+          "title": "Implement workspace analytics and dashboard KPI projections",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1002"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement workspace analytics and dashboard KPI projections is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1004",
+          "phase_id": "TKT-P10",
+          "legacy_ids": [],
+          "title": "Add governed PII-aware export jobs",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1002"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Add governed PII-aware export jobs is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1005",
+          "phase_id": "TKT-P10",
+          "legacy_ids": [],
+          "title": "Publish freshness, source, completeness, and error metadata",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1002"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Publish freshness, source, completeness, and error metadata is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1006",
+          "phase_id": "TKT-P10",
+          "legacy_ids": [],
+          "title": "Repoint downstream analytics consumers to governed projections",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1002",
+            "TKT-1005"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Repoint downstream analytics consumers to governed projections is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P11",
+      "title": "Safe Canonical Cutover & Reconciliation",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-1101",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Persist reconciliation runs, issues, approvals, and organization decisions",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1006"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Persist reconciliation runs, issues, approvals, and organization decisions is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1102",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Backfill canonical records with stable source identifiers and idempotency",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1101"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Backfill canonical records with stable source identifiers and idempotency is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1103",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Compare all operational and financial ticketing domains",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1102"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Compare all operational and financial ticketing domains is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1104",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Enforce exact parity and bounded approved rounding exceptions",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1103"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Enforce exact parity and bounded approved rounding exceptions is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1105",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Implement persisted legacy_read, compare, canonical_read, and canonical_write modes",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1101",
+            "TKT-1104"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Implement persisted legacy_read, compare, canonical_read, and canonical_write modes is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1106",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Canary internal organizations and stage production cohorts",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1105"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Canary internal organizations and stage production cohorts is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1107",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Move comparison panels to internal observability",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1103"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Move comparison panels to internal observability is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1108",
+          "phase_id": "TKT-P11",
+          "legacy_ids": [],
+          "title": "Stop legacy writes only after approval and zero unexpected telemetry",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1105",
+            "TKT-1106",
+            "TKT-1107"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Stop legacy writes only after approval and zero unexpected telemetry is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "TKT-P12",
+      "title": "QA, Security, Performance & Deployment Readiness",
+      "status": "pending",
+      "acceptance_criteria": [
+        "All phase tasks have recorded verification evidence",
+        "The phase gate in 00_MASTER_ROADMAP.md passes"
+      ],
+      "tasks": [
+        {
+          "id": "TKT-1201",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Run unit, domain, state-machine, compatibility, and migration suites",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1108"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Run unit, domain, state-machine, compatibility, and migration suites is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1202",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Run the live ticketing RLS persona matrix",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1201"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Run the live ticketing RLS persona matrix is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1203",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Run the authenticated end-to-end ticketing lifecycle",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1201"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Run the authenticated end-to-end ticketing lifecycle is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1204",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Test mobile admissions, offline conflicts, lost devices, re-entry, and scan load",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1203"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Test mobile admissions, offline conflicts, lost devices, re-entry, and scan load is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1205",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Test oversell, payments, webhooks, refunds, attribution, concurrency, and replay",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1201"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Test oversell, payments, webhooks, refunds, attribution, concurrency, and replay is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1206",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Run accessibility acceptance",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1203"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Run accessibility acceptance is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1207",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Establish and verify ticketing performance budgets",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1203",
+            "TKT-1205"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Establish and verify ticketing performance budgets is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1208",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Run affected Supabase security and performance advisors",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1202",
+            "TKT-1205"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Run affected Supabase security and performance advisors is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        },
+        {
+          "id": "TKT-1209",
+          "phase_id": "TKT-P12",
+          "legacy_ids": [],
+          "title": "Complete canary, monitoring, runbooks, rollback rehearsal, and manifest audit",
+          "status": "pending",
+          "depends_on": [
+            "TKT-1202",
+            "TKT-1203",
+            "TKT-1204",
+            "TKT-1205",
+            "TKT-1206",
+            "TKT-1207",
+            "TKT-1208"
+          ],
+          "artifacts": [],
+          "database_changes": [],
+          "verification": [],
+          "acceptance_criteria": [
+            "Complete canary, monitoring, runbooks, rollback rehearsal, and manifest audit is implemented without bypassing dependencies",
+            "Verification evidence is recorded before completion"
+          ],
+          "rollback": "Follow the phase rollback documents; preserve history and repair forward after canonical writes.",
+          "evidence": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -21,6 +21,7 @@ import {
   Send,
   Loader2,
   Trash2,
+  BadgeCheck,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -56,11 +57,19 @@ import {
   type FeedTrackPreview,
 } from '@/lib/feed/music-post-preview'
 import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
+import type { MediaItem } from '@/utils/media-utils'
+import { resolvePostAppearanceDTO } from '@/lib/feed/resolve-post-appearance-dto'
+import { StyledPostRoot } from '@/components/posts/appearance/styled-post-root'
+import { ArticleFeedPreview, type ArticlePreviewData } from '@/components/feed/article-feed-preview'
+import { ListingFeedPreview, type ListingPreviewData } from '@/components/feed/listing-feed-preview'
+import { EventFeedPreview, type EventPreviewData } from '@/components/feed/event-feed-preview'
 
 export interface ArtistFeedPost {
   id: string
   content: string
   type: string
+  content_ref_type?: string | null
+  content_ref_id?: string | null
   visibility: string
   location?: string | null
   hashtags?: string[]
@@ -70,12 +79,16 @@ export interface ArtistFeedPost {
   media_urls?: string[]
   metadata?: Record<string, unknown> | null
   track_preview?: FeedTrackPreview | null
+  article_preview?: ArticlePreviewData | null
+  listing_preview?: ListingPreviewData | null
+  event_preview?: EventPreviewData | null
   created_at: string
   user: {
     id: string
     username: string
     avatar_url?: string | null
     profile_path?: string | null
+    is_verified?: boolean
   }
   owner_user_id?: string | null
   likes_count: number
@@ -84,6 +97,18 @@ export interface ArtistFeedPost {
   is_liked: boolean
   is_pinned?: boolean
   poll?: PollPayload | null
+  /**
+   * Optional appearance snapshot joined from post_appearances.
+   * Only populated when the feed query includes the LEFT JOIN (Task 5).
+   */
+  appearance?: {
+    template_id: string | null
+    template_version: number | null
+    schema_version: number | null
+    snapshot_hash: string | null
+    status: string | null
+    snapshot?: unknown
+  } | null
 }
 
 export interface ArtistFeedCollaborator {
@@ -119,6 +144,8 @@ interface ArtistPostCardProps {
   canPin?: boolean
   interactive?: boolean
   className?: string
+  /** When true, renders a StyledPostRoot wrapper if the post has a valid appearance snapshot. */
+  enablePostStyles?: boolean
   onLike?: (postId: string) => void | Promise<void>
   onShare?: (postId: string) => void | Promise<void>
   onFollow?: (userId: string) => void | Promise<void>
@@ -126,6 +153,10 @@ interface ArtistPostCardProps {
   onDelete?: (postId: string) => void | Promise<void>
   onLoadComments?: (postId: string) => Promise<ArtistPostComment[]>
   onSubmitComment?: (postId: string, content: string) => Promise<ArtistPostComment | null>
+  onAuthRequired?: () => void
+  feedPosition?: number
+  feedSize?: number
+  onOpenMedia?: (index: number, items: MediaItem[]) => void
 }
 
 function visibilityIcon(visibility: string) {
@@ -141,6 +172,7 @@ export function ArtistPostCard({
   canPin = false,
   interactive = true,
   className,
+  enablePostStyles = false,
   onLike,
   onShare,
   onFollow,
@@ -148,6 +180,10 @@ export function ArtistPostCard({
   onDelete,
   onLoadComments,
   onSubmitComment,
+  onAuthRequired,
+  feedPosition,
+  feedSize,
+  onOpenMedia,
 }: ArtistPostCardProps) {
   const [isLiked, setIsLiked] = useState(post.is_liked)
   const [likesCount, setLikesCount] = useState(post.likes_count)
@@ -161,6 +197,12 @@ export function ArtistPostCard({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  useEffect(() => {
+    setIsLiked(post.is_liked)
+    setLikesCount(post.likes_count)
+    setCommentsCount(post.comments_count)
+  }, [post.comments_count, post.is_liked, post.likes_count])
 
   const mediaItems = normalizeMediaData(post)
   const musicTrack = isMusicFeedPost(post)
@@ -179,6 +221,10 @@ export function ArtistPostCard({
     currentUserId &&
     (currentUserId === post.owner_user_id || currentUserId === post.user.id)
   )
+
+  const appearanceDTO = enablePostStyles
+    ? resolvePostAppearanceDTO(post.appearance ?? null, post.id)
+    : { mode: 'standard' as const }
 
   async function handleLike() {
     if (!interactive || !onLike) return
@@ -245,15 +291,16 @@ export function ArtistPostCard({
     }
   }
 
-  return (
-    <>
-      <motion.article
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className={cn(ARTIST_CARD_INTERACTIVE, 'overflow-hidden p-5', className)}
-      >
-      <div className="flex items-start justify-between gap-3">
+  const cardContent = (
+    <motion.div
+      data-post-region="article"
+      data-slot="card"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={cn(ARTIST_CARD_INTERACTIVE, 'overflow-hidden p-5', className)}
+    >
+      <div className="flex items-start justify-between gap-3" data-post-region="header">
         <div className="flex items-start gap-3 min-w-0">
           <Link href={profileHref} className="shrink-0">
             <Avatar className="h-11 w-11 ring-2 ring-purple-500/20 hover:ring-purple-500/40 transition-all">
@@ -268,6 +315,9 @@ export function ArtistPostCard({
               <Link href={profileHref} className="font-semibold text-white hover:text-purple-200 transition-colors truncate">
                 {post.user.username}
               </Link>
+              {post.user.is_verified ? (
+                <BadgeCheck className="h-4 w-4 shrink-0 text-sky-400" aria-label="Verified artist" />
+              ) : null}
               {Array.isArray(post.collaborators) && post.collaborators.length > 0 && (
                 <span className="text-sm text-slate-300 truncate">
                   and{' '}
@@ -367,15 +417,32 @@ export function ArtistPostCard({
         </DropdownMenu>
       </div>
 
-      {post.content && post.type !== 'poll' && (
+      {post.content && post.type !== 'poll' && !(
+        post.content_ref_type === 'article' &&
+        post.article_preview &&
+        post.content.trim() === `Shared an article: ${post.article_preview.title}`
+      ) && (
         <p className="mt-4 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">
           {post.content}
         </p>
       )}
 
       {post.type === 'poll' && post.poll && (
-        <PollVoteCard postId={post.id} poll={post.poll} className="mt-4" />
+        <PollVoteCard
+          postId={post.id}
+          poll={post.poll}
+          className="mt-4"
+          onAuthRequired={!currentUserId ? onAuthRequired : undefined}
+        />
       )}
+
+      {post.content_ref_type === 'article' && post.article_preview ? (
+        <ArticleFeedPreview article={post.article_preview} compact />
+      ) : post.content_ref_type === 'marketplace_listing' && post.listing_preview ? (
+        <ListingFeedPreview listing={post.listing_preview} compact />
+      ) : (post.content_ref_type === 'event' || post.content_ref_type === 'event_update') && post.event_preview ? (
+        <EventFeedPreview event={post.event_preview} compact />
+      ) : null}
 
       {post.type !== 'poll' && post.content && hasUrls(post.content) && (
         <LinkPreview url={extractUrls(post.content)[0]} className="mt-3" />
@@ -398,6 +465,7 @@ export function ArtistPostCard({
           mediaItems={mediaItems}
           postId={post.id}
           frameClassName="border border-white/10"
+          onMediaClick={onOpenMedia}
         />
       )}
 
@@ -415,7 +483,7 @@ export function ArtistPostCard({
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+      <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3" data-post-region="actions">
         <div className="flex items-center gap-1 sm:gap-2">
           <Button
             variant="ghost"
@@ -523,32 +591,65 @@ export function ArtistPostCard({
           </motion.div>
         )}
       </AnimatePresence>
-      </motion.article>
-      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent className="border-slate-700 bg-slate-900 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete post?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              This removes the post from your feed. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeleting}
-              onClick={(event) => {
-                event.preventDefault()
-                void handleDelete()
-              }}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    </motion.div>
+  )
+
+  const articleProps = {
+    id: `post-${post.id}`,
+    tabIndex: -1,
+    'aria-posinset': feedPosition,
+    'aria-setsize': feedSize,
+  }
+
+  const deleteDialog = (
+    <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+      <AlertDialogContent className="border-slate-700 bg-slate-900 text-white">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete post?</AlertDialogTitle>
+          <AlertDialogDescription className="text-slate-400">
+            This removes the post from your feed. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isDeleting}
+            onClick={(event) => {
+              event.preventDefault()
+              void handleDelete()
+            }}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+
+  // --- Styled path (appearance.mode === "styled" + enablePostStyles) ---
+  if (appearanceDTO.mode === 'styled') {
+    return (
+      <>
+        <StyledPostRoot
+          postId={post.id}
+          appearance={appearanceDTO}
+          surface="artist-feed"
+          articleProps={articleProps}
+        >
+          {cardContent}
+        </StyledPostRoot>
+        {deleteDialog}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <article {...articleProps}>{cardContent}</article>
+      {deleteDialog}
     </>
   )
 }

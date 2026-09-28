@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260922155356_worker_actions_scope_reconciliation.sql",
+  "taskId": "DB-010",
+  "status": "planned",
+  "manualApplyStatus": "authored - isolated staging apply pending (CP-051)",
+  "sha256": "bb85462919f773131e89280e73c4fe4c30feeb00d743982cff38999de8c5530c",
+  "owner": "database",
+  "reviewer": "security-data",
+  "domains": ["work-mode", "rls", "workforce"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Static review of archived local-only SQL, active assignment/publication/audience migrations, and worker action/read-model callers",
+    "evidenceArtifact": "DB-010 source migration SHA-256 bb85462919f773131e89280e73c4fe4c30feeb00d743982cff38999de8c5530c"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Record exact staging project reference, deployed SHA, and hosted migration history before any apply",
+      "SELECT to_regclass('public.work_mode_publication_acknowledgements'), to_regclass('public.work_mode_check_in_events')",
+      "Count existing worker action rows if either table exists; inspect columns, unique/FK/CHECK constraints, grants, and policies",
+      "Confirm public.employment_assignments, public.staff_shifts, public.events_v2, public.tours, public.work_mode_publications, and public.work_mode_publication_audiences exist"
+    ],
+    "expectedAffectedRows": "No existing data rows are changed. Two append-only tables are created only when absent; existing rows are preserved.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Apply this active migration once to verified isolated staging through the operator-controlled CP-051 path; inspect any partial state before a reviewed forward fix",
+    "resumeCursor": "20260922155356",
+    "idempotency": "Guarded tables and indexes preserve existing rows; named worker-action policies are recreated deterministically; unexpected policies or missing uniqueness constraints abort the transaction"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No existing rows are moved, rewritten, or deleted"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "One acknowledgement per assignment/publication and one action per user/client_request_id",
+      "Check-in action allowlist and JSON-object context; assignment/publication/user foreign keys",
+      "Private work_mode_security.publication_audience_allows helper differentiates no targeted audience from wrong targeted worker"
+    ],
+    "indexes": [
+      "work_mode_publication_ack_user_created_idx",
+      "work_mode_publication_ack_assignment_idx",
+      "work_mode_publication_ack_publication_idx",
+      "work_mode_check_in_assignment_occurred_idx",
+      "work_mode_check_in_user_occurred_idx",
+      "work_mode_check_in_event_occurred_idx"
+    ],
+    "validationPlan": "Run db010_worker_actions_scope_contract.sql, then transactional authenticated persona probes for allowed action/retry and wrong-worker, wrong-org, unrelated event/tour, untargeted audience, hidden/unpublished packet, denied update/delete"
+  },
+  "recovery": {
+    "rollback": "Disable FEATURE_WORK_MODE_WORKER_ACTIONS and preserve append-only evidence; do not drop tables or delete rows",
+    "forwardFix": "Review exact failing policy/constraint against recorded staging rows and ship a later additive corrective migration"
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/db010_worker_actions_scope_contract.sql",
+      "Record hosted schema_migrations entry, migration SHA-256, deployed app SHA, table row counts, pg_policies, grants, and security/performance advisor output",
+      "Run the distinct-worker denial and idempotency matrix in MANUAL_SQL_WORK_MODE_WORKER_ACTIONS.md with before/after counts"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "database",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

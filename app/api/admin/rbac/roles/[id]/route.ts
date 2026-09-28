@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id: roleId } = await context.params
-  return withAdminAuth(async (_req, { supabase }) => {
+  return withAdminCapability('org.roles.manage', async (_req, { supabase }) => {
     try {
       const { data: role } = await supabase
         .from('rbac_roles')

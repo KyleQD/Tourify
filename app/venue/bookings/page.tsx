@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -14,15 +14,24 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
-import { venueService } from "@/lib/services/venue.service"
 import { useVenueCalendarData } from "../hooks/use-venue-calendar-data"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 import { format } from "date-fns"
 import { approveBookingAndMaybeCreateEvent, respondToVenueBookingRequest } from "../actions/event-actions"
 import RecurringTemplateForm from "../components/recurring-template-form"
 import { useRouter } from "next/navigation"
 import { getEventTypeBadgeColor, isSameCalendarDay } from "../lib/event-presentation"
+import {
+  getVenueBookingLifecycleTransitions,
+  resolveVenueBookingLifecycleStatus,
+  type VenueBookingLifecycleStatus,
+} from "@/lib/venue/booking-lifecycle"
+import { formatDurationMinutes } from "@/lib/venue/duration"
+import { BookingFiltersBar } from "./booking-filters-bar"
+import { BookingSettingsPanel } from "./booking-settings-panel"
+import { bookingsToCsv, downloadCsv } from "@/lib/venue/bookings-export"
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -62,6 +71,9 @@ interface BookingRequest {
   contact_email: string
   contact_phone: string
   status: "pending" | "approved" | "rejected" | "cancelled"
+  lifecycle_status?: VenueBookingLifecycleStatus | null
+  resolved_lifecycle_status?: VenueBookingLifecycleStatus
+  lifecycle_revision?: number
   response_message: string
   requested_at: string
   responded_at: string
@@ -73,6 +85,11 @@ const statusIcons = {
   approved: CheckCircle,
   rejected: XCircle,
   cancelled: AlertCircle,
+  inquiry: Clock3,
+  hold: Clock,
+  offer: Send,
+  contract: FileText,
+  confirmed: CheckCircle,
 }
 
 const statusColors = {
@@ -80,6 +97,11 @@ const statusColors = {
   approved: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
   rejected: "bg-red-500/15 text-red-200 border-red-500/30",
   cancelled: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
+  inquiry: "bg-sky-500/15 text-sky-200 border-sky-500/30",
+  hold: "bg-amber-500/15 text-amber-200 border-amber-500/30",
+  offer: "bg-violet-500/15 text-violet-200 border-violet-500/30",
+  contract: "bg-indigo-500/15 text-indigo-200 border-indigo-500/30",
+  confirmed: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
 }
 
 export default function BookingsPage() {
@@ -90,6 +112,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<BookingRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isLifecycleAvailable, setIsLifecycleAvailable] = useState(false)
   const [isActionInProgress, setIsActionInProgress] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
@@ -131,25 +154,6 @@ export default function BookingsPage() {
   const [responseAction, setResponseAction] = useState<"approve" | "reject" | null>(null)
   const [responseMessage, setResponseMessage] = useState("")
 
-  useEffect(() => {
-    if (venue?.id) {
-      void fetchBookings({ showLoading: true })
-    }
-  }, [venue?.id])
-
-  useEffect(() => {
-    if (!venue) return
-    const policies = (venue.settings as any)?.booking_policies || {}
-    if (policies.lead_time) setLeadTime(String(policies.lead_time))
-    if (policies.max_advance) setMaxAdvance(String(policies.max_advance))
-    if (policies.auto_approve) setAutoApprove(String(policies.auto_approve))
-    if (policies.response_template) setResponseTemplate(String(policies.response_template))
-    if (policies.rejection_template) setRejectionTemplate(String(policies.rejection_template))
-    setNotificationEmail(
-      String(policies.notification_email || venue.contact_info?.booking_email || venue.contact_info?.email || ""),
-    )
-  }, [venue?.id, venue?.settings, venue?.contact_info])
-
   async function saveBookingSettings() {
     if (!venue?.id) return
     setIsSavingSettings(true)
@@ -179,14 +183,22 @@ export default function BookingsPage() {
     }
   }
 
-  const fetchBookings = async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+  const fetchBookings = useCallback(async (
+    { showLoading = false }: { showLoading?: boolean } = {},
+  ) => {
     if (!venue?.id) return
     
     try {
       if (showLoading) setIsLoading(true)
       else setIsRefreshing(true)
-      const bookingData = await venueService.getVenueBookingRequests(venue.id)
-      const normalized = (bookingData || []).map((b: any) => ({
+      const response = await fetch(`/api/venue/booking-requests?venue_id=${venue.id}`, {
+        credentials: "include",
+        cache: "no-store",
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload?.error || "Failed to load booking requests")
+      setIsLifecycleAvailable(Boolean(payload?.lifecycle?.available))
+      const normalized = (payload?.data || []).map((b: any) => ({
         ...b,
         expected_attendance: b.expected_attendance ?? 0,
         response_message: b.response_message || "",
@@ -203,6 +215,92 @@ export default function BookingsPage() {
       setIsLoading(false)
       setIsRefreshing(false)
     }
+  }, [toast, venue?.id])
+
+  useEffect(() => {
+    if (venue?.id) {
+      void fetchBookings({ showLoading: true })
+    }
+  }, [fetchBookings, venue?.id])
+
+  useEffect(() => {
+    if (!venue) return
+    const policies = (venue.settings as any)?.booking_policies || {}
+    if (policies.lead_time) setLeadTime(String(policies.lead_time))
+    if (policies.max_advance) setMaxAdvance(String(policies.max_advance))
+    if (policies.auto_approve) setAutoApprove(String(policies.auto_approve))
+    if (policies.response_template) setResponseTemplate(String(policies.response_template))
+    if (policies.rejection_template) setRejectionTemplate(String(policies.rejection_template))
+    setNotificationEmail(
+      String(policies.notification_email || venue.contact_info?.booking_email || venue.contact_info?.email || ""),
+    )
+  }, [venue])
+
+  const handleLifecycleAction = async (
+    booking: BookingRequest,
+    nextStatus: VenueBookingLifecycleStatus,
+  ) => {
+    const currentStatus = resolveVenueBookingLifecycleStatus(booking)
+    const expectedRevision = booking.lifecycle_revision || 1
+    const clientRequestId = crypto.randomUUID()
+
+    try {
+      setIsActionInProgress(booking.id)
+      if (nextStatus === "confirmed") {
+        const result = await approveBookingAndMaybeCreateEvent({
+          requestId: booking.id,
+          createEvent: true,
+          expectedRevision,
+          clientRequestId,
+        })
+        if (!result.success) throw new Error(result.error || "Could not confirm booking")
+        toast({
+          title: "Booking confirmed",
+          description: "The booking is confirmed and its event workspace is ready.",
+          action: result.eventV2Id ? (
+            <ToastAction
+              altText="Open event"
+              onClick={() => router.push(`/venue/events/${result.eventV2Id}`)}
+            >
+              Open event
+            </ToastAction>
+          ) : undefined,
+        })
+      } else {
+        const response = await fetch("/api/venue/booking-requests", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            requestId: booking.id,
+            lifecycleStatus: nextStatus,
+            expectedRevision,
+            clientRequestId,
+          }),
+        })
+        const payload = await response.json()
+        if (!response.ok) {
+          throw new Error(
+            payload?.code === "CONFLICT"
+              ? "This booking changed elsewhere. The latest version has been loaded."
+              : payload?.error || "Could not update booking",
+          )
+        }
+        toast({
+          title: "Booking updated",
+          description: `${currentStatus} → ${nextStatus}`,
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Booking not updated",
+        description: error instanceof Error ? error.message : "Please refresh and try again.",
+        variant: "destructive",
+      })
+    } finally {
+      await fetchBookings()
+      setIsActionInProgress(null)
+    }
   }
 
   const handleBookingAction = async (bookingId: string, action: "approved" | "rejected", message?: string) => {
@@ -210,29 +308,11 @@ export default function BookingsPage() {
     const target = bookings.find((row) => row.id === bookingId)
     try {
       setIsActionInProgress(bookingId)
+      // VEN-078: day-level browser warnings removed — interval/resource
+      // conflicts are decided transactionally by the reservation exclusion
+      // constraint and surfaced here as action failures.
 
-      if (action === "approved" && target) {
-        const sameDayConflict = bookings.some(
-          (row) =>
-            row.id !== bookingId &&
-            row.status === "approved" &&
-            isSameCalendarDay(row.event_date, new Date(target.event_date)),
-        )
-        if (sameDayConflict) {
-          toast({
-            title: "Date conflict",
-            description: "Another approved booking already exists on this date. Review the calendar before confirming.",
-            variant: "destructive",
-          })
-        }
-      }
-
-      setBookings(prev => prev.map(booking =>
-        booking.id === bookingId
-          ? { ...booking, status: action, response_message: message || "", responded_at: new Date().toISOString() }
-          : booking
-      ))
-
+      let createdEventId: string | null = null
       if (action === "approved") {
         const result = await approveBookingAndMaybeCreateEvent({
           requestId: bookingId,
@@ -240,6 +320,7 @@ export default function BookingsPage() {
           responseMessage: message,
         })
         if (!result.success) throw new Error(result.error || "Failed to approve booking request")
+        createdEventId = result.eventV2Id || result.eventId || null
       } else {
         const result = await respondToVenueBookingRequest({
           requestId: bookingId,
@@ -251,7 +332,19 @@ export default function BookingsPage() {
 
       toast({
         title: action === "approved" ? "Booking Approved" : "Booking Rejected",
-        description: `Successfully ${action} the booking request.`,
+        description:
+          action === "approved" && createdEventId
+            ? "Booking approved and event created. Open the event ops hub to advance the show."
+            : `Successfully ${action} the booking request.`,
+        action:
+          action === "approved" && createdEventId ? (
+            <ToastAction
+              altText="Open event"
+              onClick={() => router.push(`/venue/events/${createdEventId}`)}
+            >
+              Open event
+            </ToastAction>
+          ) : undefined,
       })
       
       setIsResponseModalOpen(false)
@@ -275,7 +368,10 @@ export default function BookingsPage() {
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
-      if (statusFilter !== "all" && booking.status !== statusFilter) return false
+      const resolvedStatus = isLifecycleAvailable
+        ? resolveVenueBookingLifecycleStatus(booking)
+        : booking.status
+      if (statusFilter !== "all" && resolvedStatus !== statusFilter) return false
 
       if (
         deferredSearchTerm &&
@@ -290,7 +386,7 @@ export default function BookingsPage() {
 
       return true
     })
-  }, [bookings, statusFilter, deferredSearchTerm, dateFilter, eventTypeFilter, genreFilter])
+  }, [bookings, statusFilter, deferredSearchTerm, dateFilter, eventTypeFilter, genreFilter, isLifecycleAvailable])
 
   const stats = useMemo(() => ({
     total: bookings.length,
@@ -302,7 +398,11 @@ export default function BookingsPage() {
   const upcomingEvents = useMemo(() => {
     const now = Date.now()
     return bookings
-      .filter((booking) => booking.status === "approved" && new Date(booking.event_date).getTime() > now)
+      .filter(
+        (booking) =>
+          resolveVenueBookingLifecycleStatus(booking) === "confirmed" &&
+          new Date(booking.event_date).getTime() > now,
+      )
       .sort((first, second) => new Date(first.event_date).getTime() - new Date(second.event_date).getTime())
       .slice(0, 5)
   }, [bookings])
@@ -367,7 +467,16 @@ export default function BookingsPage() {
             <RefreshCw className="h-4 w-4 mr-2" />
             {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // VEN-099: export the already-authorized result set.
+              const csv = bookingsToCsv(filteredBookings ?? bookings ?? [])
+              downloadCsv(csv, `bookings-${new Date().toISOString().slice(0, 10)}.csv`)
+              toast({ title: "Export ready", description: `${(filteredBookings ?? bookings ?? []).length} booking(s) exported.` })
+            }}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -377,6 +486,22 @@ export default function BookingsPage() {
           </Button>
         </div>
       </div>
+
+      {!isLifecycleAvailable && (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100"
+          role="status"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium">Advanced booking stages are not enabled yet.</p>
+            <p className="mt-1 text-amber-100/80">
+              The existing approve and decline flow remains available until the reviewed database
+              package and postflight checks are confirmed.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -437,121 +562,25 @@ export default function BookingsPage() {
         </TabsList>
 
         <TabsContent value="requests" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-wrap gap-4 items-end">
-                <div className="flex-1 min-w-[200px]">
-                  <Label htmlFor="search">Search</Label>
-            <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                      id="search"
-                      placeholder="Search by event name or contact..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-              />
-            </div>
-                </div>
-
-                <div className="min-w-[120px]">
-                  <Label>Status</Label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                      <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-                </div>
-
-                <div className="min-w-[150px]">
-                  <Label>Event Type</Label>
-                  <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
-              <SelectTrigger>
-                      <SelectValue placeholder="All types" />
-              </SelectTrigger>
-              <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="music">Music</SelectItem>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="entertainment">Entertainment</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-                </div>
-
-                <div className="min-w-[150px]">
-                  <Label>Genre</Label>
-                  <Select value={genreFilter} onValueChange={setGenreFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All genres" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Genres</SelectItem>
-                      <SelectItem value="edm">EDM</SelectItem>
-                      <SelectItem value="hiphop">Hip-Hop</SelectItem>
-                      <SelectItem value="rock">Rock</SelectItem>
-                      <SelectItem value="jazz">Jazz</SelectItem>
-                      <SelectItem value="pop">Pop</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="min-w-[150px]">
-                  <Label>Event Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFilter ? format(dateFilter, "PPP") : "Any date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateFilter}
-                        onSelect={setDateFilter}
-                        initialFocus
-                      />
-                      {dateFilter && (
-                        <div className="p-3 border-t">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDateFilter(undefined)}
-                            className="w-full"
-                          >
-                            Clear Date
-                          </Button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-            <Button
-              variant="outline"
-                  onClick={() => {
-                    setSearchTerm("")
-                    setStatusFilter("all")
-                    setEventTypeFilter("all")
-                    setDateFilter(undefined)
-                  }}
-            >
-                  Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          {/* VEN-097: filters extracted to a focused component */}
+          <BookingFiltersBar
+            values={{ searchTerm, statusFilter, eventTypeFilter, genreFilter, dateFilter }}
+            isLifecycleAvailable={isLifecycleAvailable}
+            onChange={(patch) => {
+              if ("searchTerm" in patch) setSearchTerm(patch.searchTerm ?? "")
+              if ("statusFilter" in patch) setStatusFilter(patch.statusFilter ?? "all")
+              if ("eventTypeFilter" in patch) setEventTypeFilter(patch.eventTypeFilter ?? "all")
+              if ("genreFilter" in patch) setGenreFilter(patch.genreFilter ?? "all")
+              if ("dateFilter" in patch) setDateFilter(patch.dateFilter)
+            }}
+            onClear={() => {
+              setSearchTerm("")
+              setStatusFilter("all")
+              setEventTypeFilter("all")
+              setGenreFilter("all")
+              setDateFilter(undefined)
+            }}
+          />
 
           {/* Booking Requests List */}
           <div className="space-y-4">
@@ -591,7 +620,15 @@ export default function BookingsPage() {
             </Card>
           ) : (
               filteredBookings.map((booking) => {
-                const StatusIcon = statusIcons[booking.status]
+                const displayStatus = isLifecycleAvailable
+                  ? resolveVenueBookingLifecycleStatus(booking)
+                  : booking.status
+                const StatusIcon = statusIcons[displayStatus]
+                const lifecycleTransitions = isLifecycleAvailable
+                  ? getVenueBookingLifecycleTransitions(
+                      resolveVenueBookingLifecycleStatus(booking),
+                    )
+                  : []
                 return (
               <Card key={booking.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-6">
@@ -599,9 +636,9 @@ export default function BookingsPage() {
                     <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold">{booking.event_name}</h3>
-                            <Badge variant="outline" className={statusColors[booking.status]}>
+                            <Badge variant="outline" className={statusColors[displayStatus]}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                              {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
                             </Badge>
                             <Badge variant="secondary">{booking.event_type}</Badge>
                             {(booking as any).genre && (
@@ -616,7 +653,7 @@ export default function BookingsPage() {
                             </div>
                             <div className="flex items-center">
                               <Clock className="h-4 w-4 mr-2" />
-                              {booking.event_duration} hours
+                              {formatDurationMinutes(booking.event_duration)}
                             </div>
                             <div className="flex items-center">
                               <Users className="h-4 w-4 mr-2" />
@@ -668,7 +705,7 @@ export default function BookingsPage() {
                             View
                           </Button>
 
-                      {booking.status === "pending" && (
+                      {!isLifecycleAvailable && booking.status === "pending" && (
                             <div className="flex gap-1">
                           <Button
                              size="sm"
@@ -694,6 +731,29 @@ export default function BookingsPage() {
                           </Button>
                             </div>
                       )}
+
+                          {isLifecycleAvailable && lifecycleTransitions.length > 0 && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  disabled={isActionInProgress === booking.id}
+                                >
+                                  {isActionInProgress === booking.id ? "Updating..." : "Change stage"}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {lifecycleTransitions.map((nextStatus) => (
+                                  <DropdownMenuItem
+                                    key={nextStatus}
+                                    onClick={() => void handleLifecycleAction(booking, nextStatus)}
+                                  >
+                                    Move to {nextStatus}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -850,7 +910,7 @@ export default function BookingsPage() {
                           </span>
                           <span className="flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
-                            {event.event_duration} hours
+                            {formatDurationMinutes(event.event_duration)}
                           </span>
                         </div>
                     </div>
@@ -867,106 +927,20 @@ export default function BookingsPage() {
         </TabsContent>
 
         <TabsContent value="settings">
-              <Card>
-                <CardHeader>
-              <CardTitle>Booking Settings</CardTitle>
-              <CardDescription>Configure your venue's booking preferences</CardDescription>
-                </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Booking Policies</h4>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="lead-time">Minimum Lead Time</Label>
-                    <Select value={leadTime} onValueChange={setLeadTime}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select lead time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1day">1 Day</SelectItem>
-                        <SelectItem value="3days">3 Days</SelectItem>
-                        <SelectItem value="1week">1 Week</SelectItem>
-                        <SelectItem value="2weeks">2 Weeks</SelectItem>
-                        <SelectItem value="1month">1 Month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="max-advance">Maximum Advance Booking</Label>
-                    <Select value={maxAdvance} onValueChange={setMaxAdvance}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select maximum advance" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="3months">3 Months</SelectItem>
-                        <SelectItem value="6months">6 Months</SelectItem>
-                        <SelectItem value="1year">1 Year</SelectItem>
-                        <SelectItem value="2years">2 Years</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="auto-approve">Auto-Approval Settings</Label>
-                    <Select value={autoApprove} onValueChange={setAutoApprove}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select auto-approval policy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manual">Manual Review (Recommended)</SelectItem>
-                        <SelectItem value="trusted">Trusted Clients Only</SelectItem>
-                        <SelectItem value="small">Small Events (&lt;50 people)</SelectItem>
-                        <SelectItem value="all">All Requests</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-medium">Notifications</h4>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="notification-email">Notification Email</Label>
-                    <Input
-                      id="notification-email"
-                      type="email"
-                      placeholder="bookings@yourvenue.com"
-                      value={notificationEmail}
-                      onChange={(e) => setNotificationEmail(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="response-template">Default Response Template</Label>
-                    <Textarea
-                      id="response-template"
-                      value={responseTemplate}
-                      onChange={(e) => setResponseTemplate(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="rejection-template">Rejection Template</Label>
-                    <Textarea
-                      id="rejection-template"
-                      value={rejectionTemplate}
-                      onChange={(e) => setRejectionTemplate(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t">
-                <Button onClick={() => void saveBookingSettings()} disabled={isSavingSettings}>
-                  {isSavingSettings ? "Saving…" : "Save Settings"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* VEN-097: policies/notifications panel extracted */}
+          <BookingSettingsPanel
+            values={{ leadTime, maxAdvance, autoApprove, notificationEmail, responseTemplate, rejectionTemplate }}
+            isSaving={isSavingSettings}
+            onChange={(patch) => {
+              if (patch.leadTime !== undefined) setLeadTime(patch.leadTime)
+              if (patch.maxAdvance !== undefined) setMaxAdvance(patch.maxAdvance)
+              if (patch.autoApprove !== undefined) setAutoApprove(patch.autoApprove)
+              if (patch.notificationEmail !== undefined) setNotificationEmail(patch.notificationEmail)
+              if (patch.responseTemplate !== undefined) setResponseTemplate(patch.responseTemplate)
+              if (patch.rejectionTemplate !== undefined) setRejectionTemplate(patch.rejectionTemplate)
+            }}
+            onSave={() => void saveBookingSettings()}
+          />
         </TabsContent>
       </Tabs>
 
@@ -1002,7 +976,7 @@ export default function BookingsPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Duration:</span>
-                        <span>{selectedBooking.event_duration} hours</span>
+                        <span>{formatDurationMinutes(selectedBooking.event_duration)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Expected Attendance:</span>
@@ -1067,7 +1041,7 @@ export default function BookingsPage() {
                       </div>
                     </div>
                 
-                {selectedBooking.status === "pending" && (
+                {!isLifecycleAvailable && selectedBooking.status === "pending" && (
                 <DialogFooter>
                     <Button 
                     variant="outline"

@@ -1,115 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/admin-tour-event-access"
+import { withAdminCapability } from "@/lib/auth/api-auth"
+
+/** VEND-101 — Assign user to a tour team with canonical tour + team.tour_id checks. */
+
+const bodySchema = z.object({
+  userId: z.string().uuid(),
+  teamId: z.string().uuid(),
+})
+
+function routeError(error: unknown, fallback: string) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: "Validation error", details: error.errors },
+      { status: 400 },
+    )
+  }
+  const resolved = adminAccessErrorResponse(error, fallback, 500)
+  return NextResponse.json({ error: resolved.message }, { status: resolved.status })
+}
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const supabase = await createClient()
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { userId, teamId } = await request.json()
-
-    if (!userId || !teamId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    // Get the id from params
-    const { id } = await params
-
-    // Verify tour exists and user has access
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('id, created_by')
-      .eq('id', id)
-      .single()
-
-    if (tourError || !tour) {
-      return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-    }
-
-    // Check if user has permission to manage this tour
-    if (tour.created_by !== user.id) {
-      // You might want to add additional permission checks here
-      // For now, only tour creator can assign users
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
-    // Verify team exists
-    const { data: team, error: teamError } = await supabase
-      .from('tour_teams')
-      .select('id')
-      .eq('id', teamId)
-      .eq('tour_id', id)
-      .single()
-
-    if (teamError || !team) {
-      return NextResponse.json({ error: 'Team not found' }, { status: 404 })
-    }
-
-    // Verify user exists
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id, email, full_name')
-      .eq('id', userId)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Check if user is already assigned to this team
-    const { data: existingAssignment, error: checkError } = await supabase
-      .from('tour_team_members')
-      .select('id')
-      .eq('team_id', teamId)
-      .eq('user_id', userId)
-      .single()
-
-    if (existingAssignment) {
-      return NextResponse.json({ error: 'User is already assigned to this team' }, { status: 400 })
-    }
-
-    // Add user to team
-    const { data: assignment, error: assignError } = await supabase
-      .from('tour_team_members')
-      .insert({
-        team_id: teamId,
-        user_id: userId,
-        tour_id: id,
-        assigned_by: user.id,
-        assigned_at: new Date().toISOString()
+  const { id } = await params
+  return withAdminCapability("workforce.manage", async (_request, { user, supabase, admin }) => {
+    try {
+      await assertAdminTourAccess({
+        supabase,
+        userId: user.id,
+        tourId: id,
+        orgId: admin.orgId,
       })
-      .select()
-      .single()
 
-    if (assignError) {
-      console.error('Error assigning user to team:', assignError)
-      return NextResponse.json({ error: 'Failed to assign user to team' }, { status: 500 })
-    }
+      const { userId, teamId } = bodySchema.parse(await request.json())
 
-    return NextResponse.json({
-      success: true,
-      assignment: {
-        id: assignment.id,
-        team_id: teamId,
-        user_id: userId,
-        user: {
-          id: userData.id,
-          email: userData.email,
-          full_name: userData.full_name
-        }
+      const { data: team, error: teamError } = await supabase
+        .from("tour_teams")
+        .select("id")
+        .eq("id", teamId)
+        .eq("tour_id", id)
+        .maybeSingle()
+
+      if (teamError) throw new Error(teamError.message)
+      if (!team) return NextResponse.json({ error: "Team not found" }, { status: 404 })
+
+      const { data: userData, error: userError } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .eq("id", userId)
+        .maybeSingle()
+
+      if (userError) throw new Error(userError.message)
+      if (!userData) return NextResponse.json({ error: "User not found" }, { status: 404 })
+
+      const { data: existingAssignment } = await supabase
+        .from("tour_team_members")
+        .select("id")
+        .eq("team_id", teamId)
+        .eq("user_id", userId)
+        .maybeSingle()
+
+      if (existingAssignment) {
+        return NextResponse.json(
+          { error: "User is already assigned to this team" },
+          { status: 400 },
+        )
       }
-    })
 
-  } catch (error) {
-    console.error('Error in assign-user-to-team:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+      const { data: assignment, error: assignError } = await supabase
+        .from("tour_team_members")
+        .insert({
+          team_id: teamId,
+          user_id: userId,
+          tour_id: id,
+          assigned_by: user.id,
+          assigned_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+
+      if (assignError) throw new Error(assignError.message)
+
+      return NextResponse.json({
+        success: true,
+        assignment: {
+          id: assignment.id,
+          team_id: teamId,
+          user_id: userId,
+          tour_id: id,
+        },
+      }, { status: 201 })
+    } catch (error) {
+      return routeError(error, "Failed to assign user to team")
+    }
+  })(request)
 }

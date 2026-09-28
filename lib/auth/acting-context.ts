@@ -20,6 +20,7 @@ import { NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import type { ProfileType } from '@/lib/accounts/account-types'
 import { normalizeAccountType, isOrganizationType } from '@/lib/accounts/account-types'
+import { organizationIdentityFromOrganizerAccount } from '@/lib/organizations/identity'
 
 export interface ActingContext {
   /** Authenticated user id */
@@ -58,7 +59,7 @@ async function verifyDelegatedAccess(
   }
 }
 
-async function verifyOwnership(
+export async function verifyActingProfileAccess(
   supabase: any,
   userId: string,
   profileId: string,
@@ -98,6 +99,11 @@ async function verifyOwnership(
       .maybeSingle()
 
     if (data) {
+      const identity = organizationIdentityFromOrganizerAccount(data)
+      if (!identity) {
+        return { owned: await verifyDelegatedAccess(supabase, userId, profileId, accountType) }
+      }
+
       const { data: owned } = await supabase
         .from('organizer_accounts')
         .select('id')
@@ -106,14 +112,18 @@ async function verifyOwnership(
         .maybeSingle()
       if (owned) return { owned: true }
 
-      if (data.ops_org_id) {
+      if (identity.organizationId) {
         const { data: member } = await supabase
           .from('org_members')
-          .select('role')
-          .eq('org_id', data.ops_org_id)
+          .select('role, status, permissions')
+          .eq('org_id', identity.organizationId)
           .eq('user_id', userId)
           .maybeSingle()
-        if (member && ['owner', 'admin', 'tour_manager', 'production'].includes(String(member.role)))
+        if (
+          member?.status === 'active' &&
+          (['owner', 'admin', 'tour_manager', 'production'].includes(String(member.role)) ||
+            (Array.isArray(member.permissions) && member.permissions.length > 0))
+        )
           return { owned: true }
       }
 
@@ -166,7 +176,7 @@ export async function resolveActingContext(
 
   if (headerProfileId && headerAccountType) {
     const accountType = normalizeAccountType(headerAccountType)
-    const { owned } = await verifyOwnership(supabase, userId, headerProfileId, accountType)
+    const { owned } = await verifyActingProfileAccess(supabase, userId, headerProfileId, accountType)
     if (owned) {
       return { userId, accountType, profileId: headerProfileId, supabase }
     }
@@ -177,7 +187,7 @@ export async function resolveActingContext(
   const fromSession = await resolveFromSession(supabase, userId)
   if (fromSession) {
     const { accountType, profileId } = fromSession
-    const { owned } = await verifyOwnership(supabase, userId, profileId, accountType)
+    const { owned } = await verifyActingProfileAccess(supabase, userId, profileId, accountType)
     if (owned) {
       return { userId, accountType, profileId, supabase }
     }

@@ -1,0 +1,10 @@
+{
+  "authorityId": "uuid",
+  "instrumentId": "uuid",
+  "jurisdiction": "US-NV",
+  "scope": [
+    "renewal_review"
+  ],
+  "effectiveAt": "2026-07-19T00:00:00Z",
+  "expiresAt": "2027-07-19T00:00:00Z"
+}

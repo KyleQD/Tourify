@@ -102,6 +102,27 @@ describe("jobs flow route contracts", () => {
     expect(source).toContain("Boolean(item.id) && Boolean(item.title)")
   })
 
+  it("resolves owning-organization identity on org-owned templates server-side (SIM-20260922-ORG-003)", () => {
+    const route = read("app/api/jobs/route.ts")
+    expect(route).toContain("resolveOrganizationDisplayNames")
+    expect(route).toContain("employer_entity_type === 'organization'")
+    expect(route).toContain("organization: { name:")
+
+    const mapper = read("lib/rebuild/unified-jobs-list.ts")
+    expect(mapper).toContain("UnifiedJobSource = 'artist' | 'venue' | 'organization'")
+    expect(mapper).toContain("isOrganizationOwned ? 'organization' : 'venue'")
+    expect(mapper).toContain("row.organization?.name ?? null")
+
+    const board = read("app/jobs/page.tsx")
+    expect(board).toContain("source === 'organization'")
+  })
+
+  it("labels org-owned detail postings without the venue staffing mislabel", () => {
+    const detail = read("app/jobs/[id]/page.tsx")
+    expect(detail).toContain("job.employer_entity_type === 'organization'")
+    expect(detail).toContain("Organization")
+  })
+
   it("resolves artist detail params with async params access", () => {
     const source = read("app/api/artist-jobs/[id]/route.ts")
     expect(source).toContain("await context.params")

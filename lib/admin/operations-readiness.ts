@@ -1,3 +1,9 @@
+import {
+  evaluateEventReadiness,
+  type EventReadinessEvaluation,
+} from "@/lib/admin/event-readiness-engine"
+import { ADMIN_READINESS_RULES } from "@/lib/admin/readiness-contract"
+
 export type ReadinessState = "missing" | "needs_advance" | "in_progress" | "ready" | "blocked" | "settled"
 
 export interface ReadinessItem {
@@ -6,6 +12,8 @@ export interface ReadinessItem {
   state: ReadinessState
   blocksPublish?: boolean
   detail?: string
+  remediationUrl?: string
+  evidence?: Record<string, unknown>
 }
 
 export interface BuilderConflict {
@@ -13,6 +21,7 @@ export interface BuilderConflict {
   severity: "info" | "warning" | "critical"
   label: string
   detail: string
+  remediationUrl?: string
 }
 
 export interface BuilderReadinessSummary {
@@ -20,6 +29,8 @@ export interface BuilderReadinessSummary {
   items: ReadinessItem[]
   blockers: ReadinessItem[]
   conflicts: BuilderConflict[]
+  /** EVENT-201 — structured evaluation shared with server publish. */
+  evaluation?: EventReadinessEvaluation
 }
 
 export interface EventReadinessInput {
@@ -30,6 +41,8 @@ export interface EventReadinessInput {
   venue_name?: string | null
   venue_id?: string | null
   venue_account_id?: string | null
+  /** Persisted adapters verify the referenced venue profile instead of trusting JSON ids. */
+  venue_profile_status?: "verified" | "missing" | "unavailable" | "not_provided"
   capacity?: string | number | null
   tour_ids?: string[]
   primary_tour_id?: string | null
@@ -45,6 +58,8 @@ export interface EventReadinessInput {
   expected_expenses?: string | number | null
   team_count?: number
   staff_count?: number
+  /** Indicates whether staff_count came from canonical active staff_shifts. */
+  staffing_status?: "verified" | "missing" | "unavailable"
   vendor_count?: number
   advance_status?: string | null
   has_logistics?: boolean
@@ -118,9 +133,15 @@ function summarize(items: ReadinessItem[], conflicts: BuilderConflict[]): Builde
   }
 }
 
-export function getEventReadiness(input: EventReadinessInput): BuilderReadinessSummary {
+export function getEventReadiness(input: EventReadinessInput & {
+  eventId?: string | null
+  orgId?: string | null
+}): BuilderReadinessSummary {
+  const evaluation = evaluateEventReadiness(input)
   const hasSchedule = filled(input.start_at) || filled(input.date)
-  const hasVenueAccount = filled(input.venue_account_id)
+  const hasVenueAccount = input.venue_profile_status
+    ? input.venue_profile_status === "verified"
+    : filled(input.venue_account_id)
   const hasVenue = hasVenueAccount || filled(input.venue_id) || filled(input.venue_name)
   const hasTour = Boolean(input.tour_ids?.length)
   const hasAdvancing = filled(input.technical_rider) || filled(input.hospitality_rider) || filled(input.security_notes)
@@ -129,36 +150,58 @@ export function getEventReadiness(input: EventReadinessInput): BuilderReadinessS
   const hasFinance = filled(input.ticket_price) || filled(input.expected_revenue) || filled(input.settlement_terms)
   const staffCount = input.staff_count ?? 0
   const hasTeam = (input.team_count ?? 0) > 0 || (input.vendor_count ?? 0) > 0 || staffCount > 0
+
+  const findingById = new Map(evaluation.findings.map((row) => [row.id, row]))
+
+  // ADR-006 / EVENT-201: checklist items use contract rule IDs; blockers come from the engine.
   const items: ReadinessItem[] = [
     {
-      id: "basics",
+      id: ADMIN_READINESS_RULES.event_basics.id,
       label: "Event basics",
       state: filled(input.title) ? "ready" : "missing",
       blocksPublish: true,
-      detail: "Title appears in schedules, day sheets, and event lists.",
+      detail: findingById.get("basics")?.message || "Title appears in schedules, day sheets, and event lists.",
+      remediationUrl: findingById.get("basics")?.remediationUrl,
+      evidence: findingById.get("basics")?.evidence,
     },
     {
-      id: "schedule",
+      id: ADMIN_READINESS_RULES.event_schedule.id,
       label: "Schedule",
       state: hasSchedule ? (filled(input.load_in_time) && filled(input.sound_check_time) ? "ready" : "in_progress") : "missing",
       blocksPublish: true,
-      detail: "Show date plus day-of timing keeps run-of-show usable.",
+      detail: findingById.get("schedule")?.message || "Show date plus day-of timing keeps run-of-show usable.",
+      remediationUrl: findingById.get("schedule")?.remediationUrl,
+      evidence: findingById.get("schedule")?.evidence,
     },
     {
-      id: "venue",
-      label: "Venue account",
-      state: hasVenueAccount ? "ready" : "missing",
-      blocksPublish: true,
-      detail: "Attach a venue profile so advancing, hiring, and contacts resolve to a real account.",
+      id: ADMIN_READINESS_RULES.event_venue_identity.id,
+      label: "Venue",
+      state: hasVenueAccount ? "ready" : hasVenue ? "in_progress" : "missing",
+      blocksPublish: !hasVenue,
+      detail: findingById.get("venue")?.message
+        || findingById.get("venue_profile")?.message
+        || (hasVenueAccount
+          ? "Venue profile linked for advancing, hiring, and contacts."
+          : hasVenue
+            ? "Venue draft present; attach a venue profile when available (warning, not a publish blocker)."
+            : ADMIN_READINESS_RULES.event_venue_identity.remediation),
+      remediationUrl:
+        findingById.get("venue")?.remediationUrl || findingById.get("venue_profile")?.remediationUrl,
+      evidence: findingById.get("venue")?.evidence || findingById.get("venue_profile")?.evidence,
     },
     {
-      id: "tour_assignment",
+      id: ADMIN_READINESS_RULES.event_tour_assignment.id,
       label: hasTour ? "Tour assignment" : "Standalone event",
-      state: hasTour && !filled(input.primary_tour_id) ? "needs_advance" : "ready",
-      detail: hasTour ? "Primary tour and route metadata control where the event appears." : "Standalone events can be attached to tours later.",
+      state: hasTour && !filled(input.primary_tour_id) && (input.tour_ids?.length || 0) > 1
+        ? "needs_advance"
+        : "ready",
+      detail: findingById.get("tour_assignment")?.message
+        || (hasTour ? "Primary tour and route metadata control where the event appears." : "Standalone events can be attached to tours later."),
+      remediationUrl: findingById.get("tour_assignment")?.remediationUrl,
+      evidence: findingById.get("tour_assignment")?.evidence,
     },
     {
-      id: "advancing",
+      id: ADMIN_READINESS_RULES.event_advancing.id,
       label: "Venue advance",
       state: advanceStarted
         ? "in_progress"
@@ -167,52 +210,63 @@ export function getEventReadiness(input: EventReadinessInput): BuilderReadinessS
           : hasAdvancing
             ? "in_progress"
             : "needs_advance",
-      blocksPublish: !advanceStarted && !hasAdvancing,
-      detail: "Start advancing so venue contacts and production notes are shared.",
+      blocksPublish: false,
+      detail: findingById.get("advancing")?.message || ADMIN_READINESS_RULES.event_advancing.remediation,
+      remediationUrl: findingById.get("advancing")?.remediationUrl,
+      evidence: findingById.get("advancing")?.evidence,
     },
     {
-      id: "team",
+      id: ADMIN_READINESS_RULES.event_staffing.id,
       label: "Staff assignments",
       state: staffCount > 0 ? "ready" : hasTeam ? "in_progress" : "missing",
-      blocksPublish: staffCount === 0,
-      detail: "At least one staff assignment is required before publish for day-of coverage.",
+      blocksPublish: false,
+      detail: findingById.get("team")?.message || ADMIN_READINESS_RULES.event_staffing.remediation,
+      remediationUrl: findingById.get("team")?.remediationUrl,
+      evidence: findingById.get("team")?.evidence,
     },
     {
-      id: "logistics",
+      id: ADMIN_READINESS_RULES.event_logistics.id,
       label: "Logistics and site map",
       state: input.has_logistics && input.has_site_map ? "ready" : input.has_logistics || input.has_site_map ? "in_progress" : "needs_advance",
-      detail: "Travel, lodging, equipment, supplies, documents, and maps are staged for the operations tabs.",
+      detail: findingById.get("logistics")?.message || ADMIN_READINESS_RULES.event_logistics.remediation,
+      remediationUrl: findingById.get("logistics")?.remediationUrl,
+      evidence: findingById.get("logistics")?.evidence,
     },
     {
-      id: "finance",
+      id: ADMIN_READINESS_RULES.event_finance.id,
       label: "Ticketing and finance",
       state: hasFinance ? "in_progress" : "needs_advance",
-      detail: "Ticket price, revenue, expenses, and settlement notes feed finance review.",
+      detail: findingById.get("finance")?.message || ADMIN_READINESS_RULES.event_finance.remediation,
+      remediationUrl: findingById.get("finance")?.remediationUrl,
+      evidence: findingById.get("finance")?.evidence,
     },
     {
-      id: "day_sheet",
+      id: ADMIN_READINESS_RULES.event_day_sheet.id,
       label: "Day sheet",
       state: hasSchedule && hasVenue && filled(input.day_sheet_notes) ? "ready" : hasSchedule && hasVenue ? "in_progress" : "missing",
       blocksPublish: false,
-      detail: "Day sheet preview uses schedule, venue, contacts, and advancing data.",
+      detail: findingById.get("day_sheet")?.message || ADMIN_READINESS_RULES.event_day_sheet.remediation,
+      remediationUrl: findingById.get("day_sheet")?.remediationUrl,
+      evidence: findingById.get("day_sheet")?.evidence,
     },
     {
-      id: "communications",
+      id: ADMIN_READINESS_RULES.event_communications.id,
       label: "Communications",
       state: input.has_comms ? "in_progress" : "needs_advance",
-      detail: "Producer handoff can open the event communications hub after save.",
+      detail: findingById.get("communications")?.message || ADMIN_READINESS_RULES.event_communications.remediation,
+      remediationUrl: findingById.get("communications")?.remediationUrl,
+      evidence: findingById.get("communications")?.evidence,
     },
   ]
 
-  const conflicts: BuilderConflict[] = []
-  if (hasTour && input.tour_ids && input.tour_ids.length > 1 && !filled(input.primary_tour_id)) {
-    conflicts.push({
-      id: "primary-tour",
-      severity: "warning",
-      label: "Primary tour not selected",
-      detail: "Choose a primary tour so this event has a default route context.",
-    })
-  }
+  const conflicts: BuilderConflict[] = evaluation.warnings.map((row) => ({
+    id: row.id,
+    severity: "warning" as const,
+    label: row.label,
+    detail: row.message,
+    remediationUrl: row.remediationUrl,
+  }))
+
   if (filled(input.capacity) && Number(input.capacity) < 0) {
     conflicts.push({
       id: "capacity-negative",
@@ -221,16 +275,21 @@ export function getEventReadiness(input: EventReadinessInput): BuilderReadinessS
       detail: "Capacity must be zero or greater.",
     })
   }
-  if (!hasVenueAccount) {
-    conflicts.push({
-      id: "venue-account",
-      severity: "warning",
-      label: "Venue account missing",
-      detail: "Attach a venue profile so roster and advance notify resolve correctly.",
-    })
-  }
 
-  return summarize(items, conflicts)
+  const summary = summarize(items, conflicts)
+  return {
+    ...summary,
+    blockers: evaluation.blockers.map((row) => ({
+      id: row.id,
+      label: row.label,
+      state: "missing" as ReadinessState,
+      blocksPublish: true,
+      detail: row.message,
+      remediationUrl: row.remediationUrl,
+      evidence: row.evidence,
+    })),
+    evaluation,
+  }
 }
 
 export function getTourReadiness(input: TourReadinessInput): BuilderReadinessSummary {

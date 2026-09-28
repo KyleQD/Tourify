@@ -155,6 +155,25 @@ export async function revokeAndReissueCredential(params: {
     .eq('status', 'active')
     .maybeSingle()
 
+  if (active?.id) {
+    const { data: retired, error: retireError } = await supabase
+      .from('ticket_credentials')
+      .update({
+        status: 'superseded',
+        revoked_at: new Date().toISOString(),
+        revoke_reason: reason,
+      })
+      .eq('id', active.id)
+      .eq('status', 'active')
+      .select('id')
+      .maybeSingle()
+
+    if (retireError || !retired)
+      throw new Error(retireError?.message || 'Credential is no longer active')
+  }
+
+  // The schema permits one active credential per ticket, so retire the old
+  // row before inserting its replacement. Restore it if replacement fails.
   const newToken = generateCredentialToken()
   const { data: created, error } = await supabase
     .from('ticket_credentials')
@@ -166,19 +185,30 @@ export async function revokeAndReissueCredential(params: {
     .select('id')
     .single()
 
-  if (error || !created)
+  if (error || !created) {
+    if (active?.id) {
+      await supabase
+        .from('ticket_credentials')
+        .update({
+          status: 'active',
+          revoked_at: null,
+          revoke_reason: null,
+        })
+        .eq('id', active.id)
+        .eq('status', 'superseded')
+        .is('superseded_by', null)
+    }
     throw new Error(error?.message || 'Failed to reissue credential')
+  }
 
   if (active?.id) {
-    await supabase
+    const { error: linkError } = await supabase
       .from('ticket_credentials')
-      .update({
-        status: 'superseded',
-        revoked_at: new Date().toISOString(),
-        revoke_reason: reason,
-        superseded_by: created.id,
-      })
+      .update({ superseded_by: created.id })
       .eq('id', active.id)
+      .eq('status', 'superseded')
+    if (linkError)
+      throw new Error(linkError.message || 'Failed to link superseded credential')
   }
 
   await supabase.from('ticket_ownership_events').insert({

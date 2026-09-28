@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { normalizeUsername } from "@/lib/auth/tourify-auth-helpers"
+import { resolveActingContext } from "@/lib/auth/acting-context"
+import {
+  requireMarketplaceEnabled,
+  requireMarketplaceEnabledForAccount,
+} from "@/lib/marketplace/require-marketplace-enabled"
+import { getStorefrontStorageCompatibilityIssue } from "@/lib/marketplace/storefront-identity"
 
 const externalLinkSchema = z.object({
   label: z.string().min(1).max(100),
@@ -72,6 +78,9 @@ async function loadSellerProfile(
 }
 
 export async function GET(request: NextRequest) {
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
+
   try {
     const supabase = await createClient()
     const searchParams = request.nextUrl.searchParams
@@ -169,18 +178,26 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+  const guard = requireMarketplaceEnabled()
+  if (guard) return guard
 
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
+    const accountGuard = requireMarketplaceEnabledForAccount(ctx.accountType)
+    if (accountGuard) return accountGuard
+    const { userId, supabase } = ctx
+    const storageIssue = getStorefrontStorageCompatibilityIssue(ctx)
+    if (storageIssue) {
+      return NextResponse.json(
+        { error: { code: storageIssue.code, message: storageIssue.message, owner: storageIssue.owner } },
+        { status: 503 }
+      )
+    }
 
     const payload = storefrontSchema.parse(await request.json())
     const upsertPayload = {
-      seller_user_id: user.id,
+      seller_user_id: userId,
       display_name: payload.displayName,
       tagline: payload.tagline || null,
       slug: payload.slug || null,
@@ -202,7 +219,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Failed to save storefront" }, { status: 500 })
     }
 
-    const seller = await loadSellerProfile(supabase, user.id)
+    const seller = await loadSellerProfile(supabase, userId)
     return NextResponse.json({ data: storefront, seller })
   } catch (error) {
     if (error instanceof z.ZodError) {

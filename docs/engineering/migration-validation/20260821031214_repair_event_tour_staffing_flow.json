@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821031214_repair_event_tour_staffing_flow.sql",
+  "taskId": "STAFFING-EVENT-TOUR-REPAIR",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["staffing", "events", "tours", "work-mode", "onboarding", "rbac"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "fresh local Supabase schema plus production-schema review with organization-only events and current workforce data",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count staff_shifts with both org_id and venue_id null",
+      "Count staff_members and staff_shifts that can derive org_id from canonical entity or event scope",
+      "Count duplicate organization staff identities and invitation candidate tokens",
+      "Count duplicate active user/tour assignments and exact active event shifts"
+    ],
+    "expectedAffectedRows": "Nullable org_id keys are added and only canonical organization/event relationships are backfilled; no row is assigned an inferred tenant",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Nullable organization keys, canonical-scope backfills, DDL, and indexes are additive or guarded; policy replacements and constraints converge on rerun",
+    "resumeCursor": "Supabase migration version 20260821031214",
+    "idempotency": "Columns and indexes use IF NOT EXISTS, canonical-scope backfills update only null org_id rows, and named constraints/policies are dropped before recreation"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No org_id or venue_id is inferred; unscoped shifts would fail preflight and the validated scope constraint"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "staff_members.org_id and staff_shifts.org_id reference organizations with nullable forward-compatible scope",
+      "staff_shifts_requires_scope validated after canonical event-scope backfill and NOT VALID creation",
+      "staff_invitations_event_id_fkey validated after NOT VALID creation",
+      "employment_assignments_assignment_kind_check includes tour"
+    ],
+    "indexes": [
+      "staff_invitations_event_idx",
+      "staff_members_org_idx",
+      "staff_shifts_org_idx",
+      "staff_members_org_user_key",
+      "staff_onboarding_candidates_invitation_token_key",
+      "employment_assignments_active_tour_key",
+      "staff_shifts_exact_active_key"
+    ],
+    "validationPlan": "Validate organization-only insert, manager update/delete, worker own read, unrelated-user denial, uniqueness, and advisor output"
+  },
+  "recovery": {
+    "rollback": "Restore prior policies and constraint definition only through a reviewed forward migration; do not make venue_id required again while organization-only shifts exist",
+    "forwardFix": "Apply an additive scoped migration for any policy, index, or provisioning correction and preserve existing assignment rows"
+  },
+  "postflight": {
+    "queries": [
+      "Verify staff_shifts venue_id is nullable and scope/FK constraints are validated",
+      "Verify scoped policy inventory and effective manager/worker behavior in a rolled-back transaction",
+      "Verify the remote migration history contains version 20260821031214",
+      "Run Supabase security and performance advisors filtered to affected staffing tables"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

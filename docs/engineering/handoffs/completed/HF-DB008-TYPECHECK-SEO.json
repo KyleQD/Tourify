@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB008-TYPECHECK-SEO",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "discover",
+  "status": "superseded",
+  "created_at": "2026-09-25T21:30:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The 1,384-diagnostic `tsc --noEmit` failure on d2176904 is a generated-database-contract defect, not stale types alone. The database lane reconstructed the live public-schema surface the active migration chain leaves behind and classified every named missing object. This handoff is your share of the `code-drift` cluster \"seo\": 2 objects, 25 diagnostic hits, of which 2 are reached by a LIVE entry-reachable route or page so deletion is not an option. The full evidence-backed classification is docs/engineering/database-type-inventory-2026-09-25.json; this handoff names your objects and the canonical replacement for each where the repository records one. 2 objects (profiles.custom_url, venue_profiles.cover_image_url-adjacent drift) are read by lib/seo/public-preview-readers.ts, the public preview reader used by discovery and sharing surfaces.",
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "lib/public-artist/get-public-artist-profile.ts",
+    "lib/seo/public-preview-readers.ts",
+    "lib/services/account-management.service.ts"
+  ],
+  "completed": [
+    "Classified 2 objects as code-drift for the \"seo\" cluster: profiles.custom_url, create_post_with_context.",
+    "For 1 of them the repository already names a canonical replacement: profiles.custom_url -> public.accounts.username / artist_profiles.url_slug (the canonical stable public handle).",
+    "Established consumer liveness for each: 2 reached by an entry-reachable route/page, 0 reachable only from modules nothing imports.",
+    "Proved the objects are absent from the active migration chain AND from lib/database.types.ts, so regenerating the types cannot fix them.",
+    "CONSUMED BY DISC-003 as superseded, not completed. Both objects in this cluster (profiles.custom_url, create_post_with_context) are read only by lib/seo/public-preview-readers.ts and lib/services/account-management.service.ts, which are outside discover file ownership; discover edited neither.",
+    "The discover share of the sibling cluster was fixed and is recorded on HF-DISC-002-DRIFT-SEO-SETTINGS, which is itself already closed as superseded and names the owners for the two files in this handoff."
+  ],
+  "next_steps": [
+    "Orchestrator (via the closed HF-DISC-002-DRIFT-SEO-SETTINGS): route lib/seo/public-preview-readers.ts and lib/services/account-management.service.ts to their owners. This handoff does not re-open that routing; it records that the seo cluster was never discover-owned to fix.",
+    "Database lane: profiles.custom_url has a canonical replacement the repository already names (public.accounts.username / artist_profiles.url_slug); create_post_with_context has none recorded, so if it must exist as schema it needs a new database task with the exact contract."
+  ],
+  "blockers": [
+    "Unchanged and still true: the database lane cannot clear these diagnostics because every consumer file is outside its file ownership. 25 tsc hits remain until an owner acts.",
+    "The full npm run typecheck was not run (68m18s on CI, OOM locally, shared 8GB machine), so this cluster contribution to the 1,384 baseline is still unmeasured."
+  ],
+  "verification": [
+    "PASS: the object set was re-derived from the preserved `Lint And Build` CI log on d2176904 and the published inventory was validated against every diagnostic in it (107 object literals + 21 column pairs, 0 objects or column pairs in the inventory that the log does not name, 0 in the log that the inventory omits).",
+    "PASS: every consumer path and every recorded evidence source in the inventory was checked to exist on disk.",
+    "NOT RUN: no tsc run and no migration apply were performed by the database lane in this wave.",
+    "NOT RUN by discover: no edit, no migration and no tsc run were performed for this cluster. Recorded as superseded precisely so its absence of evidence is not read as a clean result.",
+    "Read-only verification: the two consumer files were located and confirmed to be outside discover file ownership, which is the sole basis for the superseded status."
+  ],
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "DISC-003",
+  "completion_condition": "Read the cluster in docs/engineering/database-type-inventory-2026-09-25.json (filter items by owningDomain). Each entry carries classification, basis, canonicalReplacement, liveConsumers, deadConsumers and the non-active SQL that proves the object is archived.",
+  "resolved_at": "2026-09-27T21:30:48.334Z",
+  "consumed_by": "discover (DISC-003, completed 2026-09-27)"
+}

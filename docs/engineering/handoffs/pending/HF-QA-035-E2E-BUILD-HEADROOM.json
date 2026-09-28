@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-QA-035-E2E-BUILD-HEADROOM",
+  "task_id": "RELEASE-005",
+  "from_agent": "release",
+  "to_agent": "qa",
+  "status": "accepted",
+  "created_at": "2026-09-25T23:40:00.000Z",
+  "source_sha": "ca3bb0b0",
+  "summary": "Declared coordination item, not a silent overwrite. Wave 35 release restructured `.github/workflows/ci.yml` into eleven independent jobs (REL-002) and deliberately did NOT touch `.github/workflows/e2e.yml`, which is QA-owned per QA-032. Having read QA's current state and cross-checked its arithmetic against independently measured figures, this handoff reports ONE residual risk in the E2E budget and the exact recommendation. The `Build app` cap of 80 minutes sits against a measured expected build of ~75.1 minutes, which is about 6 percent headroom derived from a FAILING tree. That is a plausible cap, not a false-red guarantee. No file owned by QA was edited, reverted, or reformatted.",
+  "working_set": [
+    ".github/workflows/e2e.yml",
+    "playwright.config.ts",
+    "docs/engineering/agents/qa/DECISIONS.md",
+    ".github/workflows/ci.yml"
+  ],
+  "completed": [
+    "Read the QA-owned E2E job as it stands at ca3bb0b0 and confirmed QA-032's three changes are all present: job cap 115 minutes with named step caps (Build app 80, Wait for app 5, Run E2E tests 25), PLAYWRIGHT_BASE_URL pinned to http://localhost:3000, and a fail-closed step that exits 1 if secrets.STAGING_URL is set.",
+    "Delivered the decoupling QA-032 recommended and could not implement, at the level release owns: the production build, the migration gates and the service-role audit are now independent ci.yml jobs, so a pull request produces production-build evidence even while typecheck is red, and the E2E job depends on no release-gate step.",
+    "Enumerated and REJECTED all three remaining ways to remove the inline typecheck from the E2E job's `next build`: relaxing typescript.ignoreBuildErrors in next.config.ts (weakens a gate, and not release-owned); handing the artifact over via a workflow_run chain (a workflow_run-triggered workflow runs the default branch's workflow file with repository secrets attached, which is the well-known privilege-escalation pattern for pull-request code - a security regression traded for a scheduling fix); and pointing E2E at a hosted target (destroys QA-032's fail-closed design, which exists because the old secrets.STAGING_URL || localhost fallback let a pull request retarget its mutating specs at a hosted environment).",
+    "Recomputed the E2E build cost from this lane's own measurements rather than re-using QA's: install 76s (job 106861310047 steps 1-8) + webpack compile 264s (Vercel dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY, on a SLOWER 4-core/8GB box) + inline tsc 4098s + the build's own inline ESLint ~48s = 4458s = 74.3-75.1 minutes expected."
+  ],
+  "next_steps": [
+    "Raise the `Build app` step cap from 80 to 95 minutes and the job cap from 115 to 130. This is the only change this handoff asks for, and it is optional rather than urgent: 80 minutes may well be sufficient on a 4-core/16GB ubuntu-latest runner, and this handoff does not assert that it is not.",
+    "After the first GREEN `Build app` step, tighten both caps to ceil(1.25 x measured green build) and stop. The green measurement is the only input that makes these numbers real; both are currently derived from a failing tree.",
+    "Consider a follow-up in which `ci.yml`'s new `Production Build` job uploads its artifact and a privileged consumer is designed deliberately, with the fork/PR threat model answered first, rather than as a budget fix.",
+    "Note for the next wave: `Mobile Typecheck And Lint` in the new ci.yml preserves QA's parity path filter verbatim, and that filter is why the context must not be added to main's required checks (see REL-003 D6)."
+  ],
+  "blockers": [
+    "The E2E job still cannot reach `npm run test:e2e` until typecheck passes, because next build runs a full-repo tsc while next.config.ts sets typescript.ignoreBuildErrors: false. That blocker is upstream and owned by the database lane (HF-RELEASE-DB-TYPECHECK, consumed); the release lane must not bypass it and did not.",
+    "The ~75 minute build cost is irreducible from release-owned files. Any real fix requires either a next.config.ts change, which weakens a gate, or a cross-workflow artifact handoff, which introduces a privilege-escalation pattern. Neither is a correct trade for a time budget, so the honest outcome is a correctly-budgeted long build rather than a fast one.",
+    "actionlint is not available in this workspace, so the restructured ci.yml has had YAML parse, structural, script-existence and expression-balance checks but no schema-level lint. The first CI run is the first real lint of the new file."
+  ],
+  "verification": [
+    "gh api repos/KyleQD/Tourify/actions/jobs/106861310047 -> step 7 Install dependencies 41s, step 9 Lint 48s, step 10 ESLint budget 16s, step 11 Typecheck 68m18s failure; steps 1-8 combined 76s; steps 12-27 skipped.",
+    "gh api repos/KyleQD/Tourify/actions/runs/35761778422/jobs -> E2E Tests (Playwright) cancelled, 17:39:01Z to 18:09:21Z = 30m20s, the old 30-minute cap.",
+    "GET /v13/deployments/dpl_2zPXya6iLnXhdgDPeHu7mX3cbQdY -> 'Build machine configuration: 4 cores, 8 GB' and 'Compiled successfully in 4.4min'.",
+    "js-yaml parse of all 16 workflows -> 0 failures; ci.yml = 11 jobs, every job has runs-on and a job-level timeout-minutes.",
+    "node --test scripts/ci/release-workflow-contract.test.mjs -> 2/2 pass (this test reads e2e.yml, deploy-demo.yml and deploy-production.yml).",
+    "git diff --check -- .github/workflows/ci.yml -> exit 0. git status --porcelain -- .github/workflows/e2e.yml -> empty, i.e. the QA-owned file is untouched."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "QA-003",
+  "completion_condition": "Raise the `Build app` step cap from 80 to 95 minutes and the job cap from 115 to 130. This is the only change this handoff asks for, and it is optional rather than urgent: 80 minutes may well be sufficient on a 4-core/16GB ubuntu-latest runner, and this handoff does not assert that it is not."
+}

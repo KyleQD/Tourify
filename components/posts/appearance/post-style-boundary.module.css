@@ -1,0 +1,1970 @@
+.root {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--post-text);
+  background: var(--post-surface);
+  font-family: var(--post-body-font);
+}
+
+.root::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  opacity: 0.15;
+}
+
+.root::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.root > * {
+  position: relative;
+  z-index: 1;
+}
+
+.root :global([data-post-card-skin]) {
+  position: relative;
+  overflow: hidden;
+}
+
+.root :global([data-post-card-skin])::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.root :global([data-post-card-skin]) > * {
+  position: relative;
+  z-index: 1;
+}
+
+.root :global([data-post-premiere-bar]) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--post-card-border);
+  color: var(--post-primary);
+  font-family: var(--post-heading-font);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.root :global([data-post-region="content"]) {
+  position: relative;
+}
+
+/* Card-only art direction: uploaded media and avatars always remain neutral. */
+.root :global(img),
+.root :global(video),
+.root :global([data-post-media]) {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.root :global([data-slot="card"]) {
+  color: var(--post-text) !important;
+  background: var(--post-surface) !important;
+  border-color: var(--post-card-border) !important;
+}
+
+.root :global(h1),
+.root :global(h2),
+.root :global(h3),
+.root :global(h4),
+.root :global(.font-bold),
+.root :global(.font-semibold) {
+  color: var(--post-text) !important;
+  font-family: var(--post-heading-font);
+  letter-spacing: var(--post-letter-spacing, normal);
+  text-transform: var(--post-text-transform, none);
+}
+
+.root :global(.text-white),
+.root :global(.text-white\/95),
+.root :global(.text-white\/90),
+.root :global(.text-white\/85),
+.root :global(.text-white\/80),
+.root :global(.text-white\/75),
+.root :global(.text-white\/70),
+.root :global(.text-slate-100),
+.root :global(.text-slate-200),
+.root :global(.text-slate-300) {
+  color: var(--post-text) !important;
+}
+
+.root :global(.text-slate-400),
+.root :global(.text-slate-500),
+.root :global(.text-white\/65),
+.root :global(.text-white\/60),
+.root :global(.text-white\/55),
+.root :global(.text-white\/50),
+.root :global(.text-white\/45),
+.root :global(.text-muted-foreground) {
+  color: var(--post-muted) !important;
+  opacity: 0.78;
+}
+
+.root :global(.text-blue-300),
+.root :global(.text-blue-400),
+.root :global(.text-purple-300),
+.root :global(.text-purple-400),
+.root :global(.text-purple-300\/90),
+.root :global(.text-purple-300\/80),
+.root :global(.text-purple-200),
+.root :global(.text-red-400),
+.root :global(.text-red-500),
+.root :global(.text-green-400),
+.root :global(.text-yellow-400),
+.root :global(.text-yellow-500) {
+  color: var(--post-link) !important;
+}
+
+.root :global(button:not([data-destructive])),
+.root :global(a) {
+  color: var(--post-action);
+}
+
+.root :global(button:focus-visible),
+.root :global(a:focus-visible) {
+  outline: 3px solid var(--post-link);
+  outline-offset: 3px;
+}
+
+.root[data-template="classic"]::before,
+.root[data-template="editorial-cover"]::before,
+.root[data-template="dossier"]::before,
+.root[data-template="editorial"]::before {
+  background:
+    linear-gradient(90deg, var(--post-link) 0 0.5rem, transparent 0.5rem),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 3rem,
+      color-mix(in srgb, var(--post-text) 9%, transparent) 3rem 3.05rem
+    );
+}
+
+.root[data-template="minimal"],
+.root[data-template="gallery"],
+.root[data-template="whitespace"],
+.root[data-template="swiss-signal"] {
+  box-shadow: none !important;
+}
+
+.root[data-template="swiss-signal"]::before,
+.root[data-template="pressgrid"]::before {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--post-text) 13%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--post-text) 13%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 2.5rem 2.5rem;
+}
+
+.root[data-template="bold"],
+.root[data-template="poster"],
+.root[data-template="bandcard"],
+.root[data-template="checkerboard"],
+.root[data-template="colorblock"] {
+  transform: rotate(-0.15deg);
+  box-shadow: 7px 8px 0 color-mix(in srgb, var(--post-link) 65%, transparent) !important;
+}
+
+.root[data-template="checkerboard"]::before {
+  background:
+    linear-gradient(
+      45deg,
+      var(--post-link) 25%,
+      transparent 25% 75%,
+      var(--post-link) 75%
+    ),
+    linear-gradient(
+      45deg,
+      var(--post-link) 25%,
+      transparent 25% 75%,
+      var(--post-link) 75%
+    );
+  background-position:
+    0 0,
+    0.75rem 0.75rem;
+  background-size: 1.5rem 1.5rem;
+  opacity: 0.08;
+}
+
+.root[data-template="scrapbook"] {
+  transform: rotate(-0.25deg);
+  box-shadow: 6px 7px 0 color-mix(in srgb, var(--post-text) 35%, transparent) !important;
+}
+
+.root[data-template="scrapbook"]::before,
+.root[data-template="analog-rave"]::before {
+  background-image: radial-gradient(
+    circle,
+    var(--post-text) 0 1px,
+    transparent 1.2px
+  );
+  background-size: 7px 7px;
+}
+
+.root[data-template="cinema"],
+.root[data-template="cinematic-marquee"] {
+  border-top-width: 0.55rem !important;
+  border-bottom-width: 0.55rem !important;
+}
+
+.root[data-template="cinematic-marquee"]::before {
+  background: radial-gradient(
+    circle at 75% 0%,
+    var(--post-link),
+    transparent 42%
+  );
+}
+
+.root[data-template="luxe"],
+.root[data-template="backstage-pass"] {
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--post-link) 35%, transparent),
+    0 18px 45px rgb(0 0 0 / 35%) !important;
+}
+
+.root[data-template="backstage-pass"] {
+  border-width: 4px !important;
+  border-style: double !important;
+}
+
+.root[data-template="audio-console"]::before {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 2.4rem,
+      color-mix(in srgb, var(--post-secondary-accent) 25%, transparent) 2.45rem
+    ),
+    linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in srgb, var(--post-link) 16%, transparent)
+    );
+}
+
+.root[data-template="coastal"]::before {
+  background: radial-gradient(
+    ellipse at 10% 0%,
+    var(--post-secondary-accent),
+    transparent 55%
+  );
+}
+
+.root[data-template="redcolumn"]::before {
+  background: linear-gradient(90deg, var(--post-link) 0 22%, transparent 22%);
+}
+
+.root[data-template="sunburst"]::before {
+  background: repeating-conic-gradient(
+    from 0deg at 95% 0%,
+    var(--post-link) 0deg 7deg,
+    transparent 7deg 14deg
+  );
+}
+
+/* ── Premiere post-native styles ───────────────────────────────────── */
+
+.root[data-template="16-bit-sprite"] {
+  border: 4px solid var(--post-primary) !important;
+  border-radius: 0 !important;
+  box-shadow:
+    var(--post-registration-offset) var(--post-registration-offset) 0
+      var(--post-secondary),
+    calc(var(--post-registration-offset) * 2)
+      calc(var(--post-registration-offset) * 2) 0 var(--post-card-border) !important;
+  image-rendering: pixelated;
+}
+
+.root[data-template="16-bit-sprite"] :global([data-post-card-skin])::before,
+.root[data-template="16-bit-sprite"] :global([data-slot="card"]) {
+  background-image:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--post-primary) 10%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--post-secondary) 10%, transparent) 1px,
+      transparent 1px
+    ) !important;
+  background-size: var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="16-bit-sprite"] :global([data-post-premiere-bar]) {
+  border: 0;
+  background: var(--post-primary);
+  color: var(--post-card-bg);
+  box-shadow: inset 0 -4px 0
+    color-mix(in srgb, var(--post-card-bg) 48%, transparent);
+}
+
+.root[data-template="16-bit-sprite"] :global(button),
+.root[data-template="16-bit-sprite"] :global(a) {
+  border-radius: 0 !important;
+  text-shadow: 2px 2px 0
+    color-mix(in srgb, var(--post-card-bg) 75%, transparent);
+}
+
+.root[data-template="terminal"] {
+  border: 1px solid var(--post-primary) !important;
+  border-radius: 0.35rem !important;
+  box-shadow:
+    inset 0 0 2rem
+      color-mix(
+        in srgb,
+        var(--post-primary) var(--post-effect-mix),
+        transparent
+      ),
+    0 0 1.3rem
+      color-mix(
+        in srgb,
+        var(--post-primary) var(--post-effect-mix),
+        transparent
+      ) !important;
+}
+
+.root[data-template="terminal"] :global([data-post-card-skin])::before,
+.root[data-template="terminal"] :global([data-slot="card"]) {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 calc(var(--post-pattern-size) - 1px),
+    color-mix(in srgb, var(--post-primary) var(--post-effect-mix), transparent)
+      var(--post-pattern-size)
+  ) !important;
+}
+
+.root[data-template="terminal"] :global([data-post-premiere-bar]) {
+  background: color-mix(in srgb, var(--post-primary) 10%, var(--post-card-bg));
+}
+
+.root[data-template="terminal"]
+  :global([data-post-premiere-bar])
+  span:first-child::before {
+  content: "> ";
+}
+
+.root[data-template="terminal"] :global(.font-semibold)::before {
+  color: var(--post-primary);
+  content: "./";
+}
+
+.root[data-template="risograph"] {
+  border: 2px solid var(--post-card-border) !important;
+  border-radius: 0.2rem !important;
+  box-shadow:
+    var(--post-registration-offset) calc(var(--post-registration-offset) * 0.6)
+      0 color-mix(in srgb, var(--post-primary) 65%, transparent),
+    calc(var(--post-registration-offset) * -0.7)
+      calc(var(--post-registration-offset) * -0.45) 0
+      color-mix(in srgb, var(--post-secondary) 55%, transparent) !important;
+}
+
+.root[data-template="risograph"] :global([data-post-card-skin])::before,
+.root[data-template="risograph"] :global([data-slot="card"]) {
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(
+          in srgb,
+          var(--post-primary) var(--post-distress-mix),
+          transparent
+        )
+        0 1px,
+      transparent 1.4px
+    ),
+    radial-gradient(
+      circle,
+      color-mix(
+          in srgb,
+          var(--post-secondary) var(--post-effect-mix),
+          transparent
+        )
+        0 1px,
+      transparent 1.5px
+    ) !important;
+  background-position:
+    0 0,
+    var(--post-registration-offset) var(--post-registration-offset) !important;
+  background-size: var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="risograph"] :global([data-post-premiere-bar]) {
+  border-bottom: 3px double var(--post-primary);
+}
+
+.root[data-template="cmyk-dots"] {
+  border: 2px solid var(--post-card-border) !important;
+  border-radius: 0 !important;
+  box-shadow:
+    var(--post-registration-offset) 0 0
+      color-mix(in srgb, var(--post-secondary) 70%, transparent),
+    calc(var(--post-registration-offset) * -1) 0 0
+      color-mix(in srgb, var(--post-primary) 70%, transparent) !important;
+}
+
+.root[data-template="cmyk-dots"] :global([data-post-card-skin])::before,
+.root[data-template="cmyk-dots"] :global([data-slot="card"]) {
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(
+          in srgb,
+          var(--post-primary) var(--post-effect-mix),
+          transparent
+        )
+        0 18%,
+      transparent 20%
+    ),
+    radial-gradient(
+      circle,
+      color-mix(
+          in srgb,
+          var(--post-secondary) var(--post-effect-mix),
+          transparent
+        )
+        0 18%,
+      transparent 20%
+    ) !important;
+  background-position:
+    0 0,
+    var(--post-registration-offset) var(--post-registration-offset) !important;
+  background-size: var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="cmyk-dots"] :global([data-post-premiere-bar])::before,
+.root[data-template="cmyk-dots"] :global([data-post-premiere-bar])::after {
+  width: 0.65rem;
+  height: 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  content: "";
+}
+
+.root[data-template="halftone-print"] {
+  border: 3px solid var(--post-card-border) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--post-registration-offset) var(--post-registration-offset) 0
+    var(--post-primary) !important;
+}
+
+.root[data-template="halftone-print"] :global([data-post-card-skin])::before,
+.root[data-template="halftone-print"] :global([data-slot="card"]) {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--post-text) var(--post-effect-mix), transparent) 0
+      26%,
+    transparent 28%
+  ) !important;
+  background-size: var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="halftone-print"] :global([data-post-premiere-bar]) {
+  border-bottom: 3px solid currentColor;
+  background: var(--post-primary);
+  color: var(--post-card-bg);
+}
+
+.root[data-template="dithered-1-bit"] {
+  border: 3px solid var(--post-card-border) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--post-registration-offset) var(--post-registration-offset) 0
+    var(--post-card-border) !important;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-post-card-skin])::before,
+.root[data-template="dithered-1-bit"] :global([data-slot="card"]) {
+  background-image:
+    linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--post-text) var(--post-effect-mix), transparent)
+        25%,
+      transparent 25% 75%,
+      color-mix(in srgb, var(--post-text) var(--post-effect-mix), transparent)
+        75%
+    ),
+    linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--post-text) var(--post-effect-mix), transparent)
+        25%,
+      transparent 25% 75%,
+      color-mix(in srgb, var(--post-text) var(--post-effect-mix), transparent)
+        75%
+    ) !important;
+  background-position:
+    0 0,
+    calc(var(--post-pattern-size) / 2) calc(var(--post-pattern-size) / 2) !important;
+  background-size: var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-post-premiere-bar]) {
+  background: var(--post-text);
+  color: var(--post-card-bg);
+}
+
+.root[data-template="punk-collage"] {
+  border: 3px solid var(--post-card-border) !important;
+  border-radius: 0 !important;
+  box-shadow:
+    var(--post-registration-offset) var(--post-registration-offset) 0
+      var(--post-primary),
+    calc(var(--post-registration-offset) * -0.7)
+      calc(var(--post-registration-offset) * 1.5) 0 var(--post-text) !important;
+}
+
+.root[data-template="punk-collage"] :global([data-post-card-skin])::before,
+.root[data-template="punk-collage"] :global([data-slot="card"]) {
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 11px,
+      color-mix(in srgb, var(--post-text) var(--post-distress-mix), transparent)
+        12px 13px
+    ),
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--post-text) var(--post-distress-mix), transparent)
+        0 1px,
+      transparent 1.5px
+    ) !important;
+  background-size:
+    auto,
+    var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="punk-collage"] :global([data-post-premiere-bar]) {
+  margin: 0.45rem;
+  border: 0;
+  background: var(--post-primary);
+  color: var(--post-card-bg);
+  transform: rotate(-1deg);
+}
+
+.root[data-template="bootleg-pixel"] {
+  border: 2px solid var(--post-primary) !important;
+  border-radius: 0 !important;
+  box-shadow:
+    var(--post-registration-offset) 0 0
+      color-mix(in srgb, var(--post-secondary) 78%, transparent),
+    calc(var(--post-registration-offset) * -1) 0 0
+      color-mix(in srgb, var(--post-primary) 78%, transparent),
+    0 12px 28px rgb(0 0 0 / 35%) !important;
+}
+
+.root[data-template="bootleg-pixel"] :global([data-post-card-skin])::before,
+.root[data-template="bootleg-pixel"] :global([data-slot="card"]) {
+  background-image:
+    linear-gradient(
+      90deg,
+      color-mix(
+          in srgb,
+          var(--post-primary) var(--post-distress-mix),
+          transparent
+        )
+        1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      color-mix(
+          in srgb,
+          var(--post-secondary) var(--post-distress-mix),
+          transparent
+        )
+        1px,
+      transparent 1px
+    ) !important;
+  background-size: var(--post-pattern-size) var(--post-pattern-size) !important;
+}
+
+.root[data-template="bootleg-pixel"] :global([data-post-premiere-bar]) {
+  text-shadow:
+    var(--post-registration-offset) 0 0 var(--post-secondary),
+    calc(var(--post-registration-offset) * -1) 0 0 var(--post-primary);
+}
+
+/* ── Premiere anatomy and studio-grade chrome ─────────────────────── */
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-template-frame]) {
+  position: relative;
+  min-width: 0;
+  padding-bottom: 0.75rem;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-premiere-bar]) {
+  position: relative;
+  min-height: 2.45rem;
+  padding: 0.75rem 1rem 0.68rem;
+  overflow: hidden;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-premiere-signal]) {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-premiere-signal])::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 0.42rem;
+  height: 0.42rem;
+  background: currentColor;
+  border-radius: 50%;
+  content: "";
+  transform: translateY(-50%);
+  box-shadow: 0 0 0.65rem currentColor;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-premiere-label]) {
+  text-align: right;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-premiere-rail]) {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 1.55rem;
+  padding: 0.3rem 1rem;
+  color: var(--post-muted);
+  font-family: var(--post-body-font);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.root :global([data-post-premiere-rule]) {
+  height: 1px;
+  flex: 1;
+  background: currentColor;
+  opacity: 0.45;
+}
+
+.root :global([data-post-premiere-corner]) {
+  position: absolute;
+  z-index: 4;
+  width: 0.72rem;
+  height: 0.72rem;
+  pointer-events: none;
+  border-color: var(--post-primary);
+}
+
+.root :global([data-post-premiere-corner="top-left"]) {
+  top: 0.35rem;
+  left: 0.35rem;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.root :global([data-post-premiere-corner="top-right"]) {
+  top: 0.35rem;
+  right: 0.35rem;
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+.root :global([data-post-premiere-corner="bottom-left"]) {
+  bottom: 0.35rem;
+  left: 0.35rem;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+.root :global([data-post-premiere-corner="bottom-right"]) {
+  right: 0.35rem;
+  bottom: 0.35rem;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-region="content"]) {
+  padding: 0.35rem 0.8rem 0;
+}
+
+.root:is(
+    [data-template="16-bit-sprite"],
+    [data-template="terminal"],
+    [data-template="risograph"],
+    [data-template="cmyk-dots"],
+    [data-template="halftone-print"],
+    [data-template="dithered-1-bit"],
+    [data-template="punk-collage"],
+    [data-template="bootleg-pixel"]
+  )
+  :global([data-post-region="content"] > *) {
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--post-card-text) !important;
+  background: color-mix(
+    in srgb,
+    var(--post-card-bg) 94%,
+    var(--post-primary) 6%
+  ) !important;
+  border: 1px solid color-mix(in srgb, var(--post-card-border) 72%, transparent) !important;
+  border-radius: max(0.2rem, var(--post-radius)) !important;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--post-text) 8%, transparent),
+    0 0.8rem 2rem rgb(0 0 0 / 12%) !important;
+}
+
+.root :global([data-slot="card-header"]),
+.root :global([data-post-region="header"]) {
+  position: relative;
+  padding-block: 1.05rem;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--post-card-border) 42%, transparent);
+}
+
+.root :global([data-slot="card-content"]) {
+  position: relative;
+}
+
+.root :global([data-slot="avatar"]) {
+  color: var(--post-text);
+  background: color-mix(
+    in srgb,
+    var(--post-primary) 18%,
+    var(--post-card-bg)
+  ) !important;
+  border: 2px solid var(--post-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--post-primary) 18%, transparent);
+}
+
+.root :global([data-slot="avatar-fallback"]) {
+  color: var(--post-card-text) !important;
+  background: transparent !important;
+  font-family: var(--post-heading-font);
+  font-weight: 900;
+}
+
+.root :global([data-slot="badge"]) {
+  color: var(--post-action) !important;
+  background: color-mix(
+    in srgb,
+    var(--post-primary) 12%,
+    var(--post-card-bg)
+  ) !important;
+  border: 1px solid color-mix(in srgb, var(--post-primary) 48%, transparent) !important;
+  border-radius: 0.25rem;
+  font-family: var(--post-heading-font);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.root :global([data-slot="separator"]) {
+  height: 1px;
+  background: color-mix(
+    in srgb,
+    var(--post-card-border) 58%,
+    transparent
+  ) !important;
+}
+
+.root :global([data-slot="button"]),
+.root :global([data-post-region="actions"] button) {
+  min-height: 2.15rem;
+  color: var(--post-action) !important;
+  background: color-mix(in srgb, var(--post-primary) 5%, transparent);
+  border: 1px solid transparent;
+  font-family: var(--post-body-font);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    translate 150ms ease;
+}
+
+.root :global([data-slot="button"]:hover),
+.root :global([data-post-region="actions"] button:hover) {
+  color: var(--post-text) !important;
+  background: color-mix(
+    in srgb,
+    var(--post-primary) 16%,
+    var(--post-card-bg)
+  ) !important;
+  border-color: color-mix(in srgb, var(--post-primary) 55%, transparent);
+}
+
+.root :global([data-post-region="body"]) {
+  position: relative;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.root :global([data-post-region="metadata"]) {
+  color: var(--post-muted) !important;
+  font-size: 0.74rem;
+}
+
+.root :global([data-post-region="actions"]) {
+  border-color: color-mix(
+    in srgb,
+    var(--post-card-border) 55%,
+    transparent
+  ) !important;
+}
+
+.root :global([data-post-region="poll"]) {
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--post-card-border) 50%, transparent);
+  background: color-mix(in srgb, var(--post-primary) 4%, transparent);
+}
+
+.root :global([data-post-poll-option]) {
+  position: relative;
+  overflow: hidden;
+  color: var(--post-card-text);
+  background: color-mix(
+    in srgb,
+    var(--post-card-bg) 88%,
+    var(--post-primary) 12%
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--post-card-border) 55%,
+    transparent
+  ) !important;
+}
+
+.root :global(input),
+.root :global(textarea) {
+  color: var(--post-card-text) !important;
+  background: color-mix(
+    in srgb,
+    var(--post-card-bg) 88%,
+    var(--post-primary) 12%
+  ) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--post-card-border) 58%,
+    transparent
+  ) !important;
+}
+
+/* 16-bit Sprite: a complete cartridge-era HUD. */
+.root[data-template="16-bit-sprite"] :global([data-post-premiere-rail]) {
+  color: var(--post-card-bg);
+  background: var(--post-secondary);
+  border-bottom: 4px solid var(--post-card-border);
+}
+
+.root[data-template="16-bit-sprite"] :global([data-post-region="content"] > *) {
+  border-width: 4px !important;
+  border-radius: 0 !important;
+  box-shadow:
+    inset 0 0 0 4px color-mix(in srgb, var(--post-primary) 18%, transparent),
+    6px 6px 0 var(--post-secondary) !important;
+}
+
+.root[data-template="16-bit-sprite"] :global([data-slot="card-header"]),
+.root[data-template="16-bit-sprite"] :global([data-post-region="header"]) {
+  border-bottom: 4px solid var(--post-card-border);
+  background: color-mix(in srgb, var(--post-secondary) 13%, transparent);
+}
+
+.root[data-template="16-bit-sprite"] :global([data-slot="avatar"]) {
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 var(--post-secondary);
+}
+
+.root[data-template="16-bit-sprite"] :global([data-slot="badge"]),
+.root[data-template="16-bit-sprite"] :global([data-slot="button"]) {
+  border: 2px solid var(--post-primary);
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 0 var(--post-secondary);
+}
+
+.root[data-template="16-bit-sprite"] :global([data-slot="button"]:active) {
+  box-shadow: none;
+  translate: 2px 2px;
+}
+
+.root[data-template="16-bit-sprite"] :global([data-post-region="body"]) {
+  padding: 0.75rem;
+  border: 2px dashed color-mix(in srgb, var(--post-primary) 58%, transparent);
+}
+
+/* Terminal: prompt-driven CRT structure with functional status chrome. */
+.root[data-template="terminal"] :global([data-post-premiere-bar]) {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--post-primary) 55%, transparent);
+}
+
+.root[data-template="terminal"] :global([data-post-premiere-rail]) {
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--post-primary) 45%, transparent);
+}
+
+.root[data-template="terminal"] :global([data-post-region="content"] > *) {
+  border-radius: 0.2rem !important;
+  box-shadow:
+    inset 0 0 1.6rem color-mix(in srgb, var(--post-primary) 6%, transparent),
+    0 0 1rem color-mix(in srgb, var(--post-primary) 12%, transparent) !important;
+}
+
+.root[data-template="terminal"] :global([data-slot="card-header"]),
+.root[data-template="terminal"] :global([data-post-region="header"]) {
+  border-bottom-style: dashed;
+}
+
+.root[data-template="terminal"] :global([data-slot="avatar"]) {
+  border-radius: 0.2rem !important;
+  box-shadow: 0 0 0.8rem
+    color-mix(in srgb, var(--post-primary) 45%, transparent);
+}
+
+.root[data-template="terminal"] :global([data-post-region="body"])::before {
+  color: var(--post-primary);
+  content: "> ";
+  font-weight: 900;
+}
+
+.root[data-template="terminal"] :global([data-slot="button"]),
+.root[data-template="terminal"] :global([data-slot="badge"]) {
+  border: 1px solid color-mix(in srgb, var(--post-primary) 48%, transparent);
+  border-radius: 0.15rem;
+}
+
+.root[data-template="terminal"] :global([data-slot="button"]:hover) {
+  box-shadow: 0 0 0.75rem
+    color-mix(in srgb, var(--post-primary) 28%, transparent);
+}
+
+/* Risograph: tactile stock, loose ink, and friendly editorial rhythm. */
+.root[data-template="risograph"] :global([data-post-premiere-bar]) {
+  background: color-mix(in srgb, var(--post-primary) 8%, var(--post-card-bg));
+}
+
+.root[data-template="risograph"] :global([data-post-premiere-rail]) {
+  color: var(--post-card-bg);
+  background: var(--post-secondary);
+}
+
+.root[data-template="risograph"] :global([data-post-region="content"] > *) {
+  border-radius: 0.25rem 0.5rem 0.2rem 0.4rem !important;
+  box-shadow:
+    var(--post-registration-offset) 2px 0
+      color-mix(in srgb, var(--post-primary) 35%, transparent),
+    calc(var(--post-registration-offset) * -0.65) -2px 0
+      color-mix(in srgb, var(--post-secondary) 28%, transparent) !important;
+}
+
+.root[data-template="risograph"] :global([data-slot="avatar"]) {
+  border-color: var(--post-primary);
+  box-shadow: var(--post-registration-offset) 2px 0 var(--post-secondary);
+}
+
+.root[data-template="risograph"] :global([data-slot="badge"]),
+.root[data-template="risograph"] :global([data-slot="button"]) {
+  background: color-mix(
+    in srgb,
+    var(--post-primary) 13%,
+    transparent
+  ) !important;
+  border: 0 !important;
+  border-radius: 999px;
+  box-shadow: 2px 2px 0
+    color-mix(in srgb, var(--post-secondary) 45%, transparent);
+}
+
+.root[data-template="risograph"] :global([data-post-region="body"]) {
+  padding-left: 0.8rem;
+  border-left: 0.35rem solid var(--post-primary);
+}
+
+/* CMYK Dots: proof-sheet rigor, plate marks, and editorial labels. */
+.root[data-template="cmyk-dots"] :global([data-post-premiere-bar]) {
+  color: var(--post-text);
+  background:
+    linear-gradient(
+        90deg,
+        var(--post-primary) 0 25%,
+        var(--post-secondary) 25% 50%,
+        #ffe500 50% 75%,
+        var(--post-text) 75%
+      )
+      bottom / 100% 4px no-repeat,
+    var(--post-card-bg);
+}
+
+.root[data-template="cmyk-dots"] :global([data-post-premiere-rail]) {
+  border-bottom: 1px solid var(--post-card-border);
+}
+
+.root[data-template="cmyk-dots"] :global([data-post-region="content"] > *) {
+  border-radius: 0 !important;
+  box-shadow:
+    var(--post-registration-offset) 0 0
+      color-mix(in srgb, var(--post-primary) 40%, transparent),
+    calc(var(--post-registration-offset) * -1) 0 0
+      color-mix(in srgb, var(--post-secondary) 40%, transparent) !important;
+}
+
+.root[data-template="cmyk-dots"] :global([data-slot="avatar"]) {
+  border-radius: 50%;
+  box-shadow:
+    var(--post-registration-offset) 0 0
+      color-mix(in srgb, var(--post-primary) 72%, transparent),
+    calc(var(--post-registration-offset) * -1) 0 0
+      color-mix(in srgb, var(--post-secondary) 72%, transparent);
+}
+
+.root[data-template="cmyk-dots"] :global([data-slot="button"]),
+.root[data-template="cmyk-dots"] :global([data-slot="badge"]) {
+  border: 1px solid var(--post-card-border);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--post-primary);
+}
+
+.root[data-template="cmyk-dots"] :global([data-post-region="body"]) {
+  padding-block: 0.85rem;
+  border-top: 1px solid var(--post-card-border);
+  border-bottom: 1px solid var(--post-card-border);
+}
+
+/* Halftone Print: bold late-edition hierarchy and hard ink hardware. */
+.root[data-template="halftone-print"] :global([data-post-premiere-rail]) {
+  color: var(--post-text);
+  border-bottom: 3px solid currentColor;
+  background: color-mix(in srgb, var(--post-primary) 18%, var(--post-card-bg));
+}
+
+.root[data-template="halftone-print"]
+  :global([data-post-region="content"] > *) {
+  border-width: 3px !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 var(--post-card-border) !important;
+}
+
+.root[data-template="halftone-print"] :global([data-slot="card-header"]),
+.root[data-template="halftone-print"] :global([data-post-region="header"]) {
+  border-bottom: 3px solid var(--post-card-border);
+  background: color-mix(in srgb, var(--post-primary) 14%, var(--post-card-bg));
+}
+
+.root[data-template="halftone-print"] :global([data-slot="avatar"]) {
+  border: 3px solid var(--post-card-border);
+  box-shadow: 4px 4px 0 var(--post-primary);
+}
+
+.root[data-template="halftone-print"] :global([data-slot="button"]),
+.root[data-template="halftone-print"] :global([data-slot="badge"]) {
+  border: 2px solid var(--post-card-border);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--post-primary);
+  font-weight: 900;
+}
+
+.root[data-template="halftone-print"]
+  :global([data-post-region="body"])::first-letter {
+  float: left;
+  margin: 0.08em 0.12em 0 0;
+  color: var(--post-primary);
+  font-family: var(--post-heading-font);
+  font-size: 3em;
+  font-weight: 900;
+  line-height: 0.8;
+}
+
+/* Dithered 1-Bit: uncompromising binary geometry. */
+.root[data-template="dithered-1-bit"] :global([data-post-premiere-rail]) {
+  color: var(--post-card-bg);
+  background: var(--post-text);
+  border-bottom: 3px solid var(--post-card-border);
+}
+
+.root[data-template="dithered-1-bit"]
+  :global([data-post-region="content"] > *) {
+  border-width: 3px !important;
+  border-radius: 0 !important;
+  box-shadow: 5px 5px 0 var(--post-card-border) !important;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-slot="card-header"]),
+.root[data-template="dithered-1-bit"] :global([data-post-region="header"]) {
+  color: var(--post-card-bg);
+  background: var(--post-text);
+  border-bottom: 0;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-slot="card-header"] *),
+.root[data-template="dithered-1-bit"] :global([data-post-region="header"] *) {
+  color: inherit !important;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-slot="avatar"]) {
+  color: var(--post-card-bg);
+  background: var(--post-text) !important;
+  border: 3px solid var(--post-text);
+  border-radius: 0 !important;
+  box-shadow: 3px 3px 0 var(--post-secondary);
+}
+
+.root[data-template="dithered-1-bit"] :global([data-slot="button"]),
+.root[data-template="dithered-1-bit"] :global([data-slot="badge"]) {
+  color: var(--post-text) !important;
+  background: var(--post-card-bg) !important;
+  border: 2px solid var(--post-text) !important;
+  border-radius: 0;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-slot="button"]:hover) {
+  color: var(--post-card-bg) !important;
+  background: var(--post-text) !important;
+}
+
+.root[data-template="dithered-1-bit"] :global([data-post-region="poll"]),
+.root[data-template="dithered-1-bit"] :global([data-post-poll-option]) {
+  border: 2px solid var(--post-text) !important;
+  border-radius: 0 !important;
+}
+
+/* Punk Collage: torn flyer layers, tape, stamps, and ransom-note actions. */
+.root[data-template="punk-collage"] :global([data-post-premiere-rail]) {
+  margin-inline: 1.1rem;
+  color: var(--post-card-bg);
+  background: var(--post-text);
+  transform: rotate(0.35deg);
+}
+
+.root[data-template="punk-collage"] :global([data-post-premiere-corner]) {
+  width: 2.7rem;
+  height: 0.75rem;
+  background: color-mix(in srgb, var(--post-primary) 70%, #f6e8b7);
+  border: 0;
+  opacity: 0.8;
+}
+
+.root[data-template="punk-collage"]
+  :global([data-post-premiere-corner="top-left"]),
+.root[data-template="punk-collage"]
+  :global([data-post-premiere-corner="bottom-right"]) {
+  transform: rotate(-8deg);
+}
+
+.root[data-template="punk-collage"]
+  :global([data-post-premiere-corner="top-right"]),
+.root[data-template="punk-collage"]
+  :global([data-post-premiere-corner="bottom-left"]) {
+  transform: rotate(7deg);
+}
+
+.root[data-template="punk-collage"] :global([data-post-region="content"] > *) {
+  border-width: 3px !important;
+  border-radius: 0.15rem 0 0.35rem 0 !important;
+  box-shadow:
+    7px 7px 0 var(--post-primary),
+    -3px 11px 0 color-mix(in srgb, var(--post-text) 82%, transparent) !important;
+}
+
+.root[data-template="punk-collage"] :global([data-slot="avatar"]) {
+  border: 3px solid var(--post-card-border);
+  border-radius: 0.2rem !important;
+  box-shadow: 4px 4px 0 var(--post-primary);
+  rotate: -3deg;
+}
+
+.root[data-template="punk-collage"] :global([data-slot="badge"]),
+.root[data-template="punk-collage"] :global([data-slot="button"]) {
+  border: 2px solid var(--post-card-border) !important;
+  border-radius: 0 !important;
+  box-shadow: 2px 2px 0 var(--post-primary);
+  font-weight: 900;
+  rotate: -1deg;
+}
+
+.root[data-template="punk-collage"]
+  :global([data-slot="button"]:nth-child(even)) {
+  rotate: 1.5deg;
+}
+
+.root[data-template="punk-collage"] :global([data-post-region="body"]) {
+  padding: 0.85rem;
+  background: color-mix(in srgb, var(--post-secondary) 9%, var(--post-card-bg));
+  border: 2px solid var(--post-card-border);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--post-primary) 62%, transparent);
+}
+
+/* Bootleg Pixel: the sample's wide neon signal frame carried through the card. */
+.root[data-template="bootleg-pixel"] {
+  border-width: 3px !important;
+  box-shadow:
+    var(--post-registration-offset) 0 0 var(--post-secondary),
+    calc(var(--post-registration-offset) * -1) 0 0 var(--post-primary),
+    0 0 0 1px color-mix(in srgb, var(--post-secondary) 42%, transparent),
+    0 18px 44px rgb(0 0 0 / 48%) !important;
+}
+
+.root[data-template="bootleg-pixel"] :global([data-post-premiere-bar]) {
+  background: color-mix(in srgb, var(--post-card-bg) 80%, transparent);
+  border-bottom: 2px solid var(--post-primary);
+}
+
+.root[data-template="bootleg-pixel"] :global([data-post-premiere-rail]) {
+  color: var(--post-card-bg);
+  background: linear-gradient(
+    90deg,
+    var(--post-primary),
+    color-mix(in srgb, var(--post-primary) 70%, var(--post-secondary))
+  );
+  border-bottom: 2px solid var(--post-secondary);
+}
+
+.root[data-template="bootleg-pixel"] :global([data-post-region="content"] > *) {
+  border-color: color-mix(
+    in srgb,
+    var(--post-primary) 34%,
+    var(--post-card-border)
+  ) !important;
+  border-radius: clamp(0.55rem, var(--post-radius), 1.25rem) !important;
+  background: color-mix(
+    in srgb,
+    var(--post-card-bg) 96%,
+    var(--post-primary) 4%
+  ) !important;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--post-text) 8%, transparent),
+    inset 0 0 2.5rem color-mix(in srgb, var(--post-primary) 5%, transparent),
+    0 10px 26px rgb(0 0 0 / 28%) !important;
+}
+
+.root[data-template="bootleg-pixel"] :global([data-slot="card-header"]),
+.root[data-template="bootleg-pixel"] :global([data-post-region="header"]) {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--post-primary) 35%, transparent);
+}
+
+.root[data-template="bootleg-pixel"] :global([data-slot="avatar"]) {
+  border: 3px solid
+    color-mix(in srgb, var(--post-primary) 70%, var(--post-secondary));
+  box-shadow:
+    var(--post-registration-offset) 0 0
+      color-mix(in srgb, var(--post-secondary) 55%, transparent),
+    calc(var(--post-registration-offset) * -0.6) 0 0
+      color-mix(in srgb, var(--post-primary) 48%, transparent);
+}
+
+.root[data-template="bootleg-pixel"] :global([data-slot="badge"]),
+.root[data-template="bootleg-pixel"] :global([data-slot="button"]) {
+  border: 1px solid color-mix(in srgb, var(--post-primary) 26%, transparent);
+  border-radius: 0.3rem;
+  text-shadow:
+    1px 0 0 color-mix(in srgb, var(--post-secondary) 62%, transparent),
+    -1px 0 0 color-mix(in srgb, var(--post-primary) 62%, transparent);
+}
+
+.root[data-template="bootleg-pixel"] :global([data-slot="button"]:hover) {
+  border-color: var(--post-primary);
+  box-shadow:
+    2px 0 0 color-mix(in srgb, var(--post-secondary) 58%, transparent),
+    -2px 0 0 color-mix(in srgb, var(--post-primary) 58%, transparent);
+}
+
+.root[data-template="bootleg-pixel"] :global([data-post-region="body"]) {
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--post-primary);
+  box-shadow: -4px 0 0
+    color-mix(in srgb, var(--post-secondary) 55%, transparent);
+}
+
+/* ── Independent texture skins ────────────────────────────────────── */
+
+.texturePreview {
+  --post-primary: #d946ef;
+  --post-secondary: #22d3ee;
+  --post-text: #f8fafc;
+  --post-card-bg: #090b16;
+  --post-pattern-size: 12px;
+  --post-texture-opacity: 0.62;
+  isolation: isolate;
+}
+
+.texturePreview::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(
+      circle at 16% 18%,
+      color-mix(in srgb, var(--post-primary) 34%, transparent),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 84% 70%,
+      color-mix(in srgb, var(--post-secondary) 28%, transparent),
+      transparent 36%
+    ),
+    var(--post-card-bg);
+  content: "";
+}
+
+.texturePreview::after,
+.root[data-post-texture]:not([data-post-texture="none"])::after,
+.root[data-post-texture]:not([data-post-texture="none"])
+  :global([data-post-region="content"] > *)::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  opacity: var(--post-texture-opacity, 0.2);
+}
+
+/* Keep picker artwork above its surface and below its miniature labels. */
+.texturePreview::after {
+  z-index: 1;
+}
+
+.texturePreview > * {
+  z-index: 2;
+}
+
+.root[data-post-texture]:not([data-post-texture="none"])
+  :global([data-post-region="content"] > *) {
+  position: relative;
+  isolation: isolate;
+}
+
+.root[data-post-texture]:not([data-post-texture="none"])
+  :global([data-post-region="content"] > * > *) {
+  position: relative;
+  z-index: 2;
+}
+
+/* The post card owns an opaque background, so its texture must sit above that
+   surface. Semantic content stays one layer higher and remains fully usable. */
+.root[data-post-texture]:not([data-post-texture="none"])
+  :global([data-post-region="content"] > *)::after {
+  z-index: 1;
+}
+
+.root[data-post-texture]:not([data-post-texture="none"])
+  :global([data-post-media]) {
+  position: relative;
+  z-index: 3;
+  background: var(--post-card-bg);
+}
+
+/* 01 — Paper Fiber */
+.texturePreview[data-post-texture="paper-fiber"]::after,
+.root[data-post-texture="paper-fiber"]::after,
+.root[data-post-texture="paper-fiber"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    repeating-linear-gradient(
+      7deg,
+      transparent 0 3px,
+      color-mix(in srgb, var(--post-text) 32%, transparent) 3px 4px,
+      transparent 4px 9px
+    ),
+    repeating-linear-gradient(
+      93deg,
+      transparent 0 8px,
+      color-mix(in srgb, var(--post-primary) 24%, transparent) 8px 9px,
+      transparent 9px 17px
+    );
+  background-size:
+    29px 23px,
+    37px 31px;
+}
+
+/* 02 — Newsprint Dots */
+.texturePreview[data-post-texture="newsprint-dots"]::after,
+.root[data-post-texture="newsprint-dots"]::after,
+.root[data-post-texture="newsprint-dots"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    radial-gradient(circle, var(--post-text) 0 1px, transparent 1.25px),
+    radial-gradient(circle, var(--post-primary) 0 0.75px, transparent 1px);
+  background-position:
+    0 0,
+    4px 4px;
+  background-size: 8px 8px;
+}
+
+/* 03 — Xerox Grain */
+.texturePreview[data-post-texture="xerox-grain"]::after,
+.root[data-post-texture="xerox-grain"]::after,
+.root[data-post-texture="xerox-grain"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    radial-gradient(
+      ellipse at 14% 22%,
+      var(--post-text) 0 0.8px,
+      transparent 1px
+    ),
+    radial-gradient(
+      ellipse at 71% 64%,
+      var(--post-text) 0 1px,
+      transparent 1.3px
+    ),
+    radial-gradient(
+      ellipse at 38% 86%,
+      var(--post-primary) 0 0.7px,
+      transparent 1px
+    ),
+    repeating-linear-gradient(
+      178deg,
+      transparent 0 13px,
+      color-mix(in srgb, var(--post-text) 22%, transparent) 14px 15px
+    );
+  background-size:
+    11px 13px,
+    17px 19px,
+    23px 21px,
+    100% 29px;
+}
+
+/* 04 — Canvas Weave */
+.texturePreview[data-post-texture="canvas-weave"]::after,
+.root[data-post-texture="canvas-weave"]::after,
+.root[data-post-texture="canvas-weave"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 3px,
+      color-mix(in srgb, var(--post-text) 32%, transparent) 3px 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 3px,
+      color-mix(in srgb, var(--post-primary) 30%, transparent) 3px 4px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 7px,
+      color-mix(in srgb, var(--post-secondary) 18%, transparent) 7px 8px
+    );
+}
+
+/* 05 — Blueprint Grid */
+.texturePreview[data-post-texture="blueprint-grid"]::after,
+.root[data-post-texture="blueprint-grid"]::after,
+.root[data-post-texture="blueprint-grid"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--post-secondary) 48%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--post-secondary) 48%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--post-primary) 58%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--post-primary) 58%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    8px 8px,
+    8px 8px,
+    32px 32px,
+    32px 32px;
+}
+
+/* 06 — Pixel Checker */
+.texturePreview[data-post-texture="pixel-checker"]::after,
+.root[data-post-texture="pixel-checker"]::after,
+.root[data-post-texture="pixel-checker"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    linear-gradient(
+      45deg,
+      var(--post-primary) 25%,
+      transparent 25% 75%,
+      var(--post-primary) 75%
+    ),
+    linear-gradient(
+      45deg,
+      var(--post-secondary) 25%,
+      transparent 25% 75%,
+      var(--post-secondary) 75%
+    );
+  background-position:
+    0 0,
+    calc(var(--post-pattern-size, 12px) / 2)
+      calc(var(--post-pattern-size, 12px) / 2);
+  background-size: var(--post-pattern-size, 12px) var(--post-pattern-size, 12px);
+}
+
+/* 07 — Speckled Ink */
+.texturePreview[data-post-texture="speckled-ink"]::after,
+.root[data-post-texture="speckled-ink"]::after,
+.root[data-post-texture="speckled-ink"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    radial-gradient(
+      circle at 20% 30%,
+      var(--post-primary) 0 1px,
+      transparent 1.5px
+    ),
+    radial-gradient(
+      circle at 72% 18%,
+      var(--post-secondary) 0 1.5px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 46% 76%,
+      var(--post-text) 0 0.8px,
+      transparent 1.2px
+    );
+  background-size:
+    13px 17px,
+    23px 19px,
+    11px 29px;
+}
+
+/* 08 — Chrome Grid */
+.texturePreview[data-post-texture="chrome-grid"]::after,
+.root[data-post-texture="chrome-grid"]::after,
+.root[data-post-texture="chrome-grid"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--post-secondary) 52%, transparent) 6px 7px,
+      transparent 7px 13px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 12px,
+      color-mix(in srgb, var(--post-primary) 50%, transparent) 12px 13px,
+      transparent 13px 24px
+    ),
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--post-text) 34%, transparent),
+      transparent
+    );
+}
+
+/* 09 — Copy Bands */
+.texturePreview[data-post-texture="photocopy-bands"]::after,
+.root[data-post-texture="photocopy-bands"]::after,
+.root[data-post-texture="photocopy-bands"]
+  :global([data-post-region="content"] > *)::after {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--post-text) 30%, transparent) 5px 6px,
+    transparent 6px 17px,
+    color-mix(in srgb, var(--post-primary) 22%, transparent) 17px 20px
+  );
+}
+
+/* 10 — Starfield */
+.texturePreview[data-post-texture="starfield"]::after,
+.root[data-post-texture="starfield"]::after,
+.root[data-post-texture="starfield"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    radial-gradient(circle, var(--post-text) 0 1px, transparent 1.4px),
+    radial-gradient(circle, var(--post-primary) 0 1.5px, transparent 2px),
+    radial-gradient(circle, var(--post-secondary) 0 0.7px, transparent 1.1px);
+  background-position:
+    0 0,
+    17px 9px,
+    7px 21px;
+  background-size:
+    31px 31px,
+    43px 43px,
+    23px 23px;
+}
+
+/* 11 — Circuit Trace */
+.texturePreview[data-post-texture="circuit-trace"]::after,
+.root[data-post-texture="circuit-trace"]::after,
+.root[data-post-texture="circuit-trace"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 45%,
+      var(--post-primary) 45% 51%,
+      transparent 51%
+    ),
+    linear-gradient(
+      0deg,
+      transparent 45%,
+      var(--post-secondary) 45% 51%,
+      transparent 51%
+    ),
+    radial-gradient(circle, var(--post-text) 0 2px, transparent 2.5px);
+  background-position:
+    0 0,
+    0 0,
+    8px 8px;
+  background-size: 24px 24px;
+}
+
+/* 12 — Sticker Scrape */
+.texturePreview[data-post-texture="sticker-scrape"]::after,
+.root[data-post-texture="sticker-scrape"]::after,
+.root[data-post-texture="sticker-scrape"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    repeating-linear-gradient(
+      112deg,
+      transparent 0 9px,
+      color-mix(in srgb, var(--post-text) 38%, transparent) 9px 10px,
+      transparent 10px 22px
+    ),
+    radial-gradient(
+      ellipse at 12% 16%,
+      var(--post-primary) 0 2px,
+      transparent 2.5px
+    ),
+    radial-gradient(
+      ellipse at 78% 64%,
+      var(--post-secondary) 0 1px,
+      transparent 1.5px
+    );
+  background-size:
+    auto,
+    29px 31px,
+    19px 23px;
+}
+
+/* 13 — Marquee Stars */
+.texturePreview[data-post-texture="marquee-stars"]::after,
+.root[data-post-texture="marquee-stars"]::after,
+.root[data-post-texture="marquee-stars"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    radial-gradient(circle, var(--post-text) 0 1px, transparent 1.4px),
+    radial-gradient(circle, var(--post-primary) 0 2px, transparent 2.5px),
+    radial-gradient(circle, var(--post-secondary) 0 1px, transparent 1.5px);
+  background-position:
+    0 0,
+    15px 8px,
+    8px 17px;
+  background-size: 24px 24px;
+  animation: post-texture-marquee 8s linear infinite;
+}
+
+/* 14 — Blink Grid */
+.texturePreview[data-post-texture="blink-grid"]::after,
+.root[data-post-texture="blink-grid"]::after,
+.root[data-post-texture="blink-grid"]
+  :global([data-post-region="content"] > *)::after {
+  background-image:
+    linear-gradient(var(--post-primary) 1px, transparent 1px),
+    linear-gradient(90deg, var(--post-secondary) 1px, transparent 1px),
+    radial-gradient(circle, var(--post-text) 0 1px, transparent 1.5px);
+  background-size:
+    16px 16px,
+    16px 16px,
+    32px 32px;
+  animation: post-texture-blink 2.4s steps(2, end) infinite;
+}
+
+/* 15 — Rainbow Road */
+.texturePreview[data-post-texture="rainbow-road"]::after,
+.root[data-post-texture="rainbow-road"]::after,
+.root[data-post-texture="rainbow-road"]
+  :global([data-post-region="content"] > *)::after {
+  background-image: repeating-linear-gradient(
+    115deg,
+    #ff0080 0 8px,
+    #ff8c00 8px 16px,
+    #ffe600 16px 24px,
+    #00d26a 24px 32px,
+    #00c8ff 32px 40px,
+    #7b61ff 40px 48px
+  );
+  background-size: 96px 96px;
+  animation: post-texture-rainbow 5s linear infinite;
+}
+
+/* 16 — Under Construction */
+.texturePreview[data-post-texture="construction-zone"]::after,
+.root[data-post-texture="construction-zone"]::after,
+.root[data-post-texture="construction-zone"]
+  :global([data-post-region="content"] > *)::after {
+  background-image: repeating-linear-gradient(
+    135deg,
+    #ffd500 0 12px,
+    #111 12px 24px
+  );
+  background-size: 68px 68px;
+  animation: post-texture-construction 4s linear infinite;
+}
+
+@keyframes post-texture-marquee {
+  to {
+    background-position:
+      96px 0,
+      111px 8px,
+      104px 17px;
+  }
+}
+
+@keyframes post-texture-blink {
+  0%,
+  100% {
+    opacity: 0.08;
+  }
+  50% {
+    opacity: var(--post-texture-opacity, 0.2);
+  }
+}
+
+@keyframes post-texture-rainbow {
+  to {
+    background-position: 96px 0;
+  }
+}
+
+@keyframes post-texture-construction {
+  to {
+    background-position: 68px 0;
+  }
+}
+
+.root:global(.post-style-inverted) :global([data-post-card-skin]) {
+  color: var(--post-card-bg) !important;
+  background-color: var(--post-text) !important;
+}
+
+.root[data-post-surface="compact"] {
+  border-width: 1px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.root[data-post-surface="compact"] :global([data-post-card-skin])::before,
+.root[data-post-surface="compact"] :global([data-slot="card"]) {
+  background-image: none !important;
+}
+
+.root[data-post-surface="compact"] :global([data-post-premiere-bar]) {
+  padding-block: 0.35rem;
+  font-size: 0.56rem;
+}
+
+.root[data-post-surface="compact"] :global([data-post-premiere-rail]) {
+  min-height: 1.2rem;
+  padding-block: 0.22rem;
+  font-size: 0.44rem;
+}
+
+.root[data-post-surface="compact"] :global([data-post-region="content"] > *) {
+  box-shadow: none !important;
+}
+
+.root[data-post-surface="compact"] :global([data-post-region="content"]) {
+  padding-inline: 0.45rem;
+}
+
+@media (max-width: 640px) {
+  .root :global([data-post-premiere-bar]) {
+    gap: 0.5rem;
+    padding-inline: 0.75rem;
+    font-size: 0.56rem;
+    letter-spacing: 0.11em;
+  }
+
+  .root :global([data-post-premiere-rail]) {
+    padding-inline: 0.75rem;
+  }
+
+  .root :global([data-post-premiere-rail] span:first-child) {
+    display: none;
+  }
+
+  .root :global([data-post-region="content"]) {
+    padding-inline: 0.45rem;
+  }
+
+  .root :global([data-slot="card-header"]),
+  .root :global([data-slot="card-content"]),
+  .root :global([data-post-region="content"] > [data-slot="card"]) {
+    padding-inline: 1rem;
+  }
+
+  .root :global([data-post-region="header"]) {
+    gap: 0.65rem;
+  }
+
+  .root :global([data-post-region="actions"]) {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .root :global([data-post-region="actions"] > *) {
+    gap: 0.3rem;
+  }
+
+  .root :global([data-slot="button"]) {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding-inline: 0.65rem;
+  }
+
+  .root[data-template="punk-collage"] :global([data-post-premiere-corner]) {
+    width: 1.8rem;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .root :global([data-post-region="content"] > *) {
+    border-width: 2px !important;
+  }
+
+  .root :global([data-slot="button"]),
+  .root :global([data-slot="badge"]),
+  .root :global(input),
+  .root :global(textarea) {
+    border: 2px solid currentColor !important;
+  }
+
+  .root :global([data-post-premiere-rail]),
+  .root :global([data-post-region="metadata"]) {
+    color: var(--post-text) !important;
+    opacity: 1;
+  }
+}
+
+@media (forced-colors: active) {
+  .root {
+    border: 2px solid CanvasText !important;
+    box-shadow: none !important;
+  }
+
+  .root :global([data-post-card-skin])::before {
+    display: none;
+  }
+
+  .root :global([data-post-premiere-corner]),
+  .root :global([data-post-premiere-rule]) {
+    display: none;
+  }
+
+  .root :global([data-post-region="content"] > *),
+  .root :global([data-slot="button"]),
+  .root :global([data-slot="badge"]) {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .root * {
+    animation: none !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .texturePreview::after {
+    animation: none !important;
+  }
+}

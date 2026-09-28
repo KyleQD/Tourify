@@ -23,11 +23,11 @@ describe('route guards', () => {
     expect(isAuthorizedCronRequest(request())).toBe(false)
   })
 
-  it('allows Vercel cron requests without requiring CRON_SECRET', () => {
+  it('rejects Vercel cron headers when CRON_SECRET is missing', () => {
     delete process.env.CRON_SECRET
     process.env.VERCEL = '1'
 
-    expect(isAuthorizedCronRequest(request({ 'x-vercel-cron': '1' }))).toBe(true)
+    expect(isAuthorizedCronRequest(request({ 'x-vercel-cron': '1' }))).toBe(false)
   })
 
   it('requires matching bearer auth for cron secret requests', () => {

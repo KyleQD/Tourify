@@ -1,0 +1,35 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-VENUE-SERVICE-ROLE-IMPORTS",
+  "task_id": "MKT-004",
+  "from_agent": "marketplace",
+  "to_agent": "venue",
+  "status": "accepted",
+  "created_at": "2026-09-25T00:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree)",
+  "summary": "npm run check:service-role-allowlist (SEC-109) is now blocked only by two untracked venue-lane route files that import createServiceRoleClient from @/lib/supabase/service-role. The marketplace lane removed its own stale reviewed-debt entry and reclassified the debt that actually remains, so the gate no longer fails on any marketplace path. The two remaining files are not in HEAD and are outside the marketplace working set, so the marketplace lane deliberately did not classify or edit them.",
+  "working_set": [
+    "app/api/venue/availability/route.ts",
+    "app/api/venue/reservations/route.ts"
+  ],
+  "completed": [
+    "Verified app/marketplace/order/[token]/page.tsx no longer contains any import of @/lib/supabase/service-role (rg over app/marketplace/order/ returns only app/marketplace/order/order-access.ts).",
+    "Removed the stale SEC-109 reviewed-debt entry for app/marketplace/order/[token]/page.tsx from lib/supabase/service-role-import-review.json.",
+    "Registered reviewed remediation debt for app/marketplace/order/order-access.ts and app/api/marketplace/delivery/[orderItemId]/route.ts with disposition replace_with_rpc, owner marketplace-platform, workflowId ADM-WF-020, findingId ADM-M-013, reviewedAt 2026-09-25. order-access.ts is the module that now owns the guest capability-token read; the delivery route needs an atomic buyer-scoped entitlement increment.",
+    "Evaluated and deliberately rejected moving the signed-in buyer read in order-access.ts onto the authenticated client under marketplace_orders_participant_read RLS in this turn: the existing MKT-005 suite app/api/marketplace/checkout/__tests__/order-access.test.ts asserts the current query order and client on 5 cases, so that change needs its own reviewed task rather than a registry cleanup. Recorded as an open MKT-005 recommendation."
+  ],
+  "next_steps": [
+    "Venue lane: either remove the bare createServiceRoleClient import from app/api/venue/availability/route.ts:4 and app/api/venue/reservations/route.ts:3 in favour of executeServiceRoleJob or an authenticated/RLS read, or add a justified reviewed-debt entry to lib/supabase/service-role-import-review.json with disposition, owner venue-operations, workflowId ADM-WF-0xx, findingId ADM-M-0xx and a rationale of at least 20 characters.",
+    "Re-run npm run check:service-role-allowlist after the venue files are classified; the gate is expected to pass with zero unexpected importers.",
+    "Note for schema reconciliation: app/api/marketplace/delivery/[orderItemId]/route.ts needs a single-statement buyer-scoped marketplace_entitlements download increment RPC to replace the privileged compare-and-swap; the database lane owns that migration."
+  ],
+  "blockers": [
+    "SEC-109 cannot reach green in the shared worktree until the venue lane classifies or remediates its two untracked route files; the marketplace lane has no ownership of app/api/venue/** and did not edit them."
+  ],
+  "verification": [
+    "npm run check:service-role-allowlist — after the marketplace registry edit, the stale-entry failure is gone and the command now reports exactly two unexpected importers: app/api/venue/availability/route.ts and app/api/venue/reservations/route.ts (both untracked, not in HEAD, created 2026-09-24 and 2026-09-25 by a concurrent venue lane).",
+    "git cat-file -e HEAD:app/api/venue/availability/route.ts — fatal: path exists on disk but not in HEAD; same for app/api/venue/reservations/route.ts."
+  ],
+  "accepting_task_id": "VENUE-006",
+  "completion_condition": "Venue lane: either remove the bare createServiceRoleClient import from app/api/venue/availability/route.ts:4 and app/api/venue/reservations/route.ts:3 in favour of executeServiceRoleJob or an authenticated/RLS read, or add a justified reviewed-debt entry to lib/supabase/service-role-import-review.json with disposition, owner venue-operations, workflowId ADM-WF-0xx, findingId ADM-M-0xx and a rationale of at least 20 characters."
+}

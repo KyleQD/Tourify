@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -167,16 +168,16 @@ export function ContentSocialLinksPanel() {
             {isSaving ? 'Saving...' : 'Save public links'}
           </Button>
           <Button variant="outline" className="border-slate-700 rounded-xl" asChild>
-            <a href="/artist/epk">
+            <Link href="/artist/epk">
               <ExternalLink className="h-4 w-4 mr-2" />
               Open Press Kit
-            </a>
+            </Link>
           </Button>
           <Button variant="outline" className="border-slate-700 rounded-xl" asChild>
-            <a href="/artist/profile">
+            <Link href="/artist/profile">
               <Link2 className="h-4 w-4 mr-2" />
               Profile editor
-            </a>
+            </Link>
           </Button>
         </div>
       </CardContent>

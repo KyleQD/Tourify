@@ -257,7 +257,7 @@ export function DynamicOnboardingForm({
     const nextDefaults = getInitialValues(orderedFields, responsesRef.current)
     form.reset(nextDefaults)
     lastSyncedRef.current = stableSerialize(nextDefaults)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [orderedFields.map((field) => field.id).join("|")])
 
   useEffect(() => {

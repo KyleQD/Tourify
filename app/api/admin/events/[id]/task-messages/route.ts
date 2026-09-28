@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/auth/api-auth'
 import { createClient } from '@supabase/supabase-js'
 import { resolveTaskLink, isTaskSensitive } from '@/lib/messaging/task-link-registry'
 import type { TaskAction, TaskLinkContext } from '@/lib/messaging/task-link-registry'
+import { sendWorkforceActivityNotification } from '@/lib/rebuild/workforce-activity-notify'
 
 function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -98,13 +99,17 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
     const actionUrl = resolveTaskLink(taskAction, linkContext)
     const sensitive = validated.is_sensitive || isTaskSensitive(taskAction)
 
+    // `profiles` has no `display_name` column in the active migration chain or in
+    // the generated contract. Selecting it made PostgREST reject the whole read,
+    // so `senderProfile` was always null and every task message was recorded with
+    // the literal sender name "Admin" instead of the real sender.
     const { data: senderProfile } = await svc
       .from('profiles')
-      .select('full_name, display_name, username')
+      .select('full_name, username')
       .eq('id', user.id)
       .single()
 
-    const senderName = senderProfile?.display_name || senderProfile?.full_name || senderProfile?.username || 'Admin'
+    const senderName = senderProfile?.full_name || senderProfile?.username || 'Admin'
 
     const { data: taskMsg, error: insertError } = await svc
       .from('event_task_messages')
@@ -190,7 +195,7 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
     if (action === 'complete') {
       const { data: task } = await svc
         .from('event_task_messages')
-        .select('completed_by, recipient_ids, require_completion, is_sensitive')
+        .select('completed_by, recipient_ids, require_completion, is_sensitive, sender_id, title')
         .eq('id', id)
         .eq('event_id', eventId)
         .single()
@@ -198,7 +203,8 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
       if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
 
       const completedBy = Array.isArray(task.completed_by) ? task.completed_by : []
-      if (!completedBy.includes(user.id)) completedBy.push(user.id)
+      const isNewCompletion = !completedBy.includes(user.id)
+      if (isNewCompletion) completedBy.push(user.id)
 
       const allComplete = task.recipient_ids?.every((rid: string) => completedBy.includes(rid))
       const newStatus = allComplete ? 'completed' : 'in_progress'
@@ -218,6 +224,19 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
           metadata: { completed_by_user: user.id },
           ip_address: request.headers.get('x-forwarded-for') || null,
         })
+      }
+
+      if (isNewCompletion && task.sender_id && task.sender_id !== user.id) {
+        await sendWorkforceActivityNotification({
+          recipientUserId: task.sender_id,
+          actorUserId: user.id,
+          type: 'event_task_completed',
+          title: 'Assigned task updated',
+          content: `${task.title || 'An event task'} was completed by a recipient.`,
+          sourceType: 'event_task_message_completion',
+          sourceId: `${id}:${user.id}`,
+          link: `/admin/dashboard/events/${eventId}?tab=tasks`,
+        }).catch((notifyError) => console.warn('[Task Messages] completion notification failed', notifyError))
       }
 
       return NextResponse.json({ success: true, status: newStatus })

@@ -1,0 +1,132 @@
+[
+  {
+    "file": "00_MASTER_IMPLEMENTATION_ROADMAP.md",
+    "bytes": 10559,
+    "lines": 224
+  },
+  {
+    "file": "01_EXECUTIVE_OVERVIEW.md",
+    "bytes": 5039,
+    "lines": 88
+  },
+  {
+    "file": "02_REPOSITORY_AUDIT_REQUIREMENTS.md",
+    "bytes": 5015,
+    "lines": 118
+  },
+  {
+    "file": "03_PROVIDER_CAPABILITY_MATRIX.md",
+    "bytes": 6266,
+    "lines": 88
+  },
+  {
+    "file": "04_SYSTEM_ARCHITECTURE.md",
+    "bytes": 5456,
+    "lines": 140
+  },
+  {
+    "file": "05_PROVIDER_CONTRACTS_AND_REGISTRY.md",
+    "bytes": 5134,
+    "lines": 150
+  },
+  {
+    "file": "06_DATABASE_AND_SUPABASE_MIGRATIONS.md",
+    "bytes": 5606,
+    "lines": 143
+  },
+  {
+    "file": "07_BACKEND_API_GATEWAY.md",
+    "bytes": 4522,
+    "lines": 103
+  },
+  {
+    "file": "08_GLOBAL_PLAYER_ENGINE.md",
+    "bytes": 4701,
+    "lines": 131
+  },
+  {
+    "file": "09_AUDIUS_ADAPTER.md",
+    "bytes": 4355,
+    "lines": 89
+  },
+  {
+    "file": "10_SOUNDCLOUD_ADAPTER.md",
+    "bytes": 5199,
+    "lines": 106
+  },
+  {
+    "file": "11_BANDCAMP_ADAPTER.md",
+    "bytes": 5002,
+    "lines": 86
+  },
+  {
+    "file": "12_LIBRARY_IMPORT_AND_SYNC.md",
+    "bytes": 3893,
+    "lines": 97
+  },
+  {
+    "file": "13_FEDERATED_SEARCH_AND_DISCOVERY.md",
+    "bytes": 3620,
+    "lines": 83
+  },
+  {
+    "file": "14_PLAYLIST_QUEUE_AND_COLLECTIONS.md",
+    "bytes": 3421,
+    "lines": 58
+  },
+  {
+    "file": "15_ARTIST_DASHBOARD_AND_PUBLIC_PROFILE.md",
+    "bytes": 3505,
+    "lines": 81
+  },
+  {
+    "file": "16_FEED_EPK_EVENTS_AND_MARKETPLACE.md",
+    "bytes": 3628,
+    "lines": 72
+  },
+  {
+    "file": "17_ANALYTICS_AND_TELEMETRY.md",
+    "bytes": 3779,
+    "lines": 94
+  },
+  {
+    "file": "18_SECURITY_PRIVACY_AND_COMPLIANCE.md",
+    "bytes": 4209,
+    "lines": 96
+  },
+  {
+    "file": "19_TESTING_AND_QUALITY_STRATEGY.md",
+    "bytes": 4125,
+    "lines": 97
+  },
+  {
+    "file": "20_ROLLOUT_OPERATIONS_AND_ROLLBACK.md",
+    "bytes": 4325,
+    "lines": 111
+  },
+  {
+    "file": "21_FUTURE_PROVIDER_SDK.md",
+    "bytes": 3281,
+    "lines": 76
+  },
+  {
+    "file": "22_DEFINITION_OF_DONE.md",
+    "bytes": 4286,
+    "lines": 89
+  },
+  {
+    "file": "23_CODEX_CURSOR_BUILD_AGENT_PROMPT.md",
+    "bytes": 11855,
+    "lines": 269
+  },
+  {
+    "file": "README.md",
+    "bytes": 4629,
+    "lines": 73
+  },
+  {
+    "file": "implementation-progress.template.json",
+    "bytes": 6245,
+    "lines": 254
+  }
+]

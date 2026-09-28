@@ -4,8 +4,8 @@ import dynamic from "next/dynamic"
 import { BriefcaseBusiness, ClipboardCheck, FileText, LayoutDashboard, ScrollText, ShieldCheck, Users } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { HiringDashboardProps, HiringDashboardTab } from "@/types/hiring-dashboard"
-import { getEmployerLabel } from "@/lib/hiring/hiring-dashboard-utils"
-import { WorkforceHero, WorkforcePanel } from "./workforce-ui"
+import { WorkforcePanel } from "./workforce-ui"
+import { WorkforceSLOBanner } from "@/components/admin/workforce/workforce-slo-banner"
 
 const HiringOverviewPanel = dynamic(
   () => import("./hiring-overview-panel").then((mod) => ({ default: mod.HiringOverviewPanel })),
@@ -60,31 +60,31 @@ const HIRING_DASHBOARD_TABS: TabConfig[] = [
   { value: "audit", label: "Audit", icon: ScrollText },
 ]
 
-export function HiringDashboardShell({ employer, initialTab = "overview" }: HiringDashboardProps) {
+export function HiringDashboardShell({
+  employer,
+  initialTab = "overview",
+  initialCandidateId,
+  initialMemberId,
+}: HiringDashboardProps) {
   return (
-    <section className="space-y-6">
-      <WorkforceHero
-        title="Hiring & Onboarding"
-        description={`Real-time hiring, onboarding, roster, and Work Mode readiness for ${getEmployerLabel(employer)}.`}
-        badge={employer.entityType}
-      />
+    <section className="space-y-4">
+      {/* WORK-603 — Workforce SLO health banner */}
+      <WorkforceSLOBanner />
 
       <Tabs defaultValue={initialTab} className="space-y-6">
+        {/* Keep every workspace reachable and let Radix manage the tab focus order. */}
         <WorkforcePanel className="p-2">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-[1.15rem] bg-slate-900/70 p-1 md:grid-cols-4 xl:grid-cols-7">
-            {HIRING_DASHBOARD_TABS.map((tab) => {
-              const Icon = tab.icon
-              return (
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-transparent p-0 sm:grid-cols-4 xl:grid-cols-7" aria-label="Hiring workspace sections">
+            {HIRING_DASHBOARD_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
-                  className="gap-2 rounded-xl border border-transparent text-slate-300 data-[state=active]:border-cyan-400/30 data-[state=active]:bg-cyan-400/10 data-[state=active]:text-white"
+                  className="min-w-0 gap-1.5 whitespace-normal rounded-xl border border-transparent px-2 py-2 text-sm text-slate-300 data-[state=active]:border-cyan-400/30 data-[state=active]:bg-cyan-400/10 data-[state=active]:text-white"
                 >
-                  <Icon className="h-4 w-4" />
+                  <tab.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {tab.label}
                 </TabsTrigger>
-              )
-            })}
+            ))}
           </TabsList>
         </WorkforcePanel>
 
@@ -98,10 +98,10 @@ export function HiringDashboardShell({ employer, initialTab = "overview" }: Hiri
           <HiringApplicationsPanel employer={employer} />
         </TabsContent>
         <TabsContent value="onboarding">
-          <HiringOnboardingPanel employer={employer} />
+          <HiringOnboardingPanel employer={employer} initialCandidateId={initialCandidateId} />
         </TabsContent>
         <TabsContent value="roster">
-          <HiringRosterPanel employer={employer} />
+          <HiringRosterPanel employer={employer} initialMemberId={initialMemberId} />
         </TabsContent>
         <TabsContent value="templates">
           <TemplateLibrary employer={employer} />

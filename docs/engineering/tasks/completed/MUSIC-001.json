@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0",
+  "id": "MUSIC-001",
+  "title": "Audit Music workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "music",
+  "created_at": "2026-09-09T06:17:41.349Z",
+  "updated_at": "2026-09-10T22:07:24.282Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; documentation-only audit changes preserved",
+  "goal": "Audit the Music area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: music catalog, playback, rights, royalties, ingestion, and music worker flows",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/music/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The music default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/music/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/music/BASELINE.md: what the music area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/music/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task MUSIC-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/music/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/music/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/music/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:context -- --task MUSIC-001",
+      "npm run agents:generate",
+      "npx vitest run __tests__/artist/music __tests__/music-commerce lib/music/__tests__ app/api/webhooks/music-royalty-payouts/__tests__",
+      "npx vitest run __tests__/feed/music-post-preview.test.ts",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Generated maps refreshed at 7cf660ad: 939 API routes, 1,939 components, 693 database objects, 1,287 policies, and 9 integrations.",
+      "Focused Music suites passed: 8 files / 48 tests; focused music-post-preview passed: 1 file / 8 tests.",
+      "All 33 Artist Music handlers use requireArtistMusicUser and all 13 Music Marketplace handlers use requireMarketplaceAccount; scoped legacy-auth scans returned zero matches.",
+      "No Music processing or reconciliation worker is registered in vercel.json; rights/royalty/trust DDL is only in the pre-reconciliation local-only archive, not the active migration chain.",
+      "agents:validate: 17 agents, 69 tasks, 0 errors; one pre-existing RELEASE-001 warning.",
+      "Source scans: 33/33 Artist Music handlers use requireArtistMusicUser; 13/13 Music Marketplace handlers use requireMarketplaceAccount; zero legacy auth markers in both route families.",
+      "No Music worker is registered in vercel.json; rights/royalty/trust DDL is only in the pre-reconciliation local-only archive, not the active migration chain."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T22:07:24.282Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed current Music audit reconciliation. Updated BASELINE, GAPS, QUESTIONS, STATE, BACKLOG, generated maps, work packet, and task evidence. Closed prior auth/webhook findings using ARTIST-004, MUSIC-002, and MUSIC-005; added the active-chain rights/certification/trust/royalty schema gap; verified 16 outbox, 5 processing, and 1 reconciliation workers are unscheduled; focused Music suites passed 8 files/48 tests and music-post-preview passed 1 file/8 tests; agents:validate passed with 0 errors. Product-owner questions: Q1 schema promote/repair/drop; Q2 worker launch set/runtime; Q3 launch slice; Q4 flag policy; Q5 licensing/governance ownership; Q6 venue Music; Q7 admin Music; Q8 analytics aggregation; Q9 trust freshness; Q10 Audius resilience; Q11 mobile parity; Q12 route-test matrix.",
+    "completed": [
+      "Read all startup protocol docs (INDEX.md, CHARTER.md, STATE.md, task JSON)",
+      "Read all domain working set files (8 files in agents/music/)",
+      "Read all generated maps (routes, api-routes, components, database-objects, database-schema, integrations, permissions)",
+      "Read DEVELOPMENT_BACKLOG.md, PROJECT_STATE.md, SYSTEM_MAP.md, DECISIONS.md, registry.yaml, DEVELOPMENT_WORKFLOW.md",
+      "Enumerated current Music source paths: 4 public routes, 12 artist pages, 30 core API routes, 33 artist API routes, 13 marketplace routes, 23 components, 10 playback files, 282 lib/music files, and 24 music scripts",
+      "Verified 33/33 Artist Music auth adoption and 13/13 Music Marketplace auth adoption; reconciled the closed unsigned-webhook finding",
+      "Identified 15 current gaps triaged as 3 missing, 8 incomplete, 4 improve; recorded the active-chain rights/royalty/trust schema gap",
+      "Produced 12 prioritized questions (3 P1, 5 P2, 4 P3)",
+      "Produced BASELINE.md with real path references",
+      "Produced GAPS.md with evidence and triage",
+      "Produced QUESTIONS.md with product owner questions",
+      "Updated STATE.md with durable facts and current focus",
+      "Updated BACKLOG.md with candidate items and decision dependencies",
+      "Created docs/work-packets/MUSIC-001.md with scope expansion, verification, and handoff evidence",
+      "Reconciled current route-adoption and webhook boundary evidence",
+      "Refreshed generated maps and added MUSIC-001 work packet",
+      "Recorded 15 current gaps (3 missing, 8 incomplete, 4 improve) and 12 prioritized questions"
+    ],
+    "next_steps": [
+      "Start MUSIC-004 only after DB/product owners answer Q1 and Q2",
+      "Keep schema changes in the database reconciliation lane; do not use archived local-only DDL directly"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "timestamp": "2026-09-09T12:00:00.000Z",
+        "summary": "Full audit completed. 18 gaps identified (5 missing, 9 incomplete, 4 improve). 15 questions produced for product owner. Key findings: (1) all 24 music workers are implemented but zero are scheduled — outbox pattern is dead code; (2) music-post-preview test is one of 27 vitest failures blocking CI; (3) music marketplace routes (13) have unverified auth; (4) unsigned webhook fallback exists in royalty payout handler; (5) creator-* governance subsystems (~100 files) are co-located in lib/music/ with unclear ownership.",
+        "scope_expansion": [
+          {
+            "path": "app/api/artist/music/**/*.ts",
+            "reason": "Task scope required enumerating artist music API routes (33 routes) not in generated maps as a music-specific group"
+          },
+          {
+            "path": "app/api/music-marketplace/**/*.ts",
+            "reason": "Task scope required verifying music marketplace route count and auth indicators"
+          },
+          {
+            "path": "app/api/webhooks/music-royalty-payouts/**/*.ts",
+            "reason": "Task scope required verifying royalty webhook implementation per WS-0.6 reference"
+          },
+          {
+            "path": "__tests__/feed/music-post-preview.test.ts",
+            "reason": "Task scope required verifying music-post-preview test blocker per WS-1.6 reference"
+          },
+          {
+            "path": "supabase/migrations/**/*music*.sql",
+            "reason": "Task scope required verifying database objects used by the music domain"
+          }
+        ],
+        "questions_for_product_owner": [
+          "Q1: Deploy or drop the music outbox workers? (21 workers unscheduled — blocking G5)",
+          "Q2: Music marketplace scope and ownership? (13 routes, all unverified auth)",
+          "Q3: Music-post-preview test fix: code bug or product decision blocker?",
+          "Q4: Remove or gate unsigned webhook fallback?",
+          "Q5: Authorization model for music rights/royalties/certification routes?",
+          "Q6: Licensing: music subdomain or cross-domain?",
+          "Q7: Venue music dashboard scope?",
+          "Q8: Admin music dashboard scope?",
+          "Q9: Creator-* governance code: move out of lib/music/?",
+          "Q10: Music feature launch priority ranking?",
+          "Q11: Music analytics: pre-computed aggregations needed?",
+          "Q12: Trust reconciliation cadence?",
+          "Q13: Music marketplace routes: move to marketplace agent?",
+          "Q14: Audius dependency risk and fallback?",
+          "Q15: Mobile music tab parity expectations?"
+        ]
+      },
+      {
+        "at": "2026-09-10T22:07:24.282Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed current Music audit reconciliation. Updated BASELINE, GAPS, QUESTIONS, STATE, BACKLOG, generated maps, work packet, and task evidence. Closed prior auth/webhook findings using ARTIST-004, MUSIC-002, and MUSIC-005; added the active-chain rights/certification/trust/royalty schema gap; verified 16 outbox, 5 processing, and 1 reconciliation workers are unscheduled; focused Music suites passed 8 files/48 tests and music-post-preview passed 1 file/8 tests; agents:validate passed with 0 errors. Product-owner questions: Q1 schema promote/repair/drop; Q2 worker launch set/runtime; Q3 launch slice; Q4 flag policy; Q5 licensing/governance ownership; Q6 venue Music; Q7 admin Music; Q8 analytics aggregation; Q9 trust freshness; Q10 Audius resilience; Q11 mobile parity; Q12 route-test matrix.",
+        "completed": [
+          "Reconciled current route-adoption and webhook boundary evidence",
+          "Refreshed generated maps and added MUSIC-001 work packet",
+          "Recorded 15 current gaps (3 missing, 8 incomplete, 4 improve) and 12 prioritized questions"
+        ],
+        "next_steps": [
+          "Start MUSIC-004 only after DB/product owners answer Q1 and Q2",
+          "Keep schema changes in the database reconciliation lane; do not use archived local-only DDL directly"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

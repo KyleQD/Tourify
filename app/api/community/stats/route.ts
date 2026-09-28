@@ -11,7 +11,6 @@ export const GET = withAuth(async (_request, { user }) => {
       followersResult,
       followingResult,
       conversationsResult,
-      eventsResult,
       eventsV2Result,
       postsResult,
       jobsResult,
@@ -31,12 +30,6 @@ export const GET = withAuth(async (_request, { user }) => {
         .from('conversations')
         .select('id', { count: 'exact', head: true })
         .or(`participant_1.eq.${userId},participant_2.eq.${userId}`),
-
-      supabase
-        .from('events')
-        .select('id', { count: 'exact', head: true })
-        .eq('artist_id', userId)
-        .gte('start_date', new Date().toISOString()),
 
       supabase
         .from('events_v2')
@@ -68,7 +61,7 @@ export const GET = withAuth(async (_request, { user }) => {
     const followingCount = extractCount(followingResult)
     const totalConnections = followersCount + followingCount
     const conversationsCount = extractCount(conversationsResult)
-    const eventsCount = extractCount(eventsResult) + extractCount(eventsV2Result)
+    const eventsCount = extractCount(eventsV2Result)
     const postsCount = extractCount(postsResult)
     const jobsCount = extractCount(jobsResult)
     const projectsCount = extractCount(projectsResult)

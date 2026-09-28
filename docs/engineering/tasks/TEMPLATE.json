@@ -1,0 +1,64 @@
+{
+  "schema_version": "2.0",
+  "id": "TOUR-000",
+  "title": "Replace with a bounded task title",
+  "status": "active",
+  "execution_state": "ready",
+  "priority": "P2",
+  "owner_agent": "orchestrator",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "orchestrator",
+  "created_at": "2026-09-27T22:30:23.577Z",
+  "updated_at": "2026-09-27T22:30:23.577Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "recorded at creation",
+  "goal": "Describe one observable outcome.",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Replace with an observable acceptance criterion.",
+      "owner": "orchestrator",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "orchestrator",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Not started.",
+    "completed": [],
+    "next_steps": [
+      "Replace with the next bounded action."
+    ],
+    "blockers": [],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

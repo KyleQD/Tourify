@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth, withAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { createClient } from '@supabase/supabase-js'
 
 function createServiceClient() {
@@ -18,7 +18,7 @@ const bulletinSchema = z.object({
   requires_acknowledgment: z.boolean().default(false),
 })
 
-export const GET = withAuth(async (request: NextRequest, { user }) => {
+export const GET = withAdminCapability('event.view', async (request: NextRequest, { user }) => {
   try {
     const eventId = request.nextUrl.pathname.split('/')[5]
     const { searchParams } = new URL(request.url)
@@ -43,11 +43,20 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
       .eq('created_by', user.id)
       .maybeSingle()
 
-    if (!participant && !eventOwner) {
+    const { data: workerAssignment } = await svc
+      .from('employment_assignments')
+      .select('id, role_title, department')
+      .eq('user_id', user.id)
+      .in('status', ['confirmed', 'active'])
+      .or(`event_v2_id.eq.${eventId},event_id.eq.${eventId}`)
+      .limit(1)
+      .maybeSingle()
+
+    if (!participant && !eventOwner && !workerAssignment) {
       return NextResponse.json({ error: 'Not a member of this event' }, { status: 403 })
     }
 
-    const userRole = eventOwner ? 'admin' : (participant?.role || 'staff')
+    const userRole = eventOwner ? 'admin' : (participant?.role || workerAssignment?.department || workerAssignment?.role_title || 'staff')
 
     let q = svc
       .from('event_bulletins')
@@ -93,7 +102,7 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
   }
 })
 
-export const POST = withAuth(async (request: NextRequest, { user }) => {
+export const POST = withAdminCapability('event.view', async (request: NextRequest, { user }) => {
   try {
     const eventId = request.nextUrl.pathname.split('/')[5]
     const svc = createServiceClient()
@@ -157,8 +166,18 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
         .eq('participant_type', 'Individual')
         .limit(100)
 
+      const { data: assignedWorkers } = await svc
+        .from('employment_assignments')
+        .select('user_id')
+        .in('status', ['confirmed', 'active'])
+        .or(`event_v2_id.eq.${eventId},event_id.eq.${eventId}`)
+        .limit(500)
+
       const userIds = Array.from(
-        new Set((participants || []).map((row: any) => row.participant_id).filter(Boolean))
+        new Set([
+          ...(participants || []).map((row: any) => row.participant_id),
+          ...(assignedWorkers || []).map((row: any) => row.user_id),
+        ].filter(Boolean))
       ).filter((id: string) => id !== user.id)
 
       if (userIds.length > 0) {
@@ -171,7 +190,7 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
             metadata: {
               event_id: eventId,
               bulletin_id: data.id,
-              url: `/admin/dashboard/events/${eventId}/hq`,
+              url: `/work/events/${eventId}?section=updates`,
               priority: validated.priority,
             },
           }))
@@ -191,7 +210,7 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
   }
 })
 
-export const PATCH = withAuth(async (request: NextRequest, { user }) => {
+export const PATCH = withAdminCapability('event.view', async (request: NextRequest, { user }) => {
   try {
     const eventId = request.nextUrl.pathname.split('/')[5]
     const svc = createServiceClient()

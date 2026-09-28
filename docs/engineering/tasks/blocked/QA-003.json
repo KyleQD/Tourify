@@ -1,0 +1,293 @@
+{
+  "schema_version": "2.0",
+  "id": "QA-003",
+  "title": "Core web launch certification suite",
+  "status": "blocked",
+  "priority": "P0",
+  "owner_agent": "qa",
+  "created_at": "2026-09-16T19:20:38.641Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (197 entries; QA-003 owns .github/workflows/e2e.yml, playwright.config.ts, tests/e2e/helpers/fail-on-skipped-reporter.ts, __tests__/qa/e2e-fail-closed-gate.test.ts)",
+  "goal": "Certify the exact deployed staging release SHA across every core user, authorization, commerce, realtime, accessibility, and performance journey",
+  "scope": {
+    "in": [
+      "Authentication, personas, discovery, events, ticketing, marketplace, messaging, uploads, and account deletion E2E",
+      "Negative authorization, webhook replay, concurrency, accessibility, responsive browser, and performance scenarios"
+    ],
+    "out": [
+      "Mobile launch certification and deferred advanced music/governance capabilities"
+    ]
+  },
+  "working_set": [
+    "e2e",
+    "playwright.config.ts",
+    ".github/workflows/e2e.yml"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "All core launch journeys pass against the exact staging release SHA using synthetic data and Stripe test mode",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Cross-role, cross-user, and cross-tenant denial scenarios pass with no accidental skips",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Webhook replay, transaction concurrency, accessibility, responsive-browser, and performance gates pass",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "No unresolved P0/P1 defect remains and evidence is attached to the certified release SHA",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "release",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "qa",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run test:e2e",
+          "npm run test:e2e:social",
+          "npm run verify:release"
+        ],
+        "evidence": [
+          "Audit baseline: the existing five E2E specs are shallow, can skip critical personas, and do not certify checkout/refund, marketplace, messaging, uploads, authorization negatives, payouts, or webhook replay end to end.",
+          "2026-09-18 local contract evidence: fixture validation passed, Playwright discovery enumerated 33 tests across lifecycle plus desktop/mobile/tablet surface projects, focused ESLint passed, workflow YAML parsed, and a secretless invocation failed closed before browser launch.",
+          "2026-09-22 local: node --import tsx --test scripts/ci/check-public-surface.test.mjs passed 8 tests, including deployment ID fail-closed behavior. Public demo/prod GET /api/health each returned 200 without x-tourify-release-sha and advertised the same Supabase connection origin. No hosted certification run was claimed.",
+          "2026-09-22 local release/QA gate wave: 13 deployment/topology/evidence/workflow Node tests, 7 actor-provisioner tests, 7 mobile gate tests, launch fixture contract, public-surface check, focused ESLint, and workflow YAML parse passed. Hosted deployment, certification, and simulation were not run.",
+          "2026-09-22 certification hold: docs/audits/flow-notes/release-staging-isolation-packet-2026-09-22.md; no Playwright staging run or actor/payment action occurred.",
+          "2026-09-22 fresh release handoff: Vercel inspect still maps demo and production aliases to dpl_3tW7rRYa6chWxG7U7FDdLi7ZLngK; both public health GETs returned 200 without SHA, deployment ID, Supabase-origin, or Stripe-mode headers. GitHub staging environment has no variables, secrets, or protection rules. Launch fixture contract passed locally; no Playwright browser, synthetic actor, webhook, or payment run occurred.",
+          "2026-09-25 Wave 32 root cause: the failing 'E2E Tests (Playwright)' check on PR #14 (run 35761778422, job 106862321148) was NOT a Playwright failure. Step 7 'Build app' was cancelled after 28m38s and steps 8-11 (Start app, Wait for app, Run E2E tests, upload artifact) were all 'skipped', so zero tests executed. Annotations: 'The job has exceeded the maximum execution time of 30m0s' and 'The operation was canceled.'",
+          "2026-09-25 Wave 32 mechanism: last build log line is 'Linting and checking validity of types ...' at 2026-09-22T17:43:47.5458532Z, followed by 25m31s of total silence. npm run build = 'npm run validate:env:production && NODE_OPTIONS=--max-old-space-size=6144 next build', and next.config.ts sets eslint.ignoreDuringBuilds=false and typescript.ignoreBuildErrors=false, so the build runs a full-repo ESLint and a full tsc --noEmit inline. The webpack compile was only 3.0m; the job cap of 30m was consumed by the inline typecheck.",
+          "2026-09-25 Wave 32 measured cost on the identical SHA: ci.yml run 35761777731 job 106861310047 'Lint And Build' measured Lint 48s success, Typecheck 68m18s FAILURE, and skipped the Build step. Full tsc therefore needs more than twice the entire 30m E2E budget, so the PR E2E job could never reach npm run test:e2e at any result.",
+          "2026-09-25 Wave 32 non-QA blocker: the typecheck failed with 1384 TypeScript errors across 189 files (TS2339 495, TS2769 265, TS2322 180, TS2589 163, TS2345 161). Root pattern: product code queries about 110 relations and about 35 RPCs that are absent from the generated Supabase types. venue_team_contractors and venue_crew_members are defined only in supabase/migrations/archive/enhanced_staff_management_schema.sql, are not in the active chain, and have 0 occurrences in types/database.types.ts. The 'Database Types' check failed separately and earlier with 'ERROR: must be owner of table objects (SQLSTATE 42501)' while applying 20260413200000_port_missing_tables.sql. Handed to database as HF-QA-003-TYPECHECK-BLOCKER.",
+          "2026-09-25 Wave 32 local gate fix evidence: npx playwright test --list reproduced the pre-existing collection failure 'Error: Launch certification fixture invalid: QA_CERT_FIXTURE_PATH is required' with 'Total: 0 tests in 0 files' because playwright.config.ts testDir './tests/e2e' collected tests/e2e/launch-certification. After testIgnore the PR suite enumerates 'Total: 11 tests in 5 files'. The launch config still enumerates 'Total: 33 tests in 1 file'. e2e.yml parses with job timeout 115 and step caps Build app 80, Wait for app 5, Run E2E tests 25; launch-certification is unchanged at 45. npx vitest run __tests__/qa/e2e-fail-closed-gate.test.ts passed 15/15. Scoped tsc on playwright.config.ts and tests/e2e/helpers/fail-on-skipped-reporter.ts exited 0. npx eslint on all three changed files exited 0. git diff --check clean. npm run agents:validate passed 17 agents, 151 tasks, 0 warnings, 0 errors.",
+          "Preserved v1 result: ci-config-fixed-and-fail-closed; build-blocked-by-database-handoff; hosted-staging-not-run"
+        ],
+        "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "last_run_at": "2026-09-25T13:25:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Diagnosed the PR #14 E2E failure as a build timeout, not a test failure: 'Build app' was cancelled after 28m38s and Start app/Wait for app/Run E2E tests/upload were all skipped, so zero Playwright tests ran. Cause: npm run build runs next build, which inlines a full-repo ESLint and full tsc because next.config.ts sets ignoreDuringBuilds=false and ignoreBuildErrors=false; ci.yml measured Lint 48s and Typecheck 68m18s on the same SHA, versus a 30m job cap. Fixed in CI config: job 115m with named step caps (Build app 80, Wait for app 5, Run E2E tests 25), build output teed to a retained build-app.log, PLAYWRIGHT_BASE_URL pinned to the locally built app with a fail-closed 'Refuse a hosted E2E target' preflight, dead NODE_OPTIONS removed, globalTimeout plus fail-on-skipped reporter added, and testIgnore added to stop launch-certification from aborting PR collection. Passed: vitest lock 15/15, PR suite enumerates 11 tests in 5 files (was 0 in 0 files), launch config still 33, e2e.yml YAML parse, scoped tsc exit 0, focused ESLint exit 0, git diff --check clean, agents:validate 17 agents/151 tasks/0 errors. The gate is NOT green: next build must still fail on 1384 TS errors across 189 files, handed to database as HF-QA-003-TYPECHECK-BLOCKER.",
+    "completed": [
+      "Added playwright.launch.config.ts and tests/e2e/launch-certification fixture, global setup, helpers, and certification spec.",
+      "Certification refuses incomplete fixtures, localhost by default, non-HTTPS targets, and release-SHA mismatches before tests execute.",
+      "Added test:e2e:launch and fixture.example.json with required core coverage areas, exact-SHA probe, actor env names, and conservative placeholder API scenarios.",
+      "Added launch-certification README with isolated HTTPS staging invocation and refusal conditions.",
+      "Wired workflow_dispatch to checkout and verify one full main-branch SHA, then run only the protected staging certification job with environment-scoped fixture secrets.",
+      "Replaced placeholder API scenarios with application-backed foreign-organization denial, signed marketplace webhook replay/deduplication, and marketplace checkout concurrency contracts.",
+      "Added secretless fixture contract validation, 30-test discovery validation, and a reporter that turns every skipped certification test into a failed run.",
+      "Local health metadata now supports the Vercel-generated deployment ID alongside the authoritative full commit SHA; focused public-surface tests pass.",
+      "Added protected environment inputs for staging/production deployment identity and Stripe mode.",
+      "Staging health preflight verifies exact SHA, deployment ID, Supabase origin, and test mode.",
+      "Diagnosed the 30m20s E2E failure from the real CI log as a build-timeout, not a test failure: build step cancelled after 28m38s, all four E2E steps skipped, zero tests executed.",
+      "Established the measured cost split on the same SHA (Lint 48s, Typecheck 68m18s) and confirmed next.config.ts makes next build run both inline, which is why a 30m job cap could never reach the tests.",
+      "Rebuilt the e2e job budgets from measurement: job 115m, Build app 80m, Wait for app 5m, Run E2E tests 25m, with build output teed to a retained build-app.log.",
+      "Removed the fail-open hosted-target fallback and added a 'Refuse a hosted E2E target (fail closed)' preflight that runs before the build.",
+      "Removed the dead step-level NODE_OPTIONS override that the inline NODE_OPTIONS in the build script always won.",
+      "Added globalTimeout, an explicit per-test timeout, a list reporter, and a fail-on-skipped reporter to playwright.config.ts so a skipped journey can never report green.",
+      "Fixed pre-existing collection breakage: testIgnore excludes tests/e2e/launch-certification from the PR suite, restoring 11 enumerated PR tests.",
+      "Added tests/e2e/helpers/fail-on-skipped-reporter.ts and a 15-case regression lock at __tests__/qa/e2e-fail-closed-gate.test.ts covering reporter behaviour and the workflow/config fail-closed contract.",
+      "Assessed the skipping Launch Certification and Supabase Preview checks: both are correct, and production promotion already hard-requires a successful exact-SHA launch-certification run.",
+      "Filed HF-QA-003-TYPECHECK-BLOCKER to database with full reproduction evidence for the 1384-error typecheck and the Database Types SQLSTATE 42501 failure."
+    ],
+    "next_steps": [
+      "database resolves HF-QA-003-TYPECHECK-BLOCKER (reconcile archived enhanced_staff_management_schema.sql into the active chain, settle ~110 missing relations and ~35 missing RPCs, fix the SQLSTATE 42501 ownership failure, regenerate types); then re-run the PR E2E job to confirm it reaches Run E2E tests for the first time and provision QA-005 campaign actors before reading any red result as a product defect."
+    ],
+    "blockers": [
+      "The PR E2E job cannot go green from QA-owned files. next build must fail while typescript.ignoreBuildErrors is false and npm run typecheck fails with 1384 errors, so the job will still report failure. It now fails with the real cause attributed to 'Build app' and retained in build-app.log instead of an ambiguous cancelled job.",
+      "No Playwright test was executed locally or in CI during this lane. Reproducing the hang requires a full production build whose inline typecheck takes 68m18s, which is excluded both by the shared-machine constraint and by the underlying type failures. The 30m20s failure is characterised from the CI log and step timings, not reproduced locally.",
+      "No staging URL, synthetic actor credentials, Supabase credentials, fixture identifiers, or Stripe test webhook secret are available in this workspace, so no certification and no actor journey was run.",
+      "Hosted staging certification, protected environment configuration, and repository required-check enforcement remain unverified locally."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T01:29:01.405Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch implementation landed: added a fail-closed Playwright launch-certification config, fixture schema, exact release-SHA probe, HTTPS/staging guard, browser/API lifecycle harness, replay/concurrency assertions, Stripe signature support, axe accessibility, responsive overflow, and performance budgets. No staging evidence is claimed.",
+        "completed": [
+          "Added playwright.launch.config.ts and tests/e2e/launch-certification fixture, global setup, helpers, and certification spec.",
+          "Certification refuses incomplete fixtures, localhost by default, non-HTTPS targets, and release-SHA mismatches before tests execute."
+        ],
+        "next_steps": [
+          "Add a committed example fixture/manifest and a manual CI workflow entry that supplies QA_CERT_FIXTURE_PATH and protected staging secrets.",
+          "Run the suite against isolated staging with synthetic actors and Stripe test mode; attach exact-SHA evidence and defect disposition."
+        ],
+        "blockers": [
+          "No QA_CERT_FIXTURE_PATH, staging URL, actor credentials, Supabase credentials, or Stripe test secrets are available in this workspace.",
+          "The current CI workflow still runs the legacy E2E command and does not yet invoke this certification config."
+        ]
+      },
+      {
+        "at": "2026-09-17T01:30:47.249Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Partial batch advanced: the fail-closed launch-certification harness is now wired as npm run test:e2e:launch, has a committed non-secret fixture template and operator README, and its fixture/config/helper TypeScript plus contract schema validate. No staging or Stripe evidence is claimed.",
+        "completed": [
+          "Added test:e2e:launch and fixture.example.json with required core coverage areas, exact-SHA probe, actor env names, and conservative placeholder API scenarios.",
+          "Added launch-certification README with isolated HTTPS staging invocation and refusal conditions."
+        ],
+        "next_steps": [
+          "Replace placeholder fixture endpoints and expected contracts with approved staging behavior before certification.",
+          "Run against isolated staging with synthetic actors and Stripe test mode, then attach exact-SHA evidence to QA-003 and RELEASE-005."
+        ],
+        "blockers": [
+          "No staging URL, actor credentials, Supabase credentials, or Stripe test secrets are available in this workspace.",
+          "The existing general E2E workflow still does not run test:e2e:launch; use the explicit protected staging invocation until manual workflow wiring is approved."
+        ]
+      },
+      {
+        "at": "2026-09-18T22:02:55.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Next local slice completed: launch certification is wired to protected manual dispatch for an exact main-branch SHA, placeholder API scenarios were replaced with application-backed contracts, fixture readiness and no-skip gates were added, and all secretless validation passed. No hosted run or release certification is claimed.",
+        "completed": [
+          "Added a staging-environment workflow_dispatch job that verifies the full requested SHA, checks out that exact commit, and requires all QA_CERT_* inputs before browser execution.",
+          "Added locally evidenced foreign-organization denial, signed Stripe webhook replay/deduplication, and marketplace checkout concurrency scenarios.",
+          "Added fixture readiness validation and a fail-on-skipped Playwright reporter; dry discovery enumerates 33 tests across four projects.",
+          "Validated fixture contract, Playwright discovery, focused ESLint, workflow YAML, and missing-secret fail-closed behavior without launching browsers."
+        ],
+        "next_steps": [
+          "Add an authoritative deployed-SHA response contract to the release surface and provision the protected staging QA_CERT_* values.",
+          "Run the exact-SHA suite against isolated staging in Stripe test mode and attach retained reports plus defect disposition."
+        ],
+        "blockers": [
+          "The current /api/health route does not emit x-tourify-release-sha, so the exact-SHA probe intentionally cannot pass.",
+          "Protected staging secrets and synthetic fixture identifiers are not available locally; hosted staging was not invoked."
+        ]
+      },
+      {
+        "at": "2026-09-22T15:33:19Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Local release/deployment metadata contract extended; hosted isolation and SHA exposure remain unverified.",
+        "completed": [
+          "Added Vercel deployment ID health header contract and focused tests; observed public demo/prod health responses read-only."
+        ],
+        "next": "Provision separate staging and expose authoritative SHA/deployment headers before exact-SHA certification."
+      },
+      {
+        "at": "2026-09-22T16:00:00Z",
+        "sha": null,
+        "summary": "Local launch certification preflight now requires distinct staging/production app and Supabase origins, Vercel deployment IDs, protected Stripe test key, and staging health identity before browsers run. No hosted certification occurred.",
+        "completed": [
+          "Added protected environment inputs for staging/production deployment identity and Stripe mode.",
+          "Staging health preflight verifies exact SHA, deployment ID, Supabase origin, and test mode."
+        ],
+        "next": "After RELEASE-007 staging evidence and QA_CERT_* provisioning, run protected exact-SHA launch certification and retain the Playwright report."
+      },
+      {
+        "at": "2026-09-22T16:15:02Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Exact-SHA launch certification remains blocked after read-only hosted inspection; current demo alias is the same production deployment and provides none of the required health identity or Stripe-mode headers.",
+        "completed": [
+          "Captured current alias/deployment and missing health headers in the RELEASE-007 staging packet."
+        ],
+        "next_steps": [
+          "Run protected no-skip launch certification only after a distinct staging project/database, generated deployment ID, full deployed SHA, Stripe test mode, and synthetic fixture inputs are verified."
+        ],
+        "blockers": [
+          "Current demo alias resolves to production deployment; exact deployed SHA and Stripe mode are unknown; protected QA_CERT inputs are absent."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Certification remains on hold because the demo alias is the production deployment and protected staging identity, database, payment, and actor evidence are absent.",
+        "completed": [
+          "Verified public health and Vercel alias identity read-only; confirmed GitHub staging environment has no protected inputs.",
+          "Local launch fixture contract passed; hosted certification was not run."
+        ],
+        "next_steps": [
+          "Wait for RELEASE-007 retained staging-deployment-<sha> evidence and DB-008/DB-002 migration/security postflight, including a distinct staging Supabase origin and test Stripe mode.",
+          "Populate QA_CERT_* protected staging values for synthetic member/operator, foreign organization, listing, webhook signing secret, distinct production identity, and exact staging deployment ID.",
+          "Dispatch e2e.yml workflow_dispatch from main with the identical release_sha; retain the no-skip Playwright report and defect disposition for RELEASE-005."
+        ],
+        "blockers": [
+          "Current demo and production aliases share a Vercel deployment; health omits exact SHA, deployment ID, Supabase origin, and Stripe mode.",
+          "No protected staging variables/secrets/reviewers or verified DB isolation/security evidence; QA actor/payment actions remain unauthorized."
+        ]
+      },
+      {
+        "at": "2026-09-22T16:19:56.564Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83",
+        "summary": "Next-phase unblock check confirms exact-SHA launch certification cannot run yet. GitHub staging environment has no QA_CERT values, no isolated staging deployment exists for candidate 623b576b7963d4a2eccb2fbf83f24f2011842a83, and the candidate is not on origin/main. No browser certification was attempted.",
+        "completed": [],
+        "next_steps": [
+          "After deploy-demo succeeds for the exact main SHA and QA_CERT protected values exist, run gh workflow run e2e.yml --ref main -f release_sha=<FULL_MAIN_SHA> and retain the report."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T20:22:29.763Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Diagnosed the PR #14 E2E failure as a build timeout, not a test failure: 'Build app' was cancelled after 28m38s and Start app/Wait for app/Run E2E tests/upload were all skipped, so zero Playwright tests ran. Cause: npm run build runs next build, which inlines a full-repo ESLint and full tsc because next.config.ts sets ignoreDuringBuilds=false and ignoreBuildErrors=false; ci.yml measured Lint 48s and Typecheck 68m18s on the same SHA, versus a 30m job cap. Fixed in CI config: job 115m with named step caps (Build app 80, Wait for app 5, Run E2E tests 25), build output teed to a retained build-app.log, PLAYWRIGHT_BASE_URL pinned to the locally built app with a fail-closed 'Refuse a hosted E2E target' preflight, dead NODE_OPTIONS removed, globalTimeout plus fail-on-skipped reporter added, and testIgnore added to stop launch-certification from aborting PR collection. Passed: vitest lock 15/15, PR suite enumerates 11 tests in 5 files (was 0 in 0 files), launch config still 33, e2e.yml YAML parse, scoped tsc exit 0, focused ESLint exit 0, git diff --check clean, agents:validate 17 agents/151 tasks/0 errors. The gate is NOT green: next build must still fail on 1384 TS errors across 189 files, handed to database as HF-QA-003-TYPECHECK-BLOCKER.",
+        "completed": [],
+        "next_steps": [
+          "database resolves HF-QA-003-TYPECHECK-BLOCKER (reconcile archived enhanced_staff_management_schema.sql into the active chain, settle ~110 missing relations and ~35 missing RPCs, fix the SQLSTATE 42501 ownership failure, regenerate types); then re-run the PR E2E job to confirm it reaches Run E2E tests for the first time and provision QA-005 campaign actors before reading any red result as a product defect."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Provide matching-SHA launch certification, defect disposition, performance, and authorization evidence to RELEASE-005 for the final go/no-go decision."
+  ],
+  "execution_state": "waiting_external",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "qa",
+  "shared_working_set": [],
+  "depends_on": [
+    "RELEASE-007",
+    "DB-008",
+    "QA-005"
+  ],
+  "resume_condition": "database resolves HF-QA-003-TYPECHECK-BLOCKER (reconcile archived enhanced_staff_management_schema.sql into the active chain, settle ~110 missing relations and ~35 missing RPCs, fix the SQLSTATE 42501 ownership failure, regenerate types); then re-run the PR E2E job to confirm it reaches Run E2E tests for the first time and provision QA-005 campaign actors before reading any red result as a product defect.",
+  "blocked_on": [
+    {
+      "type": "external",
+      "owner": "release",
+      "condition": "The PR E2E job cannot go green from QA-owned files. next build must fail while typescript.ignoreBuildErrors is false and npm run typecheck fails with 1384 errors, so the job will still report failure. It now fails with the real cause attributed to 'Build app' and retained in build-app.log instead of an ambiguous cancelled job.",
+      "dependency_task_ids": [
+        "RELEASE-007",
+        "DB-008",
+        "QA-005"
+      ]
+    }
+  ]
+}

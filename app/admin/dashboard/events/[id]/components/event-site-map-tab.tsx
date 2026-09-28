@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Map, Plus, ExternalLink, Loader2 } from "lucide-react"
 import { SiteMapManager } from "@/components/admin/logistics/site-map/site-map-manager"
-import { useToast } from "@/hooks/use-toast"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 
 interface EventSiteMapTabProps {
   eventId: string
@@ -23,17 +23,24 @@ interface SiteMapSummary {
 }
 
 export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
-  const { toast } = useToast()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [hasMaps, setHasMaps] = useState<boolean | null>(null)
   const [maps, setMaps] = useState<SiteMapSummary[]>([])
   const [showBuilder, setShowBuilder] = useState(false)
 
   useEffect(() => {
+    let active = true
     async function checkMaps() {
+      if (!isAdminReady) {
+        setMaps([])
+        setHasMaps(null)
+        return
+      }
       try {
         const params = new URLSearchParams({ eventId, includeData: 'false' })
-        const resp = await fetch(`/api/admin/logistics/site-maps?${params}`, { credentials: 'include' })
+        const resp = await adminFetch(`/api/admin/logistics/site-maps?${params}`)
         const data = await resp.json()
+        if (!active) return
         if (data.success) {
           setMaps(data.data || [])
           setHasMaps((data.data || []).length > 0)
@@ -41,11 +48,14 @@ export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
           setHasMaps(false)
         }
       } catch {
-        setHasMaps(false)
+        if (active) setHasMaps(false)
       }
     }
-    checkMaps()
-  }, [eventId])
+    void checkMaps()
+    return () => {
+      active = false
+    }
+  }, [actingContextKey, adminFetch, eventId, isAdminReady])
 
   if (hasMaps === null) {
     return (
@@ -69,7 +79,7 @@ export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => { window.location.href = `/admin/dashboard/logistics?tab=site-maps&eventId=${eventId}` }}
+              onClick={() => setShowBuilder(true)}
               className="border-slate-600 text-slate-300 hover:bg-slate-700/50"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
@@ -95,7 +105,7 @@ export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
           </p>
         </div>
         <Button
-          onClick={() => { window.location.href = `/admin/dashboard/logistics?tab=site-maps&eventId=${eventId}` }}
+          onClick={() => setShowBuilder(true)}
           className="bg-gradient-to-r from-purple-500 to-blue-500 text-white"
         >
           <Plus className="h-4 w-4 mr-2" />

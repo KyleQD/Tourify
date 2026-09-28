@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0",
+  "id": "ARTIST-003",
+  "title": "Build contract signing UI",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "artist",
+  "created_at": "2026-09-09T09:35:15.394Z",
+  "updated_at": "2026-09-20T20:11:45.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; ARTIST-003 edits isolated from concurrent DESIGN-034 and admin/orchestrator changes",
+  "goal": "Build the contract signing UI within the artist pipeline",
+  "scope": {
+    "in": [
+      "Artist contract list and artist-scoped review/signing route",
+      "Existing shared contract review client and server actions required by the artist route",
+      "Focused contract-signing regression coverage"
+    ],
+    "out": [
+      "Database schema or migration changes",
+      "Deployed Supabase fixture execution",
+      "Unrelated artist, design-system, admin, and orchestrator work"
+    ]
+  },
+  "working_set": [
+    "app/artist/business/contracts/",
+    "app/contracts/[id]/contract-review-client.tsx",
+    "app/contracts/[id]/contract-review-types.ts",
+    "app/lib/actions/contracts.actions.ts",
+    "app/lib/actions/contract-workflow.actions.ts",
+    "__tests__/artist/contract-signing-ui.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/artist/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Contract signing UI implemented"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/artist/contract-signing-ui.test.ts",
+      "npx eslint __tests__/artist/contract-signing-ui.test.ts app/lib/actions/contracts.actions.ts 'app/artist/business/contracts/page.tsx' 'app/artist/business/contracts/[id]/page.tsx' app/lib/actions/contract-workflow.actions.ts 'app/contracts/[id]/contract-review-client.tsx'",
+      "NODE_OPTIONS='--max-old-space-size=8192' npx tsc --project /private/tmp/artist003-signing-tsconfig.json --noEmit --pretty false",
+      "npm run typecheck (attempted; stopped after several minutes with no diagnostics)",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Focused Vitest contract: 1 file, 3 tests passed; covers artist-scoped navigation, authenticated owner/counterparty page authorization, signing controls, guarded server action, and RPC authorization predicates.",
+      "Focused ESLint passed for the artist list/detail routes, shared review client, contract actions, and regression test.",
+      "Bounded semantic TypeScript check passed for the artist signing route and contract action dependency after aligning metadata with the generated Supabase Json type.",
+      "Full repository typecheck was attempted and stopped after several minutes without diagnostics; the bounded check initially exposed the task-relevant metadata drift plus unrelated artist-context/venue diagnostics, and the task-relevant errors were fixed.",
+      "Source inspection verified unauthenticated redirect, RLS-backed contract lookup, owner/counterparty not-found gate, server-derived viewerRole, and independent RPC enforcement of caller role and sent status.",
+      "Deployed Supabase execution is useful release QA but is not required by the exact acceptance criterion, which is implementation of the UI.",
+      "verify:fast --changed was not rerun because the shared worktree includes concurrent DESIGN-034, CI, admin, and orchestrator changes; focused task checks provide bounded evidence.",
+      "Control-plane validation passed: 17 agents, 113 tasks, 0 errors; 8 generated-map SHA warnings remain for orchestrator reconciliation."
+    ],
+    "last_run_sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+    "last_run_at": "2026-09-20T20:11:45.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Contract signing UI is implemented and verified: artist-owned navigation reaches an authenticated owner/counterparty review route, signing delegates to the guarded RPC workflow, and focused lint, tests, and semantic TypeScript checks pass.",
+    "completed": [
+      "Added /artist/business/contracts/[id] with server-side authenticated owner/counterparty checks.",
+      "Reused the existing contract review/signing client and signContractAction without changing backend schema or state transitions.",
+      "Updated the artist contracts list Review & sign navigation to the artist-scoped route.",
+      "Aligned contract metadata writes with the generated Supabase Json type.",
+      "Added focused regression coverage for navigation, page authorization, signing controls, and RPC authorization predicates."
+    ],
+    "next_steps": [
+      "Optional release QA: exercise owner and counterparty signing against deployed Supabase if QA-003 selects the flow for a core staging journey."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T22:38:36.820Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added artist-scoped contract review/signing route and routed the artist contracts list Review & sign action into it. Reused the existing authorized contract review client and signContractAction, preserving owner/counterparty checks and database state transitions.",
+        "completed": [],
+        "next_steps": [
+          "Product/QA should exercise the owner and counterparty flows against a deployed Supabase environment; the existing generic /contracts/:id entry remains the email/deep-link surface."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T22:41:49.328Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded contract-signing UI slice completed in app/artist; exact changed paths: app/artist/business/contracts/[id]/page.tsx, app/artist/business/contracts/page.tsx, docs/engineering/generated/README.md, docs/engineering/generated/components.md, docs/engineering/generated/api-routes.md, docs/engineering/generated/database-objects.md, docs/engineering/generated/database-schema.md, docs/engineering/generated/integrations.md, docs/engineering/generated/permissions.md, docs/engineering/generated/project-map.md, docs/engineering/generated/routes.md, and docs/engineering/tasks/active/ARTIST-003.json. Focused lint and typecheck pass; agents:validate passes with only the pre-existing RELEASE-001 warning.",
+        "completed": [
+          "app/artist/business/contracts/[id]/page.tsx: authenticated artist-scoped review route with owner/counterparty authorization.",
+          "app/artist/business/contracts/page.tsx: Review & sign navigation now enters the artist-scoped route.",
+          "docs/engineering/generated/routes.md and related generated maps: refreshed to include the new route."
+        ],
+        "next_steps": [
+          "Product/QA should exercise owner and counterparty signing against deployed Supabase.",
+          "Resolve the unrelated verify:fast worktree path issue before claiming a clean changed-worktree fast run."
+        ],
+        "blockers": [
+          "verify:fast --changed could not complete because the pre-existing dirty worktree includes a missing components/ui/use-mobile.tsx path; topology generation also did not terminate cleanly even though the generated maps include the new route."
+        ]
+      },
+      {
+        "at": "2026-09-16T19:24:56.009Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness triage keeps ARTIST-003 at P2 and outside the core launch gate. Escalate only if QA-003 proves contract signing is required by a selected staging journey.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-20T20:11:45.000Z",
+        "sha": "ea5c36a3b468afb82d83809746d01ad479d38541",
+        "summary": "Reverified and completed ARTIST-003 on the release snapshot. The artist contracts list navigates to the artist-scoped review page; unauthenticated users are redirected; only the owner or counterparty reaches ContractReviewClient; signContractAction delegates to sign_artist_contract, whose migration contract enforces sent state and caller role. Added a focused 3-test regression and corrected the contract metadata Json type drift.",
+        "completed": [
+          "Acceptance criterion verified: contract signing UI is implemented.",
+          "Focused Vitest: 3/3 passed.",
+          "Focused ESLint: passed.",
+          "Bounded semantic TypeScript check: passed.",
+          "Control-plane validation: 0 errors."
+        ],
+        "scope_expansion": [
+          {
+            "paths": [
+              "app/contracts/[id]/contract-review-client.tsx",
+              "app/contracts/[id]/contract-review-types.ts",
+              "app/lib/actions/contracts.actions.ts",
+              "app/lib/actions/contract-workflow.actions.ts",
+              "supabase/migrations/20260328120000_artist_contracts_signing.sql",
+              "__tests__/artist/contract-signing-ui.test.ts"
+            ],
+            "reason": "The artist route reuses the shared review client/actions and relies on the signing RPC for authorization; these dependencies were required to verify the UI end to end without changing schema. Focused regression coverage was added because no ARTIST-003 test existed."
+          }
+        ],
+        "next_steps": [
+          "Optional deployed owner/counterparty exercise if selected by QA-003; not a blocker for the implementation-only acceptance criterion."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "QA/release may exercise the owner and counterparty flow against deployed Supabase if contract signing is selected for a core staging journey; this is optional release evidence, not an ARTIST-003 completion blocker."
+  ]
+}

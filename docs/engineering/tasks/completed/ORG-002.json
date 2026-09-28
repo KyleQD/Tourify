@@ -1,0 +1,130 @@
+{
+  "schema_version": "1.0",
+  "id": "ORG-002",
+  "title": "Unify org identity model",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "organization",
+  "created_at": "2026-09-09T09:35:16.209Z",
+  "updated_at": "2026-09-10T21:47:59.404Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Reconcile organizations / organizer_accounts (ops_org_id) / accounts into one canonical identity model",
+  "scope": {
+    "in": [
+      "lib/organizations/identity.ts",
+      "lib/auth/admin-context.ts",
+      "lib/auth/acting-context.ts",
+      "__tests__/organization/org-identity-model.test.ts",
+      "docs/engineering/agents/organization/",
+      "docs/engineering/DECISIONS.md",
+      "docs/work-packets/ORG-002.md"
+    ],
+    "out": [
+      "supabase/migrations/ and schema changes",
+      "production changes",
+      "broad app route/UI/account-service migration"
+    ]
+  },
+  "working_set": [
+    "lib/organizations/",
+    "lib/auth/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/organization/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "One canonical org identity model",
+    "Tenant authorization resolves through organizations/org_members; organizer_accounts and accounts remain explicitly scoped projections",
+    "Scoped auth context consumers use the shared identity contract",
+    "Focused tests, lint, and typecheck pass"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/organization/org-identity-model.test.ts __tests__/organization/org-invite-accept-contract.test.ts __tests__/organization/org-personas-integration.test.ts lib/auth/__tests__/normalize-account-type.test.ts",
+      "npx eslint lib/organizations/identity.ts lib/auth/admin-context.ts lib/auth/acting-context.ts __tests__/organization/org-identity-model.test.ts",
+      "npm run typecheck",
+      "npm run agents:generate",
+      "npm run agents:validate",
+      "npx vitest run focused organization/auth contract suite",
+      "npx eslint scoped identity/auth files",
+      "npx vitest run __tests__/organization",
+      "git diff --check -- lib/auth/acting-context.ts lib/auth/admin-context.ts"
+    ],
+    "evidence": [
+      "Focused Vitest: 4 files / 26 tests passed.",
+      "Scoped ESLint passed.",
+      "Repository typecheck passed.",
+      "No migration SQL or deployed production-environment changes were made for ORG-002.",
+      "Focused Vitest passed: 4 files / 26 tests.",
+      "Scoped ESLint and repository typecheck passed.",
+      "No migration SQL or deployed production-environment changes were made.",
+      "Organization suite: 8 files / 34 tests passed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T21:47:59.404Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Final organization regression suite and diff validation passed.",
+    "completed": [
+      "Added lib/organizations/identity.ts with canonical identity and projection validation helpers.",
+      "Updated lib/auth/admin-context.ts and lib/auth/acting-context.ts to consume the shared bridge contract.",
+      "Added focused identity model tests.",
+      "Recorded ORG-002 in cross-domain and organization decision/architecture/state records.",
+      "Created docs/work-packets/ORG-002.md.",
+      "agents:generate refreshed SHA-stamped topology maps.",
+      "agents:validate passed with 0 errors.",
+      "Full organization suite passed: 8 files / 34 tests.",
+      "git diff --check passed for modified auth consumers."
+    ],
+    "next_steps": [
+      "Use organizationId for new tenant-scoped features; keep accounts out of authorization."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T21:46:11Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented and verified ORG-002. Added the shared canonical organization identity contract; admin and general acting-context resolution now derive tenant scope from the organizer_accounts.ops_org_id bridge, while org_members remains the authorization boundary. accounts is documented/tested as a compatibility projection only. No migration SQL or deployed production-environment changes were made.",
+        "completed": [
+          "Focused Vitest passed: 4 files / 26 tests.",
+          "Scoped ESLint passed.",
+          "Repository typecheck passed.",
+          "Decision, architecture, state, and work-packet evidence recorded."
+        ],
+        "next": "Use the canonical identity contract for future organization-scoped work; handle any legacy projection repair in a separate database task."
+      },
+      {
+        "at": "2026-09-10T21:47:31.432Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Canonical organization identity contract implemented and verified.",
+        "completed": [
+          "agents:generate refreshed SHA-stamped topology maps.",
+          "agents:validate passed with 0 errors."
+        ],
+        "next_steps": [
+          "Use organizationId for new tenant-scoped features; keep accounts out of authorization."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T21:47:59.404Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Final organization regression suite and diff validation passed.",
+        "completed": [
+          "Full organization suite passed: 8 files / 34 tests.",
+          "git diff --check passed for modified auth consumers."
+        ],
+        "next_steps": [
+          "Use organizationId for new tenant-scoped features; keep accounts out of authorization."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

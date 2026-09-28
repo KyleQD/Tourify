@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "id": "DB-007",
+  "title": "Reconcile post-styles/post-appearances migration family",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "database",
+  "created_at": "2026-09-10T03:21:24.453Z",
+  "updated_at": "2026-09-10T03:31:16.956Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (441 entries)",
+  "goal": "Restore the missing post-styles/post-appearances migration family from the archive into the active chain additively and reconcile live schema so __tests__/post-styles/migration-contract.test.ts passes and premiere V3 applies cleanly (QA-002 unblock, follow-up to DB-003)",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "supabase/migrations/20260712003357_account_follows.sql",
+    "supabase/migrations/20260728001000_post_style_profiles.sql",
+    "supabase/migrations/20260728001001_post_appearances.sql",
+    "supabase/migrations/20260728001002_post_appearance_revisions.sql",
+    "supabase/migrations/20260728001003_post_styles_feature_flags.sql",
+    "supabase/migrations/20260728224543_harden_post_appearance_v2.sql",
+    "lib/database.types.ts",
+    "docs/engineering/migration-validation/20260728001000_post_style_profiles.json",
+    "docs/engineering/migration-validation/20260728001001_post_appearances.json",
+    "docs/engineering/migration-validation/20260728001002_post_appearance_revisions.json",
+    "docs/engineering/migration-validation/20260728001003_post_styles_feature_flags.json",
+    "docs/engineering/migration-validation/20260728224543_harden_post_appearance_v2.json",
+    "docs/engineering/agents/database/STATE.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/post-styles/migration-contract.test.ts __tests__/post-styles/premiere-styles-v3.test.ts __tests__/feed/post-engagement-persistence.test.ts",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run check:migration-checksums",
+      "npm run generate:database-types",
+      "npm run check:database-types",
+      "npx tsc --noEmit --strict lib/database.types.ts"
+    ],
+    "evidence": [
+      "17 tests passed (3 files): migration-contract, premiere-styles-v3, post-engagement-persistence",
+      "migration-chain: 287 files scanned, no duplicate policy creations",
+      "migration-validation: 142 files scanned, 0 failures; 5 new manifests valid",
+      "migration-checksums: No changed migration SQL files (HEAD==base SHA 7cf660ad)",
+      "database-types: regenerated; drift gate pass; 9 references to restored tables in lib/database.types.ts",
+      "live apply: account_follows(20260712003357) OK; post_style_profiles(20260728001000) OK; post_appearances(20260728001001) OK; revisions(20260728001002) OK; flags(20260728001003) OK 4 rows seeded disabled; harden(20260728224543) OK; premiere V3 real DDL OK; can_view_post_engagement reconciled"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T03:31:16.956Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Post-styles/post-appearances family restored into active chain and live stack reconciled. Restored 6 archived migrations byte-identical (5-file post-styles family + account_follows expansion, all classified local_only_unapplied). Applied all manually via explicit psql + migration repair bookkeeping on supabase_db_tourify-beta (287/287 applied, 0 pending). premiere V3 REAL DDL (schema_version IN (1,2,3) validated) now applies cleanly against restored post_appearances. Replaced DB-003 where-false patched can_view_post_engagement with the canonical definition (account_follows now real). 5 REL-102 manifests created for files >= cutoff; account_follows below cutoff. 17/17 contract tests pass; chain/validation/checksum gates green; types regenerated + drift gate + scoped tsc pass.",
+    "completed": [
+      "Restore 20260728001000/0001/0002/0003 + 20260728224543 post-styles family (byte-identical from pre-reconciliation archive)",
+      "Restore 20260712003357_account_follows (expansion; provides public.account_follows referenced by DB-003-promoted engagement repair; confirmed NOT dead)",
+      "Create REL-102 manifests for 5 post-styles files >= MANIFEST_CUTOFF; blocking-constraint-reviewed exception for harden constraints",
+      "Apply all restored migrations manually to live stack via psql + repair (filenames/results recorded in task evidence)",
+      "Apply REAL premiere V3 DDL (20260731233358) against restored post_appearances; schema_version check now IN (1,2,3) validated",
+      "Reconcile private.can_view_post_engagement to canonical definition; where-false patch removed",
+      "Verify: 3 contract test files 17/17 pass; check:migration-chain (287 files), check:migration-validation (142 scanned, 0 fail), check:migration-checksums (no changed SQL vs base SHA)",
+      "Regenerate lib/database.types.ts; check:database-types pass; scoped tsc --strict lib/database.types.ts pass"
+    ],
+    "next_steps": [
+      "No successor migration needed: restored harden + real premiere V3 provide the documented constraint semantics",
+      "Account follows disposition: canonical table restored; no-op approach retired; DB-003 STATE.md note superseded by DB-007"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T03:27:38.523Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Restored 6 archived migrations into active chain (byte-identical): 5-file post-styles family (20260728001000 post_style_profiles, 20260728001001 post_appearances, 20260728001002 post_appearance_revisions, 20260728001003 post_styles_feature_flags, 20260728224543 harden_post_appearance_v2) + expansion 20260712003357_account_follows which provides public.account_follows referenced by already-promoted 20260728233640 repair (archive manifest classifies all six local_only_unapplied; account_follows NOT dead). Dependency closure checked: posts, follows, feature_flags, accounts all present in active chain. Live stack confirmed missing all four post-styles tables; can_view_post_engagement still carries DB-003 where-false patch.",
+        "completed": [],
+        "next_steps": [
+          "Create REL-102 manifests for the 5 post-styles files >= cutoff, apply all 6 manually via psql + repair bookkeeping, apply REAL premiere V3 DDL, reconcile canonical can_view_post_engagement, regenerate types, run verification gates"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-10T03:31:16.956Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Post-styles/post-appearances family restored into active chain and live stack reconciled. Restored 6 archived migrations byte-identical (5-file post-styles family + account_follows expansion, all classified local_only_unapplied). Applied all manually via explicit psql + migration repair bookkeeping on supabase_db_tourify-beta (287/287 applied, 0 pending). premiere V3 REAL DDL (schema_version IN (1,2,3) validated) now applies cleanly against restored post_appearances. Replaced DB-003 where-false patched can_view_post_engagement with the canonical definition (account_follows now real). 5 REL-102 manifests created for files >= cutoff; account_follows below cutoff. 17/17 contract tests pass; chain/validation/checksum gates green; types regenerated + drift gate + scoped tsc pass.",
+        "completed": [
+          "Restore 20260728001000/0001/0002/0003 + 20260728224543 post-styles family (byte-identical from pre-reconciliation archive)",
+          "Restore 20260712003357_account_follows (expansion; provides public.account_follows referenced by DB-003-promoted engagement repair; confirmed NOT dead)",
+          "Create REL-102 manifests for 5 post-styles files >= MANIFEST_CUTOFF; blocking-constraint-reviewed exception for harden constraints",
+          "Apply all restored migrations manually to live stack via psql + repair (filenames/results recorded in task evidence)",
+          "Apply REAL premiere V3 DDL (20260731233358) against restored post_appearances; schema_version check now IN (1,2,3) validated",
+          "Reconcile private.can_view_post_engagement to canonical definition; where-false patch removed",
+          "Verify: 3 contract test files 17/17 pass; check:migration-chain (287 files), check:migration-validation (142 scanned, 0 fail), check:migration-checksums (no changed SQL vs base SHA)",
+          "Regenerate lib/database.types.ts; check:database-types pass; scoped tsc --strict lib/database.types.ts pass"
+        ],
+        "next_steps": [
+          "No successor migration needed: restored harden + real premiere V3 provide the documented constraint semantics",
+          "Account follows disposition: canonical table restored; no-op approach retired; DB-003 STATE.md note superseded by DB-007"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

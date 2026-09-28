@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAdminAuth(async (_request: NextRequest, { supabase }) => {
+export const GET = withAdminCapability('org.roles.manage', async (_request: NextRequest, { supabase }) => {
   try {
     const { data: roles, error } = await supabase
       .from('rbac_roles')
@@ -62,7 +62,7 @@ const createRoleSchema = z.object({
   permission_ids: z.array(z.string().uuid()).default([]),
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('org.roles.manage', async (request: NextRequest, { supabase, user }) => {
   try {
     const body = await request.json()
     const validated = createRoleSchema.parse(body)

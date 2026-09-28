@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Box, Plus } from 'lucide-react'
 import { LogisticsDynamicManager } from '@/components/admin/logistics-dynamic-manager'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 interface EquipmentOpsPanelProps {
   eventId?: string
@@ -14,6 +15,8 @@ interface EquipmentOpsPanelProps {
 }
 
 export function EquipmentOpsPanel({ eventId, tourId }: EquipmentOpsPanelProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
+  const hasScope = Boolean(eventId || tourId)
   const [catalog, setCatalog] = useState<any[]>([])
   const [reservations, setReservations] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -26,14 +29,19 @@ export function EquipmentOpsPanel({ eventId, tourId }: EquipmentOpsPanelProps) {
   })
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setCatalog([])
+      setReservations([])
+      return
+    }
     setError(null)
     try {
       const params = new URLSearchParams()
       if (eventId) params.set('eventId', eventId)
       if (tourId) params.set('tourId', tourId)
       const [catalogRes, reservationRes] = await Promise.all([
-        fetch('/api/admin/logistics/equipment/catalog', { credentials: 'include' }),
-        fetch(`/api/admin/logistics/equipment/reservations?${params}`, { credentials: 'include' }),
+        adminFetch('/api/admin/logistics/equipment/catalog'),
+        adminFetch(`/api/admin/logistics/equipment/reservations?${params}`),
       ])
       const catalogData = await catalogRes.json()
       const reservationData = await reservationRes.json()
@@ -41,9 +49,10 @@ export function EquipmentOpsPanel({ eventId, tourId }: EquipmentOpsPanelProps) {
       setReservations(reservationData.reservations || [])
       if (reservationData.needsMigration) setError('Apply logistics foundation migration for reservations')
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setError(err.message || 'Failed to load equipment')
     }
-  }, [eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
     load()
@@ -51,7 +60,7 @@ export function EquipmentOpsPanel({ eventId, tourId }: EquipmentOpsPanelProps) {
 
   async function createReservation() {
     setError(null)
-    const res = await fetch('/api/admin/logistics/equipment/reservations', {
+    const res = await adminFetch('/api/admin/logistics/equipment/reservations', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -115,7 +124,8 @@ export function EquipmentOpsPanel({ eventId, tourId }: EquipmentOpsPanelProps) {
           <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
         </div>
         <div className="md:col-span-2">
-          <Button onClick={createReservation}><Plus className="h-4 w-4 mr-2" />Reserve</Button>
+          <Button disabled={!isAdminReady || !hasScope} onClick={createReservation}><Plus className="h-4 w-4 mr-2" />Reserve</Button>
+          {!hasScope ? <p className="mt-2 text-xs text-slate-400">Select a tour or event before reserving equipment.</p> : null}
         </div>
       </div>
 
@@ -134,7 +144,7 @@ export function EquipmentOpsPanel({ eventId, tourId }: EquipmentOpsPanelProps) {
         eventId={eventId}
         tourId={tourId}
         type="equipment"
-        enableEditing
+        enableEditing={hasScope}
         autoSave
         showFilters
       />

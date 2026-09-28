@@ -1,8 +1,10 @@
 /**
- * Unified job discovery DTOs for GET /api/jobs (artist_jobs + job_posting_templates).
+ * Unified job discovery DTOs for GET /api/jobs
+ * (artist_jobs + job_posting_templates, where templates may be venue- or
+ * organization-owned via employer_entity_type).
  */
 
-export type UnifiedJobSource = 'artist' | 'venue'
+export type UnifiedJobSource = 'artist' | 'venue' | 'organization'
 
 export interface UnifiedJobListItem {
   source: UnifiedJobSource
@@ -18,7 +20,7 @@ export interface UnifiedJobListItem {
   urgent: boolean
   remote: boolean | null
   created_at: string
-  /** Deep link: /jobs/[id]?source=artist|venue */
+  /** Deep link: /jobs/[id]?source=artist|venue|organization */
   detail_href: string
 }
 
@@ -50,7 +52,13 @@ interface VenueJobRow {
   urgent?: boolean | null
   remote?: boolean | null
   created_at: string
+  /** Polymorphic employer scope (supercedes venue-only ownership for templates). */
+  employer_entity_type?: string | null
+  employer_entity_id?: string | null
+  /** Venue-owned templates attach the venue profile name. */
   venue?: { name: string | null } | null
+  /** Organization-owned templates attach the resolved org display name. */
+  organization?: { name: string | null } | null
 }
 
 export function mapArtistJobToUnified(row: ArtistJobRow): UnifiedJobListItem {
@@ -77,10 +85,20 @@ export function mapArtistJobToUnified(row: ArtistJobRow): UnifiedJobListItem {
   }
 }
 
+/**
+ * Maps a `job_posting_templates` row to the unified board item.
+ *
+ * Organization-owned templates (employer_entity_type = 'organization') surface
+ * with an `organization` source badge and the org display name resolved by the
+ * organization domain (never a client-supplied label); venue-owned templates
+ * keep the legacy `venue` source + venue name so venue branding is unchanged.
+ */
 export function mapVenueTemplateToUnified(row: VenueJobRow): UnifiedJobListItem {
-  const orgName = row.venue?.name ?? null
+  const isOrganizationOwned = row.employer_entity_type === 'organization'
+  const source: UnifiedJobSource = isOrganizationOwned ? 'organization' : 'venue'
+  const orgName = isOrganizationOwned ? (row.organization?.name ?? null) : (row.venue?.name ?? null)
   return {
-    source: 'venue',
+    source,
     id: row.id,
     title: row.title,
     description: row.description,
@@ -93,7 +111,7 @@ export function mapVenueTemplateToUnified(row: VenueJobRow): UnifiedJobListItem 
     urgent: Boolean(row.urgent),
     remote: row.remote ?? null,
     created_at: row.created_at,
-    detail_href: `/jobs/${row.id}?source=venue`,
+    detail_href: `/jobs/${row.id}?source=${source}`,
   }
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   assertAdminEventAccess,
 } from "@/lib/admin/admin-tour-event-access"
@@ -10,7 +10,7 @@ function extractEventId(url: string): string | null {
   return idx >= 0 ? segments[idx + 1] : null
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability('event.view', async (request: NextRequest, { supabase, user }) => {
   const eventId = extractEventId(request.url)
   if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
   await assertAdminEventAccess({ supabase, userId: user.id, eventId })
@@ -29,7 +29,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   return NextResponse.json({ publications: data || [] })
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('workforce.publish', async (request: NextRequest, { supabase, user }) => {
   const eventId = extractEventId(request.url)
   if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
   await assertAdminEventAccess({ supabase, userId: user.id, eventId })

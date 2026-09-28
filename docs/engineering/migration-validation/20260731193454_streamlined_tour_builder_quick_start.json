@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260731193454_streamlined_tour_builder_quick_start.sql",
+  "taskId": "TOUR-QUICK-START",
+  "status": "planned",
+  "owner": "tour-platform",
+  "reviewer": "security-data",
+  "domains": ["tours", "events", "collaboration", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "fresh and legacy-data Supabase snapshots containing tours, events_v2, and collaborators",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count tours, events_v2 rows, tour_events links, and active tour collaborators by organization"
+    ],
+    "expectedAffectedRows": "Only newly requested quick-start drafts and explicit invitation records are created; existing rows are not rewritten",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Re-run the guarded DDL and idempotent function definitions, then reconcile quick-start batch keys",
+    "resumeCursor": "Supabase migration version 20260731193454",
+    "idempotency": "Schema objects, indexes, policies, and function definitions are deterministic; quick-start events use a stable batch and ordinal key"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Reject unresolved organization, tour, event, or invitation actors rather than infer tenant ownership"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "quick-start batch ordinal uniqueness",
+      "tour collaboration invitation lifecycle checks and foreign keys"
+    ],
+    "indexes": [
+      "quick-start draft lookup",
+      "pending invitation lookups by tour and invited user"
+    ],
+    "validationPlan": "Verify function actor binding, duplicate replay, expiration, and Org A versus Org B RLS for tours, events, links, teams, vendors, and artists"
+  },
+  "recovery": {
+    "rollback": "Disable quick-start and collaboration entry points, retain created drafts for audit, and apply a reviewed additive policy correction",
+    "forwardFix": "Apply additive function or policy repairs and reconcile stable quick-start batch keys before re-enabling"
+  },
+  "postflight": {
+    "queries": [
+      "Reconcile quick-start batch keys, invitation states, RLS policies, grants, and cross-organization access attempts"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

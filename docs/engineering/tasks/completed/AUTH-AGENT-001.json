@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "id": "AUTH-AGENT-001",
+  "title": "Provision scoped service identities for engineering agents",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T03:48:13.554Z",
+  "updated_at": "2026-09-09T03:52:19.882Z",
+  "base_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+  "working_tree_status": "dirty (402 entries)",
+  "goal": "Give each registered engineering agent a revocable, auditable platform identity without sharing human credentials or bypassing authorization",
+  "scope": {
+    "in": [
+      "Agent identity directory, hashed service credentials, optional Supabase auth-user linkage, provisioning utility, and server-side agent request authentication",
+      "The 17 agents listed in docs/engineering/agents/registry.yaml"
+    ],
+    "out": [
+      "Human login UX and password recovery",
+      "Automatic grants to Admin or organization data",
+      "Provisioning real credentials in the current environment"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260908130000_agent_service_identities.sql",
+    "lib/auth/agent-service.ts",
+    "scripts/agent-tools/provision-agent-identity.ts",
+    "__tests__/auth",
+    "docs/engineering/agents/registry.yaml",
+    "docs/engineering/agents/database"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agent-identities.md",
+    "docs/api-security-map.md"
+  ],
+  "acceptance_criteria": [
+    "Every registered agent has a durable pending identity with explicit status and metadata",
+    "Credentials are stored only as one-way hashes, are revocable and expirable, and raw secrets are never persisted",
+    "Server-side request authentication resolves active agent identity and scopes without exposing the service role key",
+    "Agent actions can be attributed to both the agent principal and optional Supabase auth user",
+    "RLS denies anon/authenticated table access by default and service-role writes are explicit",
+    "Focused auth tests and migration validation pass; no live credential is provisioned automatically"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/auth/agent-service.test.ts",
+      "npm run check:migration-validation",
+      "npm run agents:validate",
+      "git diff --check"
+    ],
+    "evidence": [
+      "Vitest: 1 file, 4 tests passed.",
+      "Focused ESLint passed for agent auth core, server helper, provisioning utility, and tests.",
+      "Migration validation passed, including 20260908130000_agent_service_identities.sql with planned manifest.",
+      "Control-plane validation passed: 17 agents, 4 tasks, 0 warnings/errors.",
+      "No live credential was provisioned; Supabase CLI migration creation was attempted but blocked by sandbox telemetry permissions."
+    ],
+    "last_run_sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+    "last_run_at": "2026-09-09T03:52:19.882Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Implemented the additive service-principal foundation for all registered engineering agents without provisioning live credentials.",
+    "completed": [
+      "Added 17 pending agent identities with explicit status, role, scope, and optional auth-user linkage.",
+      "Added server-only hashed-key authentication, scope checks, audit attribution, and one-time provisioning utility.",
+      "Added RLS-denied credential and audit tables plus migration validation manifest.",
+      "Added focused credential extraction, hashing, constant-time verification, and scope tests."
+    ],
+    "next_steps": [
+      "Apply the migration in an isolated Supabase environment and verify RLS/grants with security advisors.",
+      "Provision one explicitly approved non-production agent and wire its first route through authenticateAgentRequest."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T03:52:19.882Z",
+        "sha": "a7193116c5a677b1c2939aa4a66e9415dac6eed1",
+        "summary": "Implemented the additive service-principal foundation for all registered engineering agents without provisioning live credentials.",
+        "completed": [
+          "Added 17 pending agent identities with explicit status, role, scope, and optional auth-user linkage.",
+          "Added server-only hashed-key authentication, scope checks, audit attribution, and one-time provisioning utility.",
+          "Added RLS-denied credential and audit tables plus migration validation manifest.",
+          "Added focused credential extraction, hashing, constant-time verification, and scope tests."
+        ],
+        "next_steps": [
+          "Apply the migration in an isolated Supabase environment and verify RLS/grants with security advisors.",
+          "Provision one explicitly approved non-production agent and wire its first route through authenticateAgentRequest."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

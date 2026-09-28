@@ -1,0 +1,89 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-018",
+  "title": "Run hosted permission and money-path verification",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P0",
+  "owner_agent": "database",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "database",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Apply the reviewed DB-002 security contract through the operator lane and capture hosted denial evidence.",
+  "scope": {
+    "in": [
+      "Apply the reviewed DB-002 security contract through the operator lane and capture hosted denial evidence."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260914090000_revoke_public_execute_db002.sql",
+    "supabase/tests/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/database/CHARTER.md"
+  ],
+  "depends_on": [
+    "DB-008"
+  ],
+  "resume_condition": "All dependencies complete: DB-008.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "database",
+      "condition": "Complete DB-008.",
+      "dependency_task_ids": [
+        "DB-008"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Apply the reviewed DB-002 security contract through the operator lane and capture hosted denial evidence.",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created by the core-launch realignment; implementation has not started.",
+    "completed": [],
+    "next_steps": [
+      "Wait for DB-008 and then confirm the working set is collision-free."
+    ],
+    "blockers": [
+      "Waiting for DB-008."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

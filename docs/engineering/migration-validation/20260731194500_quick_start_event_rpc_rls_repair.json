@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260731194500_quick_start_event_rpc_rls_repair.sql",
+  "taskId": "OPS-TOURS-QUICK-START-RLS-REPAIR",
+  "status": "planned",
+  "owner": "admin-tour-operations",
+  "reviewer": "security-data",
+  "domains": ["tours", "events", "authorization"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with an organization owner and unrelated-user persona",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Confirm public.create_tour_quick_start_events(uuid, integer, uuid) exists",
+      "Record current events_v2 and tour_events RLS policies"
+    ],
+    "expectedAffectedRows": "No rows are rewritten; only function schema, security mode, and grants change",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "The guarded schema move and CREATE OR REPLACE wrapper converge on rerun",
+    "resumeCursor": "private.create_tour_quick_start_events function presence",
+    "idempotency": "The private implementation is moved once and the public wrapper is replaced idempotently"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant data is inferred, backfilled, or quarantined"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Verify the public RPC is security-invoker, the private implementation is security-definer, anonymous execution is revoked, and an authorized transaction succeeds under authenticated RLS"
+  },
+  "recovery": {
+    "rollback": "Replace the public wrapper with the prior implementation only if the private execution path cannot be forward-fixed",
+    "forwardFix": "Apply a later additive function/grant migration; do not reset or rewrite the database"
+  },
+  "postflight": {
+    "queries": [
+      "Run an authorized one-event quick-start transaction and roll it back",
+      "Confirm the test batch persisted zero rows after rollback",
+      "Verify public/private function security modes and grants"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

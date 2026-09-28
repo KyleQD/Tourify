@@ -2,6 +2,14 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { canManageHiring } from "@/lib/auth/hiring-permissions"
+import {
+  fetchVenueIdentityBridge,
+  upsertVenueIdentityBridge,
+} from "@/lib/venue/identity-bridge"
+import {
+  listVenueRbacVenueIds,
+  venueHasRbacAccess,
+} from "@/lib/venue/rbac-access"
 
 export type VenuePermission =
   | "manage_bookings"
@@ -11,7 +19,21 @@ export type VenuePermission =
   | "manage_documents"
   | "view_analytics"
   | "view_finances"
+  | "manage_finances"
+  | "approve_finances"
+  | "pay_finances"
+  | "export_finances"
+  // VEN-130 granular workforce authorities (ADR-0002)
+  | "roster_view"
+  | "roster_manage"
+  | "hiring_manage"
+  | "scheduling_manage"
+  | "timekeeping_view"
+  | "timekeeping_manage"
+  | "hr_sensitive_view"
   | "door_check_in"
+  // VEN-269 — provider integrations authority (connect/refresh/revoke)
+  | "manage_integrations"
 
 export interface VenueAccessResult {
   allowed: boolean
@@ -51,8 +73,26 @@ const DEFAULT_OWNER_PERMISSIONS: Record<string, boolean> = {
   manage_documents: true,
   view_analytics: true,
   view_finances: true,
+  manage_finances: true,
+  approve_finances: true,
+  pay_finances: true,
+  export_finances: true,
   door_check_in: true,
+  manage_integrations: true,
 }
+
+/**
+ * VEN-169 finance permission contract:
+ *   view_finances    — read authorized summaries/ledger
+ *   manage_finances  — create/edit manual transactions, categories, notes
+ *   approve_finances — transition pending → completed (approval authority)
+ *   pay_finances     — execute payouts/settlement disbursements
+ *   export_finances  — produce CSV/PDF exports of financial data
+ *
+ * Enforcement points: GET (view) and POST/PATCH/DELETE (manage) are wired in
+ * /api/venue/finances; approve/pay/export gates activate with the settlement
+ * service and export endpoints (VEN-163/VEN-170).
+ */
 
 function normalizeSettings(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {}
@@ -101,6 +141,9 @@ function canSatisfyPermission(permissions: Record<string, boolean>, permission?:
   if (permissions[permission]) return true
   if (permission === "manage_ticketing" && permissions.manage_events) return true
   if (permission === "door_check_in" && permissions.manage_ticketing) return true
+  // VEN-269 — integrations authority follows team/document management when a
+  // delegated manager holds both; owners hold it by default.
+  if (permission === "manage_integrations" && permissions.manage_team && permissions.manage_documents) return true
   return false
 }
 
@@ -147,7 +190,22 @@ export async function getManageableVenueIds(
     .map((row: any) => row.venue_id)
     .filter(Boolean)
 
-  return Array.from(new Set([...ownerIds, ...staffIds, ...assignmentIds, ...teamIds]))
+  // Canonical entity RBAC (VEN-122): assignments are authoritative during the
+  // adoption window and merge with legacy sources.
+  let rbacIds: string[] = []
+  try {
+    rbacIds = await listVenueRbacVenueIds(supabase, userId)
+    if (permission && rbacIds.length) {
+      const checks = await Promise.all(
+        rbacIds.map(async (id) => ((await venueHasRbacAccess(supabase, userId, id, permission)) ? id : null)),
+      )
+      rbacIds = checks.filter((id): id is string => id !== null)
+    }
+  } catch {
+    // Non-fatal: legacy sources remain authoritative fallback.
+  }
+
+  return Array.from(new Set([...ownerIds, ...rbacIds, ...staffIds, ...assignmentIds, ...teamIds]))
 }
 
 export async function canManageVenue(
@@ -166,6 +224,18 @@ export async function canManageVenue(
     .maybeSingle()
 
   if (ownerRow?.id) return { allowed: true }
+
+  // Canonical entity RBAC (VEN-122): authoritative check against seeded
+  // permission catalog. Runs before legacy JSON fallbacks; a concrete
+  // permission is enforced via has_entity_permission, absence of one requires
+  // at least an active role assignment.
+  try {
+    if (await venueHasRbacAccess(supabase, userId, venueId, permission)) {
+      return { allowed: true }
+    }
+  } catch {
+    // Non-fatal: legacy checks below still apply during migration window.
+  }
 
   const [{ data: staffRows }, { data: assignmentRows }] = await Promise.all([
     supabase
@@ -280,8 +350,10 @@ export async function ensureVenueOperationalContext(
   userId: string,
 ) {
   const settings = normalizeSettings(venue.settings)
-  let venuesV2Id = venue.venuesV2Id || null
-  let operationalOrgId = venue.operationalOrgId || null
+  // ADR-0001: prefer the relational identity bridge over settings JSON.
+  const bridge = await fetchVenueIdentityBridge(service, venue.id)
+  let venuesV2Id = bridge?.venuesV2Id || venue.venuesV2Id || null
+  let operationalOrgId = bridge?.operationalOrgId || venue.operationalOrgId || null
 
   if (!operationalOrgId) {
     const baseSlug = buildSlug(venue.url_slug || venue.venue_name || venue.id, `venue-${venue.id.slice(0, 8)}`)
@@ -305,11 +377,16 @@ export async function ensureVenueOperationalContext(
     operationalOrgId = org?.id || null
 
     if (operationalOrgId) {
+      // VEN-087: org membership must derive from verified Venue authority.
+      // Provisioning must never escalate the first caller to org owner — only
+      // a verified Venue account owner may hold the mirrored owner role;
+      // delegated members enter as plain members pending canonical entity RBAC.
+      const mirroredRole: "owner" | "member" = venue.role === "owner" ? "owner" : "member"
       await service.from("org_members").upsert(
         {
           org_id: operationalOrgId,
           user_id: userId,
-          role: "owner",
+          role: mirroredRole,
           invited_by: userId,
         },
         { onConflict: "org_id,user_id" },
@@ -343,6 +420,21 @@ export async function ensureVenueOperationalContext(
 
   if (venuesV2Id !== venue.venuesV2Id || operationalOrgId !== venue.operationalOrgId) {
     await service.from("venue_profiles").update({ settings: nextSettings }).eq("id", venue.id)
+  }
+
+  // Write-through to the relational bridge (ADR-0001 migration window dual-write).
+  if (venuesV2Id || operationalOrgId) {
+    const bridgeChanged =
+      !bridge ||
+      bridge.venuesV2Id !== venuesV2Id ||
+      bridge.operationalOrgId !== operationalOrgId
+    if (bridgeChanged) {
+      await upsertVenueIdentityBridge(
+        service,
+        { venueProfileId: venue.id, venuesV2Id, operationalOrgId },
+        "runtime",
+      )
+    }
   }
 
   return {

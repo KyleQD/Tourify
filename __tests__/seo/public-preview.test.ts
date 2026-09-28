@@ -37,6 +37,7 @@ describe('public share route matcher', () => {
     expect(isPublicShareRoute('/music/verify/passport/abc123')).toBe(true)
     expect(isPublicShareRoute('/music/verify/certificate/abc123')).toBe(true)
     expect(isPublicShareRoute('/posts/11111111-1111-1111-1111-111111111111')).toBe(true)
+    expect(isPublicShareRoute('/p/abc123tokenvalue')).toBe(true)
   })
 
   it('keeps protected lookalikes gated', () => {

@@ -24,8 +24,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     })
 
     if (!result.ok) {
-      const status = result.error === "Assignment not found" ? 404 : 400
-      return NextResponse.json({ error: result.error }, { status })
+      const status =
+        result.error === "Assignment not found"
+          ? 404
+          : result.error === "This assignment can no longer be updated"
+            ? 409
+            : 422
+      const code = status === 404 ? "not_found" : status === 409 ? "conflict" : "validation_failed"
+      return NextResponse.json({ error: result.error, code }, { status })
     }
 
     return NextResponse.json({ data: result })

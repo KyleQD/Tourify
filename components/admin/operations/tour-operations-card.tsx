@@ -13,7 +13,6 @@ import {
   buildAdminLogisticsHref,
   buildAdminRosterHref,
 } from "@/lib/admin/admin-ops-context"
-import { LifecycleStrip } from "./lifecycle-strip"
 import { LogisticsProgressWidget } from "./logistics-progress-widget"
 
 export interface TourOperationsCardData {
@@ -68,12 +67,15 @@ export function TourOperationsCard({
     <motion.div layout whileHover={{ y: -4 }} transition={{ type: "spring", stiffness: 320, damping: 24 }}>
       <Card className="h-full overflow-hidden border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
         <CardHeader className="space-y-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-2">
-              <CardTitle className="truncate text-lg text-white">{tour.name || "Untitled tour"}</CardTitle>
-              <LifecycleStrip kind="tour" status={tour.status} />
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg text-white">
+                <Link href={`/admin/dashboard/tours/${tour.id}`} title={tour.name || "Untitled tour"} className="line-clamp-2 break-words rounded-sm hover:underline focus-visible:line-clamp-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400">
+                  {tour.name || "Untitled tour"}
+                </Link>
+              </CardTitle>
             </div>
-            <Badge className={statusBadgeClass(tour.status || "planning")}>{tour.status || "planning"}</Badge>
+            <Badge className={`max-w-28 shrink-0 whitespace-normal text-center ${statusBadgeClass(tour.status || "planning")}`}>{tour.status || "planning"}</Badge>
           </div>
           <p className="text-sm text-slate-400">{tour.main_artist || tour.artist || "Artist TBD"}</p>
         </CardHeader>

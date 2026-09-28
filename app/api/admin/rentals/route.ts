@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { resolveActingAdminContext } from '@/lib/auth/admin-context'
+import {
+  authorizedOrgScopeErrorResponse,
+  resolveAuthorizedOrgLogisticsScope,
+} from '@/lib/admin/resolve-authorized-org'
 
 async function getAuth(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
-  if (!auth) return { denied: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), auth: null }
+  if (!auth) return { denied: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), auth: null as never, admin: null as never }
   const isAdmin = await checkAdminPermissions(auth.user)
-  if (!isAdmin) return { denied: NextResponse.json({ error: 'Forbidden' }, { status: 403 }), auth: null }
-  return { denied: null, auth }
+  if (!isAdmin) return { denied: NextResponse.json({ error: 'Forbidden' }, { status: 403 }), auth: null as never, admin: null as never }
+  const admin = await resolveActingAdminContext(request, auth)
+  if (admin instanceof NextResponse) return { denied: admin, auth: null as never, admin: null as never }
+  return { denied: null, auth, admin }
 }
 
 // =============================================================================
@@ -14,10 +21,13 @@ async function getAuth(request: NextRequest) {
 // =============================================================================
 
 export async function GET(request: NextRequest) {
-  const { denied, auth } = await getAuth(request)
-  if (denied || !auth) return denied!
+  const { denied, auth, admin } = await getAuth(request)
+  if (denied || !auth || !admin) return denied!
 
   const { supabase } = auth
+  if (!admin.capabilities.includes('logistics.view')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   const { searchParams } = new URL(request.url)
   const type = searchParams.get('type') || 'agreements'
   const status = searchParams.get('status')
@@ -29,19 +39,22 @@ export async function GET(request: NextRequest) {
 
   try {
     if (type === 'clients') {
-      let query = supabase
-        .from('rental_clients')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1)
-
-      if (status) query = query.eq('status', status)
-
-      const { data, count, error } = await query
-      if (error) throw error
-
-      return NextResponse.json({ clients: data || [], total: count ?? 0 })
+      return NextResponse.json(
+        { clients: [], total: 0, unavailable: true, error: 'Rental clients require the organization vendor foundation.' },
+        { status: 409 },
+      )
     }
+
+    if (!eventId && !tourId) {
+      return NextResponse.json({ error: 'Select a tour or event to view rentals.' }, { status: 422 })
+    }
+    await resolveAuthorizedOrgLogisticsScope({
+      userId: auth.user.id,
+      requestedOrgId: admin.orgId,
+      eventId,
+      tourId,
+      allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+    })
 
     if (type === 'agreements') {
       let query = supabase
@@ -53,7 +66,7 @@ export async function GET(request: NextRequest) {
             *,
             equipment (id, name, category, rental_rate)
           ),
-          events (id, name, start_date),
+          events:events_v2 (id, name:title, start_date:start_at),
           tours (id, name, start_date)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
@@ -206,6 +219,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 })
   } catch (error) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Rentals API] GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch rental data' }, { status: 500 })
   }
@@ -216,8 +231,9 @@ export async function GET(request: NextRequest) {
 // =============================================================================
 
 export async function POST(request: NextRequest) {
-  const { denied, auth } = await getAuth(request)
-  if (denied || !auth) return denied!
+  const { denied, auth, admin } = await getAuth(request)
+  if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.manage')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { supabase, user } = auth
 
@@ -226,20 +242,21 @@ export async function POST(request: NextRequest) {
     const { action } = body
 
     if (action === 'create_client') {
-      const { action: _, ...clientData } = body
-
-      const { data, error } = await supabase
-        .from('rental_clients')
-        .insert({ ...clientData, created_by: user.id })
-        .select('*')
-        .single()
-
-      if (error) throw error
-      return NextResponse.json({ success: true, client: data }, { status: 201 })
+      return NextResponse.json({ error: 'Rental clients require the organization vendor foundation.' }, { status: 409 })
     }
 
     if (action === 'create_agreement') {
       const { action: _, items, ...agreementData } = body
+      const eventId = typeof agreementData.event_id === 'string' ? agreementData.event_id : null
+      const tourId = typeof agreementData.tour_id === 'string' ? agreementData.tour_id : null
+      if (!eventId && !tourId) return NextResponse.json({ error: 'Select a tour or event before creating a rental agreement.' }, { status: 422 })
+      await resolveAuthorizedOrgLogisticsScope({
+        userId: user.id,
+        requestedOrgId: admin.orgId,
+        eventId,
+        tourId,
+        allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+      })
 
       const totalDays = items?.reduce((s: number, i: any) => {
         const days = i.total_days || Math.ceil(
@@ -307,6 +324,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (error) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Rentals API] POST error:', error)
     return NextResponse.json({ error: 'Failed to create rental record' }, { status: 500 })
   }
@@ -317,8 +336,9 @@ export async function POST(request: NextRequest) {
 // =============================================================================
 
 export async function PUT(request: NextRequest) {
-  const { denied, auth } = await getAuth(request)
-  if (denied || !auth) return denied!
+  const { denied, auth, admin } = await getAuth(request)
+  if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.manage')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { supabase } = auth
 
@@ -330,18 +350,25 @@ export async function PUT(request: NextRequest) {
     if (!type) return NextResponse.json({ error: 'Missing type' }, { status: 400 })
 
     if (type === 'client') {
-      const { data, error } = await supabase
-        .from('rental_clients')
-        .update({ ...updateData, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select('*')
-        .single()
-
-      if (error) throw error
-      return NextResponse.json({ success: true, client: data })
+      return NextResponse.json({ error: 'Rental clients require the organization vendor foundation.' }, { status: 409 })
     }
 
     if (type === 'agreement') {
+      const { data: existing, error: loadError } = await supabase
+        .from('rental_agreements')
+        .select('id, event_id, tour_id')
+        .eq('id', id)
+        .single()
+      if (loadError) throw loadError
+      const eventId = typeof updateData.event_id === 'string' ? updateData.event_id : existing.event_id
+      const tourId = typeof updateData.tour_id === 'string' ? updateData.tour_id : existing.tour_id
+      await resolveAuthorizedOrgLogisticsScope({
+        userId: auth.user.id,
+        requestedOrgId: admin.orgId,
+        eventId,
+        tourId,
+        allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+      })
       const { data, error } = await supabase
         .from('rental_agreements')
         .update({ ...updateData, updated_at: new Date().toISOString() })
@@ -355,6 +382,8 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (error) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Rentals API] PUT error:', error)
     return NextResponse.json({ error: 'Failed to update rental record' }, { status: 500 })
   }
@@ -365,8 +394,9 @@ export async function PUT(request: NextRequest) {
 // =============================================================================
 
 export async function DELETE(request: NextRequest) {
-  const { denied, auth } = await getAuth(request)
-  if (denied || !auth) return denied!
+  const { denied, auth, admin } = await getAuth(request)
+  if (denied || !auth || !admin) return denied!
+  if (!admin.capabilities.includes('logistics.manage')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { supabase } = auth
   const { searchParams } = new URL(request.url)
@@ -378,16 +408,23 @@ export async function DELETE(request: NextRequest) {
 
   try {
     if (type === 'client') {
-      const { error } = await supabase
-        .from('rental_clients')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ error: 'Rental clients require the organization vendor foundation.' }, { status: 409 })
     }
 
     if (type === 'agreement') {
+      const { data: existing, error: loadError } = await supabase
+        .from('rental_agreements')
+        .select('id, event_id, tour_id')
+        .eq('id', id)
+        .single()
+      if (loadError) throw loadError
+      await resolveAuthorizedOrgLogisticsScope({
+        userId: auth.user.id,
+        requestedOrgId: admin.orgId,
+        eventId: existing.event_id,
+        tourId: existing.tour_id,
+        allowedTourIds: admin.scope === 'tour_collaborator' ? admin.allowedTourIds : undefined,
+      })
       const { error: itemsError } = await supabase
         .from('rental_agreement_items')
         .delete()
@@ -406,6 +443,8 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (error) {
+    const scopeResponse = authorizedOrgScopeErrorResponse(error)
+    if (scopeResponse) return scopeResponse
     console.error('[Rentals API] DELETE error:', error)
     return NextResponse.json({ error: 'Failed to delete rental record' }, { status: 500 })
   }

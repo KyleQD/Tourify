@@ -1,0 +1,33 @@
+✔ the instrument's self-checks pass on this chain, and a broken instrument is reported rather than believed (0.913208ms)
+✔ the statement splitter sees past a dollar-quoted body (the first revision's defect (a)) (0.148333ms)
+✔ the argument extractor returns the whole call, not up to the first ')' (the first revision's defect (b)) (0.1075ms)
+✔ two independent extractors agree on the permission set, and that is what makes a regression unshippable (85.96325ms)
+✔ a regressed extractor is reported, not silently clean (74.518917ms)
+✔ the matrix is derived from the chain's own three writers, not transcribed (33.367916ms)
+✔ enforcement is measured TRANSITIVELY, so a capability read only by a helper a policy calls is enforced (76.346459ms)
+✔ AC-3: workforce.publish is measured as constraining NOTHING, and that is the fourth answer (80.091541ms)
+✔ AC-3: the fourth answer is not a single special case — 29 of 42 capabilities are declared intent, and each is named (101.002875ms)
+✔ every catalog capability has a decision and every decision names a capability that exists (AC-1) (98.127208ms)
+✔ the four answers are all implemented; three are applied today and the fourth is applied to zero capabilities for a stated reason (0.3715ms)
+✔ the legacy vocabulary is recorded, including the three the RLS enforces and the catalog cannot express (0.222375ms)
+✔ AC-4: the check reports clean on the real chain, and 206 pairs are open and dispositioned (116.534209ms)
+✔ AC-4 / --strict: the same chain is RED under strict, and the count is exact (100.880583ms)
+✔ AC-2 INVERSION 1: a new capability with no decision fails the default mode (0.12175ms)
+✔ AC-2 INVERSION 2: an open pair on a matrix-authoritative capability fails (0.071125ms)
+✔ AC-2 INVERSION 3: a matrix grant on a deliberately-unseeded capability fails (0.072208ms)
+✔ AC-2 INVERSION 4: a decision the chain no longer supports fails in the FALSE-NEGATIVE direction (0.075375ms)
+✔ AC-3 / the check is not a name blacklist: a genuine new reader of workforce.publish turns it RED (98.0655ms)
+✔ AC-2 INVERSION 5: dropping a matrix role's workforce.view breaches matrix_authoritative, on the real chain (218.189875ms)
+✔ AC-2 INVERSION 6: widening the matrix to a capability nobody decided is not possible by accident — a decision is required first (0.155208ms)
+✔ the matrix-exceeds-gate direction is implemented, not merely present at zero (0.098708ms)
+✔ the 206 is a FALSE-DENIAL inventory, not a disclosure inventory, and that is structural rather than lucky (159.730792ms)
+✔ the 206 is exact and DB-016's per-role distribution sums to 207, which is why production is 23 (104.318833ms)
+✔ the report states both error directions and never calls a declaration a control (100.806583ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1598.255583

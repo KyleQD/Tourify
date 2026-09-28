@@ -1,0 +1,9 @@
+{
+  "eventId": "uuid",
+  "eventType": "custodian.restore.completed",
+  "packageId": "uuid",
+  "custodianId": "uuid",
+  "manifestDigest": "sha512:example",
+  "occurredAt": "2026-07-20T00:00:00Z",
+  "signature": "detached-signature"
+}

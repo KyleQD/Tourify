@@ -13,9 +13,31 @@ import { parsePressFormat } from '@/lib/press/formats'
 import type { NewsCategory, NewsFeedItem, NewsFeedQuery, NewsSortMode, RankedNewsFeedResult } from '@/lib/news/types'
 import { chooseFanoutStrategy } from '@/lib/news/scale/hybrid-fanout'
 import { fetchFeedPostsWithFallback } from '@/lib/feed/feed-posts-query'
+import { fetchInternalJson } from '@/lib/discover/internal-json-fetch'
+import { parseAllowedOrigins } from '@/lib/discover/outbound-guard'
+
+/** Frozen key into `INTERNAL_UPSTREAM_ROUTES`; the pathname is never caller-supplied. */
+const RSS_NEWS_UPSTREAM_ROUTE = 'newsRssFeed' as const
 
 interface BuildNewsFeedParams extends NewsFeedQuery {
-  requestOrigin: string
+  /**
+   * @deprecated Ignored. Security decision DISC-SSRF-003.
+   *
+   * This used to seed the base origin of the RSS fan-out
+   * (`new URL('/api/feed/rss-news', params.requestOrigin)`), so a caller who
+   * controlled `Host` / `X-Forwarded-Host` controlled the destination of N
+   * concurrent server-side requests. The base is now the operator-declared
+   * exact-origin allowlist in `lib/discover/outbound-guard` and nothing reads
+   * this field.
+   *
+   * It is retained only as an optional, ignored property so the one remaining
+   * out-of-lane call site keeps compiling: `app/api/feed/for-you/route.ts:27`,
+   * which is a social-owned shared file. Wave 35 removed the
+   * `app/api/news/feed/route.ts` call site; delete this property and that
+   * argument together. Tracked in
+   * `HF-DISC-002-FORYOU-REQUESTORIGIN-RESIDUAL`.
+   */
+  requestOrigin?: string
   supabase: SupabaseClient
 }
 
@@ -39,7 +61,6 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
 
   const [externalCandidates, blogCandidates, postCandidates, musicCandidates, eventCandidates] = await Promise.all([
     fetchExternalCandidates({
-      requestOrigin: params.requestOrigin,
       limit: 240,
       subscribedTopics: userSignals.subscribedTopics,
       preferredLocations: userSignals.preferredLocations
@@ -168,7 +189,13 @@ async function getUserPreferenceData(params: { supabase: SupabaseClient; userId?
     for (const topic of topics) subscribedTopics.add(String(topic).toLowerCase())
     for (const source of preferredSources) subscribedSourceNames.add(String(source).toLowerCase())
   } catch {
-    // Table may not exist yet in early rollout.
+    // NOT "may not exist yet in early rollout": verified in Wave 35 that NO
+    // migration in the active chain creates `user_news_preferences` and it is
+    // absent from the generated contract, so this personalization signal is
+    // permanently empty rather than temporarily unavailable. The catch must
+    // stay — removing it would turn a dead signal into a 500 — but do not read
+    // it as "the table is coming". See
+    // HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS for the routing.
   }
 
   try {
@@ -184,7 +211,8 @@ async function getUserPreferenceData(params: { supabase: SupabaseClient; userId?
         subscribedSourceNames.add(String(subscription.subscription_key).toLowerCase())
     }
   } catch {
-    // Table may not exist yet in early rollout.
+    // Same verified fact as `user_news_preferences` above: no active migration
+    // creates this table, so the subscription signal is permanently empty.
   }
 
   try {
@@ -345,7 +373,25 @@ async function fetchPostCandidates(params: { supabase: SupabaseClient; limit: nu
 
 async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: number }): Promise<NewsFeedItem[]> {
   try {
-    let query = params.supabase
+    // KNOWN DRIFT — do NOT delete `format` from this select to silence it.
+    // `artist_blog_posts.format` (and `.distribution`, `.subtitle`,
+    // `.boilerplate`, `.embargo_until`) are created by
+    // supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260717220000_press_content_formats.sql,
+    // which is ARCHIVED, not in the active chain (306 files matching ^\d{14}_).
+    // No other active migration adds them, and the generated contract lacks
+    // them too. So this select 400s at PostgREST today and the whole blog
+    // section of the news feed is empty. The correct fix is to port that
+    // migration back into the active chain (database lane; additive; manual
+    // apply under CP-051) — routed in
+    // HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS. Deleting the column here would
+    // hide a schema regression as a working feature and would break the press
+    // lane's contract in __tests__/press/press-formats-and-news.test.ts.
+    //
+    // What this lane can do is stop swallowing the error: `if (error) return []`
+    // made a 400 indistinguishable from "no published posts" to every caller.
+    // (A "legacy" retry used to sit here; it selected `format` too, so it could
+    // never succeed, and it is gone.)
+    const { data, error } = await params.supabase
       .from('artist_blog_posts')
       .select(`
         id,
@@ -373,40 +419,13 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
       .order('published_at', { ascending: false })
       .limit(params.limit)
 
-    let { data, error } = await query
-
-    if (error && (error.message?.includes('format') || error.code === '42703' || error.code === 'PGRST204')) {
-      const legacy = await params.supabase
-        .from('artist_blog_posts')
-        .select(`
-          id,
-          title,
-          excerpt,
-          content,
-          slug,
-          tags,
-          categories,
-          format,
-          featured_image_url,
-          stats,
-          published_at,
-          created_at,
-          user_id,
-          posted_as_profile_id,
-          posted_as_type,
-          account_display_name,
-          account_username,
-          account_avatar_url,
-          account_is_verified
-        `)
-        .eq('status', 'published')
-        .order('published_at', { ascending: false })
-        .limit(params.limit)
-      data = legacy.data
-      error = legacy.error
+    if (error) {
+      // Never swallow this: a PostgREST error here is indistinguishable from
+      // "no published posts" to every caller, and that is how a schema-drift
+      // regression reads as a healthy empty section.
+      console.error(`[News feed] Blog candidate query failed: ${error.message}`)
+      return []
     }
-
-    if (error) return []
 
     return Promise.all((data || []).map(async blog => {
       const author = accountAuthorNeedsRefresh(blog)
@@ -466,7 +485,7 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
 
 async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: number }): Promise<NewsFeedItem[]> {
   try {
-    const { data } = await params.supabase
+    const { data, error } = await params.supabase
       .from('music_tracks')
       .select(`
         id,
@@ -493,6 +512,22 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
       .order('created_at', { ascending: false })
       .limit(params.limit)
 
+    // KNOWN DRIFT — do not delete the four trust columns to silence this.
+    // `music_tracks` is a VIEW over `artist_music` (last redefined at
+    // supabase/migrations/20260711165607_native_music_player_hardening.sql:118-158)
+    // and its projection does not include them. The columns were added to the
+    // base TABLE afterwards, at
+    // supabase/migrations/20260910140000_artist_music_trust_columns.sql:12-15,
+    // and adding a column to a base table does not add it to an existing view.
+    // So this select 400s at PostgREST and the whole music section is empty.
+    // The real fix is an additive view redefinition (database lane, manual
+    // apply under CP-051) — routed in HF-DISC-002-NEWSCHEMA-ACTIVE-CHAIN-GAPS.
+    // What this lane can do is make the failure loud instead of silent, and
+    // never re-introduce a column the projection does not expose.
+    if (error) {
+      console.error(`[News feed] Music candidate query failed: ${error.message}`)
+      return []
+    }
     return (data || []).map(track => {
       return ({
       id: `music_${track.id}`,
@@ -657,8 +692,28 @@ async function fetchCanonicalEventCandidates(params: { supabase: SupabaseClient;
   }
 }
 
+/**
+ * Security decision DISC-SSRF-003 — port of the `/api/discover` guard.
+ *
+ * The previous body built `new URL('/api/feed/rss-news', params.requestOrigin)`
+ * and passed `endpoint.toString()` to the global `fetch` once per derived
+ * category. `requestOrigin` was `request.nextUrl.origin` at both callers, which
+ * reflects the inbound `Host` / `X-Forwarded-Host` header, so a caller chose the
+ * destination of N concurrent server-side requests; and the global `fetch`
+ * follows redirects, so a 3xx from the first hop reached anywhere. CodeQL did
+ * not flag it: `js/request-forgery` treats `request.url` as a remote-flow
+ * source but not `request.nextUrl.origin`.
+ *
+ * The destination is now the operator-declared exact origin
+ * (`INTERNAL_API_ORIGIN` -> `NEXT_PUBLIC_APP_URL` ->
+ * `VERCEL_PROJECT_PRODUCTION_URL` -> `VERCEL_URL`), the pathname is a
+ * compile-time constant, and the transport is resolve-then-pin over
+ * `node:https` with structural redirect denial, a 5s wall clock, a 2 MiB cap,
+ * and a JSON content-type requirement. With no allowlisted origin the fan-out
+ * performs no outbound request at all and the news feed simply loses its
+ * external candidates.
+ */
 async function fetchExternalCandidates(params: {
-  requestOrigin: string
   limit: number
   subscribedTopics: Set<string>
   preferredLocations: Set<string>
@@ -669,25 +724,36 @@ async function fetchExternalCandidates(params: {
       preferredLocations: params.preferredLocations
     })
 
-    const requests = categories.map(category => {
-      const endpoint = new URL('/api/feed/rss-news', params.requestOrigin)
-      endpoint.searchParams.set('limit', String(Math.max(12, Math.ceil(params.limit / categories.length))))
-      endpoint.searchParams.set('category', category)
-      return fetch(endpoint.toString(), {
-        headers: {
-          'User-Agent': 'TourifyNewsAggregator/1.0'
-        }
-      })
-    })
+    const allowlist = parseAllowedOrigins()
+    if (allowlist.length === 0) {
+      console.warn(
+        '[News feed] No internal upstream origin is allowlisted; external RSS candidates are disabled. Set INTERNAL_API_ORIGIN (or NEXT_PUBLIC_APP_URL / VERCEL_URL).'
+      )
+      return []
+    }
 
-    const results = await Promise.allSettled(requests)
+    const perCategoryLimit = Math.max(12, Math.ceil(params.limit / categories.length))
+    const results = await Promise.all(
+      categories.map(async category => {
+        // Denials log the route key and the reason only — never a category value.
+        const result = await fetchInternalJson({
+          route: RSS_NEWS_UPSTREAM_ROUTE,
+          params: { limit: perCategoryLimit, category },
+          headers: { 'user-agent': 'TourifyNewsAggregator/1.0' },
+          allowlist
+        })
+        if (!result.ok) {
+          console.error(`[News feed] Upstream "${RSS_NEWS_UPSTREAM_ROUTE}" denied: ${result.denial}`)
+          return null
+        }
+        const payload = result.data as { news?: unknown } | null
+        return Array.isArray(payload?.news) ? payload.news : null
+      })
+    )
+
     const rssItems: any[] = []
-    for (const result of results) {
-      if (result.status !== 'fulfilled') continue
-      if (!result.value.ok) continue
-      const payload = await result.value.json()
-      if (Array.isArray(payload.news))
-        rssItems.push(...payload.news)
+    for (const news of results) {
+      if (news) rssItems.push(...news)
     }
 
     const deduped = dedupeExternalItems(rssItems).slice(0, params.limit)

@@ -35,8 +35,13 @@ export async function POST(request: NextRequest) {
 
     const parsed = createJobPostingApiSchema.safeParse(bodyResult.data)
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]?.message
       return hiringResultToResponse(
-        fail({ code: "VALIDATION_ERROR", message: "Job posting payload is invalid.", details: parsed.error.flatten() })
+        fail({
+          code: "VALIDATION_ERROR",
+          message: firstIssue || "Job posting payload is invalid.",
+          details: parsed.error.flatten(),
+        })
       )
     }
 
@@ -66,6 +71,9 @@ export async function POST(request: NextRequest) {
         required_certifications: parsed.data.required_certifications,
         application_form_template: parsed.data.application_form_template,
         onboarding_template_id: parsed.data.onboarding_template_id,
+        assignment_scope: parsed.data.assignment_scope,
+        seat_role: parsed.data.seat_role,
+        seat_permissions: parsed.data.seat_permissions,
         event_id: parsed.data.event_id ?? parsed.data.eventId ?? null,
         tour_id: parsed.data.tour_id ?? parsed.data.tourId ?? null,
         event_date: parsed.data.event_date ?? null,

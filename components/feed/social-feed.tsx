@@ -61,6 +61,15 @@ import {
   type FeedTrackPreview,
 } from '@/lib/feed/music-post-preview'
 import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
+import { PostAppearanceBoundary } from '@/components/posts/appearance/post-appearance-boundary'
+import { usePostStyleFlags } from '@/hooks/use-post-style-flags'
+import type { RawPostAppearanceRow } from '@/lib/feed/resolve-post-appearance-dto'
+import {
+  createPostComment,
+  getPostComments,
+  setPostLike,
+  sharePostExternally,
+} from '@/lib/feed/post-engagement-client'
 
 interface PostData {
   id: string
@@ -96,6 +105,8 @@ interface PostData {
   }
   is_liked: boolean
   like_count: number
+  appearance?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
+  post_appearances?: RawPostAppearanceRow | RawPostAppearanceRow[] | null
 }
 
 interface Comment {
@@ -160,6 +171,7 @@ export function SocialFeed() {
   const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
   const [deletePostId, setDeletePostId] = useState<string | null>(null)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
+  const { flags: postStyleFlags } = usePostStyleFlags()
 
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
@@ -193,7 +205,10 @@ export function SocialFeed() {
 
       // Handle both API response formats
       const postsData = result.posts || result.data || []
-      setPosts(postsData)
+      setPosts(postsData.map((post: PostData) => ({
+        ...post,
+        appearance: post.post_appearances ?? post.appearance ?? null,
+      })))
 
       console.log(`[SocialFeed] Loaded ${postsData.length} posts for ${feedType} feed`)
     } catch (error) {
@@ -261,11 +276,14 @@ export function SocialFeed() {
 
   const handleCopyPostLink = async (postId: string) => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/posts/${postId}`)
-      toast.success('Post link copied')
+      const result = await sharePostExternally(postId, { preferNative: false })
+      setPosts(prev => prev.map(post =>
+        post.id === postId ? { ...post, shares_count: result.shares_count } : post
+      ))
+      toast.success('Post link copied and share saved')
     } catch (error) {
       console.error('Error copying post link:', error)
-      toast.error('Failed to copy post link')
+      toast.error(error instanceof Error ? error.message : 'Failed to share post')
     }
   }
 
@@ -319,21 +337,12 @@ export function SocialFeed() {
           : post
       ))
 
-      // Call the new API
-      const response = await fetch(`/api/posts/${postId}/likes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ action })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle like')
-      }
-
-      console.log('✅ Successfully toggled like')
+      const result = await setPostLike(postId, action)
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, is_liked: result.is_liked, like_count: result.likes_count }
+          : post
+      ))
     } catch (error) {
       // Revert on error
       setPosts(prev => prev.map(post =>
@@ -353,18 +362,8 @@ export function SocialFeed() {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }))
 
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        credentials: 'include'
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to load comments')
-      }
-
-      const result = await response.json()
+      const result = await getPostComments(postId)
       setComments(prev => ({ ...prev, [postId]: result.comments || [] }))
-
-      console.log('✅ Successfully loaded comments for post:', postId)
     } catch (error) {
       console.error('Error loading comments:', error)
     } finally {
@@ -389,23 +388,7 @@ export function SocialFeed() {
     if (!user || !content.trim()) return
 
     try {
-      console.log('💬 Adding comment to post:', postId)
-
-      // Call the new API
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ content: content.trim() })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to add comment')
-      }
-
-      const result = await response.json()
+      const result = await createPostComment(postId, content.trim())
 
       // Add the new comment to the local state
       setComments(prev => ({
@@ -418,7 +401,7 @@ export function SocialFeed() {
         post.id === postId
           ? {
               ...post,
-              comments_count: post.comments_count + 1
+              comments_count: result.comments_count
             }
           : post
       ))
@@ -426,7 +409,6 @@ export function SocialFeed() {
       // Ensure comments are shown after adding one
       setShowComments(prev => ({ ...prev, [postId]: true }))
 
-      console.log('✅ Successfully added comment')
       return result.comment
     } catch (error) {
       console.error('Error adding comment:', error)
@@ -606,10 +588,16 @@ export function SocialFeed() {
                           exit={{ opacity: 0, y: -20 }}
                           transition={{ delay: index * 0.1 }}
                         >
+                          <PostAppearanceBoundary
+                            postId={post.id}
+                            appearance={post.appearance}
+                            enabled={postStyleFlags.post_styles_read}
+                            surface="feed"
+                          >
                           <Card className="bg-slate-800/50 border-slate-700/30 hover:border-slate-600/50 transition-colors">
                             <CardContent className="p-6">
                               {/* Post Header */}
-                              <div className="flex items-start gap-3 mb-4">
+                              <div data-post-region="header" className="flex items-start gap-3 mb-4">
                                 <Link href={getProfileUrl(post.profiles)} className="flex-shrink-0">
                                   <Avatar className="cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                                     <AvatarImage src={post.profiles.avatar_url || ''} />
@@ -686,7 +674,7 @@ export function SocialFeed() {
                               </div>
 
                               {/* Post Content */}
-                              <div className="mb-4">
+                              <div data-post-region="body" className="mb-4">
                                 {post.content_ref_type === 'article' && post.article_preview ? (
                                   <>
                                     {shouldShowArticlePostContent(post) ? (
@@ -727,7 +715,7 @@ export function SocialFeed() {
                                 )}
 
                                 {post.hashtags && post.hashtags.length > 0 && (
-                                  <div className="flex flex-wrap gap-2 mt-3">
+                                  <div data-post-region="tags" className="flex flex-wrap gap-2 mt-3">
                                     {post.hashtags.map((hashtag) => (
                                       <Badge
                                         key={hashtag}
@@ -741,7 +729,7 @@ export function SocialFeed() {
                                 )}
 
                                 {musicTrack && (
-                                  <div className="mt-4">
+                                  <div data-post-media className="mt-4">
                                     <FeedMusicPlayer
                                       track={musicTrack}
                                       compact
@@ -752,17 +740,19 @@ export function SocialFeed() {
                                 )}
 
                                 {!musicTrack && (
-                                  <FeedMediaGrid
-                                    mediaItems={normalizeMediaData(post)}
-                                    postId={post.id}
-                                  />
+                                  <div data-post-media>
+                                    <FeedMediaGrid
+                                      mediaItems={normalizeMediaData(post)}
+                                      postId={post.id}
+                                    />
+                                  </div>
                                 )}
                               </div>
 
                               <Separator className="bg-slate-700/50 mb-4" />
 
                               {/* Post Actions */}
-                              <div className="flex items-center justify-between">
+                              <div data-post-region="actions" className="flex items-center justify-between">
                                 <div className="flex items-center gap-6">
                                   <Button
                                     variant="ghost"
@@ -782,12 +772,17 @@ export function SocialFeed() {
                                     <MessageCircle className="h-4 w-4 mr-2" />
                                     {post.comments_count}
                                   </Button>
-                                  <Button variant="ghost" size="sm" className="text-slate-400 hover:text-green-400">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-slate-400 hover:text-green-400"
+                                    onClick={() => void handleCopyPostLink(post.id)}
+                                  >
                                     <Share className="h-4 w-4 mr-2" />
                                     {post.shares_count}
                                   </Button>
                                 </div>
-                                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                                <div data-post-region="metadata" className="flex items-center gap-2 text-slate-400 text-sm">
                                   {post.visibility === 'public' ? (
                                     <Globe className="h-3 w-3" />
                                   ) : (
@@ -799,7 +794,7 @@ export function SocialFeed() {
 
                               {/* Comments Section */}
                               {showComments[post.id] && (
-                                <div className="px-4 py-3 border-t border-slate-800 space-y-4">
+                                <div data-post-region="comments" className="px-4 py-3 border-t border-slate-800 space-y-4">
                                   {/* Existing Comments */}
                                   {loadingComments[post.id] ? (
                                     <div className="flex items-center justify-center py-4">
@@ -876,6 +871,7 @@ export function SocialFeed() {
                               )}
                             </CardContent>
                           </Card>
+                          </PostAppearanceBoundary>
                         </motion.div>
                         )
                       })

@@ -58,6 +58,7 @@ import {
 import { TrackCard } from "./track-card"
 import { toast } from "sonner"
 import { prefetchSocialStatus } from "@/lib/jukebox/track-social-cache"
+import artistThemeStyles from "@/components/public-artist/artist-profile-theme.module.css"
 
 export function FullPlayerView() {
   const ctx = useJukeboxOptional()
@@ -72,7 +73,17 @@ export function FullPlayerView() {
     >
       <SheetContent
         side="bottom"
-        className="h-[100dvh] sm:h-[85vh] rounded-t-2xl border-t border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black p-0 [&>button]:hidden"
+        className={cn(
+          artistThemeStyles.themedPlayer,
+          "h-[100dvh] rounded-t-2xl border-t border-white/10 bg-slate-950 p-0 text-white sm:h-[85vh] [&_button:focus-visible]:outline [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-2 [&_button:focus-visible]:outline-[var(--profile-player-accent,#a855f7)] [&>button]:hidden"
+        )}
+        style={{
+          backgroundColor: "var(--profile-player-surface)",
+          borderColor: "var(--profile-player-accent)",
+          borderTopLeftRadius: "var(--profile-player-radius)",
+          borderTopRightRadius: "var(--profile-player-radius)",
+          color: "var(--profile-player-text)",
+        }}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <VisuallyHidden.Root>

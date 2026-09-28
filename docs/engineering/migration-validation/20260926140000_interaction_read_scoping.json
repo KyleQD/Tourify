@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260926140000_interaction_read_scoping.sql",
+  "taskId": "DB-011",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "9d6c2265fde7c10b2ab053d4ac9e172a6202e68b99aca28fc1416afa21ab6b54",
+  "contractTestSha256": "641abb6e1f0822d6651101cd54d4c164166cd3982e4b9d3b23a9a8dbade8d26a",
+  "owner": "database",
+  "reviewer": "security-social",
+  "domains": ["social", "authorization", "security"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Stage 1 of HF-DB-006-SOCIAL-007. Static review of the three interaction SELECT policies plus executed behavioural evidence on a throwaway PostgreSQL 16.15 cluster. `public.post_likes` was created by 20240430000000_create_posts.sql:17-22 with columns (id, post_id, user_id, created_at) and a unique(post_id, user_id); its SELECT policy `Anyone can view likes` at 20240430000000_create_posts.sql:47-49 is USING (true). `public.post_comments` (20241220000010_enhance_feed_system.sql:24-33) carries `Comments are viewable by everyone` USING (true) at :131-134, and `public.comment_likes` (:36-42) carries `Comment likes are viewable by everyone` USING (true) at :152-155. RLS policies are permissive and UNION, so a USING (true) policy makes every row readable by every role holding a table-level SELECT grant, and Supabase's default privileges grant that to anon. Verified in the harness: before the migration, `set role anon; select count(*) from public.post_likes` returns 2 of 2, from public.comment_likes 1 of 1, and from public.post_comments 2 of 2. After the migration all three return 0. Contract test SHA-256 641abb6e1f0822d6651101cd54d4c164166cd3982e4b9d3b23a9a8dbade8d26a. Executed evidence: supabase/tests/db011_interaction_scope.harness.sh.",
+    "evidenceArtifact": "static-review:DB-006-SOCIAL-007-STAGE1-2026-09-26 (migration SHA-256 9d6c2265fde7c10b2ab053d4ac9e172a6202e68b99aca28fc1416afa21ab6b54)"
+  },
+  "assumptions": [
+    "Supabase's default privileges really do grant table-level SELECT to anon on public tables. This is not verified from the chain, because it is a property of the hosted project's privilege setup rather than of a migration. The migration therefore does not RELY on it: the fix is a role-scoped policy, and the harness measures the denial directly rather than inferring it from grants.",
+    "Supabase default privileges are not the only way anon could hold SELECT. An explicit GRANT elsewhere would leave anon able to attempt the read, but with no applicable SELECT policy RLS still denies the row, so the fix holds either way. This is why the contract checks `pg_policy.polroles` rather than the predicate text.",
+    "Every legitimate cross-user reader of post_likes is either service-role (RLS-bypassing) or a committed surface that this stage must not break. Verified by reading all 16 product references to post_likes: 5 are viewer-scoped with `.eq('user_id', <caller>)` (app/api/posts/[id]/likes/route.ts:24-31, lib/social/post-like-state.ts:264-268, lib/news/feed-service.ts:288-294, lib/public-artist/get-public-artist-profile.ts:915-921, and the two browser components named in the handoff); 1 is service-role (app/api/community/activity/route.ts:21); 2 are caller-scoped cross-user reads that stage 2 must move to service role (app/api/notifications/social/route.ts:291-297, lib/admin/content-hub/org-posts.ts:55); 1 is a debug existence probe (app/api/debug/tables/route.ts:41-45); the rest are type references.",
+    "post_comments content is public product content on public posts, so it must remain readable to an authenticated caller. `posts` itself is USING (true) (20240430000000_create_posts.sql:29-31), so a stricter comment policy would be inconsistent with its parent rather than safer.",
+    "A comment's parent-post existence check is DEFENCE IN DEPTH that mirrors post_comments_post_id_fkey, not an orphan filter: the foreign key makes an orphan comment unreachable through normal DML. The harness proves the policy rather than the constraint by inserting one orphan with session_replication_role = replica and asserting it is not readable while its parentless sibling is."
+  ],
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): on the target, list every SELECT policy on post_likes, comment_likes and post_comments with pg_get_expr(polqual, polrelid) and polroles, and count rows in each table. Record the result: this migration is only correct if the superseded policy names are the ones present. If a target carries a differently-named USING (true) SELECT policy on any of the three tables, this migration does not remove it and the operator must stop.",
+    "Layer 1 (apply, single run, operator): one transaction. DROP POLICY IF EXISTS on the three superseded names, CREATE POLICY on each table scoped TO authenticated with a parent-scoped USING, COMMENT ON POLICY on each, then a DO block that raises unless RLS is enabled on all three tables and every SELECT policy on them is scoped to authenticated alone. The post-condition is inside the same transaction as the change, so a target that cannot reach the asserted state fails the apply rather than reporting success.",
+    "Layer 2 (postflight, read-only, operator): run supabase/tests/db008_interaction_read_scoping_contract.sql; expect zero violation rows and exactly one summary row interaction_read_scoping_ready. Then as a real caller, `set role anon` and select from each of the three tables; expect zero rows and no permission error on the SELECT itself.",
+    "Layer 3 (stage 2, social and admin lanes, after the consumer change): narrow post_likes and comment_likes to `auth.uid() = user_id` once app/api/notifications/social/route.ts:291-297 and lib/admin/content-hub/org-posts.ts:55 have moved to the service-role client. Tracked as HF-DB-006-SOCIAL-007-STAGE2. Until then an authenticated caller can still read another user's like; the harness asserts that residual explicitly so it cannot be forgotten."
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT c.relname, p.polname, p.polroles::regrole[], pg_get_expr(p.polqual, p.polrelid) AS using_expr FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname IN ('post_likes','comment_likes','post_comments') AND p.polcmd = 'r'",
+      "SELECT count(*) FROM public.post_likes",
+      "SELECT count(*) FROM public.comment_likes",
+      "SELECT count(*) FROM public.post_comments",
+      "SELECT has_table_privilege('anon','public.post_likes','select') AS anon_select_grant"
+    ],
+    "expectedAffectedRows": "Zero data rows are changed. Three SELECT policies are dropped and three are created.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 500,
+    "statementTimeoutMs": 15000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). One transaction, no DDL that takes a heavy lock: CREATE POLICY and DROP POLICY take ACCESS EXCLUSIVE on the pg_class row only, not on the table's data, and no table is rewritten. Safe to apply before any consumer changes: no committed surface's behaviour changes.",
+    "resumeCursor": "Supabase migration version 20260926140000",
+    "idempotency": "Deterministic and repeatable. DROP POLICY IF EXISTS then CREATE POLICY with a final name; COMMENT ON POLICY; a DO block that only raises. Verified by applying the file twice on a throwaway PostgreSQL 16.15 cluster in supabase/tests/db011_interaction_scope.harness.sh: the second apply produced no error and the policy set was byte-identical (compared before and after)."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement, no backfill, no batch. The change is three policy objects. There is no partial-application state: the file is one transaction and its own post-condition raises if the asserted state is unreachable."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No constraint is added, altered or dropped. The four write policies on these tables (Users can like posts, Users can unlike posts, Users can like comments, Users can unlike comments, Users can create comments, Users can update their own comments, Users can delete their own comments) are untouched and the contract test asserts each is still present, so a write policy cannot disappear unnoticed.",
+      "The three replacement policies are the authorization boundary for read scope. They are scoped `to authenticated`, which is the property that closes the exposure; the parent-post predicate is defence in depth and is asserted to reference the parent relation so a later edit cannot quietly drop it and leave a whole-table read behind a role clause."
+    ],
+    "indexes": [
+      "No index is added. The policies add an EXISTS against public.posts by primary key, which is an index lookup, not a scan. The post_comments and comment_likes policies add one further EXISTS each, also by primary key."
+    ],
+    "validationPlan": "supabase/tests/db008_interaction_read_scoping_contract.sql returns violation rows only, plus one summary row interaction_read_scoping_ready and only when no violation exists, so an unapplied target cannot pass vacuously. It asserts 8 properties: RLS enabled on all three tables; the three final policy names exist; each is scoped to authenticated alone; NO select policy on these tables applies beyond authenticated (this, not the predicate text, is what closes anon); the three superseded names are gone; the seven write policies are still present with the correct pg_policy.polcmd letter; each final policy references its parent relation; and no final policy is a bare `true`. The behavioural half is supabase/tests/db011_interaction_scope.harness.sh, which runs the three USING (true) policies first and measures the anon read BEFORE the fix as a negative control, then measures it after, then drops a policy and confirms the postflight reports it, then re-applies and confirms the postflight returns to green."
+  },
+  "recovery": {
+    "rollback": "DROP POLICY `Users can view likes on visible posts` ON public.post_likes; DROP POLICY `Users can view comment likes on visible comments` ON public.comment_likes; DROP POLICY `Users can view comments on visible posts` ON public.post_comments; CREATE POLICY `Anyone can view likes` ON public.post_likes FOR SELECT USING (true); and the equivalents for the other two - issued as a later forward migration, never as an edit to this file. Rolling back restores the world-readable state this migration exists to remove, so it is a last resort and should be paired with a compensating REVOKE of SELECT from anon.",
+    "forwardFix": "Any correction is a new additive migration with a higher version carrying DROP/CREATE POLICY for the affected table. Stage 2 is exactly that and is raised as HF-DB-006-SOCIAL-007-STAGE2 rather than pre-empted here, because it requires two product changes this lane does not own."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db008_interaction_read_scoping_contract.sql",
+      "SELECT c.relname, p.polname, p.polroles::regrole[], pg_get_expr(p.polqual, p.polrelid) FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname='public' AND c.relname IN ('post_likes','comment_likes','post_comments') AND p.polcmd='r'",
+      "SET ROLE anon; SELECT count(*) FROM public.post_likes; SELECT count(*) FROM public.comment_likes; SELECT count(*) FROM public.post_comments; RESET ROLE;",
+      "SELECT count(*) AS posts FROM public.posts"
+    ]
+  },
+  "verificationOwner": "security-social reviewer for the read-scope boundary and the stage-2 rule; release/ops operator for the staging apply, the postflight and the anonymous read probe; social lane for app/api/notifications/social/route.ts and the stage-2 switch; admin lane for lib/admin/content-hub/org-posts.ts and the stage-2 switch",
+  "evidence": [
+    "supabase/tests/db011_interaction_scope.harness.sh - executed on a throwaway PostgreSQL 16.15 cluster, ALL CHECKS PASSED. Stage 1 is a real negative control, not an assumption: with the pre-migration USING (true) policies in place, `set role anon` reads 2 of 2 post_likes rows, 1 of 1 comment_likes rows and 2 of 2 post_comments rows. After the migration all three are 0.",
+    "Stage 3 also asserts the NON-regression that keeps this safe to apply: an authenticated caller still reads their own like, still reads the comment whose parent post is visible, and STILL reads another user's like. That last one is the stage-2 residual and is asserted rather than omitted, so the harness documents the real post-migration state instead of a flattering one.",
+    "Idempotency: the file was applied twice with no error and the policy set compared byte-identical before and after. The postflight was also run against a deliberately removed policy (it reported the violation) and then after re-applying the migration (it returned to green), so the postflight is proven able to fail.",
+    "The harness asserts its own pre-state: 4 tables and 11 policies, including exactly 3 USING (true) SELECT policies, and a seed of 2 likes / 2 comments / 1 comment like. A silently failed fixture is the Wave 33 failure shape.",
+    "LOCAL EMULATION ONLY: PostgreSQL 16.15, a throwaway cluster in a temp dir, a minimal auth/roles bootstrap, and the chain's own CREATE TABLE text for the four relations copied verbatim. Not Supabase, not a hosted project, not a chain replay, no `supabase db reset` (CP-051).",
+    "Not proven here, and required before this is launch-grade: behaviour on a real Supabase target, the actual default-privilege state of anon on the hosted project, PostgREST schema-cache refresh, and whether any route not found by a repository-wide scan reads these tables."
+  ],
+  "exceptions": []
+}

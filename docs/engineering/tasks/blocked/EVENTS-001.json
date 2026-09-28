@@ -1,0 +1,153 @@
+{
+  "schema_version": "2.0",
+  "id": "EVENTS-001",
+  "title": "Own and close the core event lifecycle",
+  "status": "blocked",
+  "execution_state": "waiting_external",
+  "priority": "P0",
+  "owner_agent": "events",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "events",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-28T00:38:50.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Adopt the remaining event, calendar, status, and hold actions and make their authorization contract explicit.",
+  "scope": {
+    "in": [
+      "Adopt the remaining event, calendar, status, and hold actions and make their authorization contract explicit."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "app/events/**",
+    "app/api/events/route.ts",
+    "app/api/events/[id]/route.ts",
+    "app/api/events/_lib/**",
+    "lib/events/**",
+    "__tests__/events/event-lifecycle-authorization.test.ts",
+    "__tests__/events/event-actions-authorization.test.ts",
+    "supabase/migrations/20260927110000_events_v2_delete_rls.sql"
+  ],
+  "working_set_additions": [
+    {
+      "path": "supabase/migrations/20260927110000_events_v2_delete_rls.sql",
+      "reason": "Code evidence: events_v2 has SELECT/INSERT/UPDATE policies from 20250816133000_event_core.sql but no DELETE policy in any migration, so the event delete action had no data-boundary authorization at all. Additive, idempotent, manual-apply only (CP-051). Not applied by this lane.",
+      "added_at": "2026-09-27T13:36:00.000Z"
+    }
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/events/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "An operator applies 20260927110000_events_v2_delete_rls.sql under CP-051, then npx vitest run __tests__/events/ confirms the delete action is live at the data boundary. Every other criterion is local and met; resume the lane only for that apply and its postflight.",
+  "blocked_on": [
+    {
+      "type": "external",
+      "owner": "database",
+      "condition": "Operator action, not a task dependency: apply supabase/migrations/20260927110000_events_v2_delete_rls.sql to an approved staging or production target under CP-051 (explicitly, one at a time; no db reset, no forced replay), then rerun npx vitest run __tests__/events/ to confirm the delete action is live at the data boundary. No agent can perform this: CP-051 forbids an automated apply and no target has been provisioned. No other acceptance criterion in this task is outstanding.",
+      "dependency_task_ids": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Adopt the remaining event, calendar, status, and hold actions and make their authorization contract explicit.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "lib/events/event-lifecycle-service.ts is the single owner of create, update, delete, status transition, org calendar, hold, and event calendar items, with the authorization contract stated in its module header.",
+        "Rules: event.manage on the owning org; org resolved server-side from the resource; a client tourId may select but never grant an org; every write bound by both resource id and authorized org_id; request-scoped RLS client only, never service role.",
+        "app/api/events/route.ts POST, app/api/events/[id]/route.ts PATCH/DELETE/GET, app/api/events/[id]/hq/calendar/route.ts, and app/events/_actions/event-actions.ts are now thin shells over that service.",
+        "npx vitest run __tests__/events/ -> 16 files, 127 tests passed.",
+        "Same route suite against base SHA 16fb834f in an isolated worktree -> 11 of 12 failed, including cross-tenant create via a foreign tour_id returning 200 and unbound PATCH/DELETE writes.",
+        "Open gap, not yet live: the delete action's data-boundary gate depends on the unapplied migration 20260927110000_events_v2_delete_rls.sql. Code and denial tests are in place; the allow path cannot succeed in a real database until the database lane applies it. That is why this task stays active rather than completed."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "events",
+        "required_for": "task",
+        "result": "fail",
+        "commands": [
+          "npm run agents:validate -- --strict",
+          "npx vitest run __tests__/events/",
+          "npx tsc -p <scoped tsconfig over 11 events files>",
+          "npx eslint <11 scoped events files>"
+        ],
+        "evidence": [
+          "npm run agents:validate -- --strict -> exit 1: 18 agents, 212 tasks, 101 pending handoffs, 0 warnings, 8 errors. GATE FAILS. The identical 8 errors were present before this task began and none are in the events lane: ADMIN-014, HF-DB008-SCHEMA-MISSING-ADMIN, HF-DB008-TYPECHECK-ADMIN, HF-DB008-TYPECHECK-ANALYTICS, HF-DB008-UNRESOLVED-ADMIN, HF-DESIGN-031-ADMIN, HF-INTG-033-CODEQL-OAUTH-STATE-HASH, HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY. This gate is owned by the orchestrator to clear; the events lane contributes zero errors.",
+          "npx vitest run __tests__/events/ -> PASS: 16 test files passed, 127 tests passed (baseline before change was 14 files / 88 tests)",
+          "Same route suite run against base SHA 16fb834f in a throwaway git worktree -> 11 of 12 failed. Cross-tenant create via a foreign tour_id returned HTTP 200 success; cross-org tour attach returned 200; PATCH and DELETE writes carried only an id filter and no org_id filter; cross-tenant calendar item returned 500.",
+          "npx tsc -p scoped tsconfig over the 11 events files incl. app/events/create/page.tsx and planner/publish/route.ts -> PASS: exit 0, zero diagnostics",
+          "npx eslint over the 11 scoped events files -> PASS: exit 0",
+          "npx vitest run on the three suites importing app/api/events/_lib/events-v2-admin.ts (__tests__/artist/event-producer-hardening, __tests__/admin/tour-event-hardening, __tests__/admin/events-tours-utility-hub) -> PASS: 3 files, 40 tests passed"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T20:37:12.318Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "BLOCKED, not idle-by-choice (orchestrator, Wave 37, 2026-09-28). The working set was narrowed from app/api/events/** to the seven files this task owns so the 26 sub-resource route files could go to EVENTS-004 without a collision. Its only remaining step is an operator apply it cannot perform; the malformed blocker it carried (type undefined, empty condition) has been replaced with a real one.",
+    "completed": [
+      "Adopted create, update, delete, status transition, org calendar, hold, and event calendar item actions into lib/events/event-lifecycle-service.ts as the single owner with explicit inputs",
+      "Made the authorization contract explicit: event.manage on the owning org, server-resolved org, tourId may select but never grant an org, every write bound by resource id plus authorized org_id, request-scoped RLS client only",
+      "Reduced app/api/events/route.ts, app/api/events/[id]/route.ts, app/api/events/[id]/hq/calendar/route.ts, and app/events/_actions/event-actions.ts to thin shells with no inline authorization or state mutation",
+      "Closed cross-tenant event creation via a client-supplied tour_id (was HTTP 200 at base SHA) and cross-org tour attachment",
+      "Removed the service-role client from the event HQ calendar action and replaced the handler-only permission check with the shared contract",
+      "Fixed a latent bug where the HQ calendar route derived the event id from path segment -2, which resolved to 'hq' instead of the event id",
+      "Gated ensureAdminOrgScope against self-granting an owner membership in an org named only by a client tourId",
+      "Wrote additive idempotent migration 20260927110000_events_v2_delete_rls.sql adding the missing events_v2 DELETE policy; manual-apply only, not applied",
+      "Added 39 denial and authorization tests across __tests__/events/event-lifecycle-authorization.test.ts and __tests__/events/event-routes-authorization.test.ts"
+    ],
+    "next_steps": [
+      "Database lane applies supabase/migrations/20260927110000_events_v2_delete_rls.sql to the target environment via supabase migration up or targeted psql (CP-051, no db reset)",
+      "After apply, re-run npx vitest run __tests__/events/ and confirm the delete action is live at the data boundary, then close EVENTS-001",
+      "Open a follow-up events task for the sub-resource routes under app/api/events/[id]/ (staff, vendors, tasks, jobs, incidents, participants, locations, group-chats, posts, share-message, hq/resources, hq/permissions), which are outside this task's core lifecycle scope and were not audited",
+      "ORCHESTRATOR NARROW (Wave 37, 2026-09-28): the broad app/api/events/** and __tests__/events/** claims were narrowed to the files this task actually owns, because EVENTS-004 needs the 26 sub-resource route files and the two tasks collided in the control plane. event-routes-authorization.test.ts transferred to EVENTS-004: the only sub-resource route it exercises is [id]/hq/calendar, which is in that grant. Nothing about this task acceptance changes, and its blocker is still the database apply.",
+      "Report to the database lane that venues_v2 and venue_profiles carry no org_id, so an event cannot be bound to an org-owned venue; the contract only requires the venue to exist"
+    ],
+    "blockers": [
+      "supabase/migrations/20260927110000_events_v2_delete_rls.sql is written additively but manual-apply only (CP-051). Until the database lane applies it, RLS denies every events_v2 delete, so deleteEvent has no functioning data-boundary gate. Owner of the next action: database."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T20:37:12.318Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Adopted the core event lifecycle onto a single owning service (lib/events/event-lifecycle-service.ts) and made the authorization contract explicit at the data boundary. Closed a live cross-tenant create escalation, unbound PATCH/DELETE writes, and a service-role calendar action. Delete remains gated on a manual-apply migration owned by the database lane.",
+        "completed": [
+          "Adopted create, update, delete, status transition, org calendar, hold, and event calendar item actions into lib/events/event-lifecycle-service.ts as the single owner with explicit inputs",
+          "Made the authorization contract explicit: event.manage on the owning org, server-resolved org, tourId may select but never grant an org, every write bound by resource id plus authorized org_id, request-scoped RLS client only",
+          "Reduced app/api/events/route.ts, app/api/events/[id]/route.ts, app/api/events/[id]/hq/calendar/route.ts, and app/events/_actions/event-actions.ts to thin shells with no inline authorization or state mutation",
+          "Closed cross-tenant event creation via a client-supplied tour_id (was HTTP 200 at base SHA) and cross-org tour attachment",
+          "Removed the service-role client from the event HQ calendar action and replaced the handler-only permission check with the shared contract",
+          "Fixed a latent bug where the HQ calendar route derived the event id from path segment -2, which resolved to 'hq' instead of the event id",
+          "Gated ensureAdminOrgScope against self-granting an owner membership in an org named only by a client tourId",
+          "Wrote additive idempotent migration 20260927110000_events_v2_delete_rls.sql adding the missing events_v2 DELETE policy; manual-apply only, not applied",
+          "Added 39 denial and authorization tests across __tests__/events/event-lifecycle-authorization.test.ts and __tests__/events/event-routes-authorization.test.ts"
+        ],
+        "next_steps": [
+          "Database lane applies supabase/migrations/20260927110000_events_v2_delete_rls.sql to the target environment via supabase migration up or targeted psql (CP-051, no db reset)",
+          "After apply, re-run npx vitest run __tests__/events/ and confirm the delete action is live at the data boundary, then close EVENTS-001",
+          "Open a follow-up events task for the sub-resource routes under app/api/events/[id]/ (staff, vendors, tasks, jobs, incidents, participants, locations, group-chats, posts, share-message, hq/resources, hq/permissions), which are outside this task's core lifecycle scope and were not audited",
+          "Report to the database lane that venues_v2 and venue_profiles carry no org_id, so an event cannot be bound to an org-owned venue; the contract only requires the venue to exist"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,0 +1,16 @@
+{
+  "evidenceId": "EVD-B01-FOCUSED-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-09-07T22:34:50-07:00",
+  "capturedBy": "Codex implementation session",
+  "commitSha": null,
+  "artifact": "docs/admin-audit/evidence/2026/EVD-B01-FOCUSED-LOCAL.md",
+  "sha256": "6eb9ba46a1fd7e65bed70b17ff0931efd1105b00602b64ebb660f12a2e01253c",
+  "findingIds": ["ADM-M-010", "ADM-M-013", "ADM-M-061", "AOA-003", "AOA-012", "AOA-015"],
+  "workflowIds": ["ADM-WF-017"],
+  "specTaskIds": ["SEC-005", "REL-004", "REL-007", "REL-102", "REL-103"],
+  "launchGateIds": [],
+  "notes": "All five declared ADM-B01 focused checks passed locally: migration manifests and static SQL, the 273-file active chain scan, route registry, service-role allowlist, and 3,289 Admin tests. This receipt intentionally remains local and uncommitted; CI, staging, fresh migration, type-check, build, and live RLS evidence are still required."
+}

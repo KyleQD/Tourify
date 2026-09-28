@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { canTransitionSubscription } from "@/lib/music/marketplace/order-state-machine"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 import { createSandboxIntermediaryAdapter } from "@/lib/music/marketplace/partner-adapters"
@@ -16,10 +17,10 @@ const createSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireMarketplaceAccount(request)
   if (!authResult.success) return authResult.response
-  const { user, supabase } = authResult.auth
-  const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+  const { userId, supabase } = authResult.account
+  const flags = await resolveMusicMarketplaceFlags(supabase, userId)
   if (!flags.music_marketplace_subscriptions_enabled)
     return jsonError({
       status: 404,
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("music_marketplace_subscriptions")
     .select("id, public_id, offering_id, amount_minor, currency, status, escrow_status, disclosure_version_id, partner_subscription_id, created_at, updated_at")
-    .eq("investor_user_id", user.id)
+    .eq("investor_user_id", userId)
     .order("created_at", { ascending: false })
     .limit(100)
 
@@ -43,10 +44,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireMarketplaceAccount(request)
     if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
-    const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+    const { userId, supabase } = authResult.account
+    const flags = await resolveMusicMarketplaceFlags(supabase, userId)
     if (!flags.music_marketplace_subscriptions_enabled)
       return jsonError({
         status: 404,
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
       .from("music_marketplace_subscriptions")
       .select("id, public_id, status, partner_subscription_id")
       .eq("offering_id", payload.offering_id)
-      .eq("investor_user_id", user.id)
+      .eq("investor_user_id", userId)
       .eq("idempotency_key", payload.idempotency_key)
       .maybeSingle()
     if (existing) return NextResponse.json({ data: existing, idempotent: true })
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     const adapter = createSandboxIntermediaryAdapter()
     const partnerResult = await adapter.createSubscription({
       offeringPartnerId: offering.partner_offering_id || offering.id,
-      investorPartnerAccountId: `sandbox-${user.id}`,
+      investorPartnerAccountId: `sandbox-${userId}`,
       amountMinor: String(payload.amount_minor),
       currency: payload.currency,
       idempotencyKey: payload.idempotency_key,
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       .from("music_marketplace_subscriptions")
       .insert({
         offering_id: payload.offering_id,
-        investor_user_id: user.id,
+        investor_user_id: userId,
         amount_minor: payload.amount_minor,
         currency: payload.currency,
         disclosure_version_id: payload.disclosure_version_id,

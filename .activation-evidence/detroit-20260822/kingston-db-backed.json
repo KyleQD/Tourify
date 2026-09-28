@@ -1,0 +1,3570 @@
+{
+  "schemaVersion": "world-place-v0.1",
+  "fixtureVersion": "world-seed-fixture-v0.3",
+  "publicationState": "draft_needs_review_not_deployed",
+  "place": {
+    "id": "1155d023-24b1-4ce9-a037-dd31a3f14602",
+    "canonicalPath": "jm/kingston",
+    "name": "Kingston",
+    "displayName": "Kingston",
+    "placeType": "city",
+    "parent": {
+      "id": "6862c5fc-7596-4d87-84a1-1fed77274e9a",
+      "canonicalPath": "jm",
+      "name": "Jamaica"
+    },
+    "breadcrumb": [
+      {
+        "id": "6862c5fc-7596-4d87-84a1-1fed77274e9a",
+        "canonicalPath": "jm",
+        "name": "Jamaica",
+        "placeType": "country"
+      },
+      {
+        "id": "1155d023-24b1-4ce9-a037-dd31a3f14602",
+        "canonicalPath": "jm/kingston",
+        "name": "Kingston",
+        "placeType": "city"
+      }
+    ],
+    "countryCode": "JM",
+    "admin1Code": null,
+    "timezone": null,
+    "languages": [],
+    "center": {
+      "latitude": 17.9713889,
+      "longitude": -76.7930556
+    },
+    "aliases": [
+      "Kingston, Jamaica"
+    ],
+    "externalRefs": [
+      {
+        "provider": "wikidata",
+        "external_type": "place",
+        "external_id": "Q34692",
+        "canonical_url": "https://www.wikidata.org/wiki/Q34692",
+        "attribution_text": null,
+        "source_key": "wikidata_geo"
+      }
+    ]
+  },
+  "overview": {
+    "shortDescription": null,
+    "musicalIdentity": "Kingston’s pilot history follows the sound-system ecosystem and the evolution from ska through rocksteady into reggae, while treating Rastafari and Nyahbinghi influence as living cultural context rather than decorative genre trivia.",
+    "hero": null,
+    "listenHere": null,
+    "listenHereStatus": {
+      "status": "unavailable",
+      "reason": "Pilot recordings and sound guides are metadata/description-only until playback rights are independently resolved."
+    },
+    "stats": {
+      "publishedClaims": 0,
+      "artists": 6,
+      "tracks": 0,
+      "radioStations": 0,
+      "eventsUpcoming": 0,
+      "culturalEntities": 25
+    },
+    "quality": {
+      "modelVersion": "world-quality-model-v0.1",
+      "averageEntityQuality": 0.9056,
+      "averageRelationshipQuality": 0.9075,
+      "corroboratedEntityRate": 0.48,
+      "stableArtistIdentityRate": 1,
+      "recordingYearCoverage": 0.8,
+      "landmarkIdentityCoverage": 1,
+      "sourceDomainCount": 9,
+      "sourceTypeCount": 4,
+      "publicationEligible": false,
+      "gaps": [
+        "1 recording references still lack a confident release year",
+        "current popularity signals not seeded",
+        "live event/venue signals not seeded",
+        "radio/playback rights not seeded"
+      ]
+    },
+    "explore": {
+      "basis": "draft_quality_heuristic_not_editorial",
+      "suggestedPath": [
+        {
+          "role": "start_with_history",
+          "id": "jamaica_sound_system_culture",
+          "kind": "scene",
+          "name": "Kingston sound-system culture"
+        },
+        {
+          "role": "hear_the_signature",
+          "id": "jamaica_reggae_sound_signature",
+          "kind": "sound_signature",
+          "name": "Roots reggae sound signature",
+          "qualityScore": 0.871
+        },
+        {
+          "role": "meet_a_key_artist",
+          "id": "jamaica_artist_bob_marley_wailers",
+          "kind": "artist_reference",
+          "name": "Bob Marley & The Wailers",
+          "qualityScore": 0.944
+        },
+        {
+          "role": "study_a_recording",
+          "id": "jamaica_simmer_down",
+          "kind": "recording_reference",
+          "name": "Simmer Down",
+          "qualityScore": 0.9478
+        },
+        {
+          "role": "visit_a_landmark",
+          "id": "jamaica_studio_one",
+          "kind": "studio_landmark",
+          "name": "Studio One",
+          "qualityScore": 0.9535
+        }
+      ]
+    }
+  },
+  "sections": {
+    "fromHere": {
+      "status": "draft_seed_data",
+      "items": [
+        {
+          "id": "jamaica_sound_system_culture",
+          "kind": "scene",
+          "data": {
+            "slug": "jamaica-sound-system-culture",
+            "name": "Kingston sound-system culture",
+            "summary": "Urban sound-system dances provided an important platform for Jamaican popular music and the transition among ska, rocksteady, and reggae.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1950",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.871,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "jamaica_sound_system_culture"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_ska",
+          "kind": "genre",
+          "data": {
+            "slug": "jamaica-ska",
+            "name": "Ska",
+            "summary": "A Jamaican popular style that emerged before rocksteady and reggae and became part of the island’s postwar/independence-era musical transformation.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.9,
+          "timeScope": {
+            "start": "1950",
+            "end": "1966"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.865,
+            "band": "solid_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "jamaica_ska"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_rocksteady",
+          "kind": "genre",
+          "data": {
+            "slug": "jamaica-rocksteady",
+            "name": "Rocksteady",
+            "summary": "A slower Jamaican style that emerged around 1966, shifting emphasis toward drums, bass, guitar interplay, vocals, and social commentary.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1966",
+            "end": "1968"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.877,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "jamaica_rocksteady"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_reggae",
+          "kind": "genre",
+          "data": {
+            "slug": "jamaica-reggae",
+            "name": "Reggae",
+            "summary": "A Jamaican music tradition that emerged in the late 1960s and drew on earlier Jamaican forms, Caribbean and international influences, and Rastafari-linked cultural expression.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.98,
+          "timeScope": {
+            "start": "1968",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae",
+              "unesco_reggae_jamaica"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9915,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "folklife.si.edu",
+              "ich.unesco.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "intergovernmental_cultural_institution",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.99,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "jamaica_reggae"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_nyahbinghi",
+          "kind": "tradition",
+          "data": {
+            "slug": "jamaica-nyahbinghi",
+            "name": "Nyahbinghi drumming influence",
+            "summary": "Rastafari-linked Nyahbinghi drumming is an important influence in roots reggae history.",
+            "entityType": "tradition",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jamaica_jis_roots_reggae",
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9525,
+            "band": "strong_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "folklife.si.edu",
+              "jis.gov.jm"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "government_cultural_information",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "tradition",
+              "entityId": "jamaica_nyahbinghi"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_folkes_brothers",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "folkes-brothers",
+            "name": "The Folkes Brothers",
+            "summary": "External knowledge-graph identity for The Folkes Brothers; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q2395926",
+                "musicbrainz_artist_mbid": "63e55587-a4c6-4ff8-b7b7-bf0071774b1f",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q2395926",
+                "musicbrainz_artist_mbid": "63e55587-a4c6-4ff8-b7b7-bf0071774b1f",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_folkes_brothers"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_count_ossie",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "count-ossie",
+            "name": "Count Ossie",
+            "summary": "External knowledge-graph identity for Count Ossie; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q665714",
+                "musicbrainz_artist_mbid": "217e2df6-61be-4ff5-b62c-4c8642d396c5",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q665714",
+                "musicbrainz_artist_mbid": "217e2df6-61be-4ff5-b62c-4c8642d396c5",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_count_ossie"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_derrick_morgan",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "derrick-morgan",
+            "name": "Derrick Morgan",
+            "summary": "External knowledge-graph identity for Derrick Morgan; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q1936730",
+                "musicbrainz_artist_mbid": "2f2c85b9-135d-4830-a925-ee7548332f70",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q1936730",
+                "musicbrainz_artist_mbid": "2f2c85b9-135d-4830-a925-ee7548332f70",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_derrick_morgan"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_ethiopians",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-ethiopians-jamaica",
+            "name": "The Ethiopians",
+            "summary": "External knowledge-graph identity for The Ethiopians; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q629184",
+                "musicbrainz_artist_mbid": "1646c8fd-d950-4978-b944-0c7597a7837a",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q629184",
+                "musicbrainz_artist_mbid": "1646c8fd-d950-4978-b944-0c7597a7837a",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_ethiopians"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_bob_marley_wailers",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "bob-marley-the-wailers",
+            "name": "Bob Marley & The Wailers",
+            "summary": "External knowledge-graph identity for Bob Marley & The Wailers; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q2525354",
+                "musicbrainz_artist_mbid": "c296e10c-110a-4103-9e77-47bfebb7fb2e",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q2525354",
+                "musicbrainz_artist_mbid": "c296e10c-110a-4103-9e77-47bfebb7fb2e",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_bob_marley_wailers"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_wailers_early",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-wailers-early-jamaica",
+            "name": "The Wailers",
+            "summary": "External knowledge-graph identity for The Wailers; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "c9e99d40-4a2c-4ca7-ac5b-e842264ee271",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "c9e99d40-4a2c-4ca7-ac5b-e842264ee271",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "studio_one_official"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.919,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "studioonerecords.com"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.835,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_wailers_early"
+            }
+          ]
+        }
+      ]
+    },
+    "popularHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No current popularity signal is seeded. Historical prominence must never be represented as current popularity.",
+      "items": []
+    },
+    "happeningHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Live events and venue activity must come from current Tourify operational sources, not historical seed data.",
+      "items": []
+    },
+    "historyHere": {
+      "status": "draft_seed_data",
+      "timeline": [
+        {
+          "id": "jamaica_sound_system_culture",
+          "year": null,
+          "startYear": 1950,
+          "endYear": null,
+          "precision": "period",
+          "title": "Kingston sound-system culture",
+          "summary": "Urban sound-system dances provided an important platform for Jamaican popular music and the transition among ska, rocksteady, and reggae.",
+          "entityRefs": [
+            {
+              "id": "jamaica_sound_system_culture",
+              "kind": "scene",
+              "name": "Kingston sound-system culture"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "smithsonian_roots_reggae"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "jamaica_ska",
+          "year": null,
+          "startYear": 1950,
+          "endYear": 1966,
+          "precision": "period",
+          "title": "Ska",
+          "summary": "A Jamaican popular style that emerged before rocksteady and reggae and became part of the island’s postwar/independence-era musical transformation.",
+          "entityRefs": [
+            {
+              "id": "jamaica_ska",
+              "kind": "genre",
+              "name": "Ska"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "smithsonian_roots_reggae"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "jamaica_sound_system_technology",
+          "year": null,
+          "startYear": 1950,
+          "endYear": null,
+          "precision": "period",
+          "title": "Sound-system culture as music infrastructure",
+          "summary": "Kingston sound-system operators combined amplification, selectors/DJs, records and dance spaces; the culture also helped push operators such as Clement Dodd into local recording and production.",
+          "entityRefs": [
+            {
+              "id": "jamaica_sound_system_technology",
+              "kind": "educational_topic",
+              "name": "Sound-system culture as music infrastructure"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "jamaica_gleaner_sound_system"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "jamaica_rocksteady",
+          "year": null,
+          "startYear": 1966,
+          "endYear": 1968,
+          "precision": "period",
+          "title": "Rocksteady",
+          "summary": "A slower Jamaican style that emerged around 1966, shifting emphasis toward drums, bass, guitar interplay, vocals, and social commentary.",
+          "entityRefs": [
+            {
+              "id": "jamaica_rocksteady",
+              "kind": "genre",
+              "name": "Rocksteady"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "smithsonian_roots_reggae"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "jamaica_reggae",
+          "year": null,
+          "startYear": 1968,
+          "endYear": null,
+          "precision": "period",
+          "title": "Reggae",
+          "summary": "A Jamaican music tradition that emerged in the late 1960s and drew on earlier Jamaican forms, Caribbean and international influences, and Rastafari-linked cultural expression.",
+          "entityRefs": [
+            {
+              "id": "jamaica_reggae",
+              "kind": "genre",
+              "name": "Reggae"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "smithsonian_roots_reggae",
+            "unesco_reggae_jamaica"
+          ],
+          "reviewed": false
+        },
+        {
+          "id": "jamaica_reggae_unesco_2018",
+          "year": 2018,
+          "startYear": 2018,
+          "endYear": 2018,
+          "precision": "year",
+          "title": "Reggae inscribed by UNESCO",
+          "summary": "UNESCO inscribed Reggae music of Jamaica on the Representative List of the Intangible Cultural Heritage of Humanity in 2018.",
+          "entityRefs": [
+            {
+              "id": "jamaica_reggae_unesco_2018",
+              "kind": "historical_milestone",
+              "name": "Reggae inscribed by UNESCO"
+            }
+          ],
+          "placeRefs": [],
+          "claimIds": [],
+          "sourceKeys": [
+            "unesco_reggae_jamaica"
+          ],
+          "reviewed": false
+        }
+      ],
+      "genresAndScenes": [
+        {
+          "id": "jamaica_sound_system_culture",
+          "kind": "scene",
+          "data": {
+            "slug": "jamaica-sound-system-culture",
+            "name": "Kingston sound-system culture",
+            "summary": "Urban sound-system dances provided an important platform for Jamaican popular music and the transition among ska, rocksteady, and reggae.",
+            "entityType": "scene",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1950",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.871,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "scene",
+              "entityId": "jamaica_sound_system_culture"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_ska",
+          "kind": "genre",
+          "data": {
+            "slug": "jamaica-ska",
+            "name": "Ska",
+            "summary": "A Jamaican popular style that emerged before rocksteady and reggae and became part of the island’s postwar/independence-era musical transformation.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.9,
+          "timeScope": {
+            "start": "1950",
+            "end": "1966"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.865,
+            "band": "solid_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "jamaica_ska"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_rocksteady",
+          "kind": "genre",
+          "data": {
+            "slug": "jamaica-rocksteady",
+            "name": "Rocksteady",
+            "summary": "A slower Jamaican style that emerged around 1966, shifting emphasis toward drums, bass, guitar interplay, vocals, and social commentary.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1966",
+            "end": "1968"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.877,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "jamaica_rocksteady"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_reggae",
+          "kind": "genre",
+          "data": {
+            "slug": "jamaica-reggae",
+            "name": "Reggae",
+            "summary": "A Jamaican music tradition that emerged in the late 1960s and drew on earlier Jamaican forms, Caribbean and international influences, and Rastafari-linked cultural expression.",
+            "entityType": "genre",
+            "metadata": {}
+          },
+          "placeRelation": "originated_in",
+          "confidence": 0.98,
+          "timeScope": {
+            "start": "1968",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae",
+              "unesco_reggae_jamaica"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9915,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "folklife.si.edu",
+              "ich.unesco.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "intergovernmental_cultural_institution",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.99,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "genre",
+              "entityId": "jamaica_reggae"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_nyahbinghi",
+          "kind": "tradition",
+          "data": {
+            "slug": "jamaica-nyahbinghi",
+            "name": "Nyahbinghi drumming influence",
+            "summary": "Rastafari-linked Nyahbinghi drumming is an important influence in roots reggae history.",
+            "entityType": "tradition",
+            "metadata": {}
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jamaica_jis_roots_reggae",
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9525,
+            "band": "strong_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "folklife.si.edu",
+              "jis.gov.jm"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "government_cultural_information",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.93,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "tradition",
+              "entityId": "jamaica_nyahbinghi"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_sound_system_technology",
+          "kind": "educational_topic",
+          "data": {
+            "slug": "jamaican-sound-system-technology",
+            "name": "Sound-system culture as music infrastructure",
+            "summary": "Kingston sound-system operators combined amplification, selectors/DJs, records and dance spaces; the culture also helped push operators such as Clement Dodd into local recording and production.",
+            "entityType": "educational_topic",
+            "metadata": {
+              "listen_for": [
+                "bass-forward playback",
+                "selector/DJ sequencing",
+                "dubplate and special culture"
+              ],
+              "topic_type": "performance_and_distribution_infrastructure",
+              "media_policy": "link_only_until_cleared"
+            }
+          },
+          "placeRelation": "developed_in",
+          "confidence": 0.94,
+          "timeScope": {
+            "start": "1950",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jamaica_gleaner_sound_system"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.832,
+            "band": "solid_basis",
+            "confidence": 0.94,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "past.jamaica-gleaner.com"
+            ],
+            "sourceTypes": [
+              "editorial"
+            ],
+            "authorities": [
+              "local_editorial_archive"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "educational_topic",
+              "entityId": "jamaica_sound_system_technology"
+            }
+          ]
+        }
+      ],
+      "instruments": [
+        {
+          "id": "jamaica_nyahbinghi_bass_drum",
+          "kind": "instrument",
+          "data": {
+            "slug": "nyahbinghi-bass-drum",
+            "name": "Nyahbinghi bass drum",
+            "summary": "Smithsonian Folkways describes Nyahbinghi as a three-part Rastafari drum ensemble whose bass drum carries the low heartbeat foundation.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "deep pulse supporting the ensemble"
+              ],
+              "sound_role": "low heartbeat foundation in Nyahbinghi ensemble",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "drum"
+            }
+          },
+          "placeRelation": "practiced_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1950",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_nyahbinghi"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.886,
+            "band": "strong_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folkways.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "jamaica_nyahbinghi_bass_drum"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_nyahbinghi_funde",
+          "kind": "instrument",
+          "data": {
+            "slug": "nyahbinghi-funde",
+            "name": "Nyahbinghi funde",
+            "summary": "The funde is one of the three characteristic drums in the Nyahbinghi ensemble documented by Smithsonian Folkways.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "repeating pulse between bass and repeater roles"
+              ],
+              "sound_role": "steady middle-register pulse",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "drum"
+            }
+          },
+          "placeRelation": "practiced_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1950",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_nyahbinghi"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.886,
+            "band": "strong_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folkways.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "jamaica_nyahbinghi_funde"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_nyahbinghi_repeater",
+          "kind": "instrument",
+          "data": {
+            "slug": "nyahbinghi-repeater",
+            "name": "Nyahbinghi repeater / kete",
+            "summary": "The repeater is the improvisatory high-register drum in the three-part Nyahbinghi ensemble documented by Smithsonian Folkways.",
+            "entityType": "instrument",
+            "metadata": {
+              "listen_for": [
+                "freer improvisatory patterns above the steady pulse"
+              ],
+              "sound_role": "improvised higher-register rhythmic voice",
+              "audio_policy": "description_only_until_rights_cleared",
+              "instrument_family": "drum"
+            }
+          },
+          "placeRelation": "practiced_in",
+          "confidence": 0.95,
+          "timeScope": {
+            "start": "1950",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_nyahbinghi"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.88,
+            "band": "strong_basis",
+            "confidence": 0.95,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folkways.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "instrument",
+              "entityId": "jamaica_nyahbinghi_repeater"
+            }
+          ]
+        }
+      ],
+      "soundSignatures": [
+        {
+          "id": "jamaica_ska_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "jamaica-ska-sound-signature",
+            "name": "Ska sound signature",
+            "summary": "A listening guide to traits described in Smithsonian’s overview of the ska-to-reggae continuum.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "The seed describes broad historical listening traits; individual recordings differ."
+              ],
+              "listen_for": [
+                "syncopated rhythmic accents",
+                "prominent snare and hi-hat pulse",
+                "dance-oriented momentum"
+              ],
+              "techniques": [],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.86,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.853,
+            "band": "solid_basis",
+            "confidence": 0.86,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "jamaica_ska_sound_signature"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_rocksteady_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "jamaica-rocksteady-sound-signature",
+            "name": "Rocksteady sound signature",
+            "summary": "A listening guide to the slower groove and instrumental balance described by Smithsonian Folklife.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [],
+              "listen_for": [
+                "slower pulse than ska",
+                "strong bass and drum foundation",
+                "swaying guitar-and-bass interplay",
+                "greater space for vocals and commentary"
+              ],
+              "techniques": [],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.9,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.865,
+            "band": "solid_basis",
+            "confidence": 0.9,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "jamaica_rocksteady_sound_signature"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_reggae_sound_signature",
+          "kind": "sound_signature",
+          "data": {
+            "slug": "jamaica-reggae-sound-signature",
+            "name": "Roots reggae sound signature",
+            "summary": "A listening guide to rhythmic traits and influences described by Smithsonian Folklife.",
+            "entityType": "sound_signature",
+            "metadata": {
+              "context": [
+                "These rhythm labels describe a family of approaches rather than one universal reggae beat."
+              ],
+              "listen_for": [
+                "emphasis on the backbeat/downbeat feel",
+                "one-drop rhythmic approach",
+                "bass-forward groove",
+                "Nyahbinghi-derived rhythmic influence"
+              ],
+              "techniques": [
+                "one drop",
+                "rockers",
+                "steppers"
+              ],
+              "audio_policy": "description_only_until_rights_cleared"
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.92,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.871,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "sound_signature",
+              "entityId": "jamaica_reggae_sound_signature"
+            }
+          ]
+        }
+      ],
+      "notableArtists": [
+        {
+          "id": "jamaica_artist_folkes_brothers",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "folkes-brothers",
+            "name": "The Folkes Brothers",
+            "summary": "External knowledge-graph identity for The Folkes Brothers; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q2395926",
+                "musicbrainz_artist_mbid": "63e55587-a4c6-4ff8-b7b7-bf0071774b1f",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q2395926",
+                "musicbrainz_artist_mbid": "63e55587-a4c6-4ff8-b7b7-bf0071774b1f",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_folkes_brothers"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_count_ossie",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "count-ossie",
+            "name": "Count Ossie",
+            "summary": "External knowledge-graph identity for Count Ossie; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q665714",
+                "musicbrainz_artist_mbid": "217e2df6-61be-4ff5-b62c-4c8642d396c5",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q665714",
+                "musicbrainz_artist_mbid": "217e2df6-61be-4ff5-b62c-4c8642d396c5",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_count_ossie"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_derrick_morgan",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "derrick-morgan",
+            "name": "Derrick Morgan",
+            "summary": "External knowledge-graph identity for Derrick Morgan; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q1936730",
+                "musicbrainz_artist_mbid": "2f2c85b9-135d-4830-a925-ee7548332f70",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q1936730",
+                "musicbrainz_artist_mbid": "2f2c85b9-135d-4830-a925-ee7548332f70",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_derrick_morgan"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_ethiopians",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-ethiopians-jamaica",
+            "name": "The Ethiopians",
+            "summary": "External knowledge-graph identity for The Ethiopians; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q629184",
+                "musicbrainz_artist_mbid": "1646c8fd-d950-4978-b944-0c7597a7837a",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q629184",
+                "musicbrainz_artist_mbid": "1646c8fd-d950-4978-b944-0c7597a7837a",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_ethiopians"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_bob_marley_wailers",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "bob-marley-the-wailers",
+            "name": "Bob Marley & The Wailers",
+            "summary": "External knowledge-graph identity for Bob Marley & The Wailers; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": "Q2525354",
+                "musicbrainz_artist_mbid": "c296e10c-110a-4103-9e77-47bfebb7fb2e",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": "Q2525354",
+                "musicbrainz_artist_mbid": "c296e10c-110a-4103-9e77-47bfebb7fb2e",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae",
+              "wikidata_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.944,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org",
+              "wikidata.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "community_structured_data",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.8,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_bob_marley_wailers"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_artist_wailers_early",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "the-wailers-early-jamaica",
+            "name": "The Wailers",
+            "summary": "External knowledge-graph identity for The Wailers; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "c9e99d40-4a2c-4ca7-ac5b-e842264ee271",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "group",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "group",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "c9e99d40-4a2c-4ca7-ac5b-e842264ee271",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_artist_identity",
+              "studio_one_official"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.919,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "musicbrainz.org",
+              "studioonerecords.com"
+            ],
+            "sourceTypes": [
+              "music_metadata",
+              "partner"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "first_party_music_institution"
+            ],
+            "authorityScore": 0.835,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "jamaica_artist_wailers_early"
+            }
+          ]
+        }
+      ],
+      "notableRecordings": [
+        {
+          "id": "jamaica_ocarolina",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "jamaica-ocarolina",
+            "name": "O’Carolina",
+            "summary": "A recording cited by Smithsonian in explaining the incorporation of Rastafari/Nyahbinghi-associated sound into Jamaican popular music.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "O’Carolina",
+              "artist_name": "The Folkes Brothers",
+              "release_year": null,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "jamaica_artist_folkes_brothers"
+                },
+                {
+                  "role": "accompaniment",
+                  "artist_seed_id": "jamaica_artist_count_ossie"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "The Folkes Brothers O’Carolina"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.88,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jamaica_jis_roots_reggae",
+              "musicbrainz_artist_identity",
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.904,
+            "band": "strong_basis",
+            "confidence": 0.88,
+            "metadataCompleteness": 0.8333,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "folklife.si.edu",
+              "jis.gov.jm",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "government_cultural_information",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.86,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "jamaica_ocarolina"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_forward_march",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "jamaica-forward-march",
+            "name": "Forward March",
+            "summary": "A topical ska-era recording associated by Smithsonian with the optimism around Jamaican Independence.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Forward March",
+              "artist_name": "Derrick Morgan",
+              "release_year": 1962,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "jamaica_artist_derrick_morgan"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Derrick Morgan Forward March"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1962",
+            "end": "1962"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.871,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "jamaica_forward_march"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_everything_crash",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "jamaica-everything-crash",
+            "name": "Everything Crash",
+            "summary": "A recording used by Smithsonian to illustrate social tension at the end of the ska/rocksteady era.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Everything Crash",
+              "artist_name": "The Ethiopians",
+              "release_year": 1968,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "jamaica_artist_ethiopians"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "The Ethiopians Everything Crash"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.92,
+          "timeScope": {
+            "start": "1968",
+            "end": "1968"
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.871,
+            "band": "solid_basis",
+            "confidence": 0.92,
+            "metadataCompleteness": 1,
+            "sourceCount": 1,
+            "distinctDomains": 1,
+            "domains": [
+              "folklife.si.edu"
+            ],
+            "sourceTypes": [
+              "cultural_institution"
+            ],
+            "authorities": [
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.98,
+            "diversityScore": 0.5,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": false,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "jamaica_everything_crash"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_one_drop",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "jamaica-one-drop",
+            "name": "One Drop",
+            "summary": "A roots-reggae recording cited by Smithsonian when discussing the one-drop rhythmic tradition.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "One Drop",
+              "artist_name": "Bob Marley & The Wailers",
+              "release_year": 1979,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "jamaica_artist_bob_marley_wailers"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "Bob Marley & The Wailers One Drop"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.88,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "musicbrainz_recording_identity",
+              "smithsonian_roots_reggae"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9265,
+            "band": "strong_basis",
+            "confidence": 0.88,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "folklife.si.edu",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "cultural_institution",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "national_cultural_institution"
+            ],
+            "authorityScore": 0.85,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "jamaica_one_drop"
+            }
+          ]
+        },
+        {
+          "id": "jamaica_simmer_down",
+          "kind": "recording_reference",
+          "data": {
+            "slug": "jamaica-simmer-down-wailers",
+            "name": "Simmer Down",
+            "summary": "The Wailers recorded “Simmer Down” at Studio One, an important early recording in Bob Marley and the Wailers’ Kingston story.",
+            "entityType": "recording_reference",
+            "metadata": {
+              "title": "Simmer Down",
+              "artist_name": "The Wailers",
+              "release_year": 1963,
+              "rights_status": "unresolved",
+              "playback_policy": "metadata_only",
+              "credit_components": [
+                {
+                  "role": "primary_artist",
+                  "artist_seed_id": "jamaica_artist_wailers_early"
+                }
+              ],
+              "provider_lookup_hints": {
+                "query": "The Wailers Simmer Down"
+              }
+            },
+            "playback": {
+              "policy": "metadata_only",
+              "rightsStatus": "unresolved",
+              "playActionAvailable": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.93,
+          "timeScope": {
+            "start": "1963",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jamaica_gleaner_studio_one",
+              "studio_one_official"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9478,
+            "band": "strong_basis",
+            "confidence": 0.93,
+            "metadataCompleteness": 1,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "old.jamaica-gleaner.com",
+              "studioonerecords.com"
+            ],
+            "sourceTypes": [
+              "editorial",
+              "partner"
+            ],
+            "authorities": [
+              "first_party_music_institution",
+              "local_editorial_archive"
+            ],
+            "authorityScore": 0.875,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required",
+              "playback_rights_unresolved"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "recording_reference",
+              "entityId": "jamaica_simmer_down"
+            }
+          ]
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "jamaica_studio_one",
+          "kind": "studio_landmark",
+          "data": {
+            "slug": "kingston-studio-one",
+            "name": "Studio One",
+            "summary": "Clement “Coxsone” Dodd established Studio One at 13 Brentford Road in Kingston, a major recording base for ska, rocksteady and reggae.",
+            "entityType": "studio_landmark",
+            "metadata": {
+              "address_text": "13 Studio One Boulevard (formerly Brentford Road), Kingston/St. Andrew, Jamaica",
+              "media_policy": "link_only_until_cleared",
+              "landmark_type": "recording_studio"
+            }
+          },
+          "placeRelation": "historically_significant_in",
+          "confidence": 0.97,
+          "timeScope": {
+            "start": "1962",
+            "end": null
+          },
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "jamaica_gleaner_sound_system",
+              "jamaica_gleaner_studio_one",
+              "studio_one_official"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9535,
+            "band": "strong_basis",
+            "confidence": 0.97,
+            "metadataCompleteness": 1,
+            "sourceCount": 3,
+            "distinctDomains": 3,
+            "domains": [
+              "old.jamaica-gleaner.com",
+              "past.jamaica-gleaner.com",
+              "studioonerecords.com"
+            ],
+            "sourceTypes": [
+              "editorial",
+              "partner"
+            ],
+            "authorities": [
+              "first_party_music_institution",
+              "local_editorial_archive"
+            ],
+            "authorityScore": 0.85,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "studio_landmark",
+              "entityId": "jamaica_studio_one"
+            }
+          ]
+        }
+      ]
+    },
+    "tourifyHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No exact pilot historical artist identities currently match Tourify Demo artist profiles; fake profiles are forbidden.",
+      "items": []
+    },
+    "radio": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Radio station ingestion and stream-rights review are not part of this static history fixture.",
+      "items": []
+    }
+  },
+  "relationships": {
+    "count": 14,
+    "items": [
+      {
+        "subject": {
+          "id": "jamaica_rocksteady",
+          "name": "Rocksteady",
+          "kind": "genre"
+        },
+        "relationKey": "evolved_from",
+        "object": {
+          "id": "jamaica_ska",
+          "name": "Ska",
+          "kind": "genre"
+        },
+        "confidence": 0.92,
+        "sourceKeys": [
+          "jamaica_jis_rocksteady",
+          "smithsonian_roots_reggae"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.9545,
+          "band": "strong_basis",
+          "confidence": 0.92,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "folklife.si.edu",
+            "jis.gov.jm"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "government_cultural_information",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_reggae",
+          "name": "Reggae",
+          "kind": "genre"
+        },
+        "relationKey": "evolved_from",
+        "object": {
+          "id": "jamaica_rocksteady",
+          "name": "Rocksteady",
+          "kind": "genre"
+        },
+        "confidence": 0.94,
+        "sourceKeys": [
+          "jamaica_jis_rocksteady",
+          "jamaica_jis_roots_reggae",
+          "smithsonian_roots_reggae"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.9573,
+          "band": "strong_basis",
+          "confidence": 0.94,
+          "sourceCount": 3,
+          "distinctDomains": 2,
+          "domains": [
+            "folklife.si.edu",
+            "jis.gov.jm"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "government_cultural_information",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.9133,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_reggae",
+          "name": "Reggae",
+          "kind": "genre"
+        },
+        "relationKey": "influenced_by",
+        "object": {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition"
+        },
+        "confidence": 0.9,
+        "sourceKeys": [
+          "jamaica_jis_roots_reggae",
+          "smithsonian_roots_reggae"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.9475,
+          "band": "strong_basis",
+          "confidence": 0.9,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "folklife.si.edu",
+            "jis.gov.jm"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "government_cultural_information",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.93,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "jamaica_nyahbinghi_bass_drum",
+          "name": "Nyahbinghi bass drum",
+          "kind": "instrument"
+        },
+        "confidence": 0.97,
+        "sourceKeys": [
+          "smithsonian_nyahbinghi"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8595,
+          "band": "solid_basis",
+          "confidence": 0.97,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "folkways.si.edu"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.98,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "jamaica_nyahbinghi_funde",
+          "name": "Nyahbinghi funde",
+          "kind": "instrument"
+        },
+        "confidence": 0.97,
+        "sourceKeys": [
+          "smithsonian_nyahbinghi"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8595,
+          "band": "solid_basis",
+          "confidence": 0.97,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "folkways.si.edu"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.98,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_nyahbinghi",
+          "name": "Nyahbinghi drumming influence",
+          "kind": "tradition"
+        },
+        "relationKey": "uses_instrument",
+        "object": {
+          "id": "jamaica_nyahbinghi_repeater",
+          "name": "Nyahbinghi repeater / kete",
+          "kind": "instrument"
+        },
+        "confidence": 0.95,
+        "sourceKeys": [
+          "smithsonian_nyahbinghi"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.8525,
+          "band": "solid_basis",
+          "confidence": 0.95,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "folkways.si.edu"
+          ],
+          "sourceTypes": [
+            "cultural_institution"
+          ],
+          "authorities": [
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.98,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_sound_system_culture",
+          "name": "Kingston sound-system culture",
+          "kind": "scene"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "jamaica_sound_system_technology",
+          "name": "Sound-system culture as music infrastructure",
+          "kind": "educational_topic"
+        },
+        "confidence": 0.94,
+        "sourceKeys": [
+          "jamaica_gleaner_sound_system"
+        ],
+        "reviewed": false,
+        "metadata": {},
+        "quality": {
+          "score": 0.804,
+          "band": "solid_basis",
+          "confidence": 0.94,
+          "sourceCount": 1,
+          "distinctDomains": 1,
+          "domains": [
+            "past.jamaica-gleaner.com"
+          ],
+          "sourceTypes": [
+            "editorial"
+          ],
+          "authorities": [
+            "local_editorial_archive"
+          ],
+          "authorityScore": 0.8,
+          "diversityScore": 0.5,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": false,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_ocarolina",
+          "name": "O’Carolina",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "jamaica_artist_folkes_brothers",
+          "name": "The Folkes Brothers",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.88,
+        "sourceKeys": [
+          "jamaica_jis_roots_reggae",
+          "musicbrainz_artist_identity",
+          "smithsonian_roots_reggae",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.913,
+          "band": "strong_basis",
+          "confidence": 0.88,
+          "sourceCount": 4,
+          "distinctDomains": 4,
+          "domains": [
+            "folklife.si.edu",
+            "jis.gov.jm",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "government_cultural_information",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.82,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_ocarolina",
+          "name": "O’Carolina",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "jamaica_artist_count_ossie",
+          "name": "Count Ossie",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.88,
+        "sourceKeys": [
+          "jamaica_jis_roots_reggae",
+          "musicbrainz_artist_identity",
+          "smithsonian_roots_reggae",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "accompaniment"
+        },
+        "quality": {
+          "score": 0.913,
+          "band": "strong_basis",
+          "confidence": 0.88,
+          "sourceCount": 4,
+          "distinctDomains": 4,
+          "domains": [
+            "folklife.si.edu",
+            "jis.gov.jm",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "government_cultural_information",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.82,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_forward_march",
+          "name": "Forward March",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "jamaica_artist_derrick_morgan",
+          "name": "Derrick Morgan",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.92,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "smithsonian_roots_reggae",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.922,
+          "band": "strong_basis",
+          "confidence": 0.92,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "folklife.si.edu",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.8,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_everything_crash",
+          "name": "Everything Crash",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "jamaica_artist_ethiopians",
+          "name": "The Ethiopians",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.92,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "smithsonian_roots_reggae",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.922,
+          "band": "strong_basis",
+          "confidence": 0.92,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "folklife.si.edu",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.8,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_one_drop",
+          "name": "One Drop",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "jamaica_artist_bob_marley_wailers",
+          "name": "Bob Marley & The Wailers",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.88,
+        "sourceKeys": [
+          "musicbrainz_artist_identity",
+          "musicbrainz_recording_identity",
+          "smithsonian_roots_reggae",
+          "wikidata_identity"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.903,
+          "band": "strong_basis",
+          "confidence": 0.88,
+          "sourceCount": 4,
+          "distinctDomains": 3,
+          "domains": [
+            "folklife.si.edu",
+            "musicbrainz.org",
+            "wikidata.org"
+          ],
+          "sourceTypes": [
+            "cultural_institution",
+            "music_metadata"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "community_structured_data",
+            "national_cultural_institution"
+          ],
+          "authorityScore": 0.78,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_simmer_down",
+          "name": "Simmer Down",
+          "kind": "recording_reference"
+        },
+        "relationKey": "credited_to",
+        "object": {
+          "id": "jamaica_artist_wailers_early",
+          "name": "The Wailers",
+          "kind": "artist_reference"
+        },
+        "confidence": 0.93,
+        "sourceKeys": [
+          "jamaica_gleaner_studio_one",
+          "musicbrainz_artist_identity",
+          "studio_one_official"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "credit_role": "primary_artist"
+        },
+        "quality": {
+          "score": 0.9313,
+          "band": "strong_basis",
+          "confidence": 0.93,
+          "sourceCount": 3,
+          "distinctDomains": 3,
+          "domains": [
+            "musicbrainz.org",
+            "old.jamaica-gleaner.com",
+            "studioonerecords.com"
+          ],
+          "sourceTypes": [
+            "editorial",
+            "music_metadata",
+            "partner"
+          ],
+          "authorities": [
+            "community_music_metadata",
+            "first_party_music_institution",
+            "local_editorial_archive"
+          ],
+          "authorityScore": 0.8233,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      },
+      {
+        "subject": {
+          "id": "jamaica_studio_one",
+          "name": "Studio One",
+          "kind": "studio_landmark"
+        },
+        "relationKey": "related_to",
+        "object": {
+          "id": "jamaica_rocksteady",
+          "name": "Rocksteady",
+          "kind": "genre"
+        },
+        "confidence": 0.99,
+        "sourceKeys": [
+          "jamaica_gleaner_studio_one",
+          "studio_one_official"
+        ],
+        "reviewed": false,
+        "metadata": {
+          "relationship_note": "Studio One’s official history identifies the Brentford Road studio as the birthplace of rocksteady."
+        },
+        "quality": {
+          "score": 0.9653,
+          "band": "strong_basis",
+          "confidence": 0.99,
+          "sourceCount": 2,
+          "distinctDomains": 2,
+          "domains": [
+            "old.jamaica-gleaner.com",
+            "studioonerecords.com"
+          ],
+          "sourceTypes": [
+            "editorial",
+            "partner"
+          ],
+          "authorities": [
+            "first_party_music_institution",
+            "local_editorial_archive"
+          ],
+          "authorityScore": 0.875,
+          "diversityScore": 1,
+          "provenanceIntegrity": 1,
+          "corroboratedAcrossDomains": true,
+          "publicationEligible": false,
+          "blockers": [
+            "editorial_review_required"
+          ]
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "reviewed": false,
+    "sourceCount": 11,
+    "sourceTypes": [
+      "cultural_institution",
+      "editorial",
+      "music_metadata",
+      "partner"
+    ],
+    "sourceRefs": [
+      {
+        "key": "jamaica_gleaner_sound_system",
+        "name": "Jamaica Gleaner — The evolution of Jamaican sound system culture",
+        "canonicalUrl": "https://past.jamaica-gleaner.com/article/entertainment/20190203/string-sound-evolution-jcan-sound-system-culture",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "local_editorial_archive",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "jamaica_gleaner_studio_one",
+        "name": "Jamaica Gleaner — Studio One where sweet lyrics come from",
+        "canonicalUrl": "https://old.jamaica-gleaner.com/gleaner/20070729/ent/ent5.html",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "local_editorial_archive",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "jamaica_jis_rocksteady",
+        "name": "Jamaica Information Service — Rock Steady",
+        "canonicalUrl": "https://jis.gov.jm/jamaica/rock-steady/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "government_cultural_information",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "jamaica_jis_roots_reggae",
+        "name": "Jamaica Information Service — Black History in Roots Reggae Music",
+        "canonicalUrl": "https://jis.gov.jm/jamaica/black-history-in-roots-reggae-music/",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "government_cultural_information",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "musicbrainz_artist_identity",
+        "name": "MusicBrainz — core artist identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "musicbrainz_recording_identity",
+        "name": "MusicBrainz — core recording and release identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      },
+      {
+        "key": "smithsonian_nyahbinghi",
+        "name": "Smithsonian Folkways — Nyabingi: Medley / three-part Nyahbinghi drum ensemble",
+        "canonicalUrl": "https://folkways.si.edu/group-of-maroons-of-accompong/nyabingi-medley/caribbean-world/music/track/smithsonian",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "national_cultural_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "conditional"
+      },
+      {
+        "key": "smithsonian_roots_reggae",
+        "name": "Smithsonian Folklife — Black History in Roots Reggae Music",
+        "canonicalUrl": "https://folklife.si.edu/magazine/black-history-in-roots-reggae-music",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "national_cultural_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "studio_one_official",
+        "name": "Studio One — About Us",
+        "canonicalUrl": "https://studioonerecords.com/pages/about-us",
+        "attribution": null,
+        "licenseClass": "proprietary",
+        "authority": "first_party_music_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "unesco_reggae_jamaica",
+        "name": "UNESCO Intangible Cultural Heritage — Reggae music of Jamaica",
+        "canonicalUrl": "https://ich.unesco.org/en/RL/reggae-music-of-jamaica-01398",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "intergovernmental_cultural_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "wikidata_identity",
+        "name": "Wikidata — structured artist and cultural identity data",
+        "canonicalUrl": "https://www.wikidata.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_structured_data",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      }
+    ],
+    "missingSourceKeys": [],
+    "lastReviewedAt": null
+  },
+  "freshness": {
+    "knowledgeSeedRetrievedAt": "2026-08-22T17:25:11.420222+00:00",
+    "historicalDataClass": "long_lived_reviewed_on_publish",
+    "currentSignalDataPresent": false
+  },
+  "permissions": {
+    "previewOnly": true,
+    "publicEligible": false,
+    "playbackEligible": false,
+    "containsPrivateStreamLocators": false,
+    "containsRawIngestionPayloads": false
+  },
+  "generatedAt": "2026-08-22T17:26:08.371Z"
+}

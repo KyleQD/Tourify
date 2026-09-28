@@ -37,12 +37,14 @@ describe('poll-eligibility', () => {
   })
 
   it('enforces followers-only visibility', () => {
+    const now = new Date('2026-07-11T00:00:00.000Z')
     const denied = canVoteOnPoll({
       post: basePost,
       voterUserId: 'user-2',
       isAccountFollower: false,
       isUserFollower: false,
       isPostOwner: false,
+      now,
     })
     expect(denied.ok).toBe(false)
     expect(denied.reason).toBe('Followers only')
@@ -53,6 +55,7 @@ describe('poll-eligibility', () => {
       isAccountFollower: true,
       isUserFollower: false,
       isPostOwner: false,
+      now,
     })
     expect(allowed.ok).toBe(true)
   })
@@ -64,6 +67,7 @@ describe('poll-eligibility', () => {
       isAccountFollower: false,
       isUserFollower: false,
       isPostOwner: false,
+      now: new Date('2026-07-11T00:00:00.000Z'),
     })
     expect(result.ok).toBe(true)
   })

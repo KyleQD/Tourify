@@ -1,0 +1,37 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB008-SCHEMA-MISSING-ADMIN",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "admin",
+  "status": "accepted",
+  "created_at": "2026-09-25T21:30:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "These objects are classified `schema-missing`: neither the active migration chain nor lib/database.types.ts has them, and the repository holds no archived definition, so the product code is right and the chain is short. error_reports (6 diagnostic hits). The database lane did NOT author migrations for them because the column contract cannot be derived from the repository, and inventing one to make tsc pass would be exactly the failure mode the release lane warned about. It authored only venue_profiles.social_links and venue_profiles.cover_image_url, the two where an equivalent column already exists on a sibling relation. admin must supply the exact column contract before a migration can be written.",
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "app/api/admin/staff-operations/summary/route.ts",
+    "app/api/admin/staffing/shifts/publish/route.ts",
+    "app/api/analytics/errors/route.ts"
+  ],
+  "completed": [
+    "Classified 1 objects as schema-missing: error_reports (6 hits, consumers: app/api/admin/staff-operations/summary/route.ts).",
+    "Authored and validated 20260925210000_venue_profile_presentation_columns.sql for the two provable column pairs, so the database lane's share is done."
+  ],
+  "next_steps": [
+    "For each object, state the exact column list, types, nullability and defaults the product code already selects, and point at the code that selects them.",
+    "Raise a new database task with that contract. The database lane will author the additive forward-only migration, its validation manifest and its contract test, and regenerate the types after the apply.",
+    "Where the correct answer is instead to change the code (for example a derived counter or a join table), say so and the classification moves to code-drift."
+  ],
+  "blockers": [
+    "A migration cannot be authored without a column contract; the database lane will not invent one.",
+    "Regenerating lib/database.types.ts is additionally blocked by DB-008: the generated contract contains columns the active chain does not create, so a chain-only regeneration would delete real coverage. See knownGaps in the inventory."
+  ],
+  "verification": [
+    "PASS: 20260925210000_venue_profile_presentation_columns.sql was applied twice against a throwaway PostgreSQL 16.15 instance and supabase/tests/db008_venue_profile_presentation_columns_contract.sql returned 0 violations across all 8 checks plus the summary row venue_profile_presentation_columns_ready = true.",
+    "NOT RUN: no tsc run and no migration apply to any real or shared environment."
+  ],
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "ADMIN-018",
+  "completion_condition": "For each object, state the exact column list, types, nullability and defaults the product code already selects, and point at the code that selects them."
+}

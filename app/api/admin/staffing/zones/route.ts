@@ -66,7 +66,8 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
     const venueId = url.searchParams.get('venueId') || url.searchParams.get('venue_id')
-    if (!venueId) return NextResponse.json({ error: 'venueId required' }, { status: 400 })
+    // Zones remain venue-scoped; without a venue return an empty list instead of blocking org scheduling.
+    if (!venueId) return NextResponse.json({ data: [] })
     const eventId = url.searchParams.get('eventId') || url.searchParams.get('event_id') || undefined
     const zoneType = url.searchParams.get('zone_type') || undefined
     const status = url.searchParams.get('status') || undefined

@@ -1,0 +1,77 @@
+{
+  "importedAt": "2026-08-27T02:25:00-07:00",
+  "importedBy": "Codex",
+  "sources": [
+    {
+      "sourceId": "SRC-HANDOFF-FINDINGS",
+      "role": "stable finding identity and source context",
+      "path": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/CANONICAL_FINDINGS_REGISTER.csv",
+      "sha256": "cba12d9929f423ce75738d0dbf0a04323ccbdf93939f25dfef29ff12bcd5097f",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-HANDOFF-AUDIT",
+      "role": "August 25 static audit narrative",
+      "path": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/SOURCE_INPUTS/AUDIT_REPORT.md",
+      "sha256": "b729d56deba28608d86faa373ab31f006f5bb910954f7e209b2e442abedc644d",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-HANDOFF-CROSSWALK",
+      "role": "source-id crosswalk",
+      "path": "TOURIFY_ADMIN_MASTER_DEVELOPMENT_HANDOFF/15_FINDING_CROSSWALK.md",
+      "sha256": "bc76d6ad2d675ee08c108403f07afa1880dff4d970b9e88fd808eac0752e9b61",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-SPEC-INVENTORY",
+      "role": "ordered 362 specification IDs",
+      "path": ".agents/admin-feature-spec-builder/INVENTORY.md",
+      "sha256": "2333defca0f970afd46992737ed92fcd271014472e7eb439d617a6aa915626dd",
+      "authority": "identity_and_order_input"
+    },
+    {
+      "sourceId": "SRC-HISTORICAL-PROGRESS",
+      "role": "historical completion claims",
+      "path": ".agents/admin-feature-spec-builder/PROGRESS.md",
+      "sha256": "8932786ebc70c5fbbadd784fb82c96a91a54f8bddad71fac4635590309d13cab",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-STRICT-REVALIDATION",
+      "role": "strict revalidation prior claims",
+      "path": "docs/admin-feature-specs/revalidation/PROGRESS.md",
+      "sha256": "c0a6ea6cbdb73a0ef6439b5ea92cb8e7da3237e0330eec9fd736a4a6e8ee9c3c",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-ADMIN-UX-AUDIT-MANIFEST",
+      "role": "Admin post-implementation UX audit identity and counts",
+      "path": "docs/admin-audit/sources/admin-ux-audit/AUDIT_MANIFEST.json",
+      "sha256": "e97705d7ceadd0cc1018530291d3b7689c9b0ff77ac8348e314cf37e0e571e32",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-ADMIN-UX-TASKS",
+      "role": "54-task ADMUX implementation register",
+      "path": "docs/admin-audit/sources/admin-ux-audit/IMPLEMENTATION_TASK_REGISTER.csv",
+      "sha256": "f48dcc4b512d8b7de2e07503246e96c372c04ff9fc8a3f793677b7899a780b47",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-ADMIN-UX-FINDINGS",
+      "role": "158-finding AUX to ADMUX crosswalk",
+      "path": "docs/admin-audit/sources/admin-ux-audit/FINDING_IMPLEMENTATION_CROSSWALK.csv",
+      "sha256": "f0911da1150f85270e36a020eb0d1a3ea8197c56d1f3275395bf12f6926d0664",
+      "authority": "historical_evidence"
+    },
+    {
+      "sourceId": "SRC-ADMIN-UX-WAVES",
+      "role": "W00-W17 dependency and rollback register",
+      "path": "docs/admin-audit/sources/admin-ux-audit/PR_WAVE_REGISTER.csv",
+      "sha256": "3f237efb2058aae0c0bffeab82b9068ce371ce3b37a70706d1d7b820ec2bcbd1",
+      "authority": "historical_evidence"
+    }
+  ],
+  "statusPolicy": "Imported sources preserve identity and acceptance traceability but cannot promote canonical status automatically."
+}

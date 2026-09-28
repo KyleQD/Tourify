@@ -1,18 +1,18 @@
 import { supabase as supabaseClient } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
+import { createPostComment, setPostLike } from '@/lib/feed/post-engagement-client'
 
 type Tables = Database['public']['Tables']
 type Post = Tables['posts']['Row']
 type Comment = Tables['post_comments']['Row']
 type PostInsert = Tables['posts']['Insert']
-type CommentInsert = Tables['post_comments']['Insert']
 
 export interface ExtendedPost extends Post {
   profiles: {
     username: string | null
     full_name: string | null
     avatar_url: string | null
-    is_verified: boolean
+    is_verified: boolean | null
   } | null
   post_media: {
     id: string
@@ -27,6 +27,14 @@ export interface ExtendedPost extends Post {
     id: string
     name: string
   }[]
+  appearance?: {
+    template_id?: string | null
+    template_version?: number | null
+    schema_version?: number | null
+    snapshot?: unknown
+    snapshot_hash?: string | null
+    status?: string | null
+  } | null
 }
 
 export interface ExtendedComment extends Comment {
@@ -34,7 +42,7 @@ export interface ExtendedComment extends Comment {
     username: string | null
     full_name: string | null
     avatar_url: string | null
-    is_verified: boolean
+    is_verified: boolean | null
   } | null
   is_liked: boolean
   replies_count: number
@@ -249,17 +257,7 @@ export class FeedService {
 
   async likePost(postId: string) {
     try {
-      const { data: { user } } = await this.supabase.auth.getUser()
-      if (!user) throw new Error('User not authenticated')
-
-      const { error } = await this.supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: user.id
-        })
-
-      if (error) throw error
+      await setPostLike(postId, 'like')
       return { error: null }
     } catch (error) {
       console.error('Error liking post:', error)
@@ -269,16 +267,7 @@ export class FeedService {
 
   async unlikePost(postId: string) {
     try {
-      const { data: { user } } = await this.supabase.auth.getUser()
-      if (!user) throw new Error('User not authenticated')
-
-      const { error } = await this.supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', user.id)
-
-      if (error) throw error
+      await setPostLike(postId, 'unlike')
       return { error: null }
     } catch (error) {
       console.error('Error unliking post:', error)
@@ -293,32 +282,11 @@ export class FeedService {
     parentCommentId?: string
   }) {
     try {
-      const { data: { user } } = await this.supabase.auth.getUser()
-      if (!user) throw new Error('User not authenticated')
-
-      const commentData: CommentInsert = {
-        post_id: data.postId,
-        user_id: user.id,
-        content: data.content,
-        parent_comment_id: data.parentCommentId
+      if (data.parentCommentId) {
+        throw new Error('Nested comments are not supported by the canonical comments API')
       }
-
-      const { data: comment, error } = await this.supabase
-        .from('post_comments')
-        .insert(commentData)
-        .select(`
-          *,
-          profiles (
-            username,
-            full_name,
-            avatar_url,
-            is_verified
-          )
-        `)
-        .single()
-
-      if (error) throw error
-      return { data: comment, error: null }
+      const result = await createPostComment(data.postId, data.content)
+      return { data: result.comment, error: null }
     } catch (error) {
       console.error('Error creating comment:', error)
       return { data: null, error }

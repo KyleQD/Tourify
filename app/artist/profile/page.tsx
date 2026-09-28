@@ -29,6 +29,7 @@ import { ArtistProfileIdentityCard } from "@/components/artist-profile/artist-pr
 import { dashboardCreatePattern } from "@/components/dashboard/dashboard-create-pattern"
 import { cn } from "@/lib/utils"
 import { extractCreatorCapabilitiesV1, serializeCapabilityList } from "@/lib/creator/capability-system"
+import { resolveArtistProfileVisibility } from "@/lib/artist/profile-visibility"
 
 const musicGenres = [
   "Pop", "Rock", "Hip Hop", "Electronic", "Jazz", "Classical", "R&B", "Country",
@@ -129,7 +130,7 @@ function buildFormFromProfile(
     collaboration_interest: preferences.collaboration_interest || false,
     available_for_hire: preferences.available_for_hire || false,
     newsletter_signup: preferences.newsletter_signup || false,
-    privacy_settings: preferences.privacy_settings || "public",
+    privacy_settings: resolveArtistProfileVisibility(settings),
     preferred_contact: preferences.preferred_contact || "email"
   }
 }
@@ -409,7 +410,7 @@ export default function ArtistProfilePage() {
               avatarInitial={avatarInitial}
               genreLine={genreLine}
               username={publicProfile?.username ?? null}
-              isVerified={profile?.verification_status === "verified"}
+              isVerified={publicProfile?.isVerified ?? false}
               hasUnsavedChanges={hasUnsavedChanges}
               uploadingAvatar={uploadingAvatar}
               uploadingCover={uploadingCover}

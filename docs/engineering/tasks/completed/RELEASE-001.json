@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "id": "RELEASE-001",
+  "title": "Audit Release workspace \u2014 baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "release",
+  "created_at": "2026-09-09T06:17:43.450Z",
+  "updated_at": "2026-09-09T06:17:43.450Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the Release area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: CI, deployment, environment validation, observability, cron, and release readiness",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/release/ \u2014 charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The release default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ \u2014 routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ \u2014 existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/release/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/release/BASELINE.md: what the release area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/release/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task RELEASE-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/release/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/release/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/release/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      {
+        "command": "npm run agents:validate",
+        "result": "pass",
+        "detail": "validated 17 agents, 21 tasks, 8 warnings (pre-existing SHA warnings), 0 errors"
+      }
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Audit complete. Produced BASELINE.md (real path refs for CI/deploy/env/observability/cron/release + intended direction from DEVELOPMENT_BACKLOG WS-0.6/1.4/1.5/1.6 + G1-G6), GAPS.md (16 triaged gaps: 5 missing, 7 incomplete, 4 improve), and QUESTIONS.md (8 prioritized owner questions, P1 first). Updated STATE.md and BACKLOG.md. npm run agents:validate passed (0 errors).",
+    "completed": [
+      "Read startup protocol (INDEX, charter, state, task) and domain working set + named references.",
+      "Swept working set paths: .github/workflows (16), vercel.json, docker/** (prod+local), instrumentation.ts, sentry.*.config.ts, scripts/ci/**, scripts/deploy.sh, docs/PRODUCTION_DEPLOYMENT_GUIDE.md, deployment/*, generated maps, work packets, .agents plans.",
+      "Produced BASELINE.md, GAPS.md, QUESTIONS.md under docs/engineering/agents/release/.",
+      "Updated STATE.md and BACKLOG.md.",
+      "Ran npm run agents:validate \u2192 0 errors (8 pre-existing SHA warnings acceptable).",
+      "Confirmed no production code, CI, deployment, or env files modified (edit: deny honored); only release domain dir + task record written."
+    ],
+    "next_steps": [
+      "Owner answers the P1 questions in QUESTIONS.md (Q1 env/PITR, Q2 observability, Q3 CI/e2e, Q4 cron/workers, Q5 rate limiting) to create follow-up release-owned task records."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "when": "2026-09-09",
+        "summary": "RELEASE-001 audit completed. Top-5 prioritized owner questions: Q1 prod/demo env split + PITR/restore drill + complete Vercel env (FIX, WS-0.6/G2); Q2 Sentry DSNs (web+mobile) + uptime monitoring + alert routing + SLOs for auth/checkout/stream (BUILD, WS-1.4/G4); Q3 make e2e.yml a required check + burn down 27 vitest failures + typecheck budget (FIX, WS-1.6/G3); Q4 schedule event-reminders stub + register MV refresh via pg_cron + resolve 16-vs-21 music outbox workers + cron/worker monitoring (BUILD, WS-1.5/G5); Q5 enable RATE_LIMIT_ENFORCE with real Upstash + prod rate-limit smoke (FIX, WS-1.3/G6). Gap tally: 16 total \u2014 5 MISSING (G-01 Sentry observability, G-02 uptime/SLO/alerting, G-07 MV refresh pg_cron, G-09 Docker CI, G-11 release architecture/decisions/backlog), 7 INCOMPLETE (G-03 prod/PITR/drill, G-04 e2e required+CI green, G-05 rate limiting inactive, G-06 event-reminders stub unscheduled, G-08 music workers not scheduled + 16-vs-21 count, G-10 legacy deploy surface drift, G-12 perf metrics log-only), 4 IMPROVE (G-13/G-14/G-15/G-16). Blocking-for-other-agents: none hard; WS-1.6 remaining vitest failures depend on product/schema decisions owned by other domains; WS-1.5 event-reminders + worker deployment may need a database/integrations handoff. Confirmed no production code changes.",
+        "expansion_notes": "Swept .github/workflows (16 files), docker/**, vercel.json, sentry configs, scripts/ci, scripts/deploy.sh, deployment/*, lib/config/environment-contract.ts, lib/observability, app/api/health, app/api/cron. Read .agents/plans/phase-9-hardening.md and apps/mobile/docs/launch/* + release-checklist for observability/mobile release evidence."
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,0 +1,76 @@
+# Artist state
+
+<!-- generated-agent-state:start -->
+## Generated queue summary
+
+- Generated at: 2026-09-28T03:22:19.549Z
+- Source: task records and TASK_INDEX.json
+
+- `ARTIST-007` — blocked/waiting_dependency; CORE-WEB-LAUNCH
+<!-- generated-agent-state:end -->
+
+- Last reviewed SHA: `d21769046d517898144ee09a1c7bb4a7d36b068f`
+- Last reviewed at: 2026-09-25
+- Historical active-task note (superseded by generated queue summary): ARTIST-006 (ARTIST-005 implementation + DB-008 code-drift repoints landed; hosted rerun pending)
+- Confidence: working — ARTIST-001 audit artifacts, artist-music gate adoption, the contract-signing UI, the profile-visibility write-path mapping, the band profile content aggregation, and the DB-008 artist code-drift repoints all have focused verification; the two remaining artist objects (`event_tasks`, `event_equipment`) and the four licensing objects need a database migration
+
+## Durable facts
+
+- Mission: Own artist identity, private and public profiles, EPKs, dashboards, and artist workflows.
+- Default working set is recorded in `WORKING_SET.json`.
+- **Home feed analytics contract (QA-002, 2026-09-09):** `components/artist/artist-home-feed.tsx` owns the artist home feed analytics wiring — feed scope (`filter === 'home' ? 'home' : 'tagged'`), `fetchFeedStats` against `/api/artist/feed-stats` (local helper in the component), `feedStats.postCount` strip, and pending collaboration invites via `/api/feed/collaborations/pending`. The feed-stats API route (`app/api/artist/feed-stats/route.ts`) is final and must not be edited by the artist lane.
+- **Discover music-card username routing (QA-002, 2026-09-09):** `app/api/discover/route.ts` re-derives `artist_username: item.author?.username || null` at the discover data boundary (`attachMusicArtistHandles`); `app/discover/page.tsx` exports `discoverMusicCardArtistPath` using the canonical `getArtistPublicProfilePath(track.artist_username || track.artist_name)`. Cards must never link by raw UUID alone. `components/discover/` remains discover-lane owned.
+- **Artist music browser boundary (ARTIST-002, 2026-09-10):** `lib/artist/artist-music.ts` is the shared browser transport for `/api/artist/music/**`. It enforces `credentials: "include"`, `cache: "no-store"`, artist-music namespace validation, and shared signed-upload/cleanup behavior. The main library, analytics, certification, rights, and royalties dashboards use it. Server-side route auth remains owned by the music implementation boundary and is not changed by this task's explicit path scope.
+- **Artist music server gate contract (ARTIST-002, 2026-09-10):** `lib/artist/artist-music-auth.ts` composes `requireApiUser` with an `artist_profiles.user_id = auth.uid()` lookup and stable `artist_profile_required` / `artist_profile_lookup_failed` responses, attaching the resolved profile for route handlers.
+- **Artist music route auth adoption (ARTIST-004, 2026-09-10):** All 33 files under `app/api/artist/music/` use `requireArtistMusicUser`; legacy direct `requireApiUser` and `auth.getUser` gates are absent. Existing per-resource ownership predicates and trusted-write paths remain in place, with focused coverage in `__tests__/artist/music/route-auth-adoption.test.ts`.
+- **Artist contract review/signing UI (ARTIST-003, 2026-09-20):** `app/artist/business/contracts/page.tsx` links owners to `/artist/business/contracts/[id]`; the server route admits only the authenticated owner or counterparty and reuses `ContractReviewClient`. `sign_artist_contract` independently enforces the caller's role and sent-state transition. Focused coverage lives in `__tests__/artist/contract-signing-ui.test.ts`.
+- **Profile visibility contract (ARTIST-005, 2026-09-24):** The visibility selector maps to the canonical `artist_profiles.settings.public_profile` boolean via `lib/artist/profile-visibility.ts` (`public`/`verified` → true, `private` → false). Public read gates — `getPublicArtistProfileDTO`, enhanced/account search, the owner-only private-preview banner, and `app/api/artist/[artistName]/route.ts` — honor that boolean at the data boundary; `verified` has no read-side enforcement yet and stays effectively public. Focused coverage lives in `__tests__/artist/profile-visibility-gate.test.ts`.
+- **Band public profile content aggregation (ARTIST-006, 2026-09-24):** `getPublicBandProfileDTO` aggregates accepted-member content onto the band page instead of hardcoding empty tracks/products/media. Music (`artist_music`) and media (`artist_photos`/`artist_videos`) use the single-artist public filter (`is_public`/`is_visible`/`moderation_status='approved'`/`rights_confirmed=true`); the storefront uses the marketplace public listing filter (`status='published'` + `moderation_status='approved'`) across member `seller_user_id`s, loaded server-side because the discover API only expresses one seller. Members whose own artist profile is hidden (`settings.public_profile === false`) are excluded from content aggregation (ARTIST-005 parity) but still appear in the Members list. The page seeds the band storefront grid from `dto.products` via `lib/public-artist/band-storefront.ts` and fetches the band's storefront banner/theme config client-side; single-artist storefront still loads through `/api/marketplace/discover`. Only accepted members are aggregated — band-owner non-member content is intentionally not surfaced. Focused coverage lives in `__tests__/artist/band-profile-content-aggregation.test.ts`.
+
+- **Artist media + stats canonical sources (DB-008 code-drift, 2026-09-25):** Public artist/band galleries read `artist_epk_settings.settings.photoItems` through the pure mapper `lib/public-artist/artist-epk-media.ts`; `artist_photos` and `artist_videos` are never read (the active chain never created them and `lib/services/epk.service.ts` already treated `artist_photos` as optional with a `settings.photoItems` fallback). Public stats come from `lib/public-artist/artist-stats.ts` (`derivePublicArtistStats`) and dashboard stats from `lib/artist/artist-stats.ts` (`buildArtistStats`); the `get_enhanced_artist_stats` RPC is gone from the artist lane, `engagementRate` is a follower-normalized like percentage capped at 100, and `monthlyListeners`/`futureMonthlyListeners` stay 0 because no in-chain source exists. There is no in-chain artist video relation, so the public video gallery is intentionally absent.
+- **Artist event crew + logistics canonical sources (DB-008, 2026-09-25):** Artist event crew is a `staff_members` person record (the de-facto organization person per `lib/admin/workforce-identity-map.ts`; long-term destination `organization_people` under WORK-102) linked to the event by `event_participants` (`event_id -> events.id`, `participant_id = staff_members.id`, `participant_type = 'staff_member'`). `event_staff` and `event_crew_assignments` are never read. `app/artist/events/actions/manage-staff.ts` verifies event ownership server-side (`assertEventScope`) on every mutation — the previous version had no authorization at all. `logistics_tasks.status` is the task lifecycle (not `completed`) and `assigned_to_user_id` the assignee; `artist_financial_transactions` has `type`/`occurred_at` (not `category`/`date`) and is scoped by `user_id` + `source_id`; `venue_profiles` (not the legacy `venues`) is the venue projection; `booking_requests` has no `venue_id`, the venue is carried in `booking_details`. `events` column map: `poster_url`, `start_at`, `end_time`, `venue_name`, `ticket_price_min`, `event_type`, and social links/ticket types inside the `producer_settings` JSON document.
+- **Artist merchandise is a marketplace listing (DB-008, 2026-09-25):** `artist_merchandise` is never read or written by the artist lane. `contexts/artist-context.tsx` `createContent('merchandise')` and `app/artist/business/analytics/page.tsx` use `marketplace_listings` through `toMarketplaceListingInsert` in `lib/artist/artist-content.ts`, the same field mapping `app/api/marketplace/migrations/backfill-artist-merch/route.ts` records. `createContent('photo')` writes the EPK document (`appendEpkPhotoItem`); `createContent('video')` now throws because no in-chain artist video relation exists.
+- **Artist profile creation + verification (DB-008, 2026-09-25):** `contexts/artist-context.tsx` calls the in-chain routine `create_artist_account(p_user_id, p_artist_name, ...)` instead of `ensure_artist_profile`, and the `ArtistProfile` interface no longer carries `verification_status` / `account_tier` (they exist only in the legacy `migrations/` tree and `types/database.types.ts`). Verification for the artist settings card is read from `accounts.is_verified` and exposed as `publicProfile.isVerified`. `app/artist/debug/page.tsx` still selects those two columns on purpose — it is the diagnostic surface that reports missing columns.
+- **Schema-missing artist objects awaiting a database migration (2026-09-25):** `event_tasks` and `event_equipment` (`app/artist/events/actions/manage-tasks.ts`, `manage-equipment.ts`, surfaced by `/artist/events/operations`) and `artist_licensing_deals` / `artist_license_templates` (`app/artist/features/licensing/page.tsx`) are absent from the chain and from the contract. Exact column contracts are delivered in `docs/engineering/handoffs/pending/HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT.json`. `event_tasks` was deliberately NOT repointed to `logistics_tasks`: `logistics_tasks.type` is NOT NULL with a seven-value check that has no general-task value, and `assigned_to_user_id` references `auth.users` while the operations UI supplies a `staff_members` id.
+- **DB-008 objects outside artist ownership (2026-09-25):** the events cluster (`event_posts`, `marketplace_post_attachments`, `job_posting_templates.application_form_template`) and the `bookings` relation have no consumer inside the artist working set; see `docs/engineering/handoffs/pending/HF-ARTIST-DB008-UNREACHABLE-CONSUMERS.json`. The inventory's `tscFiles` for column objects is a file-level attribution, not line-level: `events.cover_image_url` is attributed to `app/artist/events/actions/marketing.ts` and `profiles.custom_url` to `lib/public-artist/get-public-artist-profile.ts`, and neither file contains such a reference.
+
+## Domain inventory (from ARTIST-001 audit)
+
+- **67 web routes** under `/artist/` covering identity, EPK, events, music, business, jobs, bookings, content, community, press, store, tickets
+- **55 artist-facing API route files** at the audit SHA: 45 directly under `app/api/artist/` plus 10 shared routes under `app/api/artist-jobs/`, `app/api/artists/`, and `app/api/debug/check-artist-profile`
+- **18 EPK components** under `components/epk/`
+- **9 public artist components** under `components/public-artist/`
+- **20 shared library files** under `lib/artist/`
+- **22+ artist database tables** (profiles, events, EPK settings, music, blog posts, contracts, financial, jobs, marketing, merchandise, social integrations, subscription tiers, works, dashboard layouts, telemetry)
+- **9 test files** (unit + 1 API test)
+
+## Current focus
+
+- ARTIST-001 is a completed dated audit; unanswered items in `QUESTIONS.md` are candidate follow-up work, not an audit completion blocker.
+- ARTIST-005 (profile visibility gating) is implemented with focused tests; hosted/staging rerun evidence for SIM-20260922-ARTIST-001 is pending isolated-staging deployment. Wave 34 also cleared the artist half of the DB-008 code-drift cluster, which changed two things the rerun will observe: the public gallery now renders EPK photos (it previously always rendered empty because the query failed) and the dashboard/public stat tiles now show real counts (they previously showed zeros because the RPC and three count tables do not exist).
+- ARTIST-006 (band public profile music/storefront aggregation) is implemented with focused tests; hosted/staging rerun evidence for SIM-20260922-ARTIST-002 is pending isolated-staging deployment. Band media now comes from member EPK documents rather than the non-existent `artist_photos` / `artist_videos`, and the band listing query no longer selects the non-existent `listing_kind` / `service_mode` / `public_slug` columns that made the aggregated storefront fail.
+- 26 diagnostics remain in the artist lane under a scoped typecheck: 20 for `event_tasks` / `event_equipment` (schema-missing, contract delivered), 2 in `/artist/events/operations` caused by those same two relations, and 4 pre-existing local-interface mismatches in four files with zero importers (`app/artist/events/page-simple-broken.tsx`, `components/events-calendar.tsx`, `components/event-export.tsx`, `components/artist-events-dashboard.tsx`) that were left alone because no named drift object points at them.
+
+## Known risks
+
+- Non-music artist API routes still need targeted auth review; the artist-music route family was standardized by ARTIST-004.
+- Artist music page is a 1535-line monolith with direct Supabase imports (no service abstraction).
+- 5 artist tables live in `archive/` migrations — schema reconciliation needed.
+- No artist-specific test suite for most pages and API routes.
+- The artist events directory carries a large orphaned legacy subtree with zero importers (`events-dashboard.tsx`, `page-optimized.tsx`, `page-simple-broken.tsx`, `components/artist-events-dashboard.tsx`, `components/event-export.tsx`, `components/events-calendar.tsx`, `event-wizard.tsx`, `app/artist/events/actions/get-event-analytics.ts`, `actions/create-event.ts`). The live route is `app/artist/events/page.tsx`. It was NOT deleted in Wave 34 because no named drift object points at it and the names suggest kept work-in-progress variants; the 4 diagnostics they carry are recorded instead.
+- `app/artist/events/actions/create-event.ts` still spreads untyped wizard data into an `events` insert that omits the NOT NULL columns the generated contract declares (`title`, `type`, `time`, `artist_id`). It compiles because the parameter is `any`, but it would fail against the contract-shaped target. Left alone deliberately: the active chain only requires `artist_id`, and filling the rest means inventing values for a contract the database lane is reconciling (knownGaps).
+
+## Cross-domain dependencies
+
+- **music agent**: CP-026 resolves the boundary: artist owns the artist-facing management surface; music owns playback, rights, royalties, ingest, and backend implementation, coordinated through interfaces/handoffs.
+- **general-user agent**: Profile update crosses user-identity boundaries.
+- **database agent**: `archive/` migration tables need reconciliation.
+- **marketplace agent**: Store/merchandise pages need integration verification.
+- **ticketing agent**: Event ticketing interfaces need verification.
+
+Update this file only when a task establishes a durable fact future work needs.
+
+## Production launch graph — 2026-09-16
+
+- ARTIST-003 remained P2 and is now complete; a deployed owner/counterparty exercise is optional release QA unless QA-003 makes signing part of a selected core staging journey.
+- Artist profile and dashboard behavior remain within the core-web certification surface; contract signing is available but remains outside the launch gate unless selected by QA-003.

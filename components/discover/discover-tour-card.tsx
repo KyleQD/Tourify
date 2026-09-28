@@ -46,7 +46,7 @@ export function DiscoverTourCard({
       >
         <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-800 to-slate-950">
           {tour.cover_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
+
             <img
               src={tour.cover_url}
               alt={tour.name}

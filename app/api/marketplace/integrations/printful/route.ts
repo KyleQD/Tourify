@@ -9,6 +9,10 @@ import {
 } from "@/lib/marketplace/integration-credentials"
 import { syncExternalProductsToMarketplace } from "@/lib/marketplace/integration-sync"
 import { syncPrintfulCatalog } from "@/lib/marketplace/printful-adapter"
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from "@/lib/config/audit-feature-gates"
 
 const printfulSchema = z.object({
   action: z.enum(["connect", "sync", "disconnect"]).optional(),
@@ -20,6 +24,8 @@ const printfulSchema = z.object({
 export const dynamic = "force-dynamic"
 
 export async function GET() {
+  if (!isAuditFeatureApproved("marketplace_integrations"))
+    return auditFeatureUnavailable("marketplace_integrations")
   try {
     const supabase = await createClient()
     const {
@@ -49,6 +55,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isAuditFeatureApproved("marketplace_integrations"))
+    return auditFeatureUnavailable("marketplace_integrations")
   let integrationId: string | null = null
   try {
     const authClient = await createClient()

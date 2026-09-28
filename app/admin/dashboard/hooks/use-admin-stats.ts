@@ -28,16 +28,19 @@ const FALLBACK_STATS: AdminDashboardStats = {
 }
 
 export function useAdminStats(venueId?: string) {
-  const { actingHeaders, actingAccount } = useActingContext()
+  const { actingHeaders, actingContextKey } = useActingContext()
   const [stats, setStats] = useState<AdminDashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const controller = new AbortController()
+
     function buildNoStoreInit(): RequestInit {
       return {
         credentials: 'include',
         cache: 'no-store',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
@@ -56,26 +59,28 @@ export function useAdminStats(venueId?: string) {
         
         const response = await fetch(`/api/admin/dashboard/stats${params}`, buildNoStoreInit())
 
-        if (!response.ok) throw new Error(`Failed to fetch stats: ${response.status}`)
-
-        const data = await response.json()
+        const data = await response.json().catch(() => null)
+        if (!response.ok) {
+          throw new Error(data?.error || `Failed to fetch stats: ${response.status}`)
+        }
         
-        if (data.success) {
+        if (data?.success) {
           setStats(data.stats)
         } else {
-          throw new Error(data.error || 'Failed to fetch stats')
+          throw new Error(data?.error || 'Failed to fetch stats')
         }
       } catch (err) {
-        console.error('Error fetching admin stats:', err)
+        if (controller.signal.aborted) return
         setError(err instanceof Error ? err.message : 'Unknown error')
         setStats(FALLBACK_STATS)
       } finally {
-        setIsLoading(false)
+        if (!controller.signal.aborted) setIsLoading(false)
       }
     }
 
     fetchStats()
-  }, [venueId, actingHeaders, actingAccount?.profile_id])
+    return () => controller.abort()
+  }, [venueId, actingHeaders, actingContextKey])
 
   return { stats, isLoading, error }
 }

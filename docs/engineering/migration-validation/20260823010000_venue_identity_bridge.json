@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823010000_venue_identity_bridge.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "venue"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.venue_profiles",
+      "select count(*) from public.venue_profiles where main_profile_id is null",
+      "select count(*) from public.venue_profiles vp where vp.main_profile_id is null and exists (select 1 from public.profiles p where p.id = vp.user_id)"
+    ],
+    "expectedAffectedRows": "Adds the nullable account-switching key and legacy identity-settings container when absent, then backfills only venue rows whose existing user_id resolves to profiles.id; unresolved ownership remains null",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823010000",
+    "idempotency": "ADD COLUMN IF NOT EXISTS, a null-only deterministic backfill, CREATE INDEX IF NOT EXISTS, CREATE TABLE IF NOT EXISTS, policy replacement, and an upsert make replay convergent"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "venue_profiles.main_profile_id references profiles(id) on delete cascade",
+      "venue_profiles.settings is the nullable legacy JSON identity source with an empty-object default",
+      "venue_identity_bridges primary and unique foreign-key identity constraints"
+    ],
+    "indexes": [
+      "venue_profiles_main_profile_id_idx",
+      "venue_identity_bridges_venues_v2_idx",
+      "venue_identity_bridges_operational_org_idx"
+    ],
+    "validationPlan": "Fresh-chain rehearsal must prove the compatibility column exists before the owner policy; postflight verifies unresolved rows, bridge uniqueness, RLS, and grants"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -3,8 +3,6 @@ set client_min_messages = warning;
 -- Restore complete signup side-effects on auth.users insert (profile row with email,
 -- active profile row, onboarding row) and keep profiles in sync when email is confirmed.
 
-create extension if not exists pgcrypto;
-
 -- Pin search_path on username helper (idempotent if already set)
 do $body$
 begin
@@ -142,10 +140,26 @@ exception
 end;
 $$;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+do $body$
+begin
+  if exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'auth'
+      and c.relname = 'users'
+      and c.relowner = (select oid from pg_roles where rolname = current_user)
+  ) then
+    execute 'drop trigger if exists on_auth_user_created on auth.users';
+    execute 'create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user()';
+  else
+    raise notice 'Skipping auth.users signup trigger replacement because current role % does not own auth.users', current_user;
+  end if;
+exception
+  when insufficient_privilege then
+    raise notice 'Skipping auth.users signup trigger replacement because current role % lacks ownership', current_user;
+end;
+$body$;
 
 -- When Supabase sets email_confirmed_at, mirror email to profiles and mark verified.
 create or replace function public.handle_auth_user_email_confirmed()
@@ -178,8 +192,23 @@ exception
 end;
 $$;
 
-drop trigger if exists on_auth_user_email_confirmed on auth.users;
-create trigger on_auth_user_email_confirmed
-  after insert or update of email_confirmed_at on auth.users
-  for each row
-  execute function public.handle_auth_user_email_confirmed();
+do $body$
+begin
+  if exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'auth'
+      and c.relname = 'users'
+      and c.relowner = (select oid from pg_roles where rolname = current_user)
+  ) then
+    execute 'drop trigger if exists on_auth_user_email_confirmed on auth.users';
+    execute 'create trigger on_auth_user_email_confirmed after insert or update of email_confirmed_at on auth.users for each row execute function public.handle_auth_user_email_confirmed()';
+  else
+    raise notice 'Skipping auth.users email-confirmed trigger replacement because current role % does not own auth.users', current_user;
+  end if;
+exception
+  when insufficient_privilege then
+    raise notice 'Skipping auth.users email-confirmed trigger replacement because current role % lacks ownership', current_user;
+end;
+$body$;

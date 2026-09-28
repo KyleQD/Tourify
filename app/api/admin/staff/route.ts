@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
+import { syncActiveStaffMemberShifts } from '@/lib/services/staff-shift-assignment-sync'
 
 async function getOrgEventIds(supabase: any, orgId: string): Promise<string[]> {
   const { data } = await supabase.from('events_v2').select('id').eq('org_id', orgId).limit(1000)
@@ -13,7 +14,7 @@ function staffScopeFilter(orgId: string, eventIds: string[]) {
   return filters.join(',')
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability('workforce.view', async (request: NextRequest, { supabase, user }) => {
   const { searchParams } = new URL(request.url)
   const entityType = searchParams.get('entity_type')
   const entityId = searchParams.get('entity_id')
@@ -75,7 +76,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability('workforce.manage', async (request: NextRequest, { supabase, user }) => {
   const body = await request.json()
   const { action } = body
 
@@ -99,7 +100,14 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
         .single()
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      return NextResponse.json({ success: true, data })
+      const sync = status === 'active'
+        ? await syncActiveStaffMemberShifts({
+            supabase,
+            staffMemberId: staff_id,
+            actorUserId: user.id,
+          })
+        : null
+      return NextResponse.json({ success: true, data, sync })
     }
 
     if (action === 'add_member') {
@@ -139,7 +147,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PATCH = withAdminCapability('workforce.manage', async (request: NextRequest, { supabase, user }) => {
   const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
   if (scope instanceof NextResponse) return scope
   const orgId = requireOpsOrgId(scope)
@@ -161,7 +169,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
   return NextResponse.json({ success: true, data })
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability('workforce.manage', async (request: NextRequest, { supabase, user }) => {
   const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
   if (scope instanceof NextResponse) return scope
   const orgId = requireOpsOrgId(scope)

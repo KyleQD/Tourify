@@ -14,27 +14,27 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS collaboration_projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  
+
   -- Basic Info
   name TEXT NOT NULL,
   description TEXT,
   type TEXT CHECK (type IN ('album', 'single', 'ep', 'collaboration', 'live_show', 'tour')),
   genre TEXT[] DEFAULT '{}',
-  
+
   -- Ownership (uses existing auth system)
   owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- Status & Timeline
   status TEXT DEFAULT 'planning' CHECK (status IN ('planning', 'in_progress', 'recording', 'mixing', 'mastering', 'completed')),
   start_date DATE,
   target_completion DATE,
-  
+
   -- Settings
   privacy TEXT DEFAULT 'collaborators_only' CHECK (privacy IN ('private', 'collaborators_only', 'public')),
-  
+
   -- Integration with existing communication system
   communication_channel_id UUID REFERENCES communication_channels(id),
-  
+
   -- Metadata
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS project_collaborators (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES collaboration_projects(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- Role & Permissions
   role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'collaborator', 'viewer')),
   specific_role TEXT, -- 'songwriter', 'producer', 'vocalist', 'instrumentalist', 'engineer'
@@ -58,14 +58,14 @@ CREATE TABLE IF NOT EXISTS project_collaborators (
     "can_manage_files": true,
     "can_post_in_channel": true
   }'::jsonb,
-  
+
   -- Status
   status TEXT DEFAULT 'active' CHECK (status IN ('invited', 'active', 'inactive')),
-  
+
   -- Timestamps
   joined_at TIMESTAMPTZ DEFAULT NOW(),
   invited_by UUID REFERENCES auth.users(id),
-  
+
   UNIQUE(project_id, user_id)
 );
 
@@ -76,26 +76,26 @@ CREATE TABLE IF NOT EXISTS project_collaborators (
 CREATE TABLE IF NOT EXISTS project_files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES collaboration_projects(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- File Info (integrates with existing storage system)
   file_name TEXT NOT NULL,
   file_path TEXT NOT NULL, -- Path in existing storage bucket
   file_type TEXT NOT NULL CHECK (file_type IN ('demo', 'stem', 'master', 'reference', 'document')),
   mime_type TEXT,
   file_size INTEGER,
-  
+
   -- Project Context
   track_name TEXT,
   version_number INTEGER DEFAULT 1,
   description TEXT,
-  
+
   -- Organization
   folder TEXT DEFAULT 'general', -- 'demos', 'stems', 'masters', 'references'
   tags TEXT[] DEFAULT '{}',
-  
+
   -- Attribution
   uploaded_by UUID REFERENCES auth.users(id) NOT NULL,
-  
+
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -108,28 +108,28 @@ CREATE TABLE IF NOT EXISTS project_files (
 CREATE TABLE IF NOT EXISTS project_tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES collaboration_projects(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- Task Details
   title TEXT NOT NULL,
   description TEXT,
   type TEXT DEFAULT 'general' CHECK (type IN ('songwriting', 'recording', 'mixing', 'feedback', 'general')),
-  
+
   -- Assignment
   assigned_to UUID REFERENCES auth.users(id),
   assigned_by UUID REFERENCES auth.users(id) NOT NULL,
-  
+
   -- Status & Priority
   status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'review', 'completed')),
   priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-  
+
   -- Timeline
   due_date DATE,
   completed_at TIMESTAMPTZ,
-  
+
   -- Integration
   related_file_id UUID REFERENCES project_files(id),
   discussion_message_id UUID, -- Links to existing message system
-  
+
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS project_activity (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES collaboration_projects(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- Activity Details
   activity_type TEXT NOT NULL CHECK (activity_type IN (
     'project_created', 'project_updated', 'collaborator_invited', 'collaborator_joined',
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS project_activity (
   )),
   description TEXT NOT NULL,
   metadata JSONB DEFAULT '{}'::jsonb,
-  
+
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -162,26 +162,26 @@ CREATE TABLE IF NOT EXISTS project_activity (
 
 CREATE TABLE IF NOT EXISTS collaboration_invitations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  
+
   -- Invitation Details
   from_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   to_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   project_id UUID REFERENCES collaboration_projects(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- Message
   invitation_message TEXT,
   proposed_role TEXT,
-  
+
   -- Status
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'expired')),
-  
+
   -- Response
   response_message TEXT,
   responded_at TIMESTAMPTZ,
-  
+
   -- Expiration
   expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -192,22 +192,22 @@ CREATE TABLE IF NOT EXISTS collaboration_invitations (
 CREATE TABLE IF NOT EXISTS audio_files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_file_id UUID REFERENCES project_files(id) ON DELETE CASCADE NOT NULL,
-  
+
   -- Audio Metadata
   duration_seconds DECIMAL(8,2),
   bpm INTEGER,
   key TEXT,
   bitrate INTEGER,
   sample_rate INTEGER,
-  
+
   -- Collaboration Features
   waveform_data JSONB, -- For visual timeline
   markers JSONB DEFAULT '[]'::jsonb, -- Timestamp markers
-  
+
   -- Processing Status
   analysis_completed BOOLEAN DEFAULT false,
   waveform_generated BOOLEAN DEFAULT false,
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -270,7 +270,7 @@ CREATE POLICY "Users can view projects they collaborate on"
 ON collaboration_projects FOR SELECT
 USING (
   id IN (
-    SELECT project_id FROM project_collaborators 
+    SELECT project_id FROM project_collaborators
     WHERE user_id = auth.uid() AND status = 'active'
   )
 );
@@ -285,9 +285,9 @@ CREATE POLICY "Project owners and admins can update projects"
 ON collaboration_projects FOR UPDATE
 USING (
   id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND role IN ('owner', 'admin')
   )
 );
@@ -306,7 +306,7 @@ CREATE POLICY "Users can view project collaborators"
 ON project_collaborators FOR SELECT
 USING (
   project_id IN (
-    SELECT project_id FROM project_collaborators 
+    SELECT project_id FROM project_collaborators
     WHERE user_id = auth.uid() AND status = 'active'
   )
 );
@@ -316,9 +316,9 @@ CREATE POLICY "Users with permissions can add collaborators"
 ON project_collaborators FOR INSERT
 WITH CHECK (
   project_id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND (role IN ('owner', 'admin') OR (permissions->>'can_invite')::boolean = true)
   )
 );
@@ -337,7 +337,7 @@ CREATE POLICY "Users can view project files"
 ON project_files FOR SELECT
 USING (
   project_id IN (
-    SELECT project_id FROM project_collaborators 
+    SELECT project_id FROM project_collaborators
     WHERE user_id = auth.uid() AND status = 'active'
   )
 );
@@ -346,11 +346,11 @@ USING (
 CREATE POLICY "Users with permissions can upload files"
 ON project_files FOR INSERT
 WITH CHECK (
-  uploaded_by = auth.uid() 
+  uploaded_by = auth.uid()
   AND project_id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND (permissions->>'can_manage_files')::boolean = true
   )
 );
@@ -359,11 +359,11 @@ WITH CHECK (
 CREATE POLICY "File uploaders and admins can update files"
 ON project_files FOR UPDATE
 USING (
-  uploaded_by = auth.uid() 
+  uploaded_by = auth.uid()
   OR project_id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND role IN ('owner', 'admin')
   )
 );
@@ -377,7 +377,7 @@ CREATE POLICY "Users can view project tasks"
 ON project_tasks FOR SELECT
 USING (
   project_id IN (
-    SELECT project_id FROM project_collaborators 
+    SELECT project_id FROM project_collaborators
     WHERE user_id = auth.uid() AND status = 'active'
   )
 );
@@ -386,11 +386,11 @@ USING (
 CREATE POLICY "Users with permissions can create tasks"
 ON project_tasks FOR INSERT
 WITH CHECK (
-  assigned_by = auth.uid() 
+  assigned_by = auth.uid()
   AND project_id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND (permissions->>'can_edit')::boolean = true
   )
 );
@@ -399,12 +399,12 @@ WITH CHECK (
 CREATE POLICY "Authorized users can update tasks"
 ON project_tasks FOR UPDATE
 USING (
-  assigned_by = auth.uid() 
+  assigned_by = auth.uid()
   OR assigned_to = auth.uid()
   OR project_id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND role IN ('owner', 'admin')
   )
 );
@@ -418,7 +418,7 @@ CREATE POLICY "Users can view project activity"
 ON project_activity FOR SELECT
 USING (
   project_id IN (
-    SELECT project_id FROM project_collaborators 
+    SELECT project_id FROM project_collaborators
     WHERE user_id = auth.uid() AND status = 'active'
   )
 );
@@ -448,9 +448,9 @@ ON collaboration_invitations FOR INSERT
 WITH CHECK (
   from_user_id = auth.uid()
   AND project_id IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active' 
+    SELECT project_id FROM project_collaborators
+    WHERE user_id = auth.uid()
+    AND status = 'active'
     AND (role IN ('owner', 'admin') OR (permissions->>'can_invite')::boolean = true)
   )
 );
@@ -469,9 +469,9 @@ CREATE POLICY "Users can view audio metadata"
 ON audio_files FOR SELECT
 USING (
   project_file_id IN (
-    SELECT id FROM project_files 
+    SELECT id FROM project_files
     WHERE project_id IN (
-      SELECT project_id FROM project_collaborators 
+      SELECT project_id FROM project_collaborators
       WHERE user_id = auth.uid() AND status = 'active'
     )
   )
@@ -480,45 +480,82 @@ USING (
 -- System can create audio metadata records
 CREATE POLICY "System can create audio metadata"
 ON audio_files FOR INSERT
-WITH CHECK (true); -- This will be used by background processing
+WITH CHECK (true);
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_0$
+  begin
+     -- This will be used by background processing
 
--- =============================================================================
--- STORAGE BUCKET SETUP
--- =============================================================================
+    -- =============================================================================
+    -- STORAGE BUCKET SETUP
+    -- =============================================================================
 
--- Create storage bucket for project files (if not exists)
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'project-files', 
-  'project-files', 
-  false, 
-  104857600, -- 100MB limit
-  ARRAY['audio/*', 'video/*', 'image/*', 'application/pdf', 'text/*']
-)
-ON CONFLICT (id) DO NOTHING;
+    -- Create storage bucket for project files (if not exists)
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES (
+      'project-files',
+      'project-files',
+      false,
+      104857600, -- 100MB limit
+      ARRAY['audio/*', 'video/*', 'image/*', 'application/pdf', 'text/*']
+    )
+    ON CONFLICT (id) DO NOTHING;
+  exception when others then
+    raise warning
+      'Skipping bucket seed project-files on %.%: % %',
+      'storage', 'buckets', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_0$;
 
--- Storage policies for project files bucket
-CREATE POLICY "Project collaborators can view files"
-ON storage.objects FOR SELECT
-USING (
-  bucket_id = 'project-files' 
-  AND split_part(name, '/', 2)::uuid IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() AND status = 'active'
-  )
-);
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_1$
+  begin
 
-CREATE POLICY "Project collaborators can upload files"
-ON storage.objects FOR INSERT
-WITH CHECK (
-  bucket_id = 'project-files' 
-  AND split_part(name, '/', 2)::uuid IN (
-    SELECT project_id FROM project_collaborators 
-    WHERE user_id = auth.uid() 
-    AND status = 'active'
-    AND (permissions->>'can_manage_files')::boolean = true
-  )
-);
+
+    -- Storage policies for project files bucket
+    CREATE POLICY "Project collaborators can view files"
+    ON storage.objects FOR SELECT
+    USING (
+      bucket_id = 'project-files'
+      AND split_part(name, '/', 2)::uuid IN (
+        SELECT project_id FROM project_collaborators
+        WHERE user_id = auth.uid() AND status = 'active'
+      )
+    );
+  exception when others then
+    raise warning
+      'Skipping policy project collaborators can view files on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_1$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_2$
+  begin
+
+
+    CREATE POLICY "Project collaborators can upload files"
+    ON storage.objects FOR INSERT
+    WITH CHECK (
+      bucket_id = 'project-files'
+      AND split_part(name, '/', 2)::uuid IN (
+        SELECT project_id FROM project_collaborators
+        WHERE user_id = auth.uid()
+        AND status = 'active'
+        AND (permissions->>'can_manage_files')::boolean = true
+      )
+    );
+  exception when others then
+    raise warning
+      'Skipping policy project collaborators can upload files on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_2$;
+
+
 
 -- =============================================================================
 -- HELPER FUNCTIONS
@@ -534,22 +571,22 @@ RETURNS BOOLEAN AS $$
 DECLARE
   collaborator_record RECORD;
 BEGIN
-  SELECT role, permissions, status 
+  SELECT role, permissions, status
   INTO collaborator_record
-  FROM project_collaborators 
-  WHERE project_id = project_uuid 
+  FROM project_collaborators
+  WHERE project_id = project_uuid
   AND user_id = user_uuid;
-  
+
   -- Check if user is not a collaborator
   IF NOT FOUND OR collaborator_record.status != 'active' THEN
     RETURN FALSE;
   END IF;
-  
+
   -- Owner and admin have all permissions
   IF collaborator_record.role IN ('owner', 'admin') THEN
     RETURN TRUE;
   END IF;
-  
+
   -- Check specific permission
   RETURN (collaborator_record.permissions ->> permission_name)::boolean = TRUE;
 END;
@@ -563,28 +600,28 @@ DECLARE
 BEGIN
   SELECT json_build_object(
     'collaborators_count', (
-      SELECT COUNT(*) FROM project_collaborators 
+      SELECT COUNT(*) FROM project_collaborators
       WHERE project_id = project_uuid AND status = 'active'
     ),
     'files_count', (
-      SELECT COUNT(*) FROM project_files 
+      SELECT COUNT(*) FROM project_files
       WHERE project_id = project_uuid
     ),
     'tasks_count', (
-      SELECT COUNT(*) FROM project_tasks 
+      SELECT COUNT(*) FROM project_tasks
       WHERE project_id = project_uuid
     ),
     'completed_tasks_count', (
-      SELECT COUNT(*) FROM project_tasks 
+      SELECT COUNT(*) FROM project_tasks
       WHERE project_id = project_uuid AND status = 'completed'
     ),
     'recent_activity_count', (
-      SELECT COUNT(*) FROM project_activity 
-      WHERE project_id = project_uuid 
+      SELECT COUNT(*) FROM project_activity
+      WHERE project_id = project_uuid
       AND created_at > NOW() - INTERVAL '7 days'
     )
   ) INTO stats;
-  
+
   RETURN stats;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -601,8 +638,8 @@ GRANT EXECUTE ON FUNCTION get_project_stats(UUID) TO authenticated;
 CREATE OR REPLACE FUNCTION update_project_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-  UPDATE collaboration_projects 
-  SET updated_at = NOW() 
+  UPDATE collaboration_projects
+  SET updated_at = NOW()
   WHERE id = NEW.project_id;
   RETURN NEW;
 END;

@@ -1,0 +1,2927 @@
+{
+  "schemaVersion": 1,
+  "sourceId": "SRC-ADMIN-UX-AUDIT",
+  "auditBaseline": {
+    "repository": "KyleQD/Tourify",
+    "branch": "integration/tourify-reconcile-2026-08",
+    "commit": "14842ad3dc65b5c9a70e8abff9d12475a1782d63",
+    "auditDate": "2026-08-26"
+  },
+  "counts": {
+    "findings": 158,
+    "tasks": 54,
+    "waves": 18,
+    "decisions": 10
+  },
+  "statusPolicy": "This crosswalk contains no mutable status. ADMUX progress is derived from the linked canonical batch, workflow, finding, task, launch-gate, and evidence records.",
+  "waves": [
+    {
+      "wave": "W00",
+      "objective": "Architecture + fixtures",
+      "taskIds": [
+        "ADMUX-0001",
+        "ADMUX-0002"
+      ],
+      "dependencies": [],
+      "canonicalBatchIds": [
+        "ADM-B00",
+        "ADM-B01"
+      ]
+    },
+    {
+      "wave": "W01",
+      "objective": "Admin IA + scope switch",
+      "taskIds": [
+        "ADMUX-0101",
+        "ADMUX-0102",
+        "ADMUX-0103"
+      ],
+      "dependencies": [
+        "W00"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W02",
+      "objective": "URL/deep-link foundation",
+      "taskIds": [
+        "ADMUX-0104",
+        "ADMUX-0105",
+        "ADMUX-0106",
+        "ADMUX-0107",
+        "ADMUX-0108",
+        "ADMUX-0109",
+        "ADMUX-0110",
+        "ADMUX-0111"
+      ],
+      "dependencies": [
+        "W00",
+        "W01"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W03",
+      "objective": "Shared header/state/attention",
+      "taskIds": [
+        "ADMUX-0201",
+        "ADMUX-0202",
+        "ADMUX-0203"
+      ],
+      "dependencies": [
+        "W00",
+        "W01",
+        "W02"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W04",
+      "objective": "Shell/design-system/a11y primitives",
+      "taskIds": [
+        "ADMUX-0204",
+        "ADMUX-0205",
+        "ADMUX-0206",
+        "ADMUX-0207",
+        "ADMUX-0208",
+        "ADMUX-0209",
+        "ADMUX-0210"
+      ],
+      "dependencies": [
+        "W03"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W05",
+      "objective": "Collections: Tours + Events",
+      "taskIds": [
+        "ADMUX-0301",
+        "ADMUX-0302",
+        "ADMUX-0303",
+        "ADMUX-0304"
+      ],
+      "dependencies": [
+        "W02",
+        "W03",
+        "W04"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B05",
+        "ADM-B04"
+      ]
+    },
+    {
+      "wave": "W06",
+      "objective": "Collections: Ticket orders + Finance + KPI contracts",
+      "taskIds": [
+        "ADMUX-0305",
+        "ADMUX-0306",
+        "ADMUX-0307"
+      ],
+      "dependencies": [
+        "W02",
+        "W03",
+        "W04"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B11",
+        "ADM-B12",
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W07",
+      "objective": "Dashboard command center",
+      "taskIds": [
+        "ADMUX-0401",
+        "ADMUX-0402",
+        "ADMUX-0403"
+      ],
+      "dependencies": [
+        "W03",
+        "W04",
+        "W05",
+        "W06"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W08",
+      "objective": "Workspace navigation + Tour/Event shells",
+      "taskIds": [
+        "ADMUX-0501",
+        "ADMUX-0502",
+        "ADMUX-0503"
+      ],
+      "dependencies": [
+        "W02",
+        "W03",
+        "W04"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13",
+        "ADM-B05",
+        "ADM-B04"
+      ]
+    },
+    {
+      "wave": "W09",
+      "objective": "Event domain state/actions/People/Logistics",
+      "taskIds": [
+        "ADMUX-0504",
+        "ADMUX-0505",
+        "ADMUX-0506"
+      ],
+      "dependencies": [
+        "W08"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B04"
+      ]
+    },
+    {
+      "wave": "W10",
+      "objective": "Workforce/Hiring/Organization governance",
+      "taskIds": [
+        "ADMUX-0601",
+        "ADMUX-0602",
+        "ADMUX-0603"
+      ],
+      "dependencies": [
+        "W04",
+        "W08"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B07",
+        "ADM-B06",
+        "ADM-B10"
+      ]
+    },
+    {
+      "wave": "W11",
+      "objective": "Logistics command center",
+      "taskIds": [
+        "ADMUX-0701",
+        "ADMUX-0702",
+        "ADMUX-0703"
+      ],
+      "dependencies": [
+        "W03",
+        "W04",
+        "W08",
+        "W09"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B09"
+      ]
+    },
+    {
+      "wave": "W12",
+      "objective": "Communications responsive/privacy",
+      "taskIds": [
+        "ADMUX-0704",
+        "ADMUX-0705"
+      ],
+      "dependencies": [
+        "W02",
+        "W03",
+        "W04"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B08"
+      ]
+    },
+    {
+      "wave": "W13",
+      "objective": "Ticketing + Finance + Vendor workspace migrations",
+      "taskIds": [
+        "ADMUX-0801",
+        "ADMUX-0802",
+        "ADMUX-0803"
+      ],
+      "dependencies": [
+        "W06",
+        "W08"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B11",
+        "ADM-B12"
+      ]
+    },
+    {
+      "wave": "W14",
+      "objective": "Analytics/data trust",
+      "taskIds": [
+        "ADMUX-0901"
+      ],
+      "dependencies": [
+        "W03",
+        "W06"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W15",
+      "objective": "Mobile/a11y closure",
+      "taskIds": [
+        "ADMUX-1001"
+      ],
+      "dependencies": [
+        "W08",
+        "W09",
+        "W10",
+        "W11",
+        "W12",
+        "W13",
+        "W14"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B13"
+      ]
+    },
+    {
+      "wave": "W16",
+      "objective": "Authenticated runtime UX verification",
+      "taskIds": [
+        "ADMUX-1101"
+      ],
+      "dependencies": [
+        "W05",
+        "W06",
+        "W07",
+        "W08",
+        "W09",
+        "W10",
+        "W11",
+        "W12",
+        "W13",
+        "W14",
+        "W15"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B14"
+      ]
+    },
+    {
+      "wave": "W17",
+      "objective": "Feature-flag rollout + legacy retirement",
+      "taskIds": [
+        "ADMUX-1102"
+      ],
+      "dependencies": [
+        "W16"
+      ],
+      "canonicalBatchIds": [
+        "ADM-B14"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "taskId": "ADMUX-0001",
+      "wave": "W00",
+      "phase": "Phase 00 — Architecture Freeze",
+      "workstream": "Architecture & Baseline",
+      "title": "Approve Admin UX ADR bundle",
+      "dependencies": [],
+      "findingIds": [],
+      "canonicalBatchId": "ADM-B00",
+      "acceptance": "All ADRs have a Decided/Deferred status; no downstream phase depends on an unresolved decision; every deferred item has a rationale and launch impact.",
+      "verification": "Document review + architecture sign-off."
+    },
+    {
+      "taskId": "ADMUX-0002",
+      "wave": "W00",
+      "phase": "Phase 00 — Architecture Freeze",
+      "workstream": "Architecture & Baseline",
+      "title": "Create seeded UX regression fixtures",
+      "dependencies": [
+        "ADMUX-0001"
+      ],
+      "findingIds": [],
+      "canonicalBatchId": "ADM-B01",
+      "acceptance": "Fixtures can reproduce every critical collection-scale, multi-org, failure-truthfulness and mobile scenario referenced by this plan.",
+      "verification": "Fixture smoke run; seed idempotency test."
+    },
+    {
+      "taskId": "ADMUX-0101",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "IA & Vocabulary",
+      "title": "Restructure first-level Admin IA",
+      "dependencies": [
+        "ADMUX-0001"
+      ],
+      "findingIds": [
+        "AUX-IA-001",
+        "AUX-IA-002",
+        "AUX-IA-008",
+        "AUX-IA-009",
+        "AUX-FLOW-005"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every current Admin destination remains reachable; first-click testing improves for common owner/manager/coordinator tasks; no duplicate primary label represents the same concept; search returns direct matching destinations.",
+      "verification": "Route inventory test; first-click usability test; keyboard search test."
+    },
+    {
+      "taskId": "ADMUX-0102",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "IA & Accessibility",
+      "title": "Replace custom mobile/collapsed sidebar behavior",
+      "dependencies": [
+        "ADMUX-0101"
+      ],
+      "findingIds": [
+        "AUX-IA-003",
+        "AUX-IA-004",
+        "AUX-IA-005",
+        "AUX-IA-007"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "One accessible mobile drawer; no internal full reloads; collapsed items have accessible names; body does not scroll behind drawer; stable scope consumes less vertical height.",
+      "verification": "axe; VoiceOver/TalkBack; keyboard Escape/focus; navigation no-reload assertion."
+    },
+    {
+      "taskId": "ADMUX-0103",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "Scope & Identity UX",
+      "title": "Unify acting-organization scope control",
+      "dependencies": [
+        "ADMUX-0001"
+      ],
+      "findingIds": [
+        "AUX-IA-006"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Users can identify and switch the organization from any Admin workspace; every mutation still carries the resolved acting context; scope change is visually confirmed before page data mutates.",
+      "verification": "Two-org deep-link test; stale-scope mutation negative test."
+    },
+    {
+      "taskId": "ADMUX-0104",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "URL & Deep Linking",
+      "title": "Implement canonical Admin URL/scope contract",
+      "dependencies": [
+        "ADMUX-0001"
+      ],
+      "findingIds": [
+        "AUX-IA-010",
+        "AUX-FLOW-003",
+        "AUX-FLOW-004",
+        "AUX-FLOW-007"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Back/Forward/refresh/share work consistently across representative workspaces; legacy links resolve to canonical state; account scope is never silently changed by a child URL.",
+      "verification": "Automated URL matrix; browser history tests; cross-org tamper tests."
+    },
+    {
+      "taskId": "ADMUX-0105",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "URL & Deep Linking",
+      "title": "Migrate Dashboard navigation state",
+      "dependencies": [
+        "ADMUX-0104"
+      ],
+      "findingIds": [
+        "AUX-DASH-003",
+        "AUX-DASH-004",
+        "AUX-DASH-010"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No full reload for Refresh/row drill-down; copied URL restores the active Dashboard subview; Back returns to the same working state.",
+      "verification": "Playwright history/deep-link test."
+    },
+    {
+      "taskId": "ADMUX-0106",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "URL & Deep Linking",
+      "title": "Migrate Tour portfolio view/filter state",
+      "dependencies": [
+        "ADMUX-0104"
+      ],
+      "findingIds": [
+        "AUX-TOUR-002"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Two sessions opening the same URL see the same working set; Back/Forward restores changes.",
+      "verification": "Portfolio deep-link test; saved-view regression."
+    },
+    {
+      "taskId": "ADMUX-0107",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "URL & Deep Linking",
+      "title": "Normalize Event edit routes",
+      "dependencies": [
+        "ADMUX-0104"
+      ],
+      "findingIds": [
+        "AUX-EVT-020"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every edit entry point lands on the same canonical URL and opens the same Event.",
+      "verification": "Link inventory + redirect test."
+    },
+    {
+      "taskId": "ADMUX-0108",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "Calendar Scope",
+      "title": "Harden Calendar scope resolution and option loading",
+      "dependencies": [
+        "ADMUX-0103",
+        "ADMUX-0104"
+      ],
+      "findingIds": [
+        "AUX-CAL-001",
+        "AUX-CAL-002",
+        "AUX-CAL-003"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Calendar never looks organization-global when narrowed; Org A/B options never cross; option API failure never looks like 'no events'.",
+      "verification": "Two-org test; failed-option test; scope deep-link test."
+    },
+    {
+      "taskId": "ADMUX-0109",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "Workforce Scope",
+      "title": "Normalize Staff/Hiring employer scope and Hiring tab URLs",
+      "dependencies": [
+        "ADMUX-0103",
+        "ADMUX-0104"
+      ],
+      "findingIds": [
+        "AUX-WRK-003",
+        "AUX-HIRE-001"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No tab-specific missing-scope surprises; Hiring tab survives refresh/share/back.",
+      "verification": "Employer hydration tests; Hiring deep-link tests."
+    },
+    {
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "URL & Deep Linking",
+      "title": "Migrate Ticketing, Finance, Contracts, Communications and Analytics URL state",
+      "dependencies": [
+        "ADMUX-0104"
+      ],
+      "findingIds": [
+        "AUX-TIX-002",
+        "AUX-TIX-006",
+        "AUX-FIN-002",
+        "AUX-CON-001",
+        "AUX-COM-005",
+        "AUX-ANL-004"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible.",
+      "verification": "Parameterized deep-link test matrix."
+    },
+    {
+      "taskId": "ADMUX-0111",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "workstream": "Workspace Ownership",
+      "title": "Publish canonical workspace ownership matrix",
+      "dependencies": [
+        "ADMUX-0001"
+      ],
+      "findingIds": [
+        "AUX-FLOW-001"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every duplicated domain has one documented source-of-truth UI and an approved embed/deep-link approach.",
+      "verification": "Architecture review + route/component crosswalk."
+    },
+    {
+      "taskId": "ADMUX-0201",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Admin Design System",
+      "title": "Build canonical Admin header/scope variants",
+      "dependencies": [
+        "ADMUX-0103"
+      ],
+      "findingIds": [
+        "AUX-CMP-001",
+        "AUX-A11Y-008"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "All migrated pages preserve page identity and one primary action from 320px through desktop; record state/scope are visible when relevant.",
+      "verification": "Story/fixture coverage; axe; responsive screenshot tests."
+    },
+    {
+      "taskId": "ADMUX-0202",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "State Truthfulness",
+      "title": "Implement universal Admin data-state contract",
+      "dependencies": [
+        "ADMUX-0002"
+      ],
+      "findingIds": [
+        "AUX-CMP-002",
+        "AUX-STATE-001",
+        "AUX-STATE-002",
+        "AUX-STATE-003"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No migrated P1 surface maps failed primary data to legitimate 0/empty; stale/partial data is visibly labeled; action errors do not replace healthy page state.",
+      "verification": "Fault-injection component tests; API-state fixture tests; screenshot assertions."
+    },
+    {
+      "taskId": "ADMUX-0203",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Attention & Action Center",
+      "title": "Create reusable AttentionQueue primitive",
+      "dependencies": [
+        "ADMUX-0104",
+        "ADMUX-0202"
+      ],
+      "findingIds": [
+        "AUX-CMP-003",
+        "AUX-CMP-004",
+        "AUX-FLOW-008"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "More than three issues remain discoverable; internal issue navigation stays SPA-native; Dashboard can aggregate domain queues.",
+      "verification": "Seeded attention fixture; link/navigation test."
+    },
+    {
+      "taskId": "ADMUX-0204",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Shell & Accessibility",
+      "title": "Fix nested landmarks and viewport sizing",
+      "dependencies": [
+        "ADMUX-0201"
+      ],
+      "findingIds": [
+        "AUX-CMP-005",
+        "AUX-CMP-006",
+        "AUX-A11Y-001",
+        "AUX-A11Y-007"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Exactly one main landmark; no double-scroll on target viewports; keyboard scrolling remains predictable.",
+      "verification": "axe landmark test; 768px-height + mobile Safari scroll test."
+    },
+    {
+      "taskId": "ADMUX-0205",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Admin Design System",
+      "title": "Converge Admin/Workforce/scheduling primitives",
+      "dependencies": [
+        "ADMUX-0201",
+        "ADMUX-0202"
+      ],
+      "findingIds": [
+        "AUX-CMP-007",
+        "AUX-CAL-004",
+        "AUX-TIX-011",
+        "AUX-CON-003"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No new duplicate primitive family; migrated pages use the same focus/error/loading/action semantics; contracts page no longer double-pads.",
+      "verification": "Component inventory; visual regression; a11y tests."
+    },
+    {
+      "taskId": "ADMUX-0206",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Loading UX",
+      "title": "Build structural Admin skeleton variants",
+      "dependencies": [
+        "ADMUX-0205"
+      ],
+      "findingIds": [
+        "AUX-CMP-009",
+        "AUX-CAL-005",
+        "AUX-TIX-012",
+        "AUX-HIRE-004"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Loading preserves major geometry and avoids obvious layout jumps.",
+      "verification": "Throttled visual regression."
+    },
+    {
+      "taskId": "ADMUX-0207",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Component Architecture",
+      "title": "Define domain-controller decomposition pattern",
+      "dependencies": [
+        "ADMUX-0202",
+        "ADMUX-0205"
+      ],
+      "findingIds": [
+        "AUX-CMP-010"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Event/Tour/Logistics/Comms refactors follow the same boundary rules and unrelated panel failures stay isolated.",
+      "verification": "Architecture review + profiler baseline."
+    },
+    {
+      "taskId": "ADMUX-0208",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Critical Actions",
+      "title": "Build shared lifecycle/critical-action pattern",
+      "dependencies": [
+        "ADMUX-0201",
+        "ADMUX-0202"
+      ],
+      "findingIds": [
+        "AUX-STATE-004",
+        "AUX-EVT-016"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "High-impact mutations never occur from an unexplained generic select/button; blocked transitions explain why.",
+      "verification": "Lifecycle transition tests; keyboard/focus tests."
+    },
+    {
+      "taskId": "ADMUX-0209",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Accessibility Primitives",
+      "title": "Standardize touch, icon-action and reduced-motion behavior",
+      "dependencies": [
+        "ADMUX-0205"
+      ],
+      "findingIds": [
+        "AUX-A11Y-003",
+        "AUX-A11Y-004",
+        "AUX-A11Y-005"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Icon-only controls have accessible names/tooltips; critical mobile controls meet comfortable target sizes; Reduce Motion disables decorative movement.",
+      "verification": "axe; touch-target scan; prefers-reduced-motion test."
+    },
+    {
+      "taskId": "ADMUX-0210",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "workstream": "Responsive Data Tables",
+      "title": "Create canonical responsive AdminDataTable",
+      "dependencies": [
+        "ADMUX-0205"
+      ],
+      "findingIds": [
+        "AUX-A11Y-006"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Representative order/finance tables remain operable at 375px without hidden critical actions.",
+      "verification": "Responsive table fixture tests; keyboard/table semantics."
+    },
+    {
+      "taskId": "ADMUX-0301",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "Tours Collection",
+      "title": "Replace Tour saved-view prompt and unify collection toolbar",
+      "dependencies": [
+        "ADMUX-0104",
+        "ADMUX-0201",
+        "ADMUX-0205"
+      ],
+      "findingIds": [
+        "AUX-TOUR-001",
+        "AUX-TOUR-005",
+        "AUX-TOUR-006",
+        "AUX-TOUR-007"
+      ],
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "No browser prompt; all drafts discoverable; view state is understandable and shareable.",
+      "verification": "Saved-view permission/duplicate tests; toolbar task test."
+    },
+    {
+      "taskId": "ADMUX-0302",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "Tours Collection",
+      "title": "Add Tour pagination, compact mode and authoritative KPIs",
+      "dependencies": [
+        "ADMUX-0106",
+        "ADMUX-0202",
+        "ADMUX-0210"
+      ],
+      "findingIds": [
+        "AUX-TOUR-003",
+        "AUX-TOUR-004",
+        "AUX-TOUR-008",
+        "AUX-TOUR-009",
+        "AUX-TOUR-010"
+      ],
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "115th tour is discoverable; KPIs match authoritative totals; failed logistics metrics never render as 0%; card actions are accessible.",
+      "verification": ">120 record tests; KPI parity; fault injection; mobile card/table tests."
+    },
+    {
+      "taskId": "ADMUX-0303",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "Events Collection",
+      "title": "Add Event pagination, compact mode and trustworthy cards",
+      "dependencies": [
+        "ADMUX-0104",
+        "ADMUX-0202",
+        "ADMUX-0210"
+      ],
+      "findingIds": [
+        "AUX-EVT-001",
+        "AUX-EVT-002",
+        "AUX-EVT-006",
+        "AUX-EVT-007",
+        "AUX-EVT-008"
+      ],
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "115th event is discoverable; invalid dates never leak; failed metrics are not zeros; mobile actions remain clear.",
+      "verification": ">120 record tests; invalid-date fixture; fault injection; accessibility."
+    },
+    {
+      "taskId": "ADMUX-0304",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "Events Collection",
+      "title": "Fix Event attention/export/draft workflows",
+      "dependencies": [
+        "ADMUX-0203",
+        "ADMUX-0303"
+      ],
+      "findingIds": [
+        "AUX-EVT-003",
+        "AUX-EVT-004",
+        "AUX-EVT-005"
+      ],
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Attention result set is correct; failed export leaves collection healthy; all drafts are reachable.",
+      "verification": "Attention filter test; export fault test; >3 drafts."
+    },
+    {
+      "taskId": "ADMUX-0305",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "Ticket Orders",
+      "title": "Consolidate Ticketing order tables and authoritative export",
+      "dependencies": [
+        "ADMUX-0110",
+        "ADMUX-0210"
+      ],
+      "findingIds": [
+        "AUX-TIX-007",
+        "AUX-TIX-008",
+        "AUX-TIX-009"
+      ],
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "30th+ order is searchable; refund view uses same row/action model; CSV includes complete scoped data and escapes fields correctly.",
+      "verification": "Order search/paging/refund/export tests."
+    },
+    {
+      "taskId": "ADMUX-0306",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "Finance Ledger",
+      "title": "Build canonical Finance ledger and authoritative export/time series",
+      "dependencies": [
+        "ADMUX-0110",
+        "ADMUX-0202",
+        "ADMUX-0210"
+      ],
+      "findingIds": [
+        "AUX-FIN-003",
+        "AUX-FIN-004",
+        "AUX-FIN-008"
+      ],
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "200-record ledger is searchable; export/time series match authoritative scope/date data.",
+      "verification": "Paging/search; CSV escaping/completeness; time-series parity."
+    },
+    {
+      "taskId": "ADMUX-0307",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "workstream": "KPI Contracts",
+      "title": "Publish KPI coverage/source-of-truth matrix",
+      "dependencies": [
+        "ADMUX-0202"
+      ],
+      "findingIds": [
+        "AUX-FLOW-006",
+        "AUX-ANL-006"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No organization-level KPI is computed from a paged visible subset unless explicitly labeled; chart coverage is documented/tested.",
+      "verification": "Seed beyond page limits; compare API summaries to DB fixtures."
+    },
+    {
+      "taskId": "ADMUX-0401",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "workstream": "Dashboard UX",
+      "title": "Rebuild Dashboard information hierarchy",
+      "dependencies": [
+        "ADMUX-0201",
+        "ADMUX-0203"
+      ],
+      "findingIds": [
+        "AUX-DASH-001",
+        "AUX-DASH-011",
+        "AUX-DASH-012"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "5-second test reliably identifies urgent work and next action; no repeated global widget blocks.",
+      "verification": "Usability test; visual regression."
+    },
+    {
+      "taskId": "ADMUX-0402",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "workstream": "Freshness & Realtime",
+      "title": "Unify Dashboard live/freshness status",
+      "dependencies": [
+        "ADMUX-0202"
+      ],
+      "findingIds": [
+        "AUX-DASH-002"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Disconnecting realtime visibly changes status; last successful update remains available.",
+      "verification": "Realtime disconnect/reconnect fixture."
+    },
+    {
+      "taskId": "ADMUX-0403",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "workstream": "Dashboard Actions",
+      "title": "Fix task and mini-calendar interactions",
+      "dependencies": [
+        "ADMUX-0202",
+        "ADMUX-0203"
+      ],
+      "findingIds": [
+        "AUX-DASH-005",
+        "AUX-DASH-006",
+        "AUX-DASH-007",
+        "AUX-DASH-008",
+        "AUX-DASH-009"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Task API failure never shows all-clear; View All reaches all task domains; every pointer-styled date works; calendar meaning is available without color/hover.",
+      "verification": "Fault injection; pointer/keyboard tests; mobile calendar test."
+    },
+    {
+      "taskId": "ADMUX-0501",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "workstream": "Workspace Navigation",
+      "title": "Build hierarchical Admin workspace navigation",
+      "dependencies": [
+        "ADMUX-0001",
+        "ADMUX-0104",
+        "ADMUX-0201"
+      ],
+      "findingIds": [
+        "AUX-CMP-008",
+        "AUX-FLOW-009",
+        "AUX-A11Y-002"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Event/Organization/Ticketing workspaces no longer render massive tab walls on mobile; all legacy tab URLs resolve to the correct new location.",
+      "verification": "Keyboard/tab semantics; 375px first-click tests; deep-link alias matrix."
+    },
+    {
+      "taskId": "ADMUX-0502",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "workstream": "Tour Record",
+      "title": "Refactor Tour record shell and task hierarchy",
+      "dependencies": [
+        "ADMUX-0207",
+        "ADMUX-0501"
+      ],
+      "findingIds": [
+        "AUX-TOUR-011",
+        "AUX-TOUR-012"
+      ],
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "Overview loads without unnecessary editor bundles; domain failure is isolated; common tasks need fewer first-level choices.",
+      "verification": "Bundle/network profile; domain failure tests; first-click study."
+    },
+    {
+      "taskId": "ADMUX-0503",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "workstream": "Event Record",
+      "title": "Refactor Event record shell and top-level hierarchy",
+      "dependencies": [
+        "ADMUX-0207",
+        "ADMUX-0501"
+      ],
+      "findingIds": [
+        "AUX-EVT-009",
+        "AUX-EVT-010"
+      ],
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Mobile navigation is compact; active domain data loads independently; no event identity/status/action duplication.",
+      "verification": "Network/effect profile; deep-link matrix; mobile first-click tests."
+    },
+    {
+      "taskId": "ADMUX-0504",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "workstream": "Event Data States",
+      "title": "Make Event child-domain failure states explicit",
+      "dependencies": [
+        "ADMUX-0202",
+        "ADMUX-0503"
+      ],
+      "findingIds": [
+        "AUX-EVT-011",
+        "AUX-EVT-012",
+        "AUX-EVT-013",
+        "AUX-EVT-014"
+      ],
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "403/500 in one child domain never makes it look empty and never blocks unrelated domains.",
+      "verification": "Fault-injection matrix; 404/403; visual state snapshots."
+    },
+    {
+      "taskId": "ADMUX-0505",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "workstream": "Event Actions",
+      "title": "Improve Event duplicate and coordinator action semantics",
+      "dependencies": [
+        "ADMUX-0208",
+        "ADMUX-0503"
+      ],
+      "findingIds": [
+        "AUX-EVT-015",
+        "AUX-EVT-017",
+        "AUX-FLOW-002"
+      ],
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Duplicate retains intended duration; labels match outcome; coordinator action panel no longer acts as a feature list.",
+      "verification": "Duplicate fixtures; click-outcome audit."
+    },
+    {
+      "taskId": "ADMUX-0506",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "workstream": "Event People & Logistics",
+      "title": "Turn Event People/Logistics into scoped canonical workspaces",
+      "dependencies": [
+        "ADMUX-0111",
+        "ADMUX-0503"
+      ],
+      "findingIds": [
+        "AUX-EVT-018",
+        "AUX-EVT-019"
+      ],
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Create shift/review roster/post job require a focused subview; editing logistics from Event/global reaches the same model and returns predictably.",
+      "verification": "Cross-entry mutation test; mobile task test."
+    },
+    {
+      "taskId": "ADMUX-0601",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "workstream": "Staff Operations",
+      "title": "Refine Staff mobile navigation and scheduling hierarchy",
+      "dependencies": [
+        "ADMUX-0209",
+        "ADMUX-0501"
+      ],
+      "findingIds": [
+        "AUX-WRK-001",
+        "AUX-WRK-002",
+        "AUX-WRK-004"
+      ],
+      "canonicalBatchId": "ADM-B07",
+      "acceptance": "Mobile tabs are named; creating a shift does not require scrolling through exception panels; conflicts/uncovered work are visible before opening subviews.",
+      "verification": "Mobile a11y; scheduling task test."
+    },
+    {
+      "taskId": "ADMUX-0602",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "workstream": "Hiring",
+      "title": "Rebuild Hiring page identity and funnel hierarchy",
+      "dependencies": [
+        "ADMUX-0201",
+        "ADMUX-0501"
+      ],
+      "findingIds": [
+        "AUX-HIRE-002",
+        "AUX-HIRE-003",
+        "AUX-HIRE-005"
+      ],
+      "canonicalBatchId": "ADM-B06",
+      "acceptance": "Deep-link user can identify employer and primary task immediately; low-frequency administration does not compete with funnel work.",
+      "verification": "First-click study; healthy/degraded visual tests."
+    },
+    {
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "workstream": "Organization Governance",
+      "title": "Reorganize Organization's 16-tab governance surface",
+      "dependencies": [
+        "ADMUX-0101",
+        "ADMUX-0501"
+      ],
+      "findingIds": [
+        "AUX-ORG-001",
+        "AUX-ORG-002",
+        "AUX-ORG-003",
+        "AUX-ORG-004",
+        "AUX-ORG-005",
+        "AUX-ORG-006"
+      ],
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely.",
+      "verification": "Persona capability matrix; deep-link tests; first-click study."
+    },
+    {
+      "taskId": "ADMUX-0701",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "workstream": "Logistics Architecture",
+      "title": "Clarify Logistics taxonomy and lazy data contracts",
+      "dependencies": [
+        "ADMUX-0501",
+        "ADMUX-0207"
+      ],
+      "findingIds": [
+        "AUX-LOG-001",
+        "AUX-LOG-002"
+      ],
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Overview no longer fetches full data for unused domains; first-click task mapping matches live-event terminology.",
+      "verification": "Network profile; first-click test."
+    },
+    {
+      "taskId": "ADMUX-0702",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "workstream": "Logistics Command Center",
+      "title": "Make Logistics scope and metrics truthful/actionable",
+      "dependencies": [
+        "ADMUX-0202",
+        "ADMUX-0103"
+      ],
+      "findingIds": [
+        "AUX-LOG-003",
+        "AUX-LOG-004",
+        "AUX-LOG-006",
+        "AUX-LOG-011"
+      ],
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Operator can identify exact org→tour→event→leg scope; failed source never renders valid zero/not-started; next movement is obvious.",
+      "verification": "Multi-scope test; fault injection; 5-second test."
+    },
+    {
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "workstream": "Canonical Logistics Workspace",
+      "title": "Consolidate duplicate Transport/Travel/Comms/Event logistics surfaces",
+      "dependencies": [
+        "ADMUX-0111",
+        "ADMUX-0701"
+      ],
+      "findingIds": [
+        "AUX-LOG-005",
+        "AUX-LOG-007",
+        "AUX-LOG-008",
+        "AUX-LOG-009",
+        "AUX-LOG-010",
+        "AUX-LOG-012"
+      ],
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content.",
+      "verification": "Cross-editor parity test; travel/comms first-click tests; metadata-failure test."
+    },
+    {
+      "taskId": "ADMUX-0704",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "workstream": "Communications",
+      "title": "Implement responsive unread-first Inbox",
+      "dependencies": [
+        "ADMUX-0204",
+        "ADMUX-0110"
+      ],
+      "findingIds": [
+        "AUX-COM-001",
+        "AUX-COM-002",
+        "AUX-COM-003",
+        "AUX-COM-004",
+        "AUX-COM-006"
+      ],
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "30-conversation mobile flow remains usable; unread work is visible without opening threads; new message elsewhere updates inbox metadata.",
+      "verification": "Mobile viewport tests; realtime unread test; keyboard scroll."
+    },
+    {
+      "taskId": "ADMUX-0705",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "workstream": "Communications",
+      "title": "Upgrade voice-note and attachment trust UX",
+      "dependencies": [
+        "ADMUX-0209",
+        "ADMUX-0704"
+      ],
+      "findingIds": [
+        "AUX-COM-007",
+        "AUX-COM-008",
+        "AUX-COM-009"
+      ],
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "Voice note can be canceled/reviewed before send; touch controls are usable; unauthenticated attachment access is rejected.",
+      "verification": "Microphone-denied/cancel/preview tests; unauthenticated attachment negative test."
+    },
+    {
+      "taskId": "ADMUX-0801",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "workstream": "Ticketing Workspace",
+      "title": "Reorganize Ticketing and lazy-load domain data",
+      "dependencies": [
+        "ADMUX-0501",
+        "ADMUX-0202"
+      ],
+      "findingIds": [
+        "AUX-TIX-001",
+        "AUX-TIX-003",
+        "AUX-TIX-004",
+        "AUX-TIX-005",
+        "AUX-TIX-010"
+      ],
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "Initial request fanout drops; child failure is explicit; first-click ticketing tasks improve; All Events cannot generate synthetic event sharing.",
+      "verification": "Network profile; child failure matrix; ticketing first-click tests."
+    },
+    {
+      "taskId": "ADMUX-0802",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "workstream": "Finance Workspace",
+      "title": "Make Finance truthful and task-oriented",
+      "dependencies": [
+        "ADMUX-0202",
+        "ADMUX-0306"
+      ],
+      "findingIds": [
+        "AUX-FIN-001",
+        "AUX-FIN-005",
+        "AUX-FIN-006",
+        "AUX-FIN-007"
+      ],
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Finance failure is visibly unavailable/stale; one budget flow remains; settlement can be identified by event/tour name/date.",
+      "verification": "Finance fault injection; budget parity; settlement lookup test."
+    },
+    {
+      "taskId": "ADMUX-0803",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "workstream": "Vendors & Contracts",
+      "title": "Clarify Vendor Master/Contract ownership and naming",
+      "dependencies": [
+        "ADMUX-0111",
+        "ADMUX-0101"
+      ],
+      "findingIds": [
+        "AUX-CON-002",
+        "AUX-CON-004"
+      ],
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Add vendor→assign→contract→obligation flow is understandable and uses one vendor identity.",
+      "verification": "Cross-surface journey test; route label test."
+    },
+    {
+      "taskId": "ADMUX-0901",
+      "wave": "W14",
+      "phase": "Phase 09 — Analytics & Data Trust",
+      "workstream": "Analytics",
+      "title": "Fix Analytics failure, export and realtime scope",
+      "dependencies": [
+        "ADMUX-0202",
+        "ADMUX-0307"
+      ],
+      "findingIds": [
+        "AUX-ANL-001",
+        "AUX-ANL-002",
+        "AUX-ANL-003",
+        "AUX-ANL-005",
+        "AUX-ANL-007"
+      ],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Stats failure never looks zero; Org A export/live feed never leaks Org B; export errors are actionable.",
+      "verification": "Two-org realtime/export tests; primary stats fault injection."
+    },
+    {
+      "taskId": "ADMUX-1001",
+      "wave": "W15",
+      "phase": "Phase 10 — Mobile & Accessibility Hardening",
+      "workstream": "Mobile/A11y",
+      "title": "Run and close cross-surface mobile/a11y migration",
+      "dependencies": [
+        "ADMUX-0204",
+        "ADMUX-0209",
+        "ADMUX-0210",
+        "ADMUX-0501",
+        "ADMUX-0704"
+      ],
+      "findingIds": [],
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No critical/serious axe violations in target routes; all launch-critical workflows are keyboard and mobile operable; responsive tables preserve key identity/actions.",
+      "verification": "axe; screen-reader scripts; Playwright viewport suite."
+    },
+    {
+      "taskId": "ADMUX-1101",
+      "wave": "W16",
+      "phase": "Phase 11 — Runtime Verification & Rollout",
+      "workstream": "Runtime UX Verification",
+      "title": "Execute authenticated cross-persona UX journeys",
+      "dependencies": [
+        "ADMUX-0302",
+        "ADMUX-0303",
+        "ADMUX-0403",
+        "ADMUX-0506",
+        "ADMUX-0603",
+        "ADMUX-0705",
+        "ADMUX-0802",
+        "ADMUX-0901",
+        "ADMUX-1001"
+      ],
+      "findingIds": [
+        "AUX-FLOW-010"
+      ],
+      "canonicalBatchId": "ADM-B14",
+      "acceptance": "Every launch-critical persona journey passes with no ambiguous scope, false-empty state, broken Back behavior or inaccessible control.",
+      "verification": "Full runtime UX scenario suite; video/screenshots/network logs."
+    },
+    {
+      "taskId": "ADMUX-1102",
+      "wave": "W17",
+      "phase": "Phase 11 — Runtime Verification & Rollout",
+      "workstream": "Rollout",
+      "title": "Feature-flag and migrate high-risk UX architecture",
+      "dependencies": [
+        "ADMUX-1101"
+      ],
+      "findingIds": [],
+      "canonicalBatchId": "ADM-B14",
+      "acceptance": "Legacy bookmarked URLs still work during migration; rollback can restore prior workspace; no data-model destructive migration is required solely for UI changes.",
+      "verification": "Flag off/on smoke; alias tests; rollback drill."
+    }
+  ],
+  "findings": [
+    {
+      "findingId": "AUX-A11Y-001",
+      "severity": "P1",
+      "area": "Landmarks",
+      "taskId": "ADMUX-0204",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Exactly one main landmark; no double-scroll on target viewports; keyboard scrolling remains predictable."
+    },
+    {
+      "findingId": "AUX-A11Y-002",
+      "severity": "P1",
+      "area": "Large mobile tab sets",
+      "taskId": "ADMUX-0501",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Event/Organization/Ticketing workspaces no longer render massive tab walls on mobile; all legacy tab URLs resolve to the correct new location."
+    },
+    {
+      "findingId": "AUX-A11Y-003",
+      "severity": "P2",
+      "area": "Touch target size",
+      "taskId": "ADMUX-0209",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Icon-only controls have accessible names/tooltips; critical mobile controls meet comfortable target sizes; Reduce Motion disables decorative movement."
+    },
+    {
+      "findingId": "AUX-A11Y-004",
+      "severity": "P2",
+      "area": "Icon-only labels",
+      "taskId": "ADMUX-0209",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Icon-only controls have accessible names/tooltips; critical mobile controls meet comfortable target sizes; Reduce Motion disables decorative movement."
+    },
+    {
+      "findingId": "AUX-A11Y-005",
+      "severity": "P2",
+      "area": "Reduced motion",
+      "taskId": "ADMUX-0209",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Icon-only controls have accessible names/tooltips; critical mobile controls meet comfortable target sizes; Reduce Motion disables decorative movement."
+    },
+    {
+      "findingId": "AUX-A11Y-006",
+      "severity": "P2",
+      "area": "Responsive tables",
+      "taskId": "ADMUX-0210",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Representative order/finance tables remain operable at 375px without hidden critical actions."
+    },
+    {
+      "findingId": "AUX-A11Y-007",
+      "severity": "P2",
+      "area": "Nested scroll regions",
+      "taskId": "ADMUX-0204",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Exactly one main landmark; no double-scroll on target viewports; keyboard scrolling remains predictable."
+    },
+    {
+      "findingId": "AUX-A11Y-008",
+      "severity": "P2",
+      "area": "Responsive header actions",
+      "taskId": "ADMUX-0201",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "All migrated pages preserve page identity and one primary action from 320px through desktop; record state/scope are visible when relevant."
+    },
+    {
+      "findingId": "AUX-ANL-001",
+      "severity": "P1",
+      "area": "Analytics false-zero state",
+      "taskId": "ADMUX-0901",
+      "wave": "W14",
+      "phase": "Phase 09 — Analytics & Data Trust",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Stats failure never looks zero; Org A export/live feed never leaks Org B; export errors are actionable."
+    },
+    {
+      "findingId": "AUX-ANL-002",
+      "severity": "P1",
+      "area": "Analytics export acting context",
+      "taskId": "ADMUX-0901",
+      "wave": "W14",
+      "phase": "Phase 09 — Analytics & Data Trust",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Stats failure never looks zero; Org A export/live feed never leaks Org B; export errors are actionable."
+    },
+    {
+      "findingId": "AUX-ANL-003",
+      "severity": "P2",
+      "area": "Analytics export feedback",
+      "taskId": "ADMUX-0901",
+      "wave": "W14",
+      "phase": "Phase 09 — Analytics & Data Trust",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Stats failure never looks zero; Org A export/live feed never leaks Org B; export errors are actionable."
+    },
+    {
+      "findingId": "AUX-ANL-004",
+      "severity": "P2",
+      "area": "Analytics date URL state",
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible."
+    },
+    {
+      "findingId": "AUX-ANL-005",
+      "severity": "P1",
+      "area": "Analytics live-feed scope trust",
+      "taskId": "ADMUX-0901",
+      "wave": "W14",
+      "phase": "Phase 09 — Analytics & Data Trust",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Stats failure never looks zero; Org A export/live feed never leaks Org B; export errors are actionable."
+    },
+    {
+      "findingId": "AUX-ANL-006",
+      "severity": "P1",
+      "area": "Analytics chart coverage",
+      "taskId": "ADMUX-0307",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No organization-level KPI is computed from a paged visible subset unless explicitly labeled; chart coverage is documented/tested."
+    },
+    {
+      "findingId": "AUX-ANL-007",
+      "severity": "P2",
+      "area": "Analytics healthy-vs-error visual priority",
+      "taskId": "ADMUX-0901",
+      "wave": "W14",
+      "phase": "Phase 09 — Analytics & Data Trust",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Stats failure never looks zero; Org A export/live feed never leaks Org B; export errors are actionable."
+    },
+    {
+      "findingId": "AUX-CAL-001",
+      "severity": "P2",
+      "area": "Calendar default scope",
+      "taskId": "ADMUX-0108",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Calendar never looks organization-global when narrowed; Org A/B options never cross; option API failure never looks like 'no events'."
+    },
+    {
+      "findingId": "AUX-CAL-002",
+      "severity": "P1",
+      "area": "Calendar scope request context",
+      "taskId": "ADMUX-0108",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Calendar never looks organization-global when narrowed; Org A/B options never cross; option API failure never looks like 'no events'."
+    },
+    {
+      "findingId": "AUX-CAL-003",
+      "severity": "P1",
+      "area": "Calendar option false-empty",
+      "taskId": "ADMUX-0108",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Calendar never looks organization-global when narrowed; Org A/B options never cross; option API failure never looks like 'no events'."
+    },
+    {
+      "findingId": "AUX-CAL-004",
+      "severity": "P2",
+      "area": "Calendar primitive consistency",
+      "taskId": "ADMUX-0205",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No new duplicate primitive family; migrated pages use the same focus/error/loading/action semantics; contracts page no longer double-pads."
+    },
+    {
+      "findingId": "AUX-CAL-005",
+      "severity": "P3",
+      "area": "Calendar loading polish",
+      "taskId": "ADMUX-0206",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Loading preserves major geometry and avoids obvious layout jumps."
+    },
+    {
+      "findingId": "AUX-CMP-001",
+      "severity": "P2",
+      "area": "Page header primitive",
+      "taskId": "ADMUX-0201",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "All migrated pages preserve page identity and one primary action from 320px through desktop; record state/scope are visible when relevant."
+    },
+    {
+      "findingId": "AUX-CMP-002",
+      "severity": "P2",
+      "area": "Empty/error state primitive",
+      "taskId": "ADMUX-0202",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No migrated P1 surface maps failed primary data to legitimate 0/empty; stale/partial data is visibly labeled; action errors do not replace healthy page state."
+    },
+    {
+      "findingId": "AUX-CMP-003",
+      "severity": "P2",
+      "area": "Attention primitive",
+      "taskId": "ADMUX-0203",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "More than three issues remain discoverable; internal issue navigation stays SPA-native; Dashboard can aggregate domain queues."
+    },
+    {
+      "findingId": "AUX-CMP-004",
+      "severity": "P3",
+      "area": "Internal issue links",
+      "taskId": "ADMUX-0203",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "More than three issues remain discoverable; internal issue navigation stays SPA-native; Dashboard can aggregate domain queues."
+    },
+    {
+      "findingId": "AUX-CMP-005",
+      "severity": "P1",
+      "area": "Landmark semantics",
+      "taskId": "ADMUX-0204",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Exactly one main landmark; no double-scroll on target viewports; keyboard scrolling remains predictable."
+    },
+    {
+      "findingId": "AUX-CMP-006",
+      "severity": "P2",
+      "area": "Viewport sizing",
+      "taskId": "ADMUX-0204",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Exactly one main landmark; no double-scroll on target viewports; keyboard scrolling remains predictable."
+    },
+    {
+      "findingId": "AUX-CMP-007",
+      "severity": "P2",
+      "area": "Design-system convergence",
+      "taskId": "ADMUX-0205",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No new duplicate primitive family; migrated pages use the same focus/error/loading/action semantics; contracts page no longer double-pads."
+    },
+    {
+      "findingId": "AUX-CMP-008",
+      "severity": "P1",
+      "area": "Workspace tabs",
+      "taskId": "ADMUX-0501",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Event/Organization/Ticketing workspaces no longer render massive tab walls on mobile; all legacy tab URLs resolve to the correct new location."
+    },
+    {
+      "findingId": "AUX-CMP-009",
+      "severity": "P3",
+      "area": "Panel loading states",
+      "taskId": "ADMUX-0206",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Loading preserves major geometry and avoids obvious layout jumps."
+    },
+    {
+      "findingId": "AUX-CMP-010",
+      "severity": "P2",
+      "area": "Component scale",
+      "taskId": "ADMUX-0207",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Event/Tour/Logistics/Comms refactors follow the same boundary rules and unrelated panel failures stay isolated."
+    },
+    {
+      "findingId": "AUX-COM-001",
+      "severity": "P1",
+      "area": "Inbox mobile master-detail",
+      "taskId": "ADMUX-0704",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "30-conversation mobile flow remains usable; unread work is visible without opening threads; new message elsewhere updates inbox metadata."
+    },
+    {
+      "findingId": "AUX-COM-002",
+      "severity": "P2",
+      "area": "Inbox fixed heights",
+      "taskId": "ADMUX-0704",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "30-conversation mobile flow remains usable; unread work is visible without opening threads; new message elsewhere updates inbox metadata."
+    },
+    {
+      "findingId": "AUX-COM-003",
+      "severity": "P1",
+      "area": "Unread triage",
+      "taskId": "ADMUX-0704",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "30-conversation mobile flow remains usable; unread work is visible without opening threads; new message elsewhere updates inbox metadata."
+    },
+    {
+      "findingId": "AUX-COM-004",
+      "severity": "P2",
+      "area": "Inbox organization/search",
+      "taskId": "ADMUX-0704",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "30-conversation mobile flow remains usable; unread work is visible without opening threads; new message elsewhere updates inbox metadata."
+    },
+    {
+      "findingId": "AUX-COM-005",
+      "severity": "P2",
+      "area": "Conversation URL state",
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible."
+    },
+    {
+      "findingId": "AUX-COM-006",
+      "severity": "P2",
+      "area": "Inbox realtime metadata",
+      "taskId": "ADMUX-0704",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "30-conversation mobile flow remains usable; unread work is visible without opening threads; new message elsewhere updates inbox metadata."
+    },
+    {
+      "findingId": "AUX-COM-007",
+      "severity": "P2",
+      "area": "Voice-note usability",
+      "taskId": "ADMUX-0705",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "Voice note can be canceled/reviewed before send; touch controls are usable; unauthenticated attachment access is rejected."
+    },
+    {
+      "findingId": "AUX-COM-008",
+      "severity": "P1",
+      "area": "Attachment privacy/trust",
+      "taskId": "ADMUX-0705",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "Voice note can be canceled/reviewed before send; touch controls are usable; unauthenticated attachment access is rejected."
+    },
+    {
+      "findingId": "AUX-COM-009",
+      "severity": "P2",
+      "area": "Attachment removal control",
+      "taskId": "ADMUX-0705",
+      "wave": "W12",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B08",
+      "acceptance": "Voice note can be canceled/reviewed before send; touch controls are usable; unauthenticated attachment access is rejected."
+    },
+    {
+      "findingId": "AUX-CON-001",
+      "severity": "P2",
+      "area": "Contracts tab deep links",
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible."
+    },
+    {
+      "findingId": "AUX-CON-002",
+      "severity": "P2",
+      "area": "Contracts naming",
+      "taskId": "ADMUX-0803",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Add vendor→assign→contract→obligation flow is understandable and uses one vendor identity."
+    },
+    {
+      "findingId": "AUX-CON-003",
+      "severity": "P3",
+      "area": "Contracts spacing",
+      "taskId": "ADMUX-0205",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No new duplicate primitive family; migrated pages use the same focus/error/loading/action semantics; contracts page no longer double-pads."
+    },
+    {
+      "findingId": "AUX-CON-004",
+      "severity": "P2",
+      "area": "Vendor/contract cross-surface ownership",
+      "taskId": "ADMUX-0803",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Add vendor→assign→contract→obligation flow is understandable and uses one vendor identity."
+    },
+    {
+      "findingId": "AUX-DASH-001",
+      "severity": "P2",
+      "area": "Dashboard header",
+      "taskId": "ADMUX-0401",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "5-second test reliably identifies urgent work and next action; no repeated global widget blocks."
+    },
+    {
+      "findingId": "AUX-DASH-002",
+      "severity": "P1",
+      "area": "Realtime trust",
+      "taskId": "ADMUX-0402",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Disconnecting realtime visibly changes status; last successful update remains available."
+    },
+    {
+      "findingId": "AUX-DASH-003",
+      "severity": "P2",
+      "area": "Dashboard refresh",
+      "taskId": "ADMUX-0105",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No full reload for Refresh/row drill-down; copied URL restores the active Dashboard subview; Back returns to the same working state."
+    },
+    {
+      "findingId": "AUX-DASH-004",
+      "severity": "P1",
+      "area": "Dashboard tab deep links",
+      "taskId": "ADMUX-0105",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No full reload for Refresh/row drill-down; copied URL restores the active Dashboard subview; Back returns to the same working state."
+    },
+    {
+      "findingId": "AUX-DASH-005",
+      "severity": "P1",
+      "area": "Task state truthfulness",
+      "taskId": "ADMUX-0403",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Task API failure never shows all-clear; View All reaches all task domains; every pointer-styled date works; calendar meaning is available without color/hover."
+    },
+    {
+      "findingId": "AUX-DASH-006",
+      "severity": "P1",
+      "area": "Mini calendar affordance",
+      "taskId": "ADMUX-0403",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Task API failure never shows all-clear; View All reaches all task domains; every pointer-styled date works; calendar meaning is available without color/hover."
+    },
+    {
+      "findingId": "AUX-DASH-007",
+      "severity": "P2",
+      "area": "Mini calendar model",
+      "taskId": "ADMUX-0403",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Task API failure never shows all-clear; View All reaches all task domains; every pointer-styled date works; calendar meaning is available without color/hover."
+    },
+    {
+      "findingId": "AUX-DASH-008",
+      "severity": "P2",
+      "area": "Mini calendar accessibility",
+      "taskId": "ADMUX-0403",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Task API failure never shows all-clear; View All reaches all task domains; every pointer-styled date works; calendar meaning is available without color/hover."
+    },
+    {
+      "findingId": "AUX-DASH-009",
+      "severity": "P1",
+      "area": "Task destination",
+      "taskId": "ADMUX-0403",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Task API failure never shows all-clear; View All reaches all task domains; every pointer-styled date works; calendar meaning is available without color/hover."
+    },
+    {
+      "findingId": "AUX-DASH-010",
+      "severity": "P2",
+      "area": "Row navigation",
+      "taskId": "ADMUX-0105",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No full reload for Refresh/row drill-down; copied URL restores the active Dashboard subview; Back returns to the same working state."
+    },
+    {
+      "findingId": "AUX-DASH-011",
+      "severity": "P2",
+      "area": "Information hierarchy",
+      "taskId": "ADMUX-0401",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "5-second test reliably identifies urgent work and next action; no repeated global widget blocks."
+    },
+    {
+      "findingId": "AUX-DASH-012",
+      "severity": "P3",
+      "area": "Widget repetition",
+      "taskId": "ADMUX-0401",
+      "wave": "W07",
+      "phase": "Phase 04 — Dashboard Command Center",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "5-second test reliably identifies urgent work and next action; no repeated global widget blocks."
+    },
+    {
+      "findingId": "AUX-EVT-001",
+      "severity": "P1",
+      "area": "Event pagination",
+      "taskId": "ADMUX-0303",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "115th event is discoverable; invalid dates never leak; failed metrics are not zeros; mobile actions remain clear."
+    },
+    {
+      "findingId": "AUX-EVT-002",
+      "severity": "P2",
+      "area": "Event portfolio density",
+      "taskId": "ADMUX-0303",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "115th event is discoverable; invalid dates never leak; failed metrics are not zeros; mobile actions remain clear."
+    },
+    {
+      "findingId": "AUX-EVT-003",
+      "severity": "P1",
+      "area": "Needs Attention drill-down",
+      "taskId": "ADMUX-0304",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Attention result set is correct; failed export leaves collection healthy; all drafts are reachable."
+    },
+    {
+      "findingId": "AUX-EVT-004",
+      "severity": "P1",
+      "area": "Export error scope",
+      "taskId": "ADMUX-0304",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Attention result set is correct; failed export leaves collection healthy; all drafts are reachable."
+    },
+    {
+      "findingId": "AUX-EVT-005",
+      "severity": "P2",
+      "area": "Event draft recovery",
+      "taskId": "ADMUX-0304",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Attention result set is correct; failed export leaves collection healthy; all drafts are reachable."
+    },
+    {
+      "findingId": "AUX-EVT-006",
+      "severity": "P1",
+      "area": "Event card metric truth",
+      "taskId": "ADMUX-0303",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "115th event is discoverable; invalid dates never leak; failed metrics are not zeros; mobile actions remain clear."
+    },
+    {
+      "findingId": "AUX-EVT-007",
+      "severity": "P2",
+      "area": "Event card action hierarchy",
+      "taskId": "ADMUX-0303",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "115th event is discoverable; invalid dates never leak; failed metrics are not zeros; mobile actions remain clear."
+    },
+    {
+      "findingId": "AUX-EVT-008",
+      "severity": "P2",
+      "area": "Safe event dates",
+      "taskId": "ADMUX-0303",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "115th event is discoverable; invalid dates never leak; failed metrics are not zeros; mobile actions remain clear."
+    },
+    {
+      "findingId": "AUX-EVT-009",
+      "severity": "P1",
+      "area": "Event detail IA",
+      "taskId": "ADMUX-0503",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Mobile navigation is compact; active domain data loads independently; no event identity/status/action duplication."
+    },
+    {
+      "findingId": "AUX-EVT-010",
+      "severity": "P1",
+      "area": "Event detail architecture",
+      "taskId": "ADMUX-0503",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Mobile navigation is compact; active domain data loads independently; no event identity/status/action duplication."
+    },
+    {
+      "findingId": "AUX-EVT-011",
+      "severity": "P2",
+      "area": "Loading/not-found consistency",
+      "taskId": "ADMUX-0504",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "403/500 in one child domain never makes it look empty and never blocks unrelated domains."
+    },
+    {
+      "findingId": "AUX-EVT-012",
+      "severity": "P1",
+      "area": "Child domain failure handling",
+      "taskId": "ADMUX-0504",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "403/500 in one child domain never makes it look empty and never blocks unrelated domains."
+    },
+    {
+      "findingId": "AUX-EVT-013",
+      "severity": "P2",
+      "area": "Event notifications state",
+      "taskId": "ADMUX-0504",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "403/500 in one child domain never makes it look empty and never blocks unrelated domains."
+    },
+    {
+      "findingId": "AUX-EVT-014",
+      "severity": "P2",
+      "area": "Event analytics state",
+      "taskId": "ADMUX-0504",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "403/500 in one child domain never makes it look empty and never blocks unrelated domains."
+    },
+    {
+      "findingId": "AUX-EVT-015",
+      "severity": "P2",
+      "area": "Event duplicate fidelity",
+      "taskId": "ADMUX-0505",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Duplicate retains intended duration; labels match outcome; coordinator action panel no longer acts as a feature list."
+    },
+    {
+      "findingId": "AUX-EVT-016",
+      "severity": "P2",
+      "area": "Lifecycle actions",
+      "taskId": "ADMUX-0208",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "High-impact mutations never occur from an unexplained generic select/button; blocked transitions explain why."
+    },
+    {
+      "findingId": "AUX-EVT-017",
+      "severity": "P2",
+      "area": "Coordinator action semantics",
+      "taskId": "ADMUX-0505",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Duplicate retains intended duration; labels match outcome; coordinator action panel no longer acts as a feature list."
+    },
+    {
+      "findingId": "AUX-EVT-018",
+      "severity": "P2",
+      "area": "People workspace density",
+      "taskId": "ADMUX-0506",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Create shift/review roster/post job require a focused subview; editing logistics from Event/global reaches the same model and returns predictably."
+    },
+    {
+      "findingId": "AUX-EVT-019",
+      "severity": "P2",
+      "area": "Logistics workspace ownership",
+      "taskId": "ADMUX-0506",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Create shift/review roster/post job require a focused subview; editing logistics from Event/global reaches the same model and returns predictably."
+    },
+    {
+      "findingId": "AUX-EVT-020",
+      "severity": "P2",
+      "area": "Event edit URL convention",
+      "taskId": "ADMUX-0107",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every edit entry point lands on the same canonical URL and opens the same Event."
+    },
+    {
+      "findingId": "AUX-FIN-001",
+      "severity": "P1",
+      "area": "Finance false-zero state",
+      "taskId": "ADMUX-0802",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Finance failure is visibly unavailable/stale; one budget flow remains; settlement can be identified by event/tour name/date."
+    },
+    {
+      "findingId": "AUX-FIN-002",
+      "severity": "P1",
+      "area": "Finance tab deep links",
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible."
+    },
+    {
+      "findingId": "AUX-FIN-003",
+      "severity": "P1",
+      "area": "Finance export completeness",
+      "taskId": "ADMUX-0306",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "200-record ledger is searchable; export/time series match authoritative scope/date data."
+    },
+    {
+      "findingId": "AUX-FIN-004",
+      "severity": "P1",
+      "area": "Finance chart completeness",
+      "taskId": "ADMUX-0306",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "200-record ledger is searchable; export/time series match authoritative scope/date data."
+    },
+    {
+      "findingId": "AUX-FIN-005",
+      "severity": "P2",
+      "area": "Finance landing hierarchy",
+      "taskId": "ADMUX-0802",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Finance failure is visibly unavailable/stale; one budget flow remains; settlement can be identified by event/tour name/date."
+    },
+    {
+      "findingId": "AUX-FIN-006",
+      "severity": "P2",
+      "area": "Budget UX duplication",
+      "taskId": "ADMUX-0802",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Finance failure is visibly unavailable/stale; one budget flow remains; settlement can be identified by event/tour name/date."
+    },
+    {
+      "findingId": "AUX-FIN-007",
+      "severity": "P2",
+      "area": "Settlement identity",
+      "taskId": "ADMUX-0802",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "Finance failure is visibly unavailable/stale; one budget flow remains; settlement can be identified by event/tour name/date."
+    },
+    {
+      "findingId": "AUX-FIN-008",
+      "severity": "P2",
+      "area": "Transaction list density",
+      "taskId": "ADMUX-0306",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B12",
+      "acceptance": "200-record ledger is searchable; export/time series match authoritative scope/date data."
+    },
+    {
+      "findingId": "AUX-FLOW-001",
+      "severity": "P1",
+      "area": "Canonical workspace ownership",
+      "taskId": "ADMUX-0111",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every duplicated domain has one documented source-of-truth UI and an approved embed/deep-link approach."
+    },
+    {
+      "findingId": "AUX-FLOW-002",
+      "severity": "P1",
+      "area": "Action-label semantics",
+      "taskId": "ADMUX-0505",
+      "wave": "W09",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B04",
+      "acceptance": "Duplicate retains intended duration; labels match outcome; coordinator action panel no longer acts as a feature list."
+    },
+    {
+      "findingId": "AUX-FLOW-003",
+      "severity": "P1",
+      "area": "Cross-domain URL consistency",
+      "taskId": "ADMUX-0104",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Back/Forward/refresh/share work consistently across representative workspaces; legacy links resolve to canonical state; account scope is never silently changed by a child URL."
+    },
+    {
+      "findingId": "AUX-FLOW-004",
+      "severity": "P1",
+      "area": "Scope visibility consistency",
+      "taskId": "ADMUX-0104",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Back/Forward/refresh/share work consistently across representative workspaces; legacy links resolve to canonical state; account scope is never silently changed by a child URL."
+    },
+    {
+      "findingId": "AUX-FLOW-005",
+      "severity": "P2",
+      "area": "Vocabulary consistency",
+      "taskId": "ADMUX-0101",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every current Admin destination remains reachable; first-click testing improves for common owner/manager/coordinator tasks; no duplicate primary label represents the same concept; search returns direct matching destinations."
+    },
+    {
+      "findingId": "AUX-FLOW-006",
+      "severity": "P1",
+      "area": "KPI source-of-truth consistency",
+      "taskId": "ADMUX-0307",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No organization-level KPI is computed from a paged visible subset unless explicitly labeled; chart coverage is documented/tested."
+    },
+    {
+      "findingId": "AUX-FLOW-007",
+      "severity": "P2",
+      "area": "Collection→detail return path",
+      "taskId": "ADMUX-0104",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Back/Forward/refresh/share work consistently across representative workspaces; legacy links resolve to canonical state; account scope is never silently changed by a child URL."
+    },
+    {
+      "findingId": "AUX-FLOW-008",
+      "severity": "P2",
+      "area": "Global attention queue",
+      "taskId": "ADMUX-0203",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "More than three issues remain discoverable; internal issue navigation stays SPA-native; Dashboard can aggregate domain queues."
+    },
+    {
+      "findingId": "AUX-FLOW-009",
+      "severity": "P2",
+      "area": "Progressive disclosure",
+      "taskId": "ADMUX-0501",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Event/Organization/Ticketing workspaces no longer render massive tab walls on mobile; all legacy tab URLs resolve to the correct new location."
+    },
+    {
+      "findingId": "AUX-FLOW-010",
+      "severity": "P2",
+      "area": "Runtime end-to-end continuity",
+      "taskId": "ADMUX-1101",
+      "wave": "W16",
+      "phase": "Phase 11 — Runtime Verification & Rollout",
+      "canonicalBatchId": "ADM-B14",
+      "acceptance": "Every launch-critical persona journey passes with no ambiguous scope, false-empty state, broken Back behavior or inaccessible control."
+    },
+    {
+      "findingId": "AUX-HIRE-001",
+      "severity": "P1",
+      "area": "Hiring tab deep links",
+      "taskId": "ADMUX-0109",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No tab-specific missing-scope surprises; Hiring tab survives refresh/share/back."
+    },
+    {
+      "findingId": "AUX-HIRE-002",
+      "severity": "P2",
+      "area": "Hiring page identity",
+      "taskId": "ADMUX-0602",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B06",
+      "acceptance": "Deep-link user can identify employer and primary task immediately; low-frequency administration does not compete with funnel work."
+    },
+    {
+      "findingId": "AUX-HIRE-003",
+      "severity": "P2",
+      "area": "Hiring hierarchy",
+      "taskId": "ADMUX-0602",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B06",
+      "acceptance": "Deep-link user can identify employer and primary task immediately; low-frequency administration does not compete with funnel work."
+    },
+    {
+      "findingId": "AUX-HIRE-004",
+      "severity": "P2",
+      "area": "Hiring lazy loading",
+      "taskId": "ADMUX-0206",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Loading preserves major geometry and avoids obvious layout jumps."
+    },
+    {
+      "findingId": "AUX-HIRE-005",
+      "severity": "P2",
+      "area": "SLO priority",
+      "taskId": "ADMUX-0602",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B06",
+      "acceptance": "Deep-link user can identify employer and primary task immediately; low-frequency administration does not compete with funnel work."
+    },
+    {
+      "findingId": "AUX-IA-001",
+      "severity": "P1",
+      "area": "Primary navigation",
+      "taskId": "ADMUX-0101",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every current Admin destination remains reachable; first-click testing improves for common owner/manager/coordinator tasks; no duplicate primary label represents the same concept; search returns direct matching destinations."
+    },
+    {
+      "findingId": "AUX-IA-002",
+      "severity": "P2",
+      "area": "Sidebar search",
+      "taskId": "ADMUX-0101",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every current Admin destination remains reachable; first-click testing improves for common owner/manager/coordinator tasks; no duplicate primary label represents the same concept; search returns direct matching destinations."
+    },
+    {
+      "findingId": "AUX-IA-003",
+      "severity": "P1",
+      "area": "Mobile navigation",
+      "taskId": "ADMUX-0102",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "One accessible mobile drawer; no internal full reloads; collapsed items have accessible names; body does not scroll behind drawer; stable scope consumes less vertical height."
+    },
+    {
+      "findingId": "AUX-IA-004",
+      "severity": "P2",
+      "area": "Collapsed navigation",
+      "taskId": "ADMUX-0102",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "One accessible mobile drawer; no internal full reloads; collapsed items have accessible names; body does not scroll behind drawer; stable scope consumes less vertical height."
+    },
+    {
+      "findingId": "AUX-IA-005",
+      "severity": "P2",
+      "area": "Internal navigation",
+      "taskId": "ADMUX-0102",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "One accessible mobile drawer; no internal full reloads; collapsed items have accessible names; body does not scroll behind drawer; stable scope consumes less vertical height."
+    },
+    {
+      "findingId": "AUX-IA-006",
+      "severity": "P2",
+      "area": "Acting organization control",
+      "taskId": "ADMUX-0103",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Users can identify and switch the organization from any Admin workspace; every mutation still carries the resolved acting context; scope change is visually confirmed before page data mutates."
+    },
+    {
+      "findingId": "AUX-IA-007",
+      "severity": "P3",
+      "area": "Vertical density",
+      "taskId": "ADMUX-0102",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "One accessible mobile drawer; no internal full reloads; collapsed items have accessible names; body does not scroll behind drawer; stable scope consumes less vertical height."
+    },
+    {
+      "findingId": "AUX-IA-008",
+      "severity": "P2",
+      "area": "Navigation taxonomy",
+      "taskId": "ADMUX-0101",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every current Admin destination remains reachable; first-click testing improves for common owner/manager/coordinator tasks; no duplicate primary label represents the same concept; search returns direct matching destinations."
+    },
+    {
+      "findingId": "AUX-IA-009",
+      "severity": "P3",
+      "area": "Power-user navigation",
+      "taskId": "ADMUX-0101",
+      "wave": "W01",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Every current Admin destination remains reachable; first-click testing improves for common owner/manager/coordinator tasks; no duplicate primary label represents the same concept; search returns direct matching destinations."
+    },
+    {
+      "findingId": "AUX-IA-010",
+      "severity": "P1",
+      "area": "URL/scope conventions",
+      "taskId": "ADMUX-0104",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Back/Forward/refresh/share work consistently across representative workspaces; legacy links resolve to canonical state; account scope is never silently changed by a child URL."
+    },
+    {
+      "findingId": "AUX-LOG-001",
+      "severity": "P2",
+      "area": "Logistics taxonomy",
+      "taskId": "ADMUX-0701",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Overview no longer fetches full data for unused domains; first-click task mapping matches live-event terminology."
+    },
+    {
+      "findingId": "AUX-LOG-002",
+      "severity": "P1",
+      "area": "Initial data fanout",
+      "taskId": "ADMUX-0701",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Overview no longer fetches full data for unused domains; first-click task mapping matches live-event terminology."
+    },
+    {
+      "findingId": "AUX-LOG-003",
+      "severity": "P1",
+      "area": "Logistics data truthfulness",
+      "taskId": "ADMUX-0702",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Operator can identify exact org→tour→event→leg scope; failed source never renders valid zero/not-started; next movement is obvious."
+    },
+    {
+      "findingId": "AUX-LOG-004",
+      "severity": "P2",
+      "area": "Visible scope hierarchy",
+      "taskId": "ADMUX-0702",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Operator can identify exact org→tour→event→leg scope; failed source never renders valid zero/not-started; next movement is obvious."
+    },
+    {
+      "findingId": "AUX-LOG-005",
+      "severity": "P1",
+      "area": "Canonical workspace duplication",
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content."
+    },
+    {
+      "findingId": "AUX-LOG-006",
+      "severity": "P2",
+      "area": "Overview density",
+      "taskId": "ADMUX-0702",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Operator can identify exact org→tour→event→leg scope; failed source never renders valid zero/not-started; next movement is obvious."
+    },
+    {
+      "findingId": "AUX-LOG-007",
+      "severity": "P2",
+      "area": "Travel workspace overload",
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content."
+    },
+    {
+      "findingId": "AUX-LOG-008",
+      "severity": "P2",
+      "area": "Transportation duplication",
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content."
+    },
+    {
+      "findingId": "AUX-LOG-009",
+      "severity": "P2",
+      "area": "Communications taxonomy",
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content."
+    },
+    {
+      "findingId": "AUX-LOG-010",
+      "severity": "P2",
+      "area": "Timeline title/content mismatch",
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content."
+    },
+    {
+      "findingId": "AUX-LOG-011",
+      "severity": "P2",
+      "area": "Partial loading model",
+      "taskId": "ADMUX-0702",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "Operator can identify exact org→tour→event→leg scope; failed source never renders valid zero/not-started; next movement is obvious."
+    },
+    {
+      "findingId": "AUX-LOG-012",
+      "severity": "P2",
+      "area": "Event metadata failure visibility",
+      "taskId": "ADMUX-0703",
+      "wave": "W11",
+      "phase": "Phase 07 — Logistics & Communications",
+      "canonicalBatchId": "ADM-B09",
+      "acceptance": "One clear editor per entity class; Travel tasks stay focused; communications concepts are distinguishable; timeline title matches content."
+    },
+    {
+      "findingId": "AUX-ORG-001",
+      "severity": "P1",
+      "area": "Organization governance IA",
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely."
+    },
+    {
+      "findingId": "AUX-ORG-002",
+      "severity": "P2",
+      "area": "Locked capabilities UX",
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely."
+    },
+    {
+      "findingId": "AUX-ORG-003",
+      "severity": "P2",
+      "area": "Capability loading flicker",
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely."
+    },
+    {
+      "findingId": "AUX-ORG-004",
+      "severity": "P2",
+      "area": "No-organization recovery",
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely."
+    },
+    {
+      "findingId": "AUX-ORG-005",
+      "severity": "P2",
+      "area": "Configuration vs operations duplication",
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely."
+    },
+    {
+      "findingId": "AUX-ORG-006",
+      "severity": "P2",
+      "area": "Active tab validation",
+      "taskId": "ADMUX-0603",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B10",
+      "acceptance": "Owner/admin common tasks have clear first clicks; lower-permission users understand locked capability; no-org CTA solves scope; direct restricted URLs normalize safely."
+    },
+    {
+      "findingId": "AUX-STATE-001",
+      "severity": "P1",
+      "area": "Universal data-state truth",
+      "taskId": "ADMUX-0202",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No migrated P1 surface maps failed primary data to legitimate 0/empty; stale/partial data is visibly labeled; action errors do not replace healthy page state."
+    },
+    {
+      "findingId": "AUX-STATE-002",
+      "severity": "P2",
+      "area": "Error scope consistency",
+      "taskId": "ADMUX-0202",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No migrated P1 surface maps failed primary data to legitimate 0/empty; stale/partial data is visibly labeled; action errors do not replace healthy page state."
+    },
+    {
+      "findingId": "AUX-STATE-003",
+      "severity": "P2",
+      "area": "Freshness language",
+      "taskId": "ADMUX-0202",
+      "wave": "W03",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No migrated P1 surface maps failed primary data to legitimate 0/empty; stale/partial data is visibly labeled; action errors do not replace healthy page state."
+    },
+    {
+      "findingId": "AUX-STATE-004",
+      "severity": "P2",
+      "area": "Critical-action consistency",
+      "taskId": "ADMUX-0208",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "High-impact mutations never occur from an unexplained generic select/button; blocked transitions explain why."
+    },
+    {
+      "findingId": "AUX-TIX-001",
+      "severity": "P1",
+      "area": "Ticketing IA",
+      "taskId": "ADMUX-0801",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "Initial request fanout drops; child failure is explicit; first-click ticketing tasks improve; All Events cannot generate synthetic event sharing."
+    },
+    {
+      "findingId": "AUX-TIX-002",
+      "severity": "P1",
+      "area": "Ticketing deep links",
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible."
+    },
+    {
+      "findingId": "AUX-TIX-003",
+      "severity": "P1",
+      "area": "Ticketing initial fanout",
+      "taskId": "ADMUX-0801",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "Initial request fanout drops; child failure is explicit; first-click ticketing tasks improve; All Events cannot generate synthetic event sharing."
+    },
+    {
+      "findingId": "AUX-TIX-004",
+      "severity": "P1",
+      "area": "Ticketing partial failure truth",
+      "taskId": "ADMUX-0801",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "Initial request fanout drops; child failure is explicit; first-click ticketing tasks improve; All Events cannot generate synthetic event sharing."
+    },
+    {
+      "findingId": "AUX-TIX-005",
+      "severity": "P2",
+      "area": "Ticketing hierarchy",
+      "taskId": "ADMUX-0801",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "Initial request fanout drops; child failure is explicit; first-click ticketing tasks improve; All Events cannot generate synthetic event sharing."
+    },
+    {
+      "findingId": "AUX-TIX-006",
+      "severity": "P2",
+      "area": "Event scope persistence",
+      "taskId": "ADMUX-0110",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Each workspace restores exact meaningful state after refresh/share/back; selected Event/conversation/date scope remains visible."
+    },
+    {
+      "findingId": "AUX-TIX-007",
+      "severity": "P1",
+      "area": "Ticket sales export",
+      "taskId": "ADMUX-0305",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "30th+ order is searchable; refund view uses same row/action model; CSV includes complete scoped data and escapes fields correctly."
+    },
+    {
+      "findingId": "AUX-TIX-008",
+      "severity": "P2",
+      "area": "Transaction table duplication",
+      "taskId": "ADMUX-0305",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "30th+ order is searchable; refund view uses same row/action model; CSV includes complete scoped data and escapes fields correctly."
+    },
+    {
+      "findingId": "AUX-TIX-009",
+      "severity": "P2",
+      "area": "Order history scale",
+      "taskId": "ADMUX-0305",
+      "wave": "W06",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "30th+ order is searchable; refund view uses same row/action model; CSV includes complete scoped data and escapes fields correctly."
+    },
+    {
+      "findingId": "AUX-TIX-010",
+      "severity": "P2",
+      "area": "Sharing eligibility",
+      "taskId": "ADMUX-0801",
+      "wave": "W13",
+      "phase": "Phase 08 — Ticketing, Finance & Vendors",
+      "canonicalBatchId": "ADM-B11",
+      "acceptance": "Initial request fanout drops; child failure is explicit; first-click ticketing tasks improve; All Events cannot generate synthetic event sharing."
+    },
+    {
+      "findingId": "AUX-TIX-011",
+      "severity": "P3",
+      "area": "Toast consistency",
+      "taskId": "ADMUX-0205",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No new duplicate primitive family; migrated pages use the same focus/error/loading/action semantics; contracts page no longer double-pads."
+    },
+    {
+      "findingId": "AUX-TIX-012",
+      "severity": "P3",
+      "area": "Ticketing loading state",
+      "taskId": "ADMUX-0206",
+      "wave": "W04",
+      "phase": "Phase 02 — Shared UI & State Platform",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Loading preserves major geometry and avoids obvious layout jumps."
+    },
+    {
+      "findingId": "AUX-TOUR-001",
+      "severity": "P2",
+      "area": "Saved views",
+      "taskId": "ADMUX-0301",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "No browser prompt; all drafts discoverable; view state is understandable and shareable."
+    },
+    {
+      "findingId": "AUX-TOUR-002",
+      "severity": "P1",
+      "area": "Tour filter deep links",
+      "taskId": "ADMUX-0106",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "Two sessions opening the same URL see the same working set; Back/Forward restores changes."
+    },
+    {
+      "findingId": "AUX-TOUR-003",
+      "severity": "P1",
+      "area": "Tour pagination",
+      "taskId": "ADMUX-0302",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "115th tour is discoverable; KPIs match authoritative totals; failed logistics metrics never render as 0%; card actions are accessible."
+    },
+    {
+      "findingId": "AUX-TOUR-004",
+      "severity": "P1",
+      "area": "Tour KPI semantics",
+      "taskId": "ADMUX-0302",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "115th tour is discoverable; KPIs match authoritative totals; failed logistics metrics never render as 0%; card actions are accessible."
+    },
+    {
+      "findingId": "AUX-TOUR-005",
+      "severity": "P2",
+      "area": "Saved-view contract",
+      "taskId": "ADMUX-0301",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "No browser prompt; all drafts discoverable; view state is understandable and shareable."
+    },
+    {
+      "findingId": "AUX-TOUR-006",
+      "severity": "P2",
+      "area": "Draft recovery",
+      "taskId": "ADMUX-0301",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "No browser prompt; all drafts discoverable; view state is understandable and shareable."
+    },
+    {
+      "findingId": "AUX-TOUR-007",
+      "severity": "P2",
+      "area": "Collection toolbar",
+      "taskId": "ADMUX-0301",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "No browser prompt; all drafts discoverable; view state is understandable and shareable."
+    },
+    {
+      "findingId": "AUX-TOUR-008",
+      "severity": "P2",
+      "area": "Portfolio density",
+      "taskId": "ADMUX-0302",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "115th tour is discoverable; KPIs match authoritative totals; failed logistics metrics never render as 0%; card actions are accessible."
+    },
+    {
+      "findingId": "AUX-TOUR-009",
+      "severity": "P1",
+      "area": "Tour card metric truth",
+      "taskId": "ADMUX-0302",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "115th tour is discoverable; KPIs match authoritative totals; failed logistics metrics never render as 0%; card actions are accessible."
+    },
+    {
+      "findingId": "AUX-TOUR-010",
+      "severity": "P3",
+      "area": "Tour card actions",
+      "taskId": "ADMUX-0302",
+      "wave": "W05",
+      "phase": "Phase 03 — Collection Platform",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "115th tour is discoverable; KPIs match authoritative totals; failed logistics metrics never render as 0%; card actions are accessible."
+    },
+    {
+      "findingId": "AUX-TOUR-011",
+      "severity": "P1",
+      "area": "Tour detail architecture",
+      "taskId": "ADMUX-0502",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "Overview loads without unnecessary editor bundles; domain failure is isolated; common tasks need fewer first-level choices."
+    },
+    {
+      "findingId": "AUX-TOUR-012",
+      "severity": "P2",
+      "area": "Tour detail IA",
+      "taskId": "ADMUX-0502",
+      "wave": "W08",
+      "phase": "Phase 05 — Event & Tour Workspaces",
+      "canonicalBatchId": "ADM-B05",
+      "acceptance": "Overview loads without unnecessary editor bundles; domain failure is isolated; common tasks need fewer first-level choices."
+    },
+    {
+      "findingId": "AUX-WRK-001",
+      "severity": "P1",
+      "area": "Staff mobile tabs",
+      "taskId": "ADMUX-0601",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B07",
+      "acceptance": "Mobile tabs are named; creating a shift does not require scrolling through exception panels; conflicts/uncovered work are visible before opening subviews."
+    },
+    {
+      "findingId": "AUX-WRK-002",
+      "severity": "P2",
+      "area": "Scheduling hierarchy",
+      "taskId": "ADMUX-0601",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B07",
+      "acceptance": "Mobile tabs are named; creating a shift does not require scrolling through exception panels; conflicts/uncovered work are visible before opening subviews."
+    },
+    {
+      "findingId": "AUX-WRK-003",
+      "severity": "P2",
+      "area": "Employer scope behavior",
+      "taskId": "ADMUX-0109",
+      "wave": "W02",
+      "phase": "Phase 01 — Navigation, URL & Scope Foundation",
+      "canonicalBatchId": "ADM-B13",
+      "acceptance": "No tab-specific missing-scope surprises; Hiring tab survives refresh/share/back."
+    },
+    {
+      "findingId": "AUX-WRK-004",
+      "severity": "P2",
+      "area": "Staff primary actions",
+      "taskId": "ADMUX-0601",
+      "wave": "W10",
+      "phase": "Phase 06 — Workforce, Hiring & Governance",
+      "canonicalBatchId": "ADM-B07",
+      "acceptance": "Mobile tabs are named; creating a shift does not require scrolling through exception panels; conflicts/uncovered work are visible before opening subviews."
+    }
+  ]
+}

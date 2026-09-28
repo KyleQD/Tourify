@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260731194002_quick_start_event_rpc_rls_repair.sql",
+  "taskId": "TOUR-QUICK-START-RLS-REPAIR",
+  "status": "planned",
+  "owner": "tour-platform",
+  "reviewer": "security-data",
+  "domains": ["tours", "events", "rpc", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Supabase snapshot with the quick-start foundation migration applied",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Inspect private and public create_tour_quick_start_events definitions, owners, grants, and current policies"
+    ],
+    "expectedAffectedRows": "No existing rows are changed; only function ownership, search path, wrapper, and grants are repaired",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply deterministic ALTER FUNCTION, wrapper definition, revokes, and grants",
+    "resumeCursor": "Supabase migration version 20260731194002",
+    "idempotency": "Function properties and wrapper definition converge on the same restricted state"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Reject missing function prerequisites and unauthorized actors; no data is moved"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "Verify auth.uid actor binding, empty search_path, restricted execute grants, same-org creation, and cross-org denial"
+  },
+  "recovery": {
+    "rollback": "Disable the quick-start API and apply a reviewed forward migration restoring the last verified function definition",
+    "forwardFix": "Apply an additive function repair and repeat direct RPC authorization tests"
+  },
+  "postflight": {
+    "queries": [
+      "Inspect function owner, security mode, search_path, execute grants, and direct RPC results for two organizations"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

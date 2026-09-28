@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260910000001_get_active_organizer_account_for_org.sql",
+  "taskId": "ORG-005",
+  "status": "planned",
+  "owner": "organization",
+  "reviewer": "security-data",
+  "domains": ["organization", "auth", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "local Supabase target with a non-public org linked to an active organizer_accounts row, a first-time invitee accepting an invite to that org, an authenticated non-member, and a member of org X probing org Y through the helper",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count active org_members rows per org (verifies is_org_member guard input)",
+      "Count organizer_accounts rows with ops_org_id = target org and is_active = true (single-result limit 1 semantics)",
+      "Inventory organizer_accounts SELECT policies (non-public rows must be invisible to a brand-new member under invoker RLS)"
+    ],
+    "expectedAffectedRows": "Zero rows changed during apply: the migration only creates one SECURITY DEFINER read helper and recreates the accept_org_invite function body (same signature, no DML)",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply the idempotent CREATE OR REPLACE FUNCTION statements in a local Supabase target; use a later additive migration for any production correction",
+    "resumeCursor": "Supabase migration version 20260910000001",
+    "idempotency": "CREATE OR REPLACE FUNCTION is idempotent; REVOKE/GRANT are idempotent explicit privilege replays"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No quarantine needed: the change adds one SECURITY DEFINER read helper and replaces an invoker-rights function body with an identical-signature call; no data effect"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "organizer_accounts_ops_org_id_fkey remains the scope boundary for the helper's lookup",
+      "org_members primary key (org_id, user_id) is unchanged; ON CONFLICT DO NOTHING semantics preserved in accept_org_invite"
+    ],
+    "indexes": [
+      "organizer_accounts_ops_org_id_idx (where ops_org_id is not null) serves the helper's filtered lookup",
+      "Partial unique index on org_invites.token_hash (unchanged)"
+    ],
+    "validationPlan": "Verify first-time recipient accept of a non-public org returns a NON-NULL organizer_account_id; authenticated non-member direct helper call returns NULL; member of org X calling helper with org Y returns NULL; full ORG-003/ORG-004 P1-P9 probe set remains green"
+  },
+  "recovery": {
+    "rollback": "Disable invite acceptance routes; use a corrective additive migration if the helper or function body ever needs to change again (do not rewrite this migration)",
+    "forwardFix": "Add another additive correction and replay the local RLS fixture matrix before promotion"
+  },
+  "postflight": {
+    "queries": [
+      "Verify get_active_organizer_account_for_org is SECURITY DEFINER with search_path = pg_catalog, public and execute granted only to authenticated (revoked from public/anon)",
+      "Verify accept_org_invite still runs security invoker, still uses ON CONFLICT DO NOTHING, and resolves organizer_account_id through the helper",
+      "Verify no-overwrite semantics: an existing member row is never updated by a second acceptance"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

@@ -1,6 +1,5 @@
 "use client"
 
-import { supabase } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useArtist } from '@/contexts/artist-context'
@@ -35,9 +34,12 @@ import {
   Wallet,
 } from "lucide-react"
 import { EnhancedMusicUploader } from "@/components/music/enhanced-music-uploader"
+import { AudiusImportModal } from "@/components/music/audius-import-modal"
+import { MusicShareDialog } from "@/components/music/music-share-dialog"
 import { MusicTrustStatus } from "@/components/music/music-trust-status"
+import { getMusicTrackPath } from "@/lib/music/routes"
 import type { MusicAiUseCategory, MusicCertificationStatus, MusicOriginStatus, MusicTrainingUsePolicy } from "@/lib/music/music-trust"
-import Image from "next/image"
+import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 import { 
   Card, 
   CardContent, 
@@ -79,6 +81,11 @@ import {
   parseMusicApiError,
   parsePaidTrackPrice,
 } from "@/lib/music/upload-helpers"
+import {
+  artistMusicApiFetch,
+  cleanupArtistMusicUploads,
+  uploadArtistMusicArtifact,
+} from "@/lib/artist/artist-music"
 
 interface MusicTrack {
   id: string
@@ -158,8 +165,10 @@ export default function MusicPage() {
   
   const [tracks, setTracks] = useState<MusicTrack[]>([])
   const [showUploader, setShowUploader] = useState(false)
+  const [showAudiusImport, setShowAudiusImport] = useState(false)
   const [editingTrack, setEditingTrack] = useState<MusicTrack | null>(null)
   const [deletingTrack, setDeletingTrack] = useState<string | null>(null)
+  const [sharingTrack, setSharingTrack] = useState<MusicTrack | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [musicFile, setMusicFile] = useState<File | null>(null)
@@ -310,11 +319,9 @@ export default function MusicPage() {
 
     try {
       setIsLoading(true)
-      const response = await fetch('/api/artist/music?limit=300', {
-        credentials: 'include',
-        cache: 'no-store',
-      })
-      const body = await response.json()
+      const { response, body } = await artistMusicApiFetch<{ data?: MusicTrack[]; trust_config?: typeof trustConfig }>(
+        '/api/artist/music?limit=300',
+      )
       if (!response.ok) throw new Error(body?.error?.message || body?.error || 'Failed to load tracks')
       setTracks(body.data || [])
       if (body.trust_config) setTrustConfig(body.trust_config)
@@ -357,44 +364,8 @@ export default function MusicPage() {
     }
   }
 
-  const createSignedUpload = async (file: File, kind: 'full' | 'preview' | 'cover') => {
-    const { response, body } = await fetchJsonWithTimeout('/api/artist/music/upload-url', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType: file.type,
-        kind,
-      }),
-    })
-    if (!response.ok) throw new Error(parseMusicApiError(body, 'Unable to prepare upload'))
-    return body.data as { bucket: string; path: string; token: string; signedUrl: string }
-  }
-
   const uploadWithSignedUrl = async (file: File, kind: 'full' | 'preview' | 'cover') => {
-    const prepared = await createSignedUpload(file, kind)
-    const { error } = await supabase.storage
-      .from(prepared.bucket)
-      .uploadToSignedUrl(prepared.path, prepared.token, file, {
-        contentType: file.type,
-      })
-    if (error) throw error
-    const { data: { publicUrl } } = supabase.storage
-      .from(prepared.bucket)
-      .getPublicUrl(prepared.path)
-    return { ...prepared, publicUrl }
-  }
-
-  const cleanupUploadedPaths = async (uploads: Array<{ bucket?: string; path?: string } | null | undefined>) => {
-    for (const upload of uploads) {
-      if (!upload?.bucket || !upload?.path) continue
-      try {
-        await supabase.storage.from(upload.bucket).remove([upload.path])
-      } catch (error) {
-        console.warn('Failed to clean up uploaded file', upload.path, error)
-      }
-    }
+    return uploadArtistMusicArtifact(file, kind)
   }
 
   const uploadFiles = async (customMusicFile?: File, customCoverFile?: File) => {
@@ -439,7 +410,7 @@ export default function MusicPage() {
   }
 
   const queuePreviewJob = async (musicId: string) => {
-    const { response, body } = await fetchJsonWithTimeout('/api/artist/music/preview-jobs', {
+    const { response, body } = await artistMusicApiFetch('/api/artist/music/preview-jobs', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -490,26 +461,13 @@ export default function MusicPage() {
     }
   }
 
-  const handleShareTrack = async (track: MusicTrack) => {
-    try {
-      await createMusicPost({
-        trackId: track.id,
-        title: track.title,
-        content: `Check out "${track.title}"`,
-        coverUrl: track.cover_art_url,
-      })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to share track')
-    }
-  }
-
   const publishTrackWhenReady = async (track: MusicTrack) => {
     if (track.preview_mode === 'clip' && track.preview_status !== 'ready') {
       toast.error('Preview sample must be ready before publishing')
       return
     }
     try {
-      const { response, body } = await fetchJsonWithTimeout('/api/artist/music', {
+      const { response, body } = await artistMusicApiFetch('/api/artist/music', {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -631,14 +589,14 @@ export default function MusicPage() {
           currency: trackData.currency || trackData.metadata?.currency || 'USD',
         }
 
-        const { response: createResponse, body: createBody } = await fetchJsonWithTimeout('/api/artist/music', {
+        const { response: createResponse, body: createBody } = await artistMusicApiFetch('/api/artist/music', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(finalTrackData),
         })
         if (!createResponse.ok) {
-          await cleanupUploadedPaths(uploadedArtifacts)
+          await cleanupArtistMusicUploads(uploadedArtifacts)
           throw new Error(parseMusicApiError(createBody, 'Failed to save track'))
         }
         const data = createBody.data
@@ -740,7 +698,7 @@ export default function MusicPage() {
             : null,
       }
 
-      const { response: updateResponse, body: updateBody } = await fetchJsonWithTimeout('/api/artist/music', {
+      const { response: updateResponse, body: updateBody } = await artistMusicApiFetch('/api/artist/music', {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -767,13 +725,12 @@ export default function MusicPage() {
     if (!user) return
 
     try {
-      const deleteResponse = await fetch('/api/artist/music', {
+      const { response: deleteResponse, body: deleteBody } = await artistMusicApiFetch('/api/artist/music', {
         method: 'DELETE',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: trackId }),
       })
-      const deleteBody = await deleteResponse.json().catch(() => ({}))
       if (!deleteResponse.ok) throw new Error(deleteBody?.error?.message || deleteBody?.error || 'Failed to delete track')
       
       toast.success('Track deleted successfully!')
@@ -944,7 +901,17 @@ export default function MusicPage() {
                 Music marketplace
               </Button>
             ) : null}
-            <Button 
+            {process.env.NEXT_PUBLIC_AUDIUS_IMPORT_ENABLED === "true" && (
+              <Button
+                onClick={() => setShowAudiusImport(true)}
+                variant="outline"
+                className="flex items-center gap-2 border-purple-500/50 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 hover:text-purple-200 px-4 py-3 rounded-xl"
+              >
+                <Plus className="h-4 w-4" />
+                Add from Audius
+              </Button>
+            )}
+            <Button
               onClick={() => setShowUploader(true)}
               className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl flex items-center gap-2"
             >
@@ -1064,17 +1031,28 @@ export default function MusicPage() {
             {filteredTracks.map((track) => {
               const listing = getListingForTrack(track.id)
               return (
-              <Card key={track.id} className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 transition-all duration-300 group">
+              <Card
+                key={track.id}
+                role="link"
+                tabIndex={0}
+                onClick={() => track.is_public && router.push(getMusicTrackPath(track.id) || "/music")}
+                onKeyDown={(event) => {
+                  if (track.is_public && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault()
+                    router.push(getMusicTrackPath(track.id) || "/music")
+                  }
+                }}
+                className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 transition-all duration-300 group"
+              >
                 <CardContent className="p-6">
                   {/* Cover Art */}
                   <div className="relative mb-4">
                     <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                       {track.cover_art_url ? (
-                        <Image
+                        <TrackCoverImage
+                          trackId={track.id}
                           src={track.cover_art_url}
                           alt={track.title}
-                          width={300}
-                          height={300}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -1087,7 +1065,10 @@ export default function MusicPage() {
                     {/* Play Button Overlay */}
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                       <Button
-                        onClick={() => handlePlayPause(track.id)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handlePlayPause(track.id)
+                        }}
                         className="bg-white/20 backdrop-blur-xl border border-white/30 hover:bg-white/30 rounded-full w-16 h-16"
                       >
                         {currentlyPlaying === track.id ? (
@@ -1163,7 +1144,10 @@ export default function MusicPage() {
                         size="sm"
                         variant="outline"
                         className="mt-1 border-sky-500/40 text-sky-300 hover:bg-sky-500/10"
-                        onClick={() => publishTrackWhenReady(track)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          publishTrackWhenReady(track)
+                        }}
                       >
                         Publish now
                       </Button>
@@ -1192,7 +1176,7 @@ export default function MusicPage() {
                     {/* Actions */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                        <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={(event) => event.stopPropagation()}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -1251,7 +1235,7 @@ export default function MusicPage() {
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleShareTrack(track)}>
+                        <DropdownMenuItem onClick={() => setSharingTrack(track)}>
                           <Share2 className="h-4 w-4 mr-2" />
                           Share
                         </DropdownMenuItem>
@@ -1503,6 +1487,35 @@ export default function MusicPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <MusicShareDialog
+          open={Boolean(sharingTrack)}
+          onOpenChange={(open) => {
+            if (!open) setSharingTrack(null)
+          }}
+          track={sharingTrack}
+          onSharePost={async (track, note) => {
+            await createMusicPost({
+              trackId: track.id,
+              title: track.title,
+              content: note?.trim() || `Check out "${track.title}"`,
+            })
+          }}
+        />
+
+        {/* Audius Import Modal */}
+        {process.env.NEXT_PUBLIC_AUDIUS_IMPORT_ENABLED === "true" && (
+          <AudiusImportModal
+            open={showAudiusImport}
+            onClose={() => setShowAudiusImport(false)}
+            onImportComplete={(imported) => {
+              // Refresh track list to show the newly imported track
+              fetchTracks()
+              setShowAudiusImport(false)
+              toast.success(`"${imported.title}" added to your profile`)
+            }}
+          />
+        )}
       </div>
     </div>
   )

@@ -1,0 +1,39 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB008-TYPECHECK-VENUE-PUBLIC-PROFILE-VIEWS",
+  "task_id": "VENUE-005",
+  "from_agent": "venue",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-25T22:00:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "Two of the seven DB-008 code-drift objects remain on a file that is venue-domain work but is outside the Wave 34 venue file-ownership grant, so the venue lane could not edit it this wave. app/api/venues/[id]/route.ts is a public venue profile route (venue charter: 'public profiles'), but docs/engineering/agents/venue/WORKING_SET.json lists app/venues/** and app/api/venue/** and NOT app/api/venues/**, and the Wave 34 brief's allowed-path list repeats the same singular-only spelling. This handoff records the exact bytes so the next venue task with the path grant can finish the cluster in one edit.",
+  "working_set": [
+    "app/api/venues/[id]/route.ts"
+  ],
+  "completed": [
+    "Corrected the inventory's consumer attribution against the current bytes: `app/api/ticketing/webhook/route.ts` does NOT reference track_venue_profile_view, and `app/setup/page.tsx` and `app/services/events.service.ts` do NOT reference event_team_messages. The inventory's tscFiles lists for those objects were approximate. The only real consumer of venue_profile_views and track_venue_profile_view in the whole tree is app/api/venues/[id]/route.ts.",
+    "Both call sites already degrade fail-soft, so this is a type-surface defect and not a live data or security defect: the track_venue_profile_view rpc is inside a try/catch that only console.warns (route.ts:107-118), and the venue_profile_views select is inside a try/catch that sets stats.monthly_views = 0 (route.ts:192-203).",
+    "Cleared the rest of the cluster so only this one file remains: venue_crew_members, venue_team_contractors, get_staff_dashboard_stats (deleted dead lib/venue/staff-management.service.ts, 0 importers), event_team_messages (deleted the dead venue chat subtree, 0 importers), venue_shift_templates (repointed app/venue/components/staff/shift-templates.tsx to venue_recurring_shifts)."
+  ],
+  "next_steps": [
+    "With app/api/venues/** in the venue path grant, decide the disposition of the two fail-soft calls together, because they are the same feature: (a) delete both and set stats.monthly_views = 0 unconditionally, which matches today's actual behaviour on every environment where the chain was applied, or (b) repoint onto a chain-created analytics surface and keep the count. The repo has no view counter in the active chain; the nearest candidates are venue_analytics (declared in lib/database.types.ts, monthly_views is derived from its page_views column in lib/services/venue.service.ts) and venue_profiles.settings. Do NOT author a migration to recreate venue_profile_views or track_venue_profile_view — the database lane proved both exist in no active migration and in no generated type, so regeneration can never satisfy them.",
+    "If (a) or (b) is chosen, delete the now-dead try/catch wrappers so the intent is explicit rather than defensive.",
+    "Add the chosen surface to __tests__/venue/venue-code-drift-cluster.test.ts so the archived object cannot come back."
+  ],
+  "blockers": [
+    "File-ownership boundary: app/api/venues/** is not in the Wave 34 venue allowed-path list, and the venue WORKING_SET.json does not list it either. The venue lane did not expand scope silently.",
+    "The database lane cannot fix this from its side: a new additive migration would resurrect a surface the repository's own identity maps have already retired, and the prompt for this wave forbids authoring a migration to resurrect an archived object.",
+    "No product decision is recorded anywhere in the repo for whether venue profile-view counting is still a requirement. That is a venue product call, not a type-surface call."
+  ],
+  "commands_run": [
+    "rg 'venue_profile_views|track_venue_profile_view' across the tree — one consumer file.",
+    "npx vitest run __tests__/venue/venue-code-drift-cluster.test.ts — 29/29 passed.",
+    "npx vitest run __tests__/venue/ — 15 files / 131 tests passed."
+  ],
+  "verification": [
+    "app/api/venues/[id]/route.ts:107-118 (rpc, fail-soft) and :192-203 (select, fail-soft) — read directly from the current bytes at d2176904 in the dirty worktree."
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "With app/api/venues/** in the venue path grant, decide the disposition of the two fail-soft calls together, because they are the same feature: (a) delete both and set stats.monthly_views = 0 unconditionally, which matches today's actual behaviour on every environment where the chain was applied, or (b) repoint onto a chain-created analytics surface and keep the count. The repo has no view counter in the active chain; the nearest candidates are venue_analytics (declared in lib/database.types.ts, monthly_views is derived from its page_views column in lib/services/venue.service.ts) and venue_profiles.settings. Do NOT author a migration to recreate venue_profile_views or track_venue_profile_view — the database lane proved both exist in no active migration and in no generated type, so regeneration can never satisfy them."
+}

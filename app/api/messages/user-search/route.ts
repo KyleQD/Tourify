@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 const querySchema = z.object({
   q: z.string().trim().min(1).max(80),
@@ -10,7 +10,8 @@ const querySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const parsed = querySchema.safeParse({
@@ -21,7 +22,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid query', details: parsed.error.flatten() }, { status: 400 })
 
     const supabase = createServiceRoleClient()
-    const term = `%${parsed.data.q}%`
+    // PostgREST or-filter safety: strip syntax-altering characters before
+    // interpolating into the ilike clause list.
+    const safeTerm = parsed.data.q.replace(/[,()\\]/g, ' ').trim()
+    const term = `%${safeTerm}%`
 
     const { data, error } = await supabase
       .from('profiles')

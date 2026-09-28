@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "id": "CODEQL-102-SOCIAL-OAUTH-CALLBACK-CODE-PRESENCE-GUARD",
+      "scanner": "github-advanced-security:codeql (queries: security-extended)",
+      "finding": "CodeQL alert #102 — js/user-controlled-bypass, app/api/social/oauth/callback/route.ts:44 on refs/pull/14/merge at d21769046d517898144ee09a1c7bb4a7d36b068f. Source: the user-provided `code` query parameter (line 35) used by the `if (!code)` presence guard (line 44). Sink reported: verifySignedOAuthState(stateRaw, user.id) at line 59.",
+      "owner": "integrations",
+      "rationale": "Triaged against executable source in Wave 33. The reported guard is a required-parameter presence check, and the sensitive action it is modelled as guarding is reached only when that parameter is present. Every path from line 44 to the token exchange (fetch at line 78) and to the organization_social_integrations upsert (line 167) passes the fail-closed `if (!signed)` block at lines 60-63, which returns for both the org and the artist branch. verifySignedOAuthState is HMAC-SHA256 with a length check plus timingSafeEqual (lib/admin/content-hub/oauth-state.ts:96-99) and binds userId, platform and a 10-minute TTL. The attacker-controlled `code` therefore narrows the set of paths that reach the sensitive action instead of widening it, and no attacker-supplied value can skip the signature check. Recording the disposition in the registry rather than changing code: no defect exists to fix, and the alert is not dismissed on GitHub.",
+      "issue": "INTG-006 (triage requested by HF-RELEASE-SEC-CODEQL)",
+      "expiresAt": "2026-11-24",
+      "mitigation": "No compensating control is required for the reported flow because the control is already unconditional: signed OAuth state is mandatory and actor-bound before any provider call, and the callback already fails closed on an absent or unverified state. Keep the signed-state fail-closed block ahead of every side effect; the INTG-006 route inventory test (__tests__/integrations/webhook-route-inventory.test.ts) fails if a new inbound route is added without classification. Re-triage on any change to app/api/social/oauth/callback/** or to lib/admin/content-hub/oauth-state.ts.",
+      "productionExploitability": {
+        "decision": "not_exploitable",
+        "rationale": "No input reaches a side effect without a valid HMAC state bound to the initiating user id. The reported user-controlled bypass narrows rather than skips the sensitive check, so there is no request an attacker can send that skips signature verification. Verified by reading the route and lib/admin/content-hub/oauth-state.ts; no hosted or credentialed test was run and none is claimed.",
+        "reviewedBy": "integrations agent triage (Wave 33, bounded lane); human security sign-off still pending",
+        "reviewedAt": "2026-09-25"
+      }
+    },
+    {
+      "id": "CODEQL-94-INTEGRATIONS-SECURITY-TEST-HMAC-STATE",
+      "scanner": "github-advanced-security:codeql (queries: security-extended)",
+      "finding": "CodeQL alert #94 — js/insufficient-password-hash, __tests__/integrations/security.test.ts:52 on refs/pull/14/merge at d21769046d517898144ee09a1c7bb4a7d36b068f. Source: createSignedOAuthState at line 44. Sink: createHmac('sha256', process.env.MARKETPLACE_INTEGRATION_SECRET) at line 52.",
+      "owner": "integrations",
+      "rationale": "Triaged against executable source in Wave 33. Two independent reasons this is not a production weakness. First, the sink is a keyed HMAC over a serialized state blob, which is a message-authentication code, not a password hash; the rule's password-hash model does not apply and no slow, salted KDF is appropriate here because the value is a short-lived server-to-server token, not a stored credential. Second, the location is a vitest test file that never ships: it re-signs a forged payload with a locally fixed test secret (process.env.MARKETPLACE_INTEGRATION_SECRET ||= 'test-integration-secret', line 15) purely to isolate the 10-minute TTL check from the signature check. The alert is not dismissed on GitHub. The same rule also fires on the production helper lib/admin/content-hub/oauth-state.ts:96 (alert #95), which is admin-platform owned and routed to that lane rather than dispositioned here.",
+      "issue": "INTG-006 (triage requested by HF-RELEASE-SEC-CODEQL)",
+      "expiresAt": "2026-11-24",
+      "mitigation": "No production control is needed for the test-file finding. The production signer refuses to run without MARKETPLACE_INTEGRATION_SECRET in production (lib/admin/content-hub/oauth-state.ts:46-48) and compares signatures with a length check plus timingSafeEqual, and the test file holds no real credential. If a code-scanning suppression is later preferred over a registry entry for a test-only path, that is a release/security-lane policy decision, not an integrations one.",
+      "productionExploitability": {
+        "decision": "not_exploitable",
+        "rationale": "The finding is confined to a test file that is not part of the production bundle and contains only a hardcoded test-only value; the primitive it exercises is an HMAC MAC, which is the correct construction for a signed OAuth state and is not a password-hash defect. Not reachable by any production request path.",
+        "reviewedBy": "integrations agent triage (Wave 33, bounded lane); human security sign-off still pending",
+        "reviewedAt": "2026-09-25"
+      }
+    },
+    {
+      "id": "CODEQL-95-ADMIN-OAUTH-STATE-HMAC-SINK",
+      "scanner": "github-advanced-security:codeql (queries: security-extended)",
+      "finding": "CodeQL alert #95 — js/insufficient-password-hash, lib/admin/content-hub/oauth-state.ts:96 columns 76-80 on refs/pull/14/merge at commit 5324399bf453f07d6a380bf6effab263383ff17c. Retrieved read-only in Wave 34: most_recent_instance.state open, dismissed_reason null, fixed_at null, rule security_severity_level high, message \"Password from a call to createSignedOAuthState is hashed insecurely.\" repeated for five flow paths. The sink is createHmac('sha256', getStateSigningSecret()).update(body).digest('base64url') inside verifySignedOAuthState; `body` is the base64url payload half of the signed state string.",
+      "owner": "admin",
+      "rationale": "Independently re-verified against executable source in Wave 34, and the integrations lane's triage finding is confirmed. The rule models the value as a password at rest and rejects the fast primitive; that model does not apply to this sink for three independent reasons. (1) Wrong construction class: this is a keyed message-authentication code over a short-lived serialized blob, compared with a length check plus timingSafeEqual at lines 99-101. Nothing is hashed at rest and there is no credential store to attack, so a deliberately slow salted KDF (bcrypt/argon2/scrypt) would be the wrong primitive — the same key must verify in constant time on every callback, and the key is a high-entropy server-side environment secret, not a low-entropy user password. (2) The key cannot be absent or defaulted in production: getStateSigningSecret (lines 43-52) throws when NODE_ENV === 'production' and MARKETPLACE_INTEGRATION_SECRET is unset, and throws again when the non-production SUPABASE_SERVICE_ROLE_KEY fallback is also absent, so there is no hardcoded default key to weaken. (3) Every path CodeQL reports originates in a test file: __tests__/integrations/security.test.ts contains exactly five createSignedOAuthState calls, at lines 20, 28, 38, 44 and 62, which matches the five flow paths the alert message reports, and the repository contains exactly one production createSignedOAuthState call site (app/api/social/oauth/start/route.ts:28), which passes no secret-shaped literal. The only secret-shaped literal in the tree that can reach this signer is the deterministic fixture at __tests__/integrations/security.test.ts:15, installed to isolate the 10-minute TTL check from the signature check. Verified by code inspection; the CodeQL SARIF flow list itself was not retrievable at this token's scope, so the per-flow source list is taken from the integrations lane extraction and corroborated by the path count and line numbers. The signer is NOT changed to satisfy the rule. The alert is not dismissed on GitHub.",
+      "issue": "ADMIN-003 / HF-INTG-033-CODEQL-OAUTH-STATE-HASH (routed by the integrations lane, Wave 33; returned to INTG-006 for the HF-RELEASE-SEC-CODEQL tally)",
+      "expiresAt": "2026-12-25",
+      "mitigation": "No compensating control is required for the reported flow because the control is already unconditional and fail-closed: the state signature is mandatory, verified with a length check plus timingSafeEqual, and bound to the initiating user id, the platform and a 10-minute TTL before any provider call. Do not weaken getStateSigningSecret's production throw at lines 46-48, and do not add a development-only default key, because either change would turn this from not_exploitable into a real forgery path. Re-triage on any change to lib/admin/content-hub/oauth-state.ts or to app/api/social/oauth/{start,callback}/route.ts, and in particular if a new non-test call site passes a literal into createSignedOAuthState, or if the state blob ever begins to carry a long-lived credential instead of a short-lived nonce, PKCE verifier and routing context.",
+      "productionExploitability": {
+        "decision": "not_exploitable",
+        "rationale": "No production request can place attacker-chosen material at a sink where a slow KDF would matter, because the value is MACed as a message-authentication code and never persisted as a hash, and the MAC key is a high-entropy server-side secret that is mandatory in production. The five reported flows originate in a vitest file that is excluded from the production bundle, and the only production call site of createSignedOAuthState supplies no secret literal. Read-only verification: the live alert record was retrieved via the GitHub code-scanning API and the sink, key source, call sites and test fixture were read in the repository; no hosted test run and no credentialed environment were used, and none is claimed. Human security sign-off still pending.",
+        "reviewedBy": "admin agent triage (Wave 34, bounded lane); integrations agent triage (Wave 33) supplied the flow-source extraction; human security sign-off still pending",
+        "reviewedAt": "2026-09-25"
+      }
+    }
+  ]
+}

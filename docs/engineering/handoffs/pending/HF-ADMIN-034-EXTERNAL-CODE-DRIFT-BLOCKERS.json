@@ -1,0 +1,85 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-034-EXTERNAL-CODE-DRIFT-BLOCKERS",
+  "task_id": "ADMIN-003",
+  "from_agent": "admin",
+  "to_agent": "release",
+  "status": "accepted",
+  "created_at": "2026-09-25T15:05:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
+  "dirty_state_caveat": "Read-only triage. The admin lane fixed only the three `admin` cluster files named in the ADMIN-003 checkpoint. Every item below is a NEW finding produced by the Wave 34 scoped typecheck, and none of the files involved was modified by the admin lane this wave. `Lint And Build` is a required check on protected main, so items 1, 2 and 6 are live gate blockers, not documentation debt.",
+  "summary": "Four blockers discovered while repairing the Wave 34 `admin` code-drift cluster. Two are authorization-input defects that the admin lane deliberately did NOT repair, because each fix changes which resource a guard is evaluated against and therefore needs an explicit ADMIN-003 owner decision rather than a silent drift repair. One is an under-reported liveness finding for the `analytics` cluster: the inventory lists 2 live consumers for `bookings` and the real count is 5, including a payment route. One is a pre-existing failure of two admin registry checks that predates this wave and is caused by inputs the admin lane does not own.",
+  "working_set": [
+    "app/api/admin/logistics/site-maps/import/route.ts:21,33 — has_entity_permission named-argument drift",
+    "app/api/admin/events/[id]/task-messages/route.ts:78,83 — eventId read from the wrong pathname segment",
+    "app/api/payment/route.ts:44,200,233 and app/bookings/page.tsx:104,151,186 — live `bookings` consumers missing from the inventory",
+    "app/api/analytics/metrics/route.ts:18,46 and app/api/analytics/errors/route.ts — live `performance_metrics` consumers backing the telemetry endpoints",
+    "docs/admin-audit/generated/** and lib/admin/api-route-registry.ts — inputs behind the two failing registry checks"
+  ],
+  "blockers": [
+    {
+      "id": "OB-1",
+      "title": "has_entity_permission is called with the wrong argument names, and the route skips authorization entirely when neither eventId nor tourId is supplied",
+      "severity": "authorization, fail-closed but the route is inoperable",
+      "diagnosis": "The live signature in the active chain is create or replace function has_entity_permission(p_user_id uuid, p_entity_type text, p_entity_id uuid, p_permission_name text) — supabase/migrations/20250812090000_entity_rbac_core.sql:81-86, restated in supabase/migrations/20260823210100_venues_rbac_rls_baseline.sql:87-91. The route passes user_id, entity_type, entity_id and permission at lines 20-25 and 32-37. PostgREST therefore cannot match the function, the call errors, and because the code destructures only `{ data: hasPermission }` and never inspects `error`, hasPermission is null. The guard is `if (!hasPermission) return 403`, so the outcome is FAIL CLOSED: every import that supplies eventId or tourId is rejected with 403. The route is therefore completely inoperable, not silently permissive. The second, more serious half: when the caller omits BOTH eventId and tourId, neither permission block executes, and the handler proceeds to insert a site_maps row with event_id null and tour_id null plus its zones, tents, elements and activity-log rows, for ANY authenticated user.",
+      "why_not_repaired": "Repairing the argument names changes the outcome of an authorization check from an unconditional deny to a real permission evaluation. That is an authorization behavior change on a route ADMIN-003 has already recorded as `legacy_pending_migration` and DEFERRED with a specific recorded reason (the handler authorizes via the has_entity_permission RPC with no acting-org resolution, and the site map it creates binds event_id to the legacy events table, so imported resources are org-unresolvable by the canonical getSiteMapAccess boundary). The unscoped-write branch is that same recorded deferral, not a new discovery. Fixing the arg names without the org-resolution decision would convert a visibly broken route into a subtly unowned one, which is a worse failure mode. An owner decision is required, not a typecheck patch.",
+      "current_tsc_evidence": "error TS2561: Object literal may only specify known properties, but 'user_id' does not exist in type '{ p_entity_id: string; p_entity_type: string; p_permission_name: string; p_user_id: string; }'. Did you mean to write 'p_user_id'? at app/api/admin/logistics/site-maps/import/route.ts(21,9) and (33,9).",
+      "requested_action": "ADMIN-003 owner decision: accept the argument-name correction together with an explicit rejection of the no-scope branch, or reject both. If accepted, the correction is four identifiers and the route must additionally require either eventId or tourId. Do not apply the rename alone."
+    },
+    {
+      "id": "OB-2",
+      "title": "task-messages derives eventId from the wrong pathname segment, so its ownership gate never runs against a real event",
+      "severity": "authorization, fail-closed",
+      "diagnosis": "The POST handler computes `const eventId = request.nextUrl.pathname.split('/')[5]` at line 80 and uses it for checkEventOwnership and getParticipantRole. For the routed path /api/admin/events/<id>/task-messages, split('/') yields ['', 'api', 'admin', 'events', '<id>', 'task-messages'], so index 5 is the literal string 'task-messages' and the event id lives at index 4. checkEventOwnership therefore queries events_v2 where id = 'task-messages', which matches no row, so isOwner is false; getParticipantRole matches no row either, so isAdmin is false and the handler returns 403. Every legitimate task assignment is denied, and no cross-event access is possible. The same index-5 expression appears in the GET, PATCH and DELETE handlers of this file.",
+      "why_not_repaired": "Same reasoning as OB-1: correcting the index changes which event's ownership and participant-role gates are evaluated, i.e. it changes an authorization outcome from a blanket deny to a per-event decision. It requires an ADMIN-003 decision plus a cross-event denial test, not a drift patch. The admin lane did add a regression test that pins the current value so the defect is visible in code and cannot be silently re-introduced or silently 'fixed' without the decision: __tests__/admin/admin-profile-column-drift.test.ts, `documents the pre-existing eventId path-segment defect (ADMIN-003 blocker)`.",
+      "requested_action": "ADMIN-003 owner decision plus a cross-tenant denial test proving a manager of event A cannot post a task on event B once the index is corrected."
+    },
+    {
+      "id": "OB-3",
+      "title": "The `bookings` object has at least 5 live consumers, not the 2 the inventory records, and one of them is a payment route",
+      "severity": "correctness, potentially financial",
+      "diagnosis": "The inventory item for `bookings` lists three tscFiles and calls exactly two of them live (app/api/analytics/route.ts, app/api/calendar/me/route.ts). A repo-wide search for a real `.from('bookings')` / `.from(\"bookings\")` call finds five distinct surfaces: app/api/payment/route.ts:44, 200 and 233; app/api/analytics/route.ts:76 and 144; app/api/calendar/me/route.ts:35; app/bookings/page.tsx:104, 151 and 186; and app/api/artist-jobs/[id]/applications/route.ts. Two of these were absent from the inventory's file list entirely. The remaining `bookings` hits in the repository are UI strings, tab identifiers, RBAC category names and localStorage keys, not table reads, and must not be treated as consumers.",
+      "why_it_matters": "app/api/payment/route.ts is a payment route that reads a table the active chain never created, and app/bookings/page.tsx is an entry-reachable public page doing the same. `bookings` is created only in out-of-chain SQL (supabase/RUN_ALL_PROGRAM_MIGRATIONS.sql, supabase/migrations/archive/02_core_tables.sql and the pre-reconciliation migration-archive). If the intended contract is a renamed or different table, the payment path is currently reading nothing and the payments surface is at minimum non-functional. This is the single highest-consequence finding in the Wave 34 analytics cluster and it is outside the admin file set, so the admin lane did not touch it and does not propose a destination.",
+      "requested_action": "Route the `bookings` object to the lane that owns app/api/payment/** and app/bookings/** and to database, to establish whether a canonical replacement exists (for example an existing reservation or lodging_bookings relation) or whether an additive forward-only migration is genuinely required. The admin lane declines to guess a destination and records no canonicalReplacement, because the repository does not name one for this object."
+    },
+    {
+      "id": "OB-4",
+      "title": "`performance_metrics` sits under the live telemetry endpoints, which the inventory marked dead-adjacent and under-reported",
+      "severity": "observability, silently broken",
+      "diagnosis": "The inventory marks `performance_metrics` live with two consumers, app/api/analytics/metrics/route.ts and app/api/analytics/errors/route.ts. Both are confirmed live, and the blast radius is larger than the inventory states: lib/analytics/ux-event-client.ts:38 POSTs to /api/analytics/metrics and lib/performance-monitor.ts:171 and 190 POST to /api/analytics/metrics and /api/analytics/errors. So the client UX-event telemetry path and the performance monitor both depend on a table the active chain never created. lib/services/admin-onboarding-staff.service.ts:385 also matches the string `performance_metrics` but that is a switch case label, not a table read, and must not be counted as a consumer.",
+      "requested_action": "Same routing as OB-3: establish the canonical performance-metrics destination with database plus the lane that owns app/api/analytics/** and lib/analytics/**, and decide whether the client telemetry and the performance monitor should instead be repointed at an existing metrics surface. Note this directly contradicts the brief's caution that these dashboards may be in flight: they are not in flight, they are reachable and broken."
+    },
+    {
+      "id": "OB-5",
+      "title": "check:admin-audit and check:admin-execution already fail on inputs the admin lane does not own",
+      "severity": "gate, pre-existing",
+      "diagnosis": "Both fail before and after the admin lane's edits, and neither reads any file the admin lane changed. `npm run check:admin-audit` reports: Generated view drift: STATUS.md; Generated view drift: coverage.json; Workbook registry source hash is stale. The registry source hash is computed only over docs/admin-audit/registry/**, docs/admin-audit/evidence/**, lib/supabase/service-role-import-review.json, lib/admin/api-route-registry.ts and scripts/ci/admin-route-registry-baseline.json. Recomputing it read-only gives a86f6244be52279ab7e87dbe3908878a4ffeee760674a60d552b4e3372d9afd2 against a manifest value of 9968c31640df7a6203b0e075806e19f05f9ffefad0b5131d23833d48bd27a701, and the two dirty inputs are lib/admin/api-route-registry.ts (in-flight logistics work) and lib/supabase/service-role-import-review.json (not admin-owned). `npm run check:admin-execution` reports 17 errors: ADM-BASE-001 and ADM-BASE-003 source hashes are stale, plus generated context-pack drift for ADM-B00 through ADM-B14. ADM-BASE-001 hashes docs/admin-audit/registry/program.json, lib/admin/api-route-registry.ts and scripts/ci/admin-route-registry-baseline.json; ADM-BASE-003 hashes app/admin/dashboard/layout.tsx, app/admin/dashboard/components/optimized-sidebar.tsx and playwright.config.ts, of which only playwright.config.ts is dirty. None of the three route files the admin lane repaired appears in the audit registry, so the admin lane's edits cannot have caused any of the 20 errors.",
+      "why_not_repaired": "Repairing requires the shared regeneration write into docs/admin-audit/generated/** (the script's --write mode) and ownership of lib/admin/api-route-registry.ts plus lib/supabase/service-role-import-review.json and playwright.config.ts. `npm run agents:generate` and any equivalent shared-map write are explicitly forbidden to the admin lane in Wave 34 to avoid a shared-map race, so this is escalated rather than silently fixed.",
+      "requested_action": "Root orchestration or the release lane: run the admin audit and execution generators once, in a lane that owns those inputs, and re-run both checks. Do not treat this as an admin-lane regression."
+    }
+  ],
+  "next_steps": [
+    "release: triage OB-1 and OB-2 as ADMIN-003 owner decisions, since both change an authorization outcome and must not be applied as typecheck patches.",
+    "release: route OB-3 to the payment/booking owners and to database; treat it as the highest-consequence item in the analytics cluster.",
+    "release: route OB-4 to the analytics owners and database.",
+    "release: coordinate the shared regeneration for OB-5 and re-run check:admin-audit, check:admin-execution and check:admin-route-registry.",
+    "admin: re-verify the ADMIN-003 legacy-route registry count and the scoped typecheck after the decisions land. The count is currently exact at 54/54 and the admin lane's changes did not move it."
+  ],
+  "verification": [
+    "npm run check:admin-route-registry — PASS, `Legacy route classifications: 54/54`, `REL-103 check OK — route-method contracts are exact and legacy debt did not grow`. 291 admin route files on disk. Count is unchanged by the admin lane's Wave 34 edits.",
+    "npm run check:migration-chain — PASS, `active migration chain has no duplicate policy creations (305 files scanned)`.",
+    "npm run check:migration-validation — PASS, all scanned migrations reported ✓ including the 8 planned-manifest entries.",
+    "npx vitest run __tests__/admin __tests__/logistics — PASS, 283 test files passed and 1 skipped of 284; 3574 tests passed and 2 skipped of 3576.",
+    "npx vitest run __tests__/admin/tour-transition.test.ts __tests__/admin/admin-route-capability-matrix.test.ts __tests__/admin/admin-context.test.ts __tests__/admin/admin-platform-guard.test.ts __tests__/admin/admin-team-members-scope.test.ts — PASS, 5 files, 91 tests.",
+    "npm run check:admin-audit — FAIL (pre-existing, see OB-5). `Admin audit validation failed (3)`.",
+    "npm run check:admin-execution — FAIL (pre-existing, see OB-5). `Admin execution validation failed (17)`.",
+    "node scripts/ci/check-security-exceptions.mjs — PASS, `Security exception registry OK — 6 active exception(s)`, 5 before the admin lane's append-only entry.",
+    "npx eslint on the three repaired routes and the new test — PASS, exit 0, no output.",
+    "git diff --check scoped to the admin lane's four tracked files — PASS, exit 0. Unscoped, it reports trailing whitespace in three app/artist/events/** files owned by the artist lane.",
+    "npm run agents:validate — PASS, `validated 17 agents, 151 tasks, 0 warnings, 0 errors`.",
+    "Scoped tsc over the admin lane's three repaired files plus their immediate collaborators: 39 diagnostic lines before, 36 after. The 3 removed lines are exactly the `profiles.phone` SelectQueryError triple in app/api/admin/onboarding/add-existing-user/route.ts. No new diagnostic was introduced. The 36 remaining lines are pre-existing and belong to other defects, of which OB-1 accounts for 2 and OB-2 for 0 (its file type-checks clean because the Supabase client is created without a Database generic). Full `npm run typecheck` was NOT run: it takes 68m18s on CI and OOMs on this 8GB box with four concurrent lanes."
+  ],
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "release: triage OB-1 and OB-2 as ADMIN-003 owner decisions, since both change an authorization outcome and must not be applied as typecheck patches.",
+  "completed": []
+}

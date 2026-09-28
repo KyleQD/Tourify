@@ -1,0 +1,23 @@
+{
+  "evidenceId": "EVD-SEC104-LOGISTICS-DDL-LOCAL-FAIL",
+  "kind": "test_run",
+  "result": "fail",
+  "environment": "local",
+  "capturedAt": "2026-09-03T16:01:00-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "7630a37ef395e147198a169e94fa888d2f3c7b19",
+  "artifact": "npx vitest run __tests__/logistics/logistics-route-contract.test.ts",
+  "sha256": null,
+  "findingIds": [
+    "ADM-M-010"
+  ],
+  "workflowIds": [
+    "ADM-WF-013",
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [
+    "SEC-104"
+  ],
+  "launchGateIds": [],
+  "notes": "Six contract assertions pass and three fail because logistics_team_communications_scope, logistics_ops_foundation, and site_map_zone_ownership exist only in the pre-reconciliation archive. The failure is retained as evidence of active migration-chain debt."
+}

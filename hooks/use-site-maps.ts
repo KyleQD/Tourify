@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { SiteMap, SiteMapZone, GlampingTent, SiteMapElement } from '@/types/site-map'
+import { useAdminActingRequest } from '@/hooks/use-admin-acting-request'
 
 interface UseSiteMapsOptions {
   eventId?: string
@@ -29,17 +30,32 @@ interface UseSiteMapsReturn {
   upsertSiteMap: (map: SiteMap) => void
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
 export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [siteMaps, setSiteMaps] = useState<SiteMap[]>([])
   const [selectedSiteMap, setSelectedSiteMap] = useState<SiteMap | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { eventId, tourId, autoRefresh = false, refreshInterval = 30000, includeData = false } = options
+  const requestScopeKey = `${actingContextKey}:${eventId || ''}:${tourId || ''}`
+  const requestScopeKeyRef = useRef(requestScopeKey)
+  requestScopeKeyRef.current = requestScopeKey
 
   const fetchSiteMaps = useCallback(async () => {
+    if (!isAdminReady) {
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     setLoading(true)
     setError(null)
+    const requestContextKey = requestScopeKey
 
     try {
       const params = new URLSearchParams()
@@ -47,8 +63,9 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       if (tourId) params.append('tourId', tourId)
       params.append('includeData', includeData ? 'true' : 'false')
 
-      const response = await fetch(`/api/admin/logistics/site-maps?${params}`, { credentials: 'include' })
+      const response = await adminFetch(`/api/admin/logistics/site-maps?${params}`)
       const data = await response.json()
+      if (requestScopeKeyRef.current !== requestContextKey) return
 
       if (data.success) {
         setSiteMaps(data.data || [])
@@ -56,34 +73,40 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
         throw new Error(data.error || 'Failed to fetch site maps')
       }
     } catch (err) {
+      if (requestScopeKeyRef.current !== requestContextKey) return
+      if (isAbortError(err)) return
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch site maps'
       setError(errorMessage)
       console.error('Error fetching site maps:', err)
     } finally {
-      setLoading(false)
+      if (requestScopeKeyRef.current === requestContextKey) setLoading(false)
     }
-  }, [eventId, tourId, includeData])
+  }, [adminFetch, eventId, includeData, isAdminReady, requestScopeKey, tourId])
 
   const getSiteMapById = useCallback(async (id: string): Promise<SiteMap | null> => {
+    const requestContextKey = requestScopeKey
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${id}`, { credentials: 'include' })
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${id}`)
       const data = await response.json()
+      if (requestScopeKeyRef.current !== requestContextKey) return null
       if (data.success && data.data) {
         setSiteMaps((prev) => {
           const exists = prev.some((map) => map.id === id)
           if (exists) return prev.map((map) => (map.id === id ? data.data : map))
           return [data.data, ...prev]
         })
+        setSelectedSiteMap(data.data)
         return data.data
       }
       return null
     } catch {
       return null
     }
-  }, [])
+  }, [adminFetch, requestScopeKey])
 
   const upsertSiteMap = useCallback((map: SiteMap) => {
     if (!map?.id) return
+    setError(null)
     setSiteMaps((prev) => {
       const exists = prev.some((row) => row.id === map.id)
       if (exists) return prev.map((row) => (row.id === map.id ? { ...row, ...map } : row))
@@ -94,7 +117,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
 
   const createSiteMap = useCallback(async (data: Partial<SiteMap>): Promise<SiteMap | null> => {
     try {
-      const response = await fetch('/api/admin/logistics/site-maps', {
+      const response = await adminFetch('/api/admin/logistics/site-maps', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -108,6 +131,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       const result = await response.json()
 
       if (result.success) {
+        setError(null)
         setSiteMaps(prev => [result.data, ...prev])
         setSelectedSiteMap(result.data)
         return result.data
@@ -120,11 +144,11 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       console.error('Error creating site map:', err)
       return null
     }
-  }, [eventId, tourId])
+  }, [adminFetch, eventId, tourId])
 
   const updateSiteMap = useCallback(async (id: string, data: Partial<SiteMap>): Promise<SiteMap | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${id}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${id}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -148,11 +172,11 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       console.error('Error updating site map:', err)
       return null
     }
-  }, [selectedSiteMap])
+  }, [adminFetch, selectedSiteMap])
 
   const deleteSiteMap = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${id}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -174,7 +198,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       console.error('Error deleting site map:', err)
       return false
     }
-  }, [selectedSiteMap])
+  }, [adminFetch, selectedSiteMap])
 
   const selectSiteMap = useCallback((id: string) => {
     const siteMap = siteMaps.find(sm => sm.id === id)
@@ -189,7 +213,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
 
   const exportSiteMap = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${id}/export`, { credentials: 'include' })
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${id}/export`)
       
       if (response.ok) {
         const blob = await response.blob()
@@ -211,14 +235,14 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       console.error('Error exporting site map:', err)
       return false
     }
-  }, [])
+  }, [adminFetch])
 
   const importSiteMap = useCallback(async (file: File, importEventId?: string, importTourId?: string): Promise<SiteMap | null> => {
     try {
       const text = await file.text()
       const importData = JSON.parse(text)
 
-      const response = await fetch('/api/admin/logistics/site-maps/import', {
+      const response = await adminFetch('/api/admin/logistics/site-maps/import', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -244,7 +268,13 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       console.error('Error importing site map:', err)
       return null
     }
-  }, [eventId, tourId])
+  }, [adminFetch, eventId, tourId])
+
+  useEffect(() => {
+    setSiteMaps([])
+    setSelectedSiteMap(null)
+    setError(null)
+  }, [requestScopeKey])
 
   // Load site maps on mount
   useEffect(() => {
@@ -268,7 +298,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     permissions: 'view' | 'edit' | 'admin' = 'view'
   ): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/share`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -280,11 +310,11 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
       console.error('Error sharing site map:', err)
       return false
     }
-  }, [])
+  }, [adminFetch])
 
   const getCollaborators = useCallback(async (siteMapId: string) => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/collaborators`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/collaborators`, {
         credentials: 'include'
       })
       const result = await response.json()
@@ -292,11 +322,11 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     } catch {
       return []
     }
-  }, [])
+  }, [adminFetch])
 
   const removeCollaborator = useCallback(async (siteMapId: string, userId: string): Promise<boolean> => {
     try {
-      const response = await fetch(
+      const response = await adminFetch(
         `/api/admin/logistics/site-maps/${siteMapId}/collaborators?userId=${userId}`,
         { method: 'DELETE', credentials: 'include' }
       )
@@ -305,7 +335,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     } catch {
       return false
     }
-  }, [])
+  }, [adminFetch])
 
   return {
     siteMaps,
@@ -352,21 +382,27 @@ interface UseSiteMapReturn {
 }
 
 export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
   const [siteMap, setSiteMap] = useState<SiteMap | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { siteMapId, autoRefresh = false, refreshInterval = 30000 } = options
+  const requestScopeKey = `${actingContextKey}:${siteMapId || ''}`
+  const requestScopeKeyRef = useRef(requestScopeKey)
+  requestScopeKeyRef.current = requestScopeKey
 
   const fetchSiteMap = useCallback(async () => {
-    if (!siteMapId) return
+    if (!siteMapId || !isAdminReady) return
 
     setLoading(true)
     setError(null)
+    const requestContextKey = requestScopeKey
     
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}`, { credentials: 'include' })
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}`)
       const data = await response.json()
+      if (requestScopeKeyRef.current !== requestContextKey) return
 
       if (data.success) {
         setSiteMap(data.data)
@@ -374,17 +410,19 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
         throw new Error(data.error || 'Failed to fetch site map')
       }
     } catch (err) {
+      if (requestScopeKeyRef.current !== requestContextKey) return
+      if (isAbortError(err)) return
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch site map'
       setError(errorMessage)
       console.error('Error fetching site map:', err)
     } finally {
-      setLoading(false)
+      if (requestScopeKeyRef.current === requestContextKey) setLoading(false)
     }
-  }, [siteMapId])
+  }, [adminFetch, isAdminReady, requestScopeKey, siteMapId])
 
   const updateSiteMap = useCallback(async (data: Partial<SiteMap>): Promise<SiteMap | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -405,11 +443,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error updating site map:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const createZone = useCallback(async (data: Partial<SiteMapZone>): Promise<SiteMapZone | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/zones`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/zones`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -433,11 +471,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error creating zone:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const updateZone = useCallback(async (zoneId: string, data: Partial<SiteMapZone>): Promise<SiteMapZone | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/zones/${zoneId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/zones/${zoneId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -461,11 +499,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error updating zone:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const deleteZone = useCallback(async (zoneId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/zones/${zoneId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/zones/${zoneId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -487,11 +525,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error deleting zone:', err)
       return false
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const createTent = useCallback(async (data: Partial<GlampingTent>): Promise<GlampingTent | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tents`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -515,11 +553,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error creating tent:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const updateTent = useCallback(async (tentId: string, data: Partial<GlampingTent>): Promise<GlampingTent | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -543,11 +581,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error updating tent:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const deleteTent = useCallback(async (tentId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -569,11 +607,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error deleting tent:', err)
       return false
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const createElement = useCallback(async (data: Partial<SiteMapElement>): Promise<SiteMapElement | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/elements`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/elements`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -597,11 +635,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error creating element:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const updateElement = useCallback(async (elementId: string, data: Partial<SiteMapElement>): Promise<SiteMapElement | null> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/elements/${elementId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/elements/${elementId}`, {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -625,11 +663,11 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error updating element:', err)
       return null
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const deleteElement = useCallback(async (elementId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/elements/${elementId}`, {
+      const response = await adminFetch(`/api/admin/logistics/site-maps/${siteMapId}/elements/${elementId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -651,11 +689,16 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
       console.error('Error deleting element:', err)
       return false
     }
-  }, [siteMapId])
+  }, [adminFetch, siteMapId])
 
   const refreshSiteMap = useCallback(async () => {
     await fetchSiteMap()
   }, [fetchSiteMap])
+
+  useEffect(() => {
+    setSiteMap(null)
+    setError(null)
+  }, [requestScopeKey])
 
   // Load site map on mount
   useEffect(() => {

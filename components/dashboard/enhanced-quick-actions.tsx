@@ -205,7 +205,7 @@ export function EnhancedQuickActions({ hideJukebox = false }: EnhancedQuickActio
               title: 'User Management',
               description: 'Manage user accounts and permissions',
               icon: Users,
-              href: '/admin/dashboard/users',
+              href: '/admin/dashboard/rbac',
               priority: 'medium',
               accountType: 'organization'
             },

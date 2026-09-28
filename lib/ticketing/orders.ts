@@ -47,6 +47,47 @@ export function feeConfigFromRow(row: Record<string, any> | null | undefined): T
   }
 }
 
+export interface IdempotentPurchaseResult {
+  id: string
+  order_number: string | null
+  payment_status: string
+  total_amount: number
+  stripe_checkout_session_id: string | null
+  metadata: Record<string, unknown> | null
+}
+
+/**
+ * Request-scoped purchase idempotency lookup. A client-supplied idempotency
+ * key (header or metadata) dedupes retries/double-clicks to the original
+ * order for the SAME buyer and event while the order is still actionable
+ * (pending/completed/paid). Newest-order-wins keeps an earlier race winner
+ * stable once one row carries the key.
+ *
+ * This is the local request-scoped contract. The schema's active chain holds
+ * no distributed DB-unique purchase idempotency key (ticket_sales has no
+ * idempotency column or unique expression index), so two concurrent first
+ * requests can both create rows; the DB-unique constraint is a DB-005
+ * migration concern (see TICKET-005 handoff).
+ */
+export async function findIdempotentPurchase(params: {
+  supabase: OrderClient
+  buyerUserId: string
+  eventId: string
+  idempotencyKey: string
+}): Promise<IdempotentPurchaseResult | null> {
+  const { data } = await params.supabase
+    .from('ticket_sales')
+    .select('id, order_number, payment_status, total_amount, stripe_checkout_session_id, metadata')
+    .contains('metadata', { idempotency_key: params.idempotencyKey })
+    .eq('buyer_user_id', params.buyerUserId)
+    .eq('event_id', params.eventId)
+    .in('payment_status', ['pending', 'completed', 'paid'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data ?? null
+}
+
 export async function createPendingOrder(params: {
   supabase: OrderClient
   ticketTypeId: string

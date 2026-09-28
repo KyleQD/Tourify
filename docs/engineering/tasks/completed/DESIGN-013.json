@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-013",
+  "title": "Retire venue form primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:40.163Z",
+  "updated_at": "2026-09-11T20:04:09.077Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/form.tsx to components/ui/form.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/form.tsx",
+      "components/ui/form.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/form.tsx",
+    "components/ui/form.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical form / editor preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/form|@/components/venue/ui/form\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/form.tsx components/ui/form.tsx",
+      "git diff --check -- components/venue/ui/form.tsx components/ui/form.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use consumer audit passed: rg for \"components/venue/ui/form|@/components/venue/ui/form\" across app, components, hooks, lib, apps, __tests__, scripts returned 0 matches (exit 1, no matches).",
+      "Canonical register evidence: CANONICAL_COMPONENT_REGISTER.csv row for components/venue/ui/form.tsx is DUP-068, duplicate refs 0, disposition \"retire later\", canonical target components/ui/form.tsx, note \"Exact duplicate; preserve until imports move and zero-use evidence is recorded.\"; components/ui/form.tsx row is disposition \"keep\".",
+      "Twin characterization: byte-identical copy, not divergent/stale. sha256 of both files matches (9a0acdbdf33f9ed3c450bba8e52ddd6e379f4c8b9881b95839bb62b2d0a83879); diff reports no differences.",
+      "Public export parity: both files export the identical contract - useFormField, Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField - from identical implementations (react-hook-form Controller/FormProvider/useFormContext over @radix-ui/react-label, @radix-ui/react-slot, @/lib/utils cn, @/components/ui/label).",
+      "Canonical import inventory: 19 files import components/ui/form (1 import site each): app/projects/[id]/settings/page.tsx, app/projects/new/page.tsx, components/admin/create-event-form.tsx, components/admin/create-tour-form.tsx, components/notifications/notification-settings.tsx, components/profile/profile-color-customizer.tsx, components/settings/account-settings.tsx, components/settings/admin-account-settings.tsx, components/settings/artist-account-settings.tsx, components/settings/enhanced-artist-settings.tsx, components/settings/enhanced-general-settings.tsx, components/settings/enhanced-profile-settings.tsx, components/settings/enhanced-venue-settings.tsx, components/settings/general-account-settings.tsx, components/settings/profile-settings-optimized.tsx, components/settings/profile-settings.tsx, components/settings/security-settings.tsx, components/settings/venue-account-settings.tsx, components/ticket-type/ticket-type-form.tsx.",
+      "Venue-surface consumer audit: 0 matches for components/ui/form under app/venue/** and components/venue/**; no barrel (index.ts) exists in components/venue/ui, so no re-export path resolves to the venue twin. Repo-wide scan for \"venue/ui/form\" (excluding node_modules, .git, task records) finds only the register row and the generated components.md marker.",
+      "Focused ESLint passed for components/venue/ui/form.tsx and components/ui/form.tsx (exit 0, no output).",
+      "Focused git diff check passed for components/venue/ui/form.tsx, components/ui/form.tsx, and docs/engineering (exit 0, clean).",
+      "agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:04:09.077Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded form audit complete. The venue form twin has zero live consumers; 19 files import the canonical shared primitive with no venue-surface consumers. Twin is byte-identical with full contract parity and remains registered retire-later (DUP-068). Twin retained.",
+    "completed": [
+      "Ran the zero-use consumer audit (rg) and recorded 0 matches across app, components, hooks, lib, apps, __tests__, and scripts.",
+      "Confirmed byte-identical twin via sha256 and diff; both files export the identical public contract (useFormField, Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField).",
+      "Inventoried canonical importers: 19 files import components/ui/form; 0 venue-surface consumers under app/venue/** or components/venue/**.",
+      "Recorded register disposition: components/venue/ui/form.tsx is DUP-068 \"retire later\" with 0 duplicate refs; components/ui/form.tsx is \"keep\".",
+      "Ran verification commands for the audit-only pass: focused ESLint, focused git diff check, and npm run agents:validate (17 agents, 93 tasks, 0 warnings, 0 errors)."
+    ],
+    "next_steps": [
+      "Audit live consumers and identify the owning surface for components/venue/ui/form.tsx - completed in this pass: zero live consumers; canonical components/ui/form.tsx has 19 import sites.",
+      "Confirm public/export parity with the canonical target before retirement - completed in this pass: byte-identical twin with full export parity.",
+      "Coordinate any migration and deletion only after focused verification and register evidence; deletion of the venue twin remains unauthorized for the audit-only pass."
+    ],
+    "blockers": [
+      "No approved consumer migration or deletion is in scope for this audit-only pass; the venue twin is retained as registered retire-later compatibility debt (DUP-068)."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T19:48:09.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded audit-only pass. Zero-use consumer audit returned 0 matches; the venue twin is byte-identical to the canonical form with full public export parity; canonical has 19 importers and no venue-surface consumer resolves to the twin. Register disposition confirmed: canonical keep / consumers already-migrated / twin retire-later compatibility debt. No deletions, edits to form files, consumer changes, or register edits were made; only this task record was updated.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-013.json"
+        ],
+        "verification": [
+          "rg zero-use audit: 0 matches",
+          "sha256/diff twin parity: byte-identical",
+          "Public export parity: full (8 exports, identical)",
+          "Canonical import inventory: 19 files",
+          "Focused ESLint passed",
+          "Focused git diff check passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Deletion of the venue twin is not authorized in this audit-only pass"
+        ],
+        "next_steps": [
+          "Await orchestrator reconciliation; the retirement (deletion) step requires a separately scoped task with register updates."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:04:09.077Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded form audit complete. The venue form twin has zero live consumers; 19 files import the canonical shared primitive with no venue-surface consumers. Twin is byte-identical with full contract parity and remains registered retire-later (DUP-068). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

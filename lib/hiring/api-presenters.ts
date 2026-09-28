@@ -3,6 +3,7 @@ import type {
   HiringApplicationListItem,
   HiringDashboardStats,
   HiringJobListItem,
+  HiringJobPostingStatus,
   HiringRosterMemberListItem,
   HiringTemplateListItem,
 } from "@/types/hiring-dashboard"
@@ -10,6 +11,7 @@ import type { ApplicantProfileSnapshot, HiringApplicationReviewItem } from "@/ty
 import type { DashboardStats } from "@/types/hiring-service"
 
 type RawRecord = Record<string, unknown>
+const JOB_POSTING_STATUSES = new Set<HiringJobPostingStatus>(["draft", "published", "paused", "closed", "filled", "archived"])
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null
@@ -17,6 +19,12 @@ function asString(value: unknown): string | null {
 
 function asNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+function asJobPostingStatus(value: unknown): HiringJobPostingStatus | null {
+  return typeof value === "string" && JOB_POSTING_STATUSES.has(value as HiringJobPostingStatus)
+    ? value as HiringJobPostingStatus
+    : null
 }
 
 function asBoolean(value: unknown): boolean | null {
@@ -73,10 +81,14 @@ export function presentJobListItem(row: RawRecord): HiringJobListItem {
     title: getFirstString(row, ["title"], "Untitled job"),
     department: asString(row.department),
     position: asString(row.position),
-    status: asString(row.status),
+    status: asJobPostingStatus(row.status),
     numberOfPositions: asNumber(row.number_of_positions),
     createdAt: asString(row.created_at),
     publishedAt: asString(row.published_at),
+    archivedAt: asString(row.archived_at),
+    filledAt: asString(row.filled_at),
+    eventId: asString(row.event_id),
+    tourId: asString(row.tour_id),
   }
 }
 

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
+import {
+  OrgScopedMutationError,
+  orgScopedUpdate,
+} from '@/lib/admin/org-scoped-mutation'
 import {
   applyOrgLogisticsTaskFilter,
   resolveAuthorizedOrgLogisticsScope,
@@ -13,6 +17,7 @@ import {
 import { buildLogisticsTaskInsert } from '@/lib/logistics/tasks-adapter'
 import { buildAckInsert } from '@/lib/logistics/acknowledgements'
 import { sendLogisticsNotifications } from '@/lib/logistics/notifications-adapter'
+import { notifyTransportChange } from '@/lib/logistics/travel-change-notify'
 
 const segmentSchema = z.object({
   transport_type: z.enum(['shuttle_bus', 'limo', 'van', 'car', 'train', 'subway', 'walking', 'truck', 'rental', 'rideshare', 'other']).or(z.string().min(1)),
@@ -53,14 +58,14 @@ function normalizeTransportType(value: string): string {
   return 'car'
 }
 
-export async function GET(request: NextRequest) {
-  return withAdminAuth(async (_req, { user }) => {
+export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { user, admin }) => {
     try {
       const { searchParams } = new URL(request.url)
       const eventId = searchParams.get('eventId') || searchParams.get('event_id')
       const tourId = searchParams.get('tourId') || searchParams.get('tour_id')
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId,
         tourId,
       })
@@ -127,13 +132,11 @@ export async function GET(request: NextRequest) {
     } catch (error: any) {
       return NextResponse.json({ error: error.message || 'Failed to load transport' }, { status: 500 })
     }
-  })(request)
-}
+})
 
-export async function POST(request: NextRequest) {
-  return withAdminAuth(async (req, { user }) => {
+export const POST = withAdminCapability('logistics.manage', async (request: NextRequest, { user, admin }) => {
     try {
-      const body = await req.json()
+      const body = await request.json()
       const parsed = segmentSchema.safeParse(body)
       if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
@@ -142,6 +145,7 @@ export async function POST(request: NextRequest) {
       const input = parsed.data
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId: input.event_id,
         tourId: input.tour_id,
       })
@@ -196,6 +200,8 @@ export async function POST(request: NextRequest) {
           transportation_id: segment.id,
           group_member_id: memberId,
           status: 'confirmed',
+          // TRAVEL-101 — denormalized org scope from acting logistics scope
+          org_id: scope.orgId,
         }))
         await scope.service.from('transportation_passenger_assignments').insert(assignments)
 
@@ -210,7 +216,7 @@ export async function POST(request: NextRequest) {
               tourId: input.tour_id,
             })
           )
-          // user_id on ack expects auth users; store member mapping in metadata path via source only when member≠user
+          // user_id on ack expects auth users; store member mapping in metadata path via source only when member?user
           await scope.service.from('logistics_acknowledgements').upsert(
             ackRows.map((row) => ({ ...row, user_id: user.id })),
             { onConflict: 'source_type,source_id,user_id', ignoreDuplicates: true }
@@ -224,7 +230,7 @@ export async function POST(request: NextRequest) {
           eventId: input.event_id,
           tourId: input.tour_id,
           type: 'transportation',
-          title: `Transport: ${input.pickup_location} → ${input.dropoff_location}`,
+          title: `Transport: ${input.pickup_location} ? ${input.dropoff_location}`,
           description: `Pickup ${input.pickup_time}`,
           status: 'pending',
           createdBy: user.id,
@@ -259,7 +265,7 @@ export async function POST(request: NextRequest) {
           payload: {
             type: 'transport_assigned',
             title: 'Transport segment created',
-            message: `${input.pickup_location} → ${input.dropoff_location}`,
+            message: `${input.pickup_location} ? ${input.dropoff_location}`,
             sourceType: 'transport_segment',
             sourceId: segment.id,
             requireAck: Boolean(input.require_ack),
@@ -282,21 +288,29 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       return NextResponse.json({ error: error.message || 'Failed to create transport' }, { status: 500 })
     }
-  })(request)
-}
+})
 
-export async function PATCH(request: NextRequest) {
-  return withAdminAuth(async (req, { user }) => {
+export const PATCH = withAdminCapability('logistics.manage', async (request: NextRequest, { user, admin }) => {
     try {
-      const body = await req.json()
+      const body = await request.json()
       const id = body.id as string | undefined
       if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId: body.event_id,
         tourId: body.tour_id,
       })
+
+      const { data: before, error: beforeError } = await scope.service
+        .from('ground_transportation_coordination')
+        .select('*')
+        .eq('id', id)
+        .eq('org_id', admin.orgId)
+        .maybeSingle()
+      if (beforeError) return NextResponse.json({ error: beforeError.message }, { status: 500 })
+      if (!before) return NextResponse.json({ error: 'Transport not found', code: 'entity_not_found' }, { status: 404 })
 
       const updates: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
@@ -311,17 +325,41 @@ export async function PATCH(request: NextRequest) {
       }
       if (body.transport_type) updates.transport_type = normalizeTransportType(body.transport_type)
 
-      const { data, error } = await scope.service
-        .from('ground_transportation_coordination')
-        .update(updates)
-        .eq('id', id)
-        .select('*')
-        .single()
+      // SEC-110: update predicates include target id + acting org_id.
+      let data
+      try {
+        const result = await orgScopedUpdate({
+          supabase: scope.service,
+          table: 'ground_transportation_coordination',
+          id,
+          orgId: admin.orgId,
+          patch: updates,
+        })
+        if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 })
+        if (!result.data) {
+          return NextResponse.json({ error: 'Transport not found', code: 'entity_not_found' }, { status: 404 })
+        }
+        data = result.data
+      } catch (error) {
+        if (error instanceof OrgScopedMutationError) {
+          return NextResponse.json({ error: error.message, code: error.code }, { status: error.status })
+        }
+        throw error
+      }
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      try {
+        await notifyTransportChange({
+          supabase: scope.service,
+          actorUserId: user.id,
+          before,
+          after: data,
+        })
+      } catch (notifyError) {
+        console.warn('[Transport API] change notify failed', notifyError)
+      }
+
       return NextResponse.json({ segment: data })
     } catch (error: any) {
       return NextResponse.json({ error: error.message || 'Failed to update transport' }, { status: 500 })
     }
-  })(request)
-}
+})

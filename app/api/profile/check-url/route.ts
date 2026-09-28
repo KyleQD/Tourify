@@ -38,16 +38,20 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Check if URL is already taken by another user
+    // Check if the handle is already taken by another user.
+    // DB-008 / Wave 35: this filtered on `profiles.custom_url`, which exists in no
+    // active migration and in no generated contract. PostgREST rejected the filter,
+    // the error was not PGRST116, and the endpoint answered 500 "Failed to check URL
+    // availability" for every handle. The canonical public handle is `username`.
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('custom_url', cleanedUrl)
+      .eq('username', cleanedUrl)
       .neq('id', user.id)
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking custom URL:', checkError)
+      console.error('Error checking profile handle:', checkError)
       return NextResponse.json({ error: 'Failed to check URL availability' }, { status: 500 })
     }
 

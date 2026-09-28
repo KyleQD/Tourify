@@ -1,0 +1,95 @@
+{
+  "schema_version": "2.0",
+  "id": "RELEASE-014",
+  "title": "Certify hosted public-surface controls",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P0",
+  "owner_agent": "release",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "release",
+  "created_at": "2026-09-27T20:01:25.656Z",
+  "updated_at": "2026-09-27T20:01:25.656Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (459 entries)",
+  "goal": "Verify locally completed public-surface capability gates against one exact isolated-staging SHA.",
+  "scope": {
+    "in": [
+      "Hosted public-surface certification only"
+    ],
+    "out": [
+      "Local feature implementation"
+    ]
+  },
+  "working_set": [
+    "scripts/ci/check-public-surface.mjs",
+    "docs/audits/flow-notes/release-hosted-public-surface.md"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [
+    "RELEASE-007",
+    "QA-003"
+  ],
+  "resume_condition": "RELEASE-007 provisions the shared isolated-staging and credential gate and QA-003 identifies the exact candidate SHA.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "release",
+      "condition": "RELEASE-007 provisions the shared isolated-staging and credential gate and QA-003 identifies the exact candidate SHA.",
+      "dependency_task_ids": [
+        "RELEASE-007",
+        "QA-003"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The public-surface control suite passes against the exact candidate SHA with deployment evidence.",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Any failure is routed to a bounded owner task without reopening locally complete domain records.",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run check:public-surface"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created; implementation not started.",
+    "completed": [],
+    "next_steps": [
+      "Wait for RELEASE-007 and QA-003, then confirm the working set is collision-free before dispatch."
+    ],
+    "blockers": [
+      "Waiting for RELEASE-007, QA-003."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

@@ -20,9 +20,15 @@ import type {
   WorkModeAssignment,
 } from "@/types/hiring-roster-work-mode"
 import type { HiringEntity } from "@/types/hiring-entity"
+import { mapRosterStatusToAssignment } from "@/lib/admin/workforce-assignment-status"
 import { canAssignWorkMode, canManageHiring } from "@/lib/auth/hiring-permissions"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
-import { syncEmploymentAssignmentForShift } from "@/lib/services/staff-shift-assignment-sync"
+import { resolveSchedulingOrgId } from "@/lib/hiring/resolve-scheduling-org-id"
+import {
+  syncActiveStaffMemberShifts,
+  syncEmploymentAssignmentForShift,
+} from "@/lib/services/staff-shift-assignment-sync"
+import { reconcileJobPostingFillStatus } from "@/lib/hiring/job-posting-lifecycle"
 
 interface HiringRosterServiceArgs {
   supabase: SupabaseClient
@@ -235,11 +241,8 @@ function generateInvitationToken(): string {
 }
 
 function assignmentStatusForRosterStatus(status?: RosterMemberStatus): EmploymentAssignmentRow["status"] | undefined {
-  if (!status) return undefined
-  if (status === "active") return "active"
-  if (status === "pending") return "invited"
-  if (status === "inactive" || status === "suspended" || status === "offboarded") return "cancelled"
-  return undefined
+  // WORK-103 — canonical map shared with workforce-assignment-status.
+  return mapRosterStatusToAssignment(status)
 }
 
 function mergeProfileIntoRow(row: StaffMemberRow, profile?: Record<string, unknown>): StaffMemberRow {
@@ -381,7 +384,7 @@ export class HiringRosterService {
       const memberIdSet = new Set<string>()
 
       if (eventIds.length > 0) {
-        const [{ data: assignments }, { data: shifts }] = await Promise.all([
+        const [{ data: assignments }, { data: shifts }, { data: shiftAssignments }] = await Promise.all([
           this.supabase
             .from("employment_assignments")
             .select("user_id")
@@ -392,12 +395,21 @@ export class HiringRosterService {
             .from("staff_shifts")
             .select("staff_member_id")
             .in("event_id", eventIds),
+          this.supabase
+            .from("staff_shift_assignments")
+            .select("staff_member_id")
+            .in("event_id", eventIds)
+            .eq("employer_entity_type", args.employer.entityType)
+            .eq("employer_entity_id", args.employer.entityId),
         ])
 
         for (const row of assignments || []) {
           if (row.user_id) userIdSet.add(row.user_id)
         }
         for (const row of shifts || []) {
+          if (row.staff_member_id) memberIdSet.add(row.staff_member_id)
+        }
+        for (const row of shiftAssignments || []) {
           if (row.staff_member_id) memberIdSet.add(row.staff_member_id)
         }
 
@@ -416,15 +428,26 @@ export class HiringRosterService {
       }
 
       if (args.tourId) {
-        const { data: tourAssignments } = await this.supabase
-          .from("employment_assignments")
-          .select("user_id")
-          .eq("tour_id", args.tourId)
-          .eq("employer_entity_type", args.employer.entityType)
-          .eq("employer_entity_id", args.employer.entityId)
+        const [{ data: tourAssignments }, { data: tourShiftAssignments }] = await Promise.all([
+          this.supabase
+            .from("employment_assignments")
+            .select("user_id")
+            .eq("tour_id", args.tourId)
+            .eq("employer_entity_type", args.employer.entityType)
+            .eq("employer_entity_id", args.employer.entityId),
+          this.supabase
+            .from("staff_shift_assignments")
+            .select("staff_member_id")
+            .eq("tour_id", args.tourId)
+            .eq("employer_entity_type", args.employer.entityType)
+            .eq("employer_entity_id", args.employer.entityId),
+        ])
 
         for (const row of tourAssignments || []) {
           if (row.user_id) userIdSet.add(row.user_id)
+        }
+        for (const row of tourShiftAssignments || []) {
+          if (row.staff_member_id) memberIdSet.add(row.staff_member_id)
         }
       }
 
@@ -779,7 +802,7 @@ export class HiringRosterService {
 
     const { data: existing, error: existingError } = await this.supabase
       .from("staff_members")
-      .select("id, user_id, position, role, department, permissions")
+      .select("id, user_id, position, role, department, permissions, onboarding_candidate_id")
       .eq("id", args.memberId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
@@ -829,6 +852,17 @@ export class HiringRosterService {
       }
     }
 
+    if (args.status === "active" && existing.user_id) {
+      const shiftSync = await syncActiveStaffMemberShifts({
+        supabase: this.supabase,
+        staffMemberId: args.memberId,
+        actorUserId: args.actorUserId,
+      })
+      if (shiftSync.errors.length > 0) {
+        console.warn("[HiringRosterService] active staff shift sync had failures", shiftSync.errors)
+      }
+    }
+
     await this.supabase.from("hiring_audit_events").insert({
       employer_entity_type: args.employer.entityType,
       employer_entity_id: args.employer.entityId,
@@ -842,6 +876,29 @@ export class HiringRosterService {
         fields: Object.keys(payload).filter((key) => key !== "updated_at"),
       },
     })
+
+    if (args.status && existing.onboarding_candidate_id) {
+      const { data: candidate } = await this.supabase
+        .from("staff_onboarding_candidates")
+        .select("job_posting_id")
+        .eq("id", existing.onboarding_candidate_id)
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId)
+        .maybeSingle()
+
+      if (candidate?.job_posting_id) {
+        try {
+          await reconcileJobPostingFillStatus({
+            supabase: this.supabase,
+            employer: args.employer,
+            jobPostingId: candidate.job_posting_id,
+            actorUserId: args.actorUserId,
+          })
+        } catch (fillError) {
+          console.error("[HiringRosterService] job fill reconciliation failed", fillError)
+        }
+      }
+    }
 
     return this.getRosterMember({ employer: args.employer, memberId: args.memberId })
   }
@@ -896,6 +953,7 @@ export class HiringRosterService {
       await this.supabase.from("staff_shift_assignments").insert({
         staff_member_id: args.memberId,
         event_id: args.eventId ?? null,
+        tour_id: args.tourId ?? null,
         shift_id: args.shiftId ?? null,
         zone: args.zone ?? null,
         assigned_by: args.actorUserId,
@@ -907,25 +965,55 @@ export class HiringRosterService {
 
     const { data: memberRow } = await this.supabase
       .from("staff_members")
-      .select("user_id")
+      .select("user_id, venue_id, role, position, department, permissions")
       .eq("id", args.memberId)
       .maybeSingle()
 
     if (memberRow?.user_id && (args.eventId || args.tourId)) {
-      const assignmentPatch: Record<string, unknown> = {
-        staff_member_id: args.memberId,
-        updated_at: new Date().toISOString(),
-      }
-      if (args.eventId) assignmentPatch.event_id = args.eventId
-      if (args.tourId) assignmentPatch.tour_id = args.tourId
-      if (args.zone) assignmentPatch.zone = args.zone
-
-      await this.supabase
+      // Keep employment_assignments in step with the roster assignment so
+      // event/tour-scoped roster listings (which read this table) can see the member.
+      const now = new Date().toISOString()
+      const assignmentUpdate = await this.supabase
         .from("employment_assignments")
-        .update(assignmentPatch)
+        .update({
+          staff_member_id: args.memberId,
+          ...(args.eventId ? { event_id: args.eventId } : {}),
+          ...(args.tourId ? { tour_id: args.tourId } : {}),
+          updated_at: now,
+        })
         .eq("user_id", memberRow.user_id)
         .eq("employer_entity_type", args.employer.entityType)
         .eq("employer_entity_id", args.employer.entityId)
+        .select("id")
+
+      if (!assignmentUpdate.error && (assignmentUpdate.data ?? []).length === 0) {
+        // No existing assignment row — create one so the member is visible when
+        // the roster is scoped to this event/tour. Best-effort: do not fail the
+        // assignment itself if this insert is rejected by the environment.
+        const { error: insertError } = await this.supabase.from("employment_assignments").insert({
+          user_id: memberRow.user_id,
+          staff_member_id: args.memberId,
+          employer_entity_type: args.employer.entityType,
+          employer_entity_id: args.employer.entityId,
+          venue_id: memberRow.venue_id ?? null,
+          role_title: memberRow.position ?? memberRow.role ?? null,
+          position: memberRow.position ?? memberRow.role ?? null,
+          department: memberRow.department ?? null,
+          permissions: memberRow.permissions ?? null,
+          status: "invited",
+          source: "roster_assignment",
+          starts_at: now,
+          created_at: now,
+          updated_at: now,
+          ...(args.eventId ? { event_id: args.eventId } : {}),
+          ...(args.tourId ? { tour_id: args.tourId } : {}),
+        })
+        if (insertError) {
+          console.error("[assignShiftZone] employment_assignment insert failed", insertError.message)
+        }
+      } else if (assignmentUpdate.error) {
+        console.error("[assignShiftZone] employment_assignment update failed", assignmentUpdate.error.message)
+      }
     }
 
     await this.supabase.from("hiring_audit_events").insert({
@@ -965,11 +1053,25 @@ export class HiringRosterService {
 
     if (existingError) throw new Error(existingError.message)
 
+    // Resolve the real organizations.id - employer.entityId may be an
+    // organizer_accounts.id or owner user_id, not the org id itself. Stamping
+    // the raw entityId here is what left roster rows "outside the acting
+    // organization" during shift assignment.
+    const resolvedOrgId =
+      args.employer.entityType === "organization"
+        ? await resolveSchedulingOrgId({ supabase: this.supabase, employer: args.employer })
+        : null
+
     const basePayload: Record<string, unknown> = {
       user_id: args.userId,
       employer_entity_type: args.employer.entityType,
       employer_entity_id: args.employer.entityId,
       venue_id: venueId,
+      // WORK-103 - stamp org scope when employer is an organization (never invent).
+      org_id:
+        resolvedOrgId ??
+        (existing as { org_id?: string | null } | null)?.org_id ??
+        null,
       name: args.name?.trim() || existing?.name || args.email?.trim() || "Staff member",
       email: args.email?.trim() || existing?.email || null,
       phone: args.phone?.trim() || existing?.phone || null,
@@ -1027,6 +1129,9 @@ export class HiringRosterService {
       .eq("user_id", args.userId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
+      .in("assignment_kind", ["legacy_engagement", "organization"])
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle()
 
     const eventId = args.eventId ?? existingAssignment?.event_id ?? null
@@ -1101,7 +1206,7 @@ export class HiringRosterService {
     const userId = candidate.user_id ?? candidate.applicant_id
     if (!userId) throw new Error("Completed candidate is missing a user id.")
 
-    return this.upsertRosterFromApproval({
+    const member = await this.upsertRosterFromApproval({
       employer: args.employer,
       actorUserId: args.actorUserId,
       userId,
@@ -1114,5 +1219,21 @@ export class HiringRosterService {
       employmentType: candidate.employment_type ?? null,
       completed: true,
     })
+
+    // Event shifts can be created while onboarding leaves the roster member
+    // pending. The shift bridge deliberately skips pending members, so link
+    // those persisted shifts once this approval activates the worker.
+    if (member) {
+      const shiftSync = await syncActiveStaffMemberShifts({
+        supabase: this.supabase,
+        staffMemberId: member.id,
+        actorUserId: args.actorUserId,
+      })
+      if (shiftSync.errors.length > 0) {
+        throw new Error(`Worker activated, but ${shiftSync.errors.length} shift assignment(s) could not be linked: ${shiftSync.errors.join("; ")}`)
+      }
+    }
+
+    return member
   }
 }

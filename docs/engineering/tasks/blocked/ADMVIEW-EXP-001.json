@@ -1,0 +1,146 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMVIEW-EXP-001",
+  "title": "Review Admin shell, experience, and insights route readability",
+  "status": "blocked",
+  "execution_state": "queued_postlaunch",
+  "priority": "P2",
+  "owner_agent": "admin-experience-insights",
+  "outcome_id": "MAINTENANCE-DEBT",
+  "deliverable_class": "maintenance",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:18:00.000Z",
+  "updated_at": "2026-09-28T00:18:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (629 entries); successor split from ADMVIEW-001 without implementation",
+  "goal": "Complete the responsive readability and navigation review for the Admin shell, dashboard home, experience, content, analytics, network, venue, and residual route families.",
+  "scope": {
+    "in": [
+      "Admin root, shared shell layouts, setup/request/debug/create-table routes, and /admin/settings redirect",
+      "/admin/dashboard home, analytics, communications, connect, content, EPK, feed, messages, music, network, venues, and website routes"
+    ],
+    "out": [
+      "Routes assigned to the other six Admin implementation specialists",
+      "Shared design-system primitives without an explicit handoff"
+    ]
+  },
+  "working_set": [
+    "app/admin/layout.tsx",
+    "app/admin/page.tsx",
+    "app/admin/settings/page.tsx",
+    "app/admin/(dashboard-shell)/layout.tsx",
+    "app/admin/(dashboard-shell)/create-tables/page.tsx",
+    "app/admin/(dashboard-shell)/debug/page.tsx",
+    "app/admin/(dashboard-shell)/request/page.tsx",
+    "app/admin/(dashboard-shell)/setup/page.tsx",
+    "app/admin/dashboard/layout.tsx",
+    "app/admin/dashboard/page.tsx",
+    "app/admin/dashboard/analytics/page.tsx",
+    "app/admin/dashboard/communications/page.tsx",
+    "app/admin/dashboard/connect/page.tsx",
+    "app/admin/dashboard/content/page.tsx",
+    "app/admin/dashboard/epk/page.tsx",
+    "app/admin/dashboard/feed/page.tsx",
+    "app/admin/dashboard/messages/page.tsx",
+    "app/admin/dashboard/music/page.tsx",
+    "app/admin/dashboard/network/page.tsx",
+    "app/admin/dashboard/venues/**",
+    "app/admin/dashboard/website/page.tsx",
+    "__tests__/admin/admview-experience-insights-readability.test.tsx"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/tasks/completed/ADMVIEW-001.json",
+    "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md",
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The MAINTENANCE-DEBT program is activated and the Admin dispatcher selects this collision-free route family.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "MAINTENANCE-DEBT has not been activated.",
+      "dependency_task_ids": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The dashboard tours and events panels render distinct rows and readable two-line names.",
+      "owner": "admin-experience-insights",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Every experience/insights route and reachable panel has a route-matrix disposition and phone, tablet, desktop, and 200% zoom evidence.",
+      "owner": "admin-experience-insights",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Record identity, status, and actions do not overlap or disappear on narrow screens.",
+      "owner": "admin-experience-insights",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Shared data tables retain semantic headers, keyboard-reachable links, and mobile access to essential fields.",
+      "owner": "admin-experience-insights",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Repeated information is reduced without removing the authoritative detail or an existing action.",
+      "owner": "admin-experience-insights",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "criterion": "Focused tests, lint, feature verification, Admin audit checks, and control-plane validation are recorded.",
+      "owner": "admin-experience-insights",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-experience-insights",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/admview-experience-insights-readability.test.tsx",
+          "npx eslint <touched experience Admin files>",
+          "npm run verify:feature -- --changed",
+          "npm run check:admin-audit",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created from the exact experience/insights and residual shell rows in the ADMVIEW-001 route matrix. The completed row-collision implementation and partial dashboard, analytics, organization, and other phone evidence remain preserved in the predecessor; governance-owned organization evidence is consumed there rather than duplicated here.",
+    "completed": [],
+    "next_steps": [
+      "Wait for MAINTENANCE-DEBT activation, then resume the preserved dashboard and analytics evidence and review only the named shell and experience routes."
+    ],
+    "blockers": [
+      "MAINTENANCE-DEBT is not active."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

@@ -1,0 +1,241 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-021",
+  "title": "Author event sync jobs",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "database",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "created_at": "2026-09-27T23:11:32.635Z",
+  "updated_at": "2026-09-27T23:32:10.730Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (575 entries at task start; 6 files written by this lane, all additive)",
+  "goal": "Author the additive event_sync_jobs relation from the same archived foundation file as event_provider_connections, so the provider connect route stops failing closed for a second reason.",
+  "scope": {
+    "in": [
+      "The event_sync_jobs contract co-declared in 20260804130000_event_provider_foundation.sql alongside event_provider_connections"
+    ],
+    "out": [
+      "Any hosted apply (CP-051 manual application only)",
+      "event_sync_runs, a separate relation from the same archived file at :129-147, outside this working set and routed as HF-DB021-EVENT-SYNC-RUNS",
+      "The app/api/integrations/bandsintown/connect/route.ts onConflict defect, owned by integrations and routed as HF-DB021-EVENT-SYNC-JOBS-ONCONFLICT",
+      "Any queue extension decision, routed as HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260927140100_event_sync_jobs.sql",
+    "docs/engineering/migration-validation/**"
+  ],
+  "working_set_additions": [
+    {
+      "path": "docs/engineering/handoffs/pending/HF-DB021-EVENT-SYNC-JOBS-ONCONFLICT.json",
+      "reason": "A MEASURED defect in a route this lane does not own: the connect route's onConflict: \"dedupe_key\" upsert returns SQLSTATE 42P10 against the archived partial unique index. AGENTS.md and the charter both require a cross-domain need to become a handoff rather than a silent scope expansion or a manifest footnote, and this is the one finding here that changes what another lane must do."
+    },
+    {
+      "path": "docs/engineering/handoffs/pending/HF-DB021-EVENT-SYNC-RUNS.json",
+      "reason": "event_sync_runs is a separate relation from the same archived file and is the reason two of the three consumers stay broken after both DB-020 and DB-021. It is outside the working set by name, so it must be routed, and a handoff is the prescribed mechanism."
+    },
+    {
+      "path": "docs/engineering/handoffs/pending/HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM.json",
+      "reason": "Two decisions deliberately NOT taken and recorded as not-taken rather than settled: the provider-sync queue mechanism (lease table vs pgmq) and the CP-016 regeneration sequencing for the two chain-ahead relations."
+    },
+    {
+      "path": "docs/engineering/agents/database/STATE.md",
+      "reason": "Charter requirement: durable domain knowledge belongs in the owning agent's state."
+    }
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/CHARTER.md",
+    "docs/engineering/migration-validation/20260927140000_event_provider_connections.json",
+    "supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql:95-113,116-126,159,210-211,217",
+    "app/api/integrations/bandsintown/connect/route.ts:60-71",
+    "app/api/cron/events/sync/route.ts:59-88,235-255",
+    "app/api/admin/event-sync/route.ts:20-25"
+  ],
+  "depends_on": [],
+  "resume_condition": "Complete. A successor, if any, is the events-lane event_sync_runs contract confirmation and a database working-set amendment for that migration.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Transcribe the event_sync_jobs column contract byte-for-byte from 20260804130000_event_provider_foundation.sql, inventing nothing, and record any column that cannot be confirmed as unresolved rather than guessed.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "All 16 columns transcribed byte-for-byte from 20260804130000_event_provider_foundation.sql:95-113, plus the three indexes at :116-126, the status CHECK at :101-102 and the archive's own comment at :94. Nothing added, renamed, retyped, defaulted or relaxed.",
+        "Migration SHA-256 7b4c953c50733c2cccf71aee66eb1cf567bdea6ba21da2b97c10d37975b603e0. The post-condition asserts every column by name, type, nullability and default, so the transcription is machine-checked rather than asserted in prose.",
+        "Cross-checked against every column all three verified consumers select or write: the worker's 14, the admin surface's 7, the connect route's 7. NO COLUMN COULD NOT BE CONFIRMED - the archive is complete for these consumers, so the 'unresolved' clause of AC-1 has nothing to record. Stated explicitly rather than left implied.",
+        "The status CHECK is transcribed in FULL including `cancelled`, a literal no reachable consumer writes today, because narrowing a soft-cancel out of a CHECK to make an audit read tidier is a real behavioural change. Measured: all six are storable and a seventh (`paused`) is rejected.",
+        "The one contract element that could NOT be satisfied as written is NOT a column: the connect route's `onConflict: \"dedupe_key\"` cannot resolve against the archived PARTIAL unique index, and the fix that would make it resolve is a measured regression. Recorded as unresolved and routed, with both candidate fixes named: HF-DB021-EVENT-SYNC-JOBS-ONCONFLICT."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Prove the migration re-runnable by applying it 4 consecutive times on a throwaway local PostgreSQL cluster, the 4th against a populated table, with rows preserved.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "FOUR consecutive applies on a throwaway PostgreSQL 16.15 cluster, each in ONE transaction (`psql -1`) as the operator would. Every apply exited 0. The state after each of the FIRST THREE was asserted at 16 columns / 1 policy / 3 non-constraint indexes rather than inferred.",
+        "The FOURTH apply ran against a POPULATED table holding 2 seeded rows: 2 rows before, 2 rows after, with `dedupe_key` and `payload->>'connectionId'` intact, and exactly ONE `idx_event_sync_jobs_dedupe_active` and exactly THREE non-constraint indexes after four applies. The guard is idempotency, not data loss, and that is measured.",
+        "A fifth and further applies also ran: every one of the 20 negative controls re-applies the migration after its restore, and the harness asserts the re-apply is green. So re-runnability is exercised 20+ times, not 4.",
+        "EXECUTED: bash docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh -> `ALL CHECKS PASSED, 0 FAIL`, 97 PASS / 0 FAIL, byte-identical across two runs. Harness SHA-256 2c54f323485c7be669c499a1d33ec2a8c5e5ded4679b97a37d53abce752032e8.",
+        "LOCAL EMULATION ONLY, stated plainly: PostgreSQL 16.15 Homebrew, a cluster in a temp dir created and destroyed by this lane, a minimal auth/roles/`private`-schema bootstrap. NOT Supabase, NOT a hosted project, NOT a chain replay, no `supabase db reset`, no `db push --include-all`. CP-051 honoured: the migration was authored, not applied, to any environment."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Force RLS, write own-row-only policies, and state explicitly what is granted to anon, authenticated and service_role - and whether the connect route's unauthenticated read requires any authenticated grant at all.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "RLS enabled AND FORCED. FORCE is load-bearing rather than decorative here in a way it is not on the sibling: this relation has ZERO client policies, so the entire security argument is the flag. A queue of provider payloads with dedupe_key, payload, locked_by and last_error_summary in it is not something to leave one boolean away from.",
+        "'OWN-ROW-ONLY POLICIES' IS NOT APPLICABLE AND SAYING SO IS THE ANSWER, NOT A DEFLECTION. Unlike event_provider_connections, event_sync_jobs has no user-facing row to scope. The three verified consumers are `bandsintown/connect` (upsert), `cron/events/sync` (the queue worker) and `admin/event-sync` (platform-admin read), and ALL THREE resolve `.from()` through `createServiceRoleClient()`. There is no caller-client consumer, no authenticated read and no anonymous read anywhere in the repository. The correct own-row analogue is therefore total client denial, which is what the archive itself specifies at :210-211 and :217.",
+        "EXPLICIT GRANT MATRIX, verified by measurement as three real identities rather than read off the file: anon receives NOTHING and all four of select/insert/update/delete are permission errors; authenticated receives NOTHING, not even SELECT, and all four are permission errors; service_role receives select, insert and update and NOT delete, measured both as has_table_privilege booleans and as the rendered ACL, which reads exactly `service_role:insert service_role:select service_role:update` with no PUBLIC entry.",
+        "ANSWER TO THE QUESTION AS ASKED: the connect route's read requires NO authenticated grant at all - and the sharper finding is that the connect route does not READ this table at all. It service-role-WRITES it (`connect/route.ts:60-71`). So there is neither an unauthenticated read nor an authenticated read of event_sync_jobs in this repository, and an authenticated grant would be pure unused surface on a table whose `payload` column is a provider-controlled JSON blob.",
+        "THIS IS A DELIBERATE DIVERGENCE FROM THE SIBLING, IN THE OPPOSITE DIRECTION, AND IT IS RECORDED. DB-020 narrowed event_provider_connections' `select, insert, update` grant to SELECT only. Here there is nothing to narrow: the archive grants nothing on event_sync_jobs to anon or authenticated (:217) and states the reasoning at :210-211. This file therefore FOLLOWS THE ARCHIVE MORE LITERALLY than its sibling did, and the grant matrix is justified against the verified consumer set rather than copied from the neighbouring table.",
+        "The revokes are explicit (`from public, anon, authenticated`) because a Supabase `postgres` role commonly carries `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO ... anon, authenticated, service_role`, which would make a bare `create table` a client-WRITABLE job queue. House precedent `20260823031000_integration_token_vault.sql:45` (VEN-016). Three of the eight repair controls inject exactly these grants and prove the apply removes them.",
+        "Exactly ONE policy exists, `event_sync_jobs_service_role_all FOR ALL TO service_role`, and the post-condition asserts its ROLE LIST, not merely its existence - the role list IS the security contract for a relation with no client policies. Measured in both configurations: with BYPASSRLS on, and with `alter role service_role nobypassrls` applied, its exit code checked AND the catalog re-read to confirm `rolbypassrls = f`, where the admin SELECT, the worker's compare-and-set UPDATE with its RETURNING clause, and the connect route's upsert all still succeeded through the policy alone. That arm is PURELY DEFENSIVE here and a narrower claim than the sibling's: no consumer of this table is reachable today, since connect and cron/events/sync are gated on the disabled `external_event_providers` capability and admin/event-sync is gated on `EVENT_PROVIDER_ADMIN_TOOLS` plus platform admin.",
+        "No DELETE path exists for any non-privileged caller - no client policy and no grant - and the post-condition asserts both absences, so a future permissive delete cannot appear unnoticed. `cancelled` is the soft-terminal state and no consumer deletes a job."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "bash docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh",
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "npm run check:migration-ledger",
+          "node supabase/tests/db008_chain_contract_replay.mjs .",
+          "npm run check:db008-harness",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "bash docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh -> `ALL CHECKS PASSED, 0 FAIL`; 97 PASS / 0 FAIL; byte-identical across two runs (diff of two full runs is empty). 4 consecutive applies in one transaction each, the 4th against a populated table with 2 rows preserved. 12 refusal controls fired and 8 repair controls restored, every control restoring its own fixture and re-applying the migration green after the restore. Throwaway local PostgreSQL 16.15, not Supabase, not hosted, not a chain replay (CP-051).",
+          "npm run check:migration-chain -> `active migration chain has no duplicate policy creations (322 files scanned)`, exit 0. 321 -> 322 is this migration. The single policy is created at TOP LEVEL with a `drop policy if exists` + `create policy` pair and NOT inside a DO block, because `scripts/ci/check-active-migration-chain.mjs` strips `$tag$ ... $tag$` bodies before scanning policy DDL and a DO-nested policy would escape duplicate detection entirely.",
+          "npm run check:migration-validation -> exit 0, repository-wide, 183 scanned, 0 failures, with `20260927140100_event_sync_jobs.sql` loaded against its new planned manifest.",
+          "npm run check:migration-ledger -> `hosted migration ledger matches 322 active migrations (26 classified, 296 explicitly unreconciled)`, exit 0. `sourceSnapshot` was re-derived by the checker's OWN exported `activeMigrationSnapshot` algorithm, never hand-edited and never relaxed, and this migration was genuinely classified launch-required with a named task, a planned manifest and a rationale rather than left in the unclassified bucket to hit a number.",
+          "node supabase/tests/db008_chain_contract_replay.mjs . -> `contract reproducible from chain: true`, exit 0, with every blocking counter at 0: outOfBand 0, contractOnlyRoutines 0, viewColumnsWithoutProvenance 0. `event_sync_jobs` is named in the chain-only relations list (31), which is the CORRECT and SAFE direction: the chain is a superset of the contract by one relation, so regeneration may only ADD coverage.",
+          "npm run check:db008-harness -> exit 0 with EXACTLY 8 `PASS <name>` lines (attribution, interaction-scope, marketplace, money-path, reproducibility, scheduled-posts, storage-guard, view-replay), runner summary `ran 9, skipped 1, failed 0`. Run with PGBIN=/opt/homebrew/opt/postgresql@16/bin so the six local-PostgreSQL harnesses actually executed rather than skipping. NOT CLAIMED: it does NOT run the DB-021 harness - that harness lives in `migration-validation/` because `supabase/tests/**` is outside this task's working set, so NO CI COVERAGE of the DB-021 proof exists and none is claimed. The 97 PASS lines come from the manual run above.",
+          "npm run agents:validate -- --strict -> `validated 18 agents, 218 tasks, 103 pending handoffs, 0 warnings, 0 errors`, exit 0, after adding the three handoffs.",
+          "shasum -a 256 lib/database.types.ts -> 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7, IDENTICAL to the value DB-020 recorded, and `git diff` reports no change to it, to `types/database.types.ts` or to `types/supabase.ts`. Byte-unchanged, not regenerated, not hand-edited. CP-016 regeneration remains blocked on RELEASE-013 provisioning a chain-built target; `--linked` is permanently disqualified under CP-127.",
+          "NOT RUN AND NOT CLAIMED: `npm run typecheck` (68m18s on CI, OOMs on this 8GB box shared by four lanes), `npm run generate:database-types`, `npm run check:database-types` (both need a live chain-built target), `supabase db lint --local` (no running target), and any apply, push, reset or replay of anything. NO HOSTED EVIDENCE OF ANY KIND EXISTS OR IS CLAIMED."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T23:32:10.730Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "DB-021 complete: 20260927140100_event_sync_jobs.sql authored from the archived 20260804130000:95-113,116-126, RLS enabled and forced with one to service_role policy and zero client policies, grants anon nothing / authenticated nothing / service_role select+insert+update and not delete, applied 4 consecutive times on a throwaway local PostgreSQL 16.15 with the 4th against a populated table and 2 rows preserved, 97 PASS / 0 FAIL byte-identical across two runs, all six static gates green. The substantive finding is a ROUTE defect: bandsintown/connect upserts with onConflict dedupe_key, which returns SQLSTATE 42P10 against the archived partial unique index, and the tempting full-unique-index fix was measured and rejected because it makes a dedupe key single-use forever. No route opens on this file: event_sync_runs is a third absent relation from the same archived file. Nothing applied to any environment.",
+    "completed": [
+      "Authored supabase/migrations/20260927140100_event_sync_jobs.sql, SHA-256 7b4c953c50733c2cccf71aee66eb1cf567bdea6ba21da2b97c10d37975b603e0. Additive only, one transaction, no destructive statement, no RLS weakening, no existing object touched, no data row read or written.",
+      "AC-1 met. All 16 columns, the status CHECK (including the unused `cancelled` literal) and all three indexes transcribed byte-for-byte; no column could not be confirmed, and the archive is complete for all three verified consumers. Machine-checked by a post-condition that asserts every column by name, type, nullability and default.",
+      "AC-2 met. FOUR consecutive applies in one transaction each on a throwaway local PostgreSQL 16.15, the FOURTH against a populated table: 2 rows before, 2 rows after, dedupe_key and payload intact, exactly one dedupe index and exactly three non-constraint indexes after four applies. Plus 20 further applies inside the control loop.",
+      "AC-3 met. RLS enabled AND forced, ONE `to service_role` policy, ZERO client policies. anon: nothing. authenticated: nothing, not even SELECT. service_role: select/insert/update, no delete. All four of select/insert/update/delete measured as permission errors for BOTH client roles. The connect route's unauthenticated read needs NO authenticated grant, and the sharper fact is that the route does not read this table at all - it service-role-WRITES it.",
+      "Found and measured a REAL DEFECT in a route this lane does not own: `app/api/integrations/bandsintown/connect/route.ts:70`'s `onConflict: \"dedupe_key\"` returns SQLSTATE 42P10 against the archived partial unique index. Measured in both directions so the fault is not misattributed: the arbiter-WHERE form of the same statement resolves, a second active job on a key is rejected 23505, and the key is reusable once the job leaves queued/running - which is why a full unique index was rejected as the fix.",
+      "Rejected the tempting schema fix for that defect ON MEASUREMENT, and recorded the rejection rather than making the queue silently wrong: a full unique index on `dedupe_key` is the only DDL that makes the route resolve and it would make a dedupe key single-use forever.",
+      "Verified the consumer set INDEPENDENTLY rather than inheriting the sibling's five. Three real consumers, all service-role. The type inventory is wrong again, this time in ONE direction: zero entries for event_sync_jobs, omitting all three real consumers, because three of three use an untyped service-role client and emit no tsc diagnostic. Absence of a diagnostic is not evidence of absence of a consumer.",
+      "No queue extension added. The archive's comment calls this a 'durable queue' but names no extension and `pgmq` appears nowhere in the repository; the archived contract is a hand-rolled lease queue, transcribed verbatim. The standardisation decision is named to integrations/Release rather than settled by a transcription lane - HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM.",
+      "Authored the planned manifest docs/engineering/migration-validation/20260927140100_event_sync_jobs.json with a layered preflight/apply/postflight plan, 15 stop-condition-aware preflight and postflight queries, and 16 recorded assumptions.",
+      "Authored docs/engineering/migration-validation/db021_event_sync_jobs.harness.sh, SHA-256 2c54f323485c7be669c499a1d33ec2a8c5e5ded4679b97a37d53abce752032e8, with a fixture restore built in from the start, a precondition assertion on every negative control, a summary computed from counters, and a transcription check that FAILS THE RUN if the three live route files stop containing the literals the harness's SQL was written from.",
+      "Re-derived `sourceSnapshot` in hosted-history-ledger.json with the checker's own exported algorithm and classified this migration launch-required. 321 -> 322, 25 -> 26 classified, 296 unclassified.",
+      "All six gates green: check:migration-chain (322 files), check:migration-validation (exit 0, 183 scanned), check:migration-ledger (exit 0), db008_chain_contract_replay (`contract reproducible from chain: true`, blocking counters all 0), check:db008-harness (exactly 8 PASS lines), agents:validate --strict (0 warnings, 0 errors).",
+      "lib/database.types.ts verified byte-unchanged at 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7, matching the value DB-020 recorded, with no diff to it, `types/database.types.ts` or `types/supabase.ts`. Not regenerated, not hand-edited. The 6 diagnostics DB-020 recorded are NOT claimed cleared - and for THIS relation there are none to clear, because all three consumers are untyped service-role and emit no diagnostic.",
+      "Found and fixed TWO defects in my own migration by running it, not by reading it. (1) The grant matrix was compared as ONE `acl:{ROLE}:{all privileges}` key, so granting service_role DELETE made the expected key DISAPPEAR and the defect was reported as 'MISSING', naming a removal for an addition. Now one key per (grantee, privilege) pair, so extra = UNEXPECTED and missing = MISSING, both correct. (2) The post-condition raised on the ABSENT pass first, so a REPLACEMENT defect (a re-typed column, an added foreign key) could only ever be reported as 'MISSING' and the 'what is actually there now' half was unreachable. Both directions are now collected and raised in one message. Both were found BY the harness's controls, not by inspection.",
+      "Found and fixed ELEVEN defects in my own harness by running it, all recorded rather than quietly fixed: a `to_regclass('private')` probe that can never be true for a schema (must be `to_regnamespace`); an arbiter-WHERE assertion that expected a specific id when the correct behaviour is a new row; a stray `]` that made a grep read a file named `]`; residue cleanup that reused the seeded rows' own dedupe_key and then counted rows against a stale expectation; a duplicate-ACTIVE-key probe that only inserted once; a NULL-key count taken absolutely when a seeded row was already NULL; a `has_table_privilege` concatenation returning true/false rather than t/f; an ACL probe whose `string_agg` over a set-returning function was not LATERAL; a re-type control whose INJECTION failed because the value in the column was not valid JSON; a foreign-key control whose INJECTION failed because the seeded ids are not in auth.users; a CHECK probe whose cleanup deleted a SEEDED row because it scoped on the same provider value; and a plan assertion that demanded a planner choice on a 2-row table without `set enable_seqscan = off`. The common shape is the one this repository has now recorded five times: a revision that passed while its instrument could not fail.",
+      "Reclassified FOUR controls from refusals to REPAIRS by measurement: the three client-role and PUBLIC grants, and the narrowed service-role policy. The file re-issues the revokes, the grant, the FORCE statement and the top-level drop+create policy pair, so that drift is corrected before the post-condition is reached. Asserting a refusal there would have been a control passing for the wrong reason, and these are the realistic defects on a Supabase target with default privileges.",
+      "Re-measured the `private`-schema stranded-relation case rather than inheriting DB-020's finding: measured again as a REPAIR, not a refusal, with the stranded-row assertion (2 rows left in `private`, 0 in the freshly created `public` relation) kept as a control. Recorded as a Layer 0 stop condition, not something the migration can detect.",
+      "Created three handoffs: HF-DB021-EVENT-SYNC-JOBS-ONCONFLICT (integrations/INTG-008), HF-DB021-EVENT-SYNC-RUNS (events/EVENTS-003), HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM (orchestrator/ORCH-004). Each validated under `--strict`.",
+      "Migration authored and all local gates green; nothing applied.",
+      "Three handoffs created and validated under --strict: integrations (the onConflict defect), events (event_sync_runs), orchestrator (queue mechanism plus CP-016 sequencing)."
+    ],
+    "next_steps": [
+      "release/ops operator: the reviewed manual single-transaction apply under CP-051 for 20260927140000 and 20260927140100, with the four Layer 0 stop-condition probes in each manifest, then the postflight as anon + a signed-in authenticated user + the service role. For THIS relation the postflight differs from the sibling's: there is no own-row predicate to test, so anon and authenticated must be permission errors on ALL FOUR operations, and the connect route's exact upsert is EXPECTED to return 42P10 - that is the correct applied state confirming the measured route defect, not an apply failure.",
+      "integrations (HF-DB021-EVENT-SYNC-JOBS-ONCONFLICT): fix the route-side `onConflict` shape and add a regression test. Do not add a full unique index on `dedupe_key` without an explicit owner decision.",
+      "events (HF-DB021-EVENT-SYNC-RUNS): confirm the archived `event_sync_runs` contract against all three consumers including `lib/events/providers/ticketmaster/rate-limiter.ts`, then request a database working-set amendment for a migration at a version higher than 20260927140100, since its `job_id` is a foreign key to the relation created here.",
+      "orchestrator (HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM): record the provider-sync queue mechanism decision, and sequence CP-016 regeneration against a chain-built target after both applies - never `--linked` (CP-127).",
+      "security-admin: review the zero-client-policy posture, the forced-RLS setting and the `service_role` arm, since RLS is the security boundary for a queue carrying provider-controlled payloads. security-admin is named as reviewer in the manifest but this lane cannot obtain that review."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:05:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Startup, consumer verification and contract extraction. Read INDEX, CHARTER, STATE, the DB-021 record, the DB-020 manifest, and the archived 20260804130000 foundation file. Measured the consumer set INDEPENDENTLY rather than inheriting the sibling's five: exactly three code files, all resolving `.from()` through `createServiceRoleClient()`, and the type inventory wrong in ONE direction this time (zero entries, omitting all three). Confirmed the archive is complete for all three consumers, so no column is unconfirmable. Pre-measured every catalog rendering the post-condition would compare against, on a throwaway cluster, BEFORE writing the migration, so the contract was not written against a guess. Recorded the 20260804130000:95-113 column contract, :116-126 indexes, :159 RLS, :210-211 and :217 grants.",
+        "completed": [
+          "Consumer set verified: 3 files, all service-role. No caller-client, authenticated or anonymous reader of event_sync_jobs exists in the repository.",
+          "Catalog renderings pre-measured: 16 column fragments, the status CHECK literal set, the p/u constraints, fk count 0, all three pg_get_indexdef strings, the policy with its role list, and the relacl rendering.",
+          "MEASURED ON THE PROBE CLUSTER, and it is the substantive finding: the connect route's exact upsert returns SQLSTATE 42P10; the same statement with the index predicate as an arbiter WHERE succeeds; a second ACTIVE job on one key is rejected 23505; the same key is ACCEPTED again once the first job succeeded; three NULL dedupe_key rows are all storable. So the archived partial index is correct, the route's statement is wrong, and a full unique index would destroy re-verification."
+        ],
+        "next_steps": [
+          "Author the migration with a post-condition that pays for each guard.",
+          "Author the harness with the fixture restore built in from the start."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:18:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Authored the migration, then found TWO defects in it BY RUNNING IT. The harness's own controls, not inspection, caught that the grant matrix compared as one `acl:{ROLE}:{privs}` key reported an EXTRA privilege as 'MISSING' - naming a removal for an addition - and that the post-condition raised on the ABSENT pass first, so a REPLACEMENT defect could never report the 'what is actually there now' half. Fixed both: one key per (grantee, privilege) pair, and both directions collected and raised in a single message. The harness itself needed ELEVEN fixes across four runs (16 fails, then 7, then 3, then 0), all recorded rather than quietly corrected - a `to_regclass` on a schema, a stray `]`, residue cleanup that reused seeded keys, an absolute NULL count where a delta was needed, a non-LATERAL `string_agg` over `aclexplode`, two controls whose INJECTION silently failed, a probe that deleted a seeded row, and a planner assertion on a 2-row table without `enable_seqscan = off`.",
+        "completed": [
+          "Migration authored and green: 4 consecutive applies, the 4th against a populated table with 2 rows preserved, 16/1/3 state asserted after each of the first three.",
+          "Both self-found migration defects fixed and both are now the reason two controls assert the corrected behaviour, so the fix is regression-tested rather than asserted.",
+          "Harness at 97 PASS / 0 FAIL, byte-identical across two runs. 12 refusal controls and 8 repair controls, all fired, all restoring their own fixture and re-applying green.",
+          "Four controls reclassified from refusals to repairs BY MEASUREMENT, and the `private`-schema stranded-relation case re-measured as a repair again with the stranded-row assertion kept as a control."
+        ],
+        "next_steps": [
+          "Write the planned manifest.",
+          "Re-derive the hosted-history ledger snapshot and classify the migration.",
+          "Run the six static gates.",
+          "Create the three handoffs and update the task record and STATE.md."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:26:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "All six gates green and the record closed. check:migration-chain 322 files clean; check:migration-validation exit 0 repository-wide with the new planned manifest loaded; check:migration-ledger exit 0 after re-deriving sourceSnapshot with the checker's own algorithm and classifying this migration; db008_chain_contract_replay `contract reproducible from chain: true` with all blocking counters at 0 and event_sync_jobs correctly in the chain-only list; check:db008-harness exactly 8 PASS lines with PGBIN set; agents:validate --strict 0 warnings 0 errors. Three handoffs created and validated. Task moved to completed. The boundary of the claim is stated rather than blurred: migration AUTHORING is complete and every local gate is green, and NOTHING has been applied to any environment, local or hosted.",
+        "completed": [
+          "All six gates executed and reported with their real output.",
+          "Three handoffs created under docs/engineering/handoffs/pending/ and validated under --strict: the route defect to integrations, event_sync_runs to events, and the queue-mechanism plus CP-016 decisions to orchestrator.",
+          "Task record and STATE.md updated. Task moved to completed."
+        ],
+        "next_steps": [
+          "release/ops: the reviewed manual CP-051 apply plus the postflight probes, for both provider-foundation migrations.",
+          "integrations, events and orchestrator: action the three handoffs."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:32:10.730Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "DB-021 complete: 20260927140100_event_sync_jobs.sql authored from the archived 20260804130000:95-113,116-126, RLS enabled and forced with one to service_role policy and zero client policies, grants anon nothing / authenticated nothing / service_role select+insert+update and not delete, applied 4 consecutive times on a throwaway local PostgreSQL 16.15 with the 4th against a populated table and 2 rows preserved, 97 PASS / 0 FAIL byte-identical across two runs, all six static gates green. The substantive finding is a ROUTE defect: bandsintown/connect upserts with onConflict dedupe_key, which returns SQLSTATE 42P10 against the archived partial unique index, and the tempting full-unique-index fix was measured and rejected because it makes a dedupe key single-use forever. No route opens on this file: event_sync_runs is a third absent relation from the same archived file. Nothing applied to any environment.",
+        "completed": [
+          "Migration authored and all local gates green; nothing applied.",
+          "Three handoffs created and validated under --strict: integrations (the onConflict defect), events (event_sync_runs), orchestrator (queue mechanism plus CP-016 sequencing)."
+        ],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DB021-EVENT-SYNC-JOBS-ONCONFLICT -> integrations/INTG-008 (pending). The measured SQLSTATE 42P10: `bandsintown/connect` upserts with an ON CONFLICT arbiter that cannot resolve against the archived partial unique index. Both candidate fixes named; the full-unique-index fix explicitly recorded as measured-and-rejected, with the repo's own `lib/ticketing/analytics.ts` precedent for the correct route-side shape.",
+    "HF-DB021-EVENT-SYNC-RUNS -> events/EVENTS-003 (pending). `event_sync_runs` is the third absent relation from the same archived file and is the reason two of the three consumers stay broken after both DB-020 and DB-021. Routed, not absorbed, with the order constraint recorded (its `job_id` FK means a higher version than 20260927140100).",
+    "HF-DB021-PROVIDER-SYNC-QUEUE-MECHANISM -> orchestrator/ORCH-004 (pending). The lease-table-versus-pgmq decision and the CP-016 regeneration sequencing, both recorded as decisions this transcription lane deliberately did not take.",
+    "WORKING SET EXPANDED beyond the two recorded paths, with reasons in working_set_additions: the three handoff files, because AGENTS.md and the charter both require a cross-domain need to become a handoff rather than a silent scope expansion or a manifest footnote, and the 42P10 finding is the one thing here that changes what another lane must do; and docs/engineering/agents/database/STATE.md, per the charter's requirement that durable domain knowledge live in the owning agent's state. No migration filename outside the working set was needed and none was invented."
+  ]
+}

@@ -1,0 +1,164 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-027",
+  "title": "Bind the communications PATCH handler to the acting organization",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin-experience-insights",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T01:55:44.900Z",
+  "updated_at": "2026-09-28T02:08:47.757Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (726 entries at completion; +2 are this task, the rest are concurrent lanes)",
+  "goal": "Stop PATCH from mutating another org",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/api/admin/communications/route.ts",
+    "__tests__/admin/admin-communications-org-scope.test.ts"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/completed/ADMIN-022.json",
+    "docs/engineering/tasks/blocked/ADMIN-022.json",
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "__tests__/admin/support/admin-route-guard-proof.ts"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "PATCH resolves the acting organization from the admin context, never from a request body or query parameter, and pushes an organization predicate into both the read and the write.",
+      "owner": "admin-experience-insights",
+      "state": "met",
+      "evidence": [
+        "app/api/admin/communications/route.ts PATCH now resolves the organization before touching any table. The whole diff is confined to the PATCH handler (lines 252-370); GET and POST are byte-identical to their pre-change state. Proof: the pre-change file was sha256 23a83257a2cc6d37884354f9b90c9f642aa2cc5135e22af60cc707b34edb418c, which is byte-for-byte the value ADMIN-022 recorded for its landed state, so the file arrived carrying ADMIN-022's GET gate change and every byte of the diff below is this task's. Post-change sha256 is 11d039f5da3ab2d07cc0f6dbc47342f63a1474919066d3bc6c3bb78ce255683d.",
+        "THE ORGANIZATION COMES FROM THE ADMIN CONTEXT, and it had to be fetched: withAdminAuth passes only { user, supabase } (lib/auth/api-auth.ts:226-232), so there was no admin context in scope to read an org from. The handler now calls the real resolveActingAdminContext(request, auth) and returns its NextResponse verbatim when it cannot establish a verified acting organization. That is the same resolver withAdminCapability uses, and its denials are passed through rather than swallowed: 409 acting_context_required with no session profile, 403 acting_context_mismatch when the x-acting-org-id header contradicts the selected profile, 403 organization_access_denied when the user is not an active member of the acting org and is not its owner and has no tour collaboration.",
+        "The org then goes through resolveAuthorizedOrgLogisticsScope({ userId: user.id, requestedOrgId: admin.orgId, allowedTourIds: admin.allowedTourIds }) and the handler uses scope.orgId, i.e. the resolver's VERIFIED return value, not the requested value. That resolver throws AdminActingContextRequiredError (409) or AdminOrganizationAccessDeniedError (403); both are surfaced with the real status through the module's own authorizedOrgScopeErrorResponse instead of falling through to the catch's blanket 500. There is no fallback branch: if the org cannot be resolved the handler returns, and there is no code path that reaches the write without orgId.",
+        "The predicate is in BOTH the read and the write, on both actions: .eq('id', id).eq('org_id', orgId) precedes the select on each of mark_read and acknowledge, and the same pair precedes each .update(...). Four occurrences in total, asserted as four by the source test. The predicate is part of the query, not a filter applied after an unscoped read - the update is issued with .eq('org_id', orgId) in the same builder chain, so the mutation itself cannot reach a row the scoped read did not return.",
+        "The organization is structurally unreachable from the request. The body is destructured as const { id, action } = body and no org field is read from it; the handler never touches searchParams or URL query parameters. Three tests enforce this behaviourally (a body org_id, a query-string org_id, and a spoofed x-acting-org-id header each leave the other tenant's row untouched) and one enforces it structurally.",
+        "A cross-tenant message is reported as 404 Message not found, identical to a message that does not exist, so the endpoint cannot be used to probe which ids exist.",
+        "NEGATIVE CONTROL C (the org predicate is load-bearing - the required evidence): all four .eq('org_id', orgId) lines were removed from the route and the suite re-run. 8 of 15 tests went red, and the two cross-tenant tests failed on the SECURITY claim rather than on a status code because the state assertion is ordered first: 'refuses to mark a message in another organization read' failed with \"expected [ Array(1) ] to deeply equal []\" - Expected [] / Received [ \"00000000-0000-4000-8000-000000000001\" ] - i.e. ORG_A's admin id was written into ORG_B's read_by. 'refuses to acknowledge a message in another organization' failed the same way on acknowledged_by. The source test failed with \"expected +0 to be 4\". The body- and query-string-supplied-org tests and the collaborator test also went red. Restored byte-exactly to sha256 11d039f5da3ab2d07cc0f6dbc47342f63a1474919066d3bc6c3bb78ce255683d and the suite returned to 15/15.",
+        "NEGATIVE CONTROL E (the source-shape guard can fail): with the route left correct, the source test's four-occurrence assertion was shown to fail in controls C and B above, so it is not a tautology."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "A cross-tenant test proves a second organization's admin cannot mutate a team_communications row it does not own, including the read_by and acknowledged_by array updates, and that an authorized org still succeeds so the denial is not vacuous.",
+      "owner": "admin-experience-insights",
+      "state": "met",
+      "evidence": [
+        "__tests__/admin/admin-communications-org-scope.test.ts, 15 tests, all green. The fake Supabase client HONOURS eq and in predicates against a mutable message store, which is what makes a missing predicate demonstrable rather than assumed, and it throws if the handler ever uses or() on this path rather than modelling it loosely.",
+        "THE UNDERLYING MODULES ARE REAL, NOT DOUBLED. lib/auth/admin-context.ts is not mocked, so resolveActingAdminContext really runs: the user_sessions lookup, the organizer-account profile check in loadOrganizationProfile, the active-membership check in loadMembership, the tour-collaborator fallback in loadTourCollaboratorScope and the capabilities load all execute. lib/admin/resolve-authorized-org.ts is not mocked, so the membership re-check, resolveExplicitAuthorizedOrgId, the events_v2/tours narrowing and both denial errors really execute. Only the Supabase transport is replaced. The withAdminAuth double defers to the real userHasAdminSurfaceAccess from lib/auth/admin.ts - the same function production withAdminAuth -> checkAdminPermissions calls - so the admin-surface gate is exercised rather than stubbed true.",
+        "CROSS-TENANT DENIAL, both arrays named in AC-2. 'refuses to mark a message in another organization read': the acting user is an active admin of ORG_A and the message belongs to ORG_B. Asserts storedMessage(MSG_B).read_by is still [], the response is 404, that NO write query was even issued (writeQueries() is empty, so this is not a mutation hidden behind an error status), and that the single team_communications read carried both eq(id, MSG_B) and eq(org_id, ORG_A). 'refuses to acknowledge a message in another organization' does the same for acknowledged_by, and also asserts the acting organization's own message is untouched by a successful request.",
+        "POSITIVE HALF, IN THE SAME SUITE, AND IT REALLY EXERCISES THE WRITE. 'marks a message in the acting organization read, and the write really lands' asserts 200, success true, AND storedMessage(MSG_A).read_by deep-equals [ACTING_USER] - the mutation is observed in the store, not inferred from a status code - AND that the single recorded write query carried both eq(id, MSG_A) and eq(org_id, ORG_A). 'acknowledges a message in the acting organization' does the same for acknowledged_by. A fifth positive test covers idempotency for a user who already marked the message.",
+        "NEGATIVE CONTROL D (the positive half is not vacuous - the CP-098 guard): the mark_read branch was made to `return NextResponse.json({ success: true })` before performing the write, i.e. a handler that responds correctly and writes nothing. 2 tests went red, and the decisive one is 'marks a message in the acting organization read' failing with \"expected [] to deeply equal [ Array(1) ]\" - Expected [ \"00000000-0000-4000-8000-000000000001\" ] / Received [] - while the response status was still 200 and body.success still true. The suite therefore cannot be satisfied by a status code; it can return a plausible-but-false zero and it does so under this control. The collaborator test failed for the same reason. Reverted byte-exactly.",
+        "NEGATIVE CONTROL B (the WRITE predicate is independently asserted): only the two .update() chains were de-predicated, leaving the reads scoped (4 occurrences -> 2). 3 tests went red: both positive tests with \"expected [ [ 'update', ...(1) ], ...(1) ] to deep equally contain [ 'eq', 'org_id', ...(1) ]\" and the source test. Reported honestly: under this control the two CROSS-TENANT denial tests stayed GREEN, because the scoped read already refuses the foreign row before any write is attempted. So the write predicate is defense in depth whose loss is not observable through the cross-tenant path, and it is covered by a structural assertion plus this control, not by a behavioural cross-tenant test. Claiming otherwise would overstate what the suite proves.",
+        "FAIL-CLOSED PATHS ARE TESTED, NOT ASSUMED. 'refuses the write when the acting organization cannot be resolved at all' (no session profile -> real 409 acting_context_required, and teamCommQueries() is empty so the table was never reached); 'refuses the write when the admin does not belong to the acting organization' (session points at ORG_A, active membership only in ORG_B -> real 403 organization_access_denied from loadMembership plus the collaborator fallback, table never reached); 'refuses the write at the admin-surface gate before any organization work' (the real userHasAdminSurfaceAccess denies -> 403 with the production \"Admin access required\" body, and the test asserts the gate really executed by requiring the exact probe table order profiles, org_members, organizations, tour_team_members).",
+        "NO REGRESSION FOR TOUR COLLABORATORS. 'lets a tour collaborator reach their own organization and no other' gives the user no active membership in the acting org, a confirmed+active tour collaboration in it, and asserts 200 plus read_by actually landing on their org's message, and then 404 with read_by untouched on a different org's message. This is why the handler passes allowedTourIds: the resolver supports collaborator narrowing for exactly this case, and omitting it would have denied legitimate collaborators.",
+        "STILL ENFORCES THE PRE-EXISTING CONTRACT: a missing id is 400 and an unknown action is 400 with no write issued."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "The service-role client is either removed from this path or its use is bounded by an organization predicate the test exercises; if the existing resolveAuthorizedOrgLogisticsScope helper in lib/admin/resolve-authorized-org.ts is sufficient, that file is NOT edited - it is admin-governance owned.",
+      "owner": "admin-experience-insights",
+      "state": "met",
+      "evidence": [
+        "REMOVED FROM THIS PATH. The handler no longer calls createServiceRoleClient(); it uses scope.service, the client returned by resolveAuthorizedOrgLogisticsScope, which re-verifies the organization before the handler gets it. A source test asserts the PATCH slice (the last export in the file, so the slice cannot be satisfied by GET or POST) contains no occurrence of createServiceRoleClient. The module-level import stays because the POST send path still legitimately uses it; removing the import would have broken POST.",
+        "WHAT BOUNDS THE SURVIVING SERVICE-ROLE CLIENT, stated precisely rather than glossed: a service-role client still exists on this path, because a service client is how lib/admin/resolve-authorized-org.ts verifies membership and the acting organization at all. It is inherent to the fix, not a leftover. What changed is that the handler no longer constructs or owns one, and every one of its four uses of team_communications carries .eq('org_id', orgId) in the query - two reads, two writes - so the RLS bypass is bounded by an organization predicate the test exercises. The predicate appears four times and the suite asserts four, and controls B and C each showed that assertion going red when the predicate is removed from the writes or from both.",
+        "PROVEN BY ORDER, NOT BY COMMENT. 'takes its service client from the authorized scope, after the resolver has run' asserts that in the recorded service-client query order, the first team_communications query comes after org_members, organizer_accounts, events_v2 and tours, and that the events_v2 query itself was issued with eq(org_id, ORG_A). A handler that built its own client and skipped the resolver would fail this.",
+        "NO MIGRATION. No schema, RLS policy, index or column is involved; the fix is entirely in the query the route issues. No migration was authored, none was applied, and nothing was run against any database.",
+        "lib/admin/resolve-authorized-org.ts WAS SUFFICIENT and was NOT edited. Confirmed: its sha256 and content are untouched by this task, and the three things AC-1 and AC-3 needed were all already exported - resolveAuthorizedOrgLogisticsScope returns a verified orgId plus the service client, its allowedTourIds parameter handles the collaborator case, and authorizedOrgScopeErrorResponse gives the real 403/409 status for its two denial errors. No handoff to admin-governance was required and none was raised. The only new import is resolveActingAdminContext from lib/auth/admin-context.ts, which is a read-only use of an existing export; that file is not in this working set and was not edited either."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-experience-insights",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/admin/admin-communications-org-scope.test.ts",
+          "npx vitest run __tests__/admin/admin-communications-org-scope.test.ts __tests__/admin/admin-communications-capability.test.ts __tests__/admin/admin-registry-guard-proof.test.ts",
+          "npx vitest run __tests__/admin/",
+          "npx vitest run __tests__/logistics/logistics-route-contract.test.ts __tests__/admin/comms-path-inventory.test.ts",
+          "npm run check:admin-route-registry",
+          "npx tsc -p tsconfig.admin027-slice.json --noEmit",
+          "npx eslint app/api/admin/communications/route.ts __tests__/admin/admin-communications-org-scope.test.ts",
+          "npm run check:admin-audit",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/admin/admin-communications-org-scope.test.ts -> 15 passed (15). Green again after every negative control was reverted byte-exactly (route restored to sha256 11d039f5da3ab2d07cc0f6dbc47342f63a1474919066d3bc6c3bb78ce255683d).",
+          "npx vitest run <org-scope> <ADMIN-022 capability> <ADMIN-016 proof> -> 3 files, 33 passed (33). Run together on purpose: ADMIN-022's 8 tests and the ADMIN-016 proof harness's 10 tests are the two things most likely to break from a change to this route, and both stayed green unchanged.",
+          "npx vitest run __tests__/admin/ -> 283 passed | 1 skipped (284 files); 3732 passed | 12 skipped (3744). ADMIN-022 recorded 283 files / 3729 tests at its completion, so this is +1 file and +15 tests, which is exactly this task's new evidence file. No test file lost and no count decreased.",
+          "npx vitest run __tests__/logistics/logistics-route-contract.test.ts __tests__/admin/comms-path-inventory.test.ts -> 2 files, 17 passed. Run because the first reads this route's source directly; its team-communications assertions (event_id, tour_id, site_map_id, resolveAuthorizedOrgLogisticsScope, sendLogisticsNotifications) are all unaffected, which the run confirms rather than assumes.",
+          "npm run check:admin-route-registry -> \"Admin API route files on disk: 291; Legacy route classifications: 53/53; REL-103 check OK - route-method contracts are exact and legacy debt did not grow\". Byte-identical to ADMIN-022's recorded run, which is the evidence that this change moved no classification and no pinned figure.",
+          "npx tsc -p tsconfig.admin027-slice.json --noEmit -> exit 0, zero diagnostics. RECORDED AS A SLICE, NOT A REPO-WIDE PASS. It covers the route, the real boundary resolver, the real acting-context module, the auth modules, and the new evidence file. A slice roots downwards only, so it cannot catch a broken caller; that limitation is stated rather than papered over.",
+          "npx eslint on the two working-set files -> exit 0, clean.",
+          "npm run check:admin-audit -> FAILS with the same 3 errors ADMIN-022 documented as pre-existing at the base SHA: \"Generated view drift: STATUS.md\", \"Generated view drift: coverage.json\", \"Workbook registry source hash is stale\". Count not moved: 3 before, 3 after, byte-identical error list. This task changes no registry fragment, and registrySourceHash() hashes lib/admin/api-route-registry.ts, the seven fragments, the baseline json and the registry/evidence JSON trees, none of which this task touches, so this change cannot move that hash. Clearing the 3 needs npm run generate:admin-audit, which writes generated documentation outside every lane's working set; routed to the admin-audit owner, NOT run here, and NOT claimed as a green audit.",
+          "npm run agents:validate -- --strict -> validated 27 agents, 246 tasks, 113 pending handoffs, 0 warnings, 0 errors.",
+          "NOT RUN, and why. Full-repo npm run typecheck - CP-106, it exceeds this machine's memory ceiling on the ~25,600-line lib/database.types.ts; documented before this task and not re-litigated. npm run verify:feature -- --changed - CP-111, its root set is git diff --name-only HEAD plus every untracked path, which is ~690 entries from concurrent lanes in this worktree, so it is not lane-scalable and its own anti-vacuity check fails for any narrower scope. Both are recorded as not_run rather than approximated by a passing slice. No gate in this record is claimed as a pass that was not observed.",
+          "MIGRATIONS: none authored, none applied, none needed. Nothing was run against any database.",
+          "WORKTREE DISCIPLINE: HEAD is still 16fb834f1a03a70f165be470a5f98f389bf6100a. Nothing committed, nothing pushed. 726 dirty entries at completion against 719 at session start: 2 are this task (the new evidence file and the slice tsconfig) and the other 5 are concurrent lanes, including two sibling org-scope evidence files (admin-tour-artist-org-scope.test.ts, admin-user-search-org-scope.test.ts) that are not mine. No file outside the working set and the disclosed slice tsconfig was written.",
+          "Checkpoint at completion: 15 new tests green, full admin suite 284 files and 3744 tests green, ADMIN-016 proof harness and ADMIN-022 suite unchanged, check:admin-route-registry identical at 291 files and 53 of 53 legacy, scoped tsc slice exit 0, eslint clean, agents:validate --strict 0 errors. Three negative controls observed red and reverted byte-exactly."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T02:08:47.757Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Met. PATCH /api/admin/communications is now bound to the verified acting organization for both mark_read and acknowledge. The handler had no admin context at all to begin with - withAdminAuth passes only { user, supabase } - so it now resolves one through the real resolveActingAdminContext and then through the real resolveAuthorizedOrgLogisticsScope, and it uses scope.orgId, the resolver's verified return value, in a .eq('org_id', orgId) predicate on all four team_communications queries: both scoped reads and both writes. The organization is structurally unreachable from the request body or query string, and a cross-tenant message is a 404 identical to a nonexistent one. The handler no longer constructs a service-role client at all; it uses the one the resolver hands back, which re-verifies the organization before the handler gets it. 15 new tests prove the denial is not vacuous: with the org predicate removed, 8 went red and ORG_A's admin id was written into ORG_B's read_by, and with the handler rigged to return 200 without writing, the positive case still failed on observed state - so the suite can return a plausible-but-false zero. Three negative controls observed red, all reverted byte-exactly. No migration, no capability-gate change, no pinned figure moved: check:admin-route-registry and the ADMIN-016 proof harness are byte-identical to their pre-change runs. One thing is deliberately NOT done and is recorded rather than absorbed: PATCH still has no capability gate, and adding one would reclassify the method and break pinned figures in a file this segment cannot lease.",
+    "completed": [
+      "Read the task record, the charter, this segment's state, the ADMIN-022 record this task was carved from, and the real source of lib/auth/api-auth.ts. Established from source that withAdminAuth supplies { user, supabase } and therefore no ActingAdminContext, which is why the org could not simply have been read from an existing variable.",
+      "Established the ownership boundary from source before planning: lib/admin/resolve-authorized-org.ts is line 31 of the admin SEGMENT_OWNERSHIP.yaml under admin-governance, and lib/admin/resolve-authorized-org.ts was NOT edited. It turned out to be sufficient, so no handoff was raised.",
+      "Read the ADMIN-016 analyzer (__tests__/admin/support/admin-route-guard-proof.ts) and the registry entry for this route before editing, and used it to decide the wrapper question on machine evidence rather than taste. guardClassFor promotes a handler to capability_gated on withAdminCapability/withOrgCommand or on a call to hasAdminCapability/requireAdminCapability; read_only_compat is returned at the withAdminAuth branch, before the AUTH_PRIMITIVES branch that contains resolveActingAdminContext. So keeping withAdminAuth and calling resolveActingAdminContext inside the body provably leaves the method classified read_only_compat, and proveAdminRouteEntry would have errored with \"legacy_pending_migration but the source already enforces capability_gated\" had the wrapper changed. That is why the wrapper was left alone, and it is confirmed after the fact by the proof harness and check:admin-route-registry both staying byte-identical.",
+      "Implemented the fix in app/api/admin/communications/route.ts, confined to the PATCH handler. Diff: resolve the acting context and pass its NextResponse through on failure; resolve the authorized scope and surface its real 403/409 via authorizedOrgScopeErrorResponse; use scope.service and scope.orgId; add the org predicate to both reads and both writes; .single() -> .maybeSingle() so a legitimate zero-row cross-tenant result is not expressed as a PostgREST error. GET and POST untouched.",
+      "One deliberate product decision recorded: the handler passes allowedTourIds: admin.allowedTourIds. The resolver documents that parameter as already verified by the acting-context layer for tour collaborators, and without it a legitimate tour collaborator - who has no active membership in the acting organization - would be denied mark_read on their own organization's messages. That would be a false denial introduced by this fix. It does not widen scope: the collaborator branch still verifies a tour in that organization server-side, and a test proves the collaborator can reach their own org's message and not another org's.",
+      "Wrote __tests__/admin/admin-communications-org-scope.test.ts, 15 tests. Real admin-context and real resolve-authorized-org modules; the withAdminAuth double delegates to the real userHasAdminSurfaceAccess; only the Supabase transport is faked, and the fake honours eq/in against a mutable store so a missing predicate is demonstrable.",
+      "Caught and fixed a defect in my own test during the first run: the withAdminAuth double's denial condition was inverted, so the admin-surface gate never actually denied and the test was reading a 403 from the acting-context layer instead. The double now mirrors production exactly - probe, refuse with the same 403 body, otherwise call the handler - and the denial is driven by real data. The test now also asserts the probe really executed, by requiring the exact probe table order.",
+      "Reordered the two cross-tenant tests so the stored-state assertion runs before the status assertion, so a regression reports \"another tenant's row was mutated\" rather than a status-code mismatch. This was done specifically so the negative control below produces usable evidence.",
+      "NEGATIVE CONTROLS, three, all observed red and all reverted byte-exactly. C: all four org predicates removed -> 8 of 15 red, with the cross-tenant tests failing \"expected [ Array(1) ] to deeply equal []\" on read_by and acknowledged_by, i.e. the cross-tenant write demonstrably happened, and the source test failing \"expected +0 to be 4\". B: only the two write predicates removed -> 3 red on the recorded write queries and the source test, with the two cross-tenant denials still green, which is reported honestly as a limit of what is behaviourally provable about the write predicate. D: mark_read rigged to return 200 success without writing -> 2 red, the positive case failing \"expected [] to deeply equal [ Array(1) ]\" while status was still 200, which is the CP-098 anti-vacuity proof for the positive half.",
+      "Verified no pinned figure moved: __tests__/admin/admin-registry-guard-proof.test.ts (10 tests) and __tests__/admin/admin-communications-capability.test.ts (8 tests) both pass unchanged, and npm run check:admin-route-registry reports 291 files and 53/53 legacy, identical to ADMIN-022's recorded run.",
+      "Recorded a disclosure: tsconfig.admin027-slice.json is the one path written outside the two declared in the working set, following the documented admin-slice precedent, because CP-106 and CP-111 make both repo-wide typecheck paths unrunnable here. It is a verification artifact, imported by no build or runtime path, and ADMIN-022's slice file was left byte-identical rather than extended.",
+      "RESIDUAL FINDING, recorded and deliberately not absorbed: PATCH still has no capability gate, so the organization predicate remains the only boundary on this method. It was left alone deliberately and on machine evidence, not overlooked: wrapping PATCH in withAdminCapability, or calling hasAdminCapability/requireAdminCapability in its body, would promote the method to capability_gated in the ADMIN-016 analyzer, and since the route is legacy_pending_migration with no PATCH entry in authClassByMethod the proof harness would then fail with \"legacy_pending_migration but the source already enforces capability_gated\" and legacyRoutes/legacyGuardDrift/capabilityGapMethods would all move. Two of those three figures are pinned in __tests__/admin/admin-registry-guard-proof.test.ts, an explicit shared: path owned by admin-governance that npm run agents:validate -- --strict refuses to let this segment lease - the same refusal ADMIN-022 recorded. So the gate cannot be added by this segment without an orchestrator-level SEGMENT_OWNERSHIP.yaml grant. It stays covered by ADMIN-022's blocked_on ownership decision and its AC-3 evidence; no duplicate handoff was raised, because app/api/admin/communications/** is this segment's own path and the only thing actually missing is a parent-level grant.",
+      "No migration authored, none applied, none needed. Nothing committed, nothing pushed. HEAD is still 16fb834f1a03a70f165be470a5f98f389bf6100a."
+    ],
+    "next_steps": [
+      "The capability gate on PATCH is not done and cannot be done by this segment; it needs the SEGMENT_OWNERSHIP.yaml grant for __tests__/admin/admin-registry-guard-proof.test.ts that ADMIN-022 is already blocked on. When that grant exists, the gate and the three baseline figures must land in one change, as ADMIN-022 AC-3 evidence specifies.",
+      "GET still turns the resolver's organization_access_denied into a 500 rather than a 403. PATCH returns the real status; GET does not. That is pre-existing and outside this task's working set change, but it is now an inconsistency between two handlers in one file and is worth a bounded follow-up."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T02:08:47.757Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Met. PATCH /api/admin/communications is now bound to the verified acting organization for both mark_read and acknowledge. The handler had no admin context at all to begin with - withAdminAuth passes only { user, supabase } - so it now resolves one through the real resolveActingAdminContext and then through the real resolveAuthorizedOrgLogisticsScope, and it uses scope.orgId, the resolver's verified return value, in a .eq('org_id', orgId) predicate on all four team_communications queries: both scoped reads and both writes. The organization is structurally unreachable from the request body or query string, and a cross-tenant message is a 404 identical to a nonexistent one. The handler no longer constructs a service-role client at all; it uses the one the resolver hands back, which re-verifies the organization before the handler gets it. 15 new tests prove the denial is not vacuous: with the org predicate removed, 8 went red and ORG_A's admin id was written into ORG_B's read_by, and with the handler rigged to return 200 without writing, the positive case still failed on observed state - so the suite can return a plausible-but-false zero. Three negative controls observed red, all reverted byte-exactly. No migration, no capability-gate change, no pinned figure moved: check:admin-route-registry and the ADMIN-016 proof harness are byte-identical to their pre-change runs. One thing is deliberately NOT done and is recorded rather than absorbed: PATCH still has no capability gate, and adding one would reclassify the method and break pinned figures in a file this segment cannot lease.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "outcome": "PATCH /api/admin/communications is bound to the verified acting organization for both mark_read and acknowledge.",
+  "working_set_expansion": {
+    "path": "tsconfig.admin027-slice.json",
+    "reason": "CP-106 makes full-repo typecheck unrunnable on this machine and CP-111 makes verify:feature -- --changed unrunnable in this worktree, so the scoped-tsc pattern the earlier admin lanes established (admin003/012/014/015/016/019/020/022) was followed. It is a verification artifact only: not imported by any build or runtime path, and it is the single path added outside the two declared in the working set.",
+    "justification_for_not_reusing_admin022s_slice": "tsconfig.admin022-slice.json is untracked work belonging to a completed lane; adding to it would have edited another lane record. A separate file is additive and leaves theirs byte-identical."
+  }
+}

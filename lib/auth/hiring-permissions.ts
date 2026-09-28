@@ -3,6 +3,7 @@ import type { HiringEntity } from "@/types/hiring-entity"
 import type { HiringServiceResult } from "@/types/hiring-service"
 import { fail, ok } from "@/types/hiring-service"
 import { hasEntityPermission } from "@/lib/services/rbac"
+import { resolveSchedulingOrgId } from "@/lib/hiring/resolve-scheduling-org-id"
 
 export interface HiringPermissionArgs {
   supabase: SupabaseClient
@@ -120,6 +121,18 @@ export async function canManageHiring({
 
   if (!error && Boolean(data)) {
     return ok({ allowed: true })
+  }
+
+  if (employer.entityType === "organization") {
+    const orgId = await resolveSchedulingOrgId({ supabase, employer })
+    if (orgId) {
+      const directPermission = await supabase.rpc("has_perm", {
+        uid: userId,
+        oid: orgId,
+        perm: "hiring.manage",
+      })
+      if (!directPermission.error && directPermission.data === true) return ok({ allowed: true })
+    }
   }
 
   if (error && !error.message?.includes("does not exist")) {

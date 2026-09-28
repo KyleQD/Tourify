@@ -1,0 +1,38 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY",
+  "task_id": "INTG-006",
+  "from_agent": "integrations",
+  "to_agent": "admin",
+  "status": "accepted",
+  "created_at": "2026-09-25T14:05:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
+  "dirty_state_caveat": "This handoff is observation only. INTG-033 changed no hiring, work-lane, admin, or manifest file other than its own 20260925130000 manifest. The failing manifest is unmodified in this worktree and comes from the base snapshot commit 59971a9e. The database lane recorded the same blocker in docs/engineering/tasks/active/DB-005.json line 66 but no handoff existed, so this one is created rather than duplicated from a routing record.",
+  "summary": "After the integrations lane fixed its own malformed manifest, `npm run check:migration-validation` now fails for exactly one file and it is not integrations-owned: docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json, whose manifest exception `job-posting-scope-not-null` expired on 2026-09-21. The validator rejects an expired exception unconditionally on every run (`exception.expiresOn < today`), so this is a time bomb that turns a required gate red regardless of which migration is being scanned. The entry is owned by admin-platform under task HIRING-SCOPED-JOBS-AND-SEATS. INTG-006 is otherwise green on this gate: 154 migrations scanned clean, including 20260925130000_intg006_webhook_delivery_receipts.sql with its planned manifest.",
+  "working_set": [
+    "docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json — the `exceptions[0]` entry with id `job-posting-scope-not-null`, `expiresOn: 2026-09-21`",
+    "docs/engineering/tasks/active/HIRING-SCOPED-JOBS-AND-SEATS.json (if it exists under a different id, use the taskId recorded in the manifest: HIRING-SCOPED-JOBS-AND-SEATS)"
+  ],
+  "completed": [
+    "Confirmed the only remaining `check:migration-validation` failure after the integrations fix, with exact command output: `✗ docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json: exception job-posting-scope-not-null expired on 2026-09-21`.",
+    "Confirmed the failing manifest is foreign: migration 20260821180438_job_posting_scopes_and_organization_seats.sql, manifest taskId HIRING-SCOPED-JOBS-AND-SEATS, manifest owner admin-platform, exception owner admin-platform, exception type not-null-reviewed, exception issue HIRING-SCOPED-JOBS-AND-SEATS.",
+    "Confirmed the file is untouched in this worktree (last commit 59971a9e 'chore(release): curated workspace snapshot for release candidate'), so the expiry is a calendar fact about a base-snapshot artifact, not a concurrent-lane edit.",
+    "Confirmed the history-baseline checksum drift that blocked INTG-006 in Wave 32 is now resolved: `20260701021033_job_application_profile_snapshot.sql` no longer produces a drift failure, so the gate now reaches and reports every changed migration."
+  ],
+  "next_steps": [
+    "Admin/hiring owner: either delete the `job-posting-scope-not-null` entry (the SET NOT NULL apply already completed and the constraint is validated, so the reviewed window is genuinely over) or replace it with a new unexpired entry that records the post-apply validation evidence. Do not simply push expiresOn forward without re-recording the lock-budget evidence.",
+    "Re-run `npm run check:migration-validation`; the gate should reach exit 0 with all 154 scanned migrations clean once this one entry is resolved.",
+    "Consider a CI guard for time-based manifest expiries so this cannot silently redden a required gate again; that is a release-lane policy change, not an integrations one."
+  ],
+  "blockers": [
+    "`npm run check:migration-validation` cannot reach exit 0 while this expired entry exists. INTG-006 has no ownership of the hiring manifest and deliberately did not edit it, because renaming a foreign security-governance record to make a gate pass is exactly the kind of silent scope expansion the control plane forbids."
+  ],
+  "verification": [
+    "npm run check:migration-validation — exit 1 with exactly one failure after the integrations manifest fix: `✗ docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json: exception job-posting-scope-not-null expired on 2026-09-21`; 154 `✓ scanned` lines.",
+    "npm run check:migration-validation -- supabase/migrations/20260925130000_intg006_webhook_delivery_receipts.sql — exit 0, `✓ scanned supabase/migrations/20260925130000_intg006_webhook_delivery_receipts.sql with planned manifest`.",
+    "node -e read of the manifest — taskId HIRING-SCOPED-JOBS-AND-SEATS, owner admin-platform, exceptions[0].id job-posting-scope-not-null, exceptions[0].owner admin-platform, exceptions[0].expiresOn 2026-09-21.",
+    "git log --oneline -1 -- docs/engineering/migration-validation/20260821180438_job_posting_scopes_and_organization_seats.json — 59971a9e chore(release): curated workspace snapshot for release candidate."
+  ],
+  "accepting_task_id": "ADMIN-018",
+  "completion_condition": "Admin/hiring owner: either delete the `job-posting-scope-not-null` entry (the SET NOT NULL apply already completed and the constraint is validated, so the reviewed window is genuinely over) or replace it with a new unexpired entry that records the post-apply validation evidence. Do not simply push expiresOn forward without re-recording the lock-budget evidence."
+}

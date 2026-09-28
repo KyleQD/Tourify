@@ -11,6 +11,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test lib/notifications/push-routing.test.ts lib/api/checkout-status.test.ts lib/auth/reset-password-guard.test.ts",
+    "simulation:gate": "node scripts/simulation-gate.mjs",
+    "simulation:test": "node --test scripts/simulation-gate.test.mjs",
     "ota:preview": "eas update --branch preview --non-interactive",
     "ota:production": "eas update --branch production --non-interactive",
     "ota:production:android": "eas update --platform android --branch production --non-interactive",

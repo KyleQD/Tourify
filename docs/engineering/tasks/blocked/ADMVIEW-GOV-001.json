@@ -1,0 +1,125 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMVIEW-GOV-001",
+  "title": "Review Admin governance route readability and navigation",
+  "status": "blocked",
+  "execution_state": "queued_postlaunch",
+  "priority": "P2",
+  "owner_agent": "admin-governance",
+  "outcome_id": "MAINTENANCE-DEBT",
+  "deliverable_class": "maintenance",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T00:18:00.000Z",
+  "updated_at": "2026-09-28T00:18:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (629 entries); successor split from ADMVIEW-001 without implementation",
+  "goal": "Complete the responsive readability and navigation review for the Admin governance route families.",
+  "scope": {
+    "in": [
+      "/admin/dashboard/features",
+      "/admin/dashboard/organization",
+      "/admin/dashboard/rbac",
+      "/admin/dashboard/settings and /admin/dashboard/settings/audit"
+    ],
+    "out": [
+      "Non-governance Admin routes",
+      "API, authorization, database, or shared design-system contract changes"
+    ]
+  },
+  "working_set": [
+    "app/admin/dashboard/features/page.tsx",
+    "app/admin/dashboard/organization/page.tsx",
+    "app/admin/dashboard/rbac/page.tsx",
+    "app/admin/dashboard/settings/page.tsx",
+    "app/admin/dashboard/settings/audit/page.tsx",
+    "__tests__/admin/admview-governance-readability.test.tsx"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/tasks/completed/ADMVIEW-001.json",
+    "docs/engineering/tasks/active/ADMVIEW-001-route-matrix.md",
+    "docs/engineering/agents/admin/SEGMENT_OWNERSHIP.yaml",
+    "docs/admin-audit/ux/MASTER_REMEDIATION_PLAN.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The MAINTENANCE-DEBT program is activated and the Admin dispatcher selects this collision-free route family.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "admin",
+      "condition": "MAINTENANCE-DEBT has not been activated.",
+      "dependency_task_ids": []
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Every governance route and reachable panel has a route-matrix disposition and phone, tablet, desktop, and 200% zoom evidence.",
+      "owner": "admin-governance",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Record identity, status, and actions do not overlap or disappear on narrow screens.",
+      "owner": "admin-governance",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Governance data tables retain semantic headers, keyboard-reachable links, and mobile access to essential fields.",
+      "owner": "admin-governance",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Repeated information is reduced without removing the authoritative detail or an existing action.",
+      "owner": "admin-governance",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Focused tests, lint, feature verification, Admin audit checks, and control-plane validation are recorded.",
+      "owner": "admin-governance",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin-governance",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/admin/admview-governance-readability.test.tsx",
+          "npx eslint <touched governance Admin files>",
+          "npm run verify:feature -- --changed",
+          "npm run check:admin-audit",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created from the exact governance rows in the ADMVIEW-001 route matrix; no successor implementation has started.",
+    "completed": [],
+    "next_steps": [
+      "Wait for MAINTENANCE-DEBT activation, then review only the named governance routes and add exact mounted-component files when evidence requires them."
+    ],
+    "blockers": [
+      "MAINTENANCE-DEBT is not active."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

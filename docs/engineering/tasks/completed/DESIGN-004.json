@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-004",
+  "title": "Design-system side of venue tree consolidation",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-09T09:35:22.339Z",
+  "updated_at": "2026-09-11T20:39:40.880Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Coordinate consolidation of dual venue component trees and delete dead components/venue/ui twin",
+  "scope": {
+    "in": [
+      "Compatibility review and disposition decision for components/venue/ui/**",
+      "Evidence-backed coordination with VENUE-002 for the already-canonicalized venue seams"
+    ],
+    "out": [
+      "Deleting primitives marked keep by the canonical component register",
+      "Migrating remaining shared/non-venue consumers without a separately scoped owner task",
+      "Changing components/venue/ui/** or related imports without consumer and compatibility evidence"
+    ]
+  },
+  "working_set": [
+    "components/venue/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/design-system/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Consolidated venue tree; dead twin deleted"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui|@/components/venue/ui|venue/ui\" app components hooks lib apps __tests__ scripts --glob '*.{ts,tsx,js,jsx,mjs,cjs}'",
+      "rg -n \"components/venue/ui/\" docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv",
+      "rg --files components/venue/ui | wc -l",
+      "cmp -s components/venue/ui/use-toast.ts hooks/use-toast.ts",
+      "./node_modules/.bin/eslint components/venue/ui/avatar.tsx components/venue/ui/separator.tsx components/venue/ui/use-mobile.tsx components/venue/ui/use-toast.ts",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Resolved-module audit across app/, components/, hooks/, lib/, apps/, and __tests__/ found 0 consumers outside components/venue/ui/**; the exact textual source audit also found 0 components/venue/ui references.",
+      "The tree contains exactly 50 files: 26 register-authorized keep files and 23 register-authorized retire-later files.",
+      "Keep boundary: accordion, badge, breadcrumb, button, calendar, card, chart, checkbox, collapsible, command, dialog, input, label, popover, progress, radio-group, scroll-area, sheet, skeleton, slider, switch, tabs, textarea, toast, toaster, and tooltip remain compatibility-preserved.",
+      "Retire-later boundary: alert-dialog, alert, aspect-ratio, avatar, carousel, context-menu, drawer, dropdown-menu, form, hover-card, input-otp, menubar, navigation-menu, pagination, resizable, select, separator, sidebar, sonner, table, toggle-group, toggle, and use-mobile remain in place until their owning consumers and replacement contracts are verified.",
+      "Register gap: components/venue/ui/use-toast.ts is not represented in the canonical component register; it is byte-identical to hooks/use-toast.ts, has 0 resolved consumers, and remains preserved pending an explicit registry/owner disposition.",
+      "Retire-later exceptions: components/venue/ui/avatar.tsx and separator.tsx are not byte-identical to components/ui counterparts because venue copies lack data-slot attributes; components/venue/ui/use-mobile.tsx points at a deleted components/ui/use-mobile.tsx register target while the live canonical hook is hooks/use-mobile.ts.",
+      "Focused ESLint passed for avatar.tsx, separator.tsx, use-mobile.tsx, and use-toast.ts.",
+      "VENUE-002 confirms no remaining @/components/venue or components/venue imports under app/venue/** and has already handed off the shared cleanup decision.",
+      "agents:validate is the required final control-plane check; task records remain blocked because the original whole-tree deletion acceptance criterion is not compatible with the keep boundary.",
+      "Control-plane task creator created DESIGN-005 through DESIGN-027 successfully.",
+      "Canonical register now contains an explicit use-toast retire-later row with hooks/use-toast.ts target.",
+      "Existing 26 keep / 23 retire-later boundary and compatibility exceptions remain unchanged."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:39:40.880Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Dead twin deletion acceptance criterion met under CP-037. DESIGN-005..027 recorded zero-use + parity evidence for every retire-later twin; DESIGN-029 re-validated and deleted all 24 registered twins (incl. use-toast) and updated the register (stale app/venue/components/ui rows removed, DUP-082 separator basis corrected). The 26 keep files and canonical components/ui primitives remain preserved per the keep boundary; no venue behavior changed.",
+    "completed": [
+      "Reviewed the design-system charter/state, DESIGN-004, VENUE-002, the canonical component register, and the bounded source import evidence.",
+      "Confirmed the venue-owned caller boundary is exhausted and no live application imports target components/venue/ui/**.",
+      "Confirmed no safe deletion or shared-consumer migration is authorized by current evidence.",
+      "Documented the exact 26-file keep boundary, 23-file registered retire-later boundary, and the unregistered components/venue/ui/use-toast.ts compatibility gap.",
+      "Returned a completed compatibility handoff to VENUE-002 without changing venue domain behavior or deleting files.",
+      "Created DESIGN-005 through DESIGN-027, each scoped to one components/venue/ui retire-later family and its canonical target.",
+      "Added components/venue/ui/use-toast.ts to CANONICAL_COMPONENT_REGISTER.csv with hooks/use-toast.ts as canonical target and retire-later disposition.",
+      "Preserved all 26 keep files and the avatar, separator, and use-mobile compatibility constraints."
+    ],
+    "next_steps": [
+      "Keep the 26 components/venue/ui keep files as the compatibility boundary; convert remaining registry/design QUESTIONS into bounded tasks only when evidence supports them."
+    ],
+    "blockers": [
+      "Whole-tree deletion remains blocked; follow-up tasks must establish consumer migration, parity, zero-use, and registry evidence independently.",
+      "No deletion or venue behavior change is authorized by this handoff."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T01:05:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed compatibility review for the VENUE-002 handoff. No live application imports target components/venue/ui/**, but the canonical component register retains a subset as keep and requires migration/zero-use evidence for retire-later entries. Whole-tree deletion is blocked and no files outside the task record were changed.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-004.json"
+        ],
+        "verification": [
+          "Bounded rg import audit",
+          "Canonical component register review",
+          "npm run agents:validate: 17 agents, 69 tasks, 0 errors, one pre-existing RELEASE-001 warning"
+        ],
+        "blockers": [
+          "Keep-marked primitives and unapproved shared-consumer migrations prevent whole-tree deletion."
+        ],
+        "next_steps": [
+          "Split retire-later families into evidence-backed owner tasks before any deletion."
+        ]
+      },
+      {
+        "at": "2026-09-11T17:55:39.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded compatibility audit and returned the VENUE-002 handoff. No source consumers resolve to components/venue/ui/**. The exact boundary is 26 keep files, 23 registered retire-later files, and unregistered use-toast.ts; no venue behavior or files were changed.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-004.json",
+          "docs/engineering/tasks/active/VENUE-002.json",
+          "docs/engineering/agents/design-system/STATE.md",
+          "docs/engineering/agents/venue/STATE.md"
+        ],
+        "verification": [
+          "Resolved-module import audit: 0 consumers",
+          "Exact source reference audit: 0 components/venue/ui references",
+          "Canonical component register audit: 26 keep, 23 retire later, 1 unregistered file",
+          "Byte comparison: use-toast.ts matches hooks/use-toast.ts",
+          "npm run agents:validate"
+        ],
+        "blockers": [
+          "Whole-tree deletion remains blocked by the explicit keep subset, register gap, target-parity exceptions, and unrelated dirty-tree deletion of components/ui/use-mobile.tsx."
+        ],
+        "next_steps": [
+          "Create owner-scoped retire-later migration tasks and update the register for use-toast/use-mobile before any deletion."
+        ]
+      },
+      {
+        "at": "2026-09-11T18:12:29.606Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Registered one follow-up task per retire-later venue primitive family and added the previously unregistered use-toast duplicate to the canonical registry as explicit retire-later debt. The 26 keep files and compatibility exceptions remain preserved; no source or venue behavior changed.",
+        "completed": [
+          "Created DESIGN-005 through DESIGN-027, each scoped to one components/venue/ui retire-later family and its canonical target.",
+          "Added components/venue/ui/use-toast.ts to CANONICAL_COMPONENT_REGISTER.csv with hooks/use-toast.ts as canonical target and retire-later disposition.",
+          "Preserved all 26 keep files and the avatar, separator, and use-mobile compatibility constraints."
+        ],
+        "next_steps": [
+          "Execute only the primitive-specific task whose owning consumer and migration scope are approved.",
+          "For each task, audit consumers, verify target parity, run focused checks, then update the register before any deletion.",
+          "Resolve use-mobile against hooks/use-mobile.ts and retain intentional contract differences until callers are migrated."
+        ],
+        "blockers": [
+          "Whole-tree deletion remains blocked; follow-up tasks must establish consumer migration, parity, zero-use, and registry evidence independently.",
+          "No deletion or venue behavior change is authorized by this handoff."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:39:40.880Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Dead twin deletion acceptance criterion met under CP-037. DESIGN-005..027 recorded zero-use + parity evidence for every retire-later twin; DESIGN-029 re-validated and deleted all 24 registered twins (incl. use-toast) and updated the register (stale app/venue/components/ui rows removed, DUP-082 separator basis corrected). The 26 keep files and canonical components/ui primitives remain preserved per the keep boundary; no venue behavior changed.",
+        "completed": [],
+        "next_steps": [
+          "Keep the 26 components/venue/ui keep files as the compatibility boundary; convert remaining registry/design QUESTIONS into bounded tasks only when evidence supports them."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "VENUE-002: completed compatibility handoff returned. Preserve the 26 keep files; retain the 23 registered retire-later files until owner migration, target parity, and zero-use evidence are complete; preserve unregistered use-toast.ts pending registry disposition. Venue-owned consolidation is exhausted, so any remaining global single-tree work must be separately scoped across owners."
+  ]
+}

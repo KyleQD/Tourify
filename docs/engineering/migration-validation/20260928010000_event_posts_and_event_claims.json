@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260928010000_event_posts_and_event_claims.sql",
+  "taskId": "DB-023",
+  "status": "planned",
+  "owner": "database",
+  "reviewer": "events",
+  "verificationOwner": "database",
+  "domains": [
+    "events",
+    "social",
+    "rls",
+    "data-integrity"
+  ],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Throwaway PostgreSQL 16.15 cluster (initdb under a temp dir, unix-socket only, destroyed on exit). The chain's own `create table` statements for public.events and public.event_attendance are extracted BY LINE RANGE from supabase/migrations/20240416000000_create_events.sql:4-16 and 20250814091000_event_attendance_guestlist.sql:18-26 at run time, so the emulated authority cannot drift from the chain, and the fixture is asserted to contain NEITHER public.event_posts NOR public.event_claims before the migration is applied. Migration SHA-256 d56fdb54df7fdd347a6b7606191d6a122fe3925a66200e98142acef1e693a636; contract-test SHA-256 2d05dd3f3db70cd9c1a2d4b8f4c9c8072006994431f10acaec4dd810c846a988; harness SHA-256 82958a74250bc0603a619973b420dc88b96d6ac2aabb71f6b9575418a136aae2. 154 checks, 0 failures, including 13 negative controls each demonstrated failing. This is NOT a chain replay, NOT Supabase, and NOT a measurement of any deployed environment.",
+    "evidenceArtifact": "isolated:DB-023-EVENT-POSTS-CLAIMS-2026-09-28 (supabase/tests/db023_event_posts_claims.harness.sh, 154/154; migration SHA-256 d56fdb54df7fdd347a6b7606191d6a122fe3925a66200e98142acef1e693a636; contract SHA-256 2d05dd3f3db70cd9c1a2d4b8f4c9c8072006994431f10acaec4dd810c846a988); inputs HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE and HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT to_regclass('public.event_posts') IS NOT NULL AS event_posts_exists",
+      "SELECT to_regclass('public.event_claims') IS NOT NULL AS event_claims_exists",
+      "SELECT to_regclass('public.events') IS NOT NULL AS legacy_events_exists",
+      "SELECT to_regclass('public.event_attendance') IS NOT NULL AS event_attendance_exists",
+      "SELECT to_regclass('auth.users') IS NOT NULL AS auth_users_exists",
+      "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename IN ('event_posts','event_claims')",
+      "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='event_posts'",
+      "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='event_claims'",
+      "SELECT has_table_privilege('anon','public.event_attendance','select') AS anon_attendance_select",
+      "SELECT has_table_privilege('authenticated','public.event_attendance','select') AS authenticated_attendance_select"
+    ],
+    "expectedAffectedRows": "DDL only: two new relations, 0 rows read, 0 rows written, no pre-existing object altered except a SELECT grant on public.event_attendance. If either relation ALREADY exists out of band, `create table if not exists` skips it and the in-transaction post-condition ABORTS the file naming every differing contract entry, so the operator sees a refusal rather than a silent success.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 2000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 1,
+    "resumeStrategy": "One transaction, this file only. A failure rolls the whole file back, so a resume is a re-run from the top: every statement is `if not exists`, `drop policy if exists` or a re-issued grant, and the harness proves three consecutive applies produce a byte-identical catalog digest. There is no cursor to resume from because there is no partial state to resume into.",
+    "resumeCursor": "the single migration version 20260928010000",
+    "idempotency": "Fully re-runnable. Proven by execution, not by inspection: applied three times against a throwaway cluster with a full catalog digest (columns, defaults, nullability, CHECK literal sets, FKs with delete actions, index definitions, every policy's command, roles and rendered predicate, RLS flags, and the grant set per role) compared after each apply. All three digests are identical and the digest is asserted non-empty so it cannot be comparing nothing."
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No quarantine. The file's own in-transaction post-condition is the gate: it aborts the transaction and names the difference. Two classes of pre-existing state are refused rather than repaired, by design. (1) A public.event_posts already present in a different shape -- for example the supabase/migrations_backup copy, which has jsonb media_urls, a nullable `type`, a visibility default of 'attendees' and an event_table CHECK with no 'events_v2' -- is refused with every differing entry named, because silently adopting an unknown shape is the failure this file exists to prevent. The ONE exception is `author_id`, which gets its own `add column if not exists` because two live writers require it and it is absent from every archived definition. (2) A missing auth.users, public.events, public.event_attendance, the anon/authenticated/service_role roles, or the uuid-ossp extension is a Layer 0 stop condition: there is deliberately no existence guard, so the refusal is a legible 42P01/42704/42883 rather than a silent success."
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "public.event_posts primary key (id)",
+      "public.event_posts foreign key user_id -> auth.users(id) ON DELETE CASCADE",
+      "public.event_posts check event_table in ('artist_events','events','events_v2')",
+      "public.event_posts check type in ('text','image','video','announcement')",
+      "public.event_posts check visibility in ('public','attendees')",
+      "public.event_posts has NO foreign key on event_id: event_table discriminates three parent relations and no single FK can express that",
+      "public.event_claims primary key (id)",
+      "public.event_claims foreign key event_id -> public.events(id) ON DELETE CASCADE",
+      "public.event_claims foreign key claimant_user_id -> auth.users(id) ON DELETE CASCADE",
+      "public.event_claims foreign key reviewed_by -> auth.users(id) ON DELETE SET NULL",
+      "public.event_claims check claimant_account_type in ('artist','venue','organization')",
+      "public.event_claims check relationship_type in ('performer','venue_host','organizer','manager')",
+      "public.event_claims check status in ('pending','approved','rejected','revoked')"
+    ],
+    "indexes": [
+      "idx_event_posts_event_id on public.event_posts (event_id, event_table)",
+      "idx_event_posts_user_id on public.event_posts (user_id)",
+      "idx_event_posts_created_at on public.event_posts (created_at desc)",
+      "idx_event_posts_is_pinned on public.event_posts (is_pinned desc)",
+      "idx_event_posts_visibility on public.event_posts (visibility)",
+      "idx_event_posts_type on public.event_posts (type)",
+      "idx_event_claims_event on public.event_claims (event_id, status)",
+      "idx_event_claims_claimant on public.event_claims (claimant_user_id, status)"
+    ],
+    "validationPlan": "No constraint is added to a pre-existing relation except `author_id`, which is a nullable column addition with no default and therefore no table rewrite. All other constraints and indexes are created inside `create table if not exists`, i.e. only when the relation is new. The post-condition then asserts every CHECK by the SET OF LITERALS it admits (extracted from the rendered expression, because PostgreSQL renders an IN-list with version-varying casts while the admitted values do not vary), every FK with its ON DELETE action, and every index as its whole `pg_get_indexdef`, so a same-named FULL or ASC index cannot be reported as the required partial or DESC index. Behaviourally, the harness proves event_table accepts 'events_v2' (which both archives would reject) and that a caller-supplied visibility outside the admitted set is refused with 23514 rather than stored."
+  },
+  "recovery": {
+    "rollback": "The file is a single transaction, so a failure leaves nothing behind. After a SUCCESSFUL apply, there is no automated rollback and none should be improvised: both relations are created new, the only pre-existing object touched is a SELECT grant on public.event_attendance, and dropping either relation would destroy user-generated post and claim data. To undo deliberately, an operator would `drop table public.event_posts` and `drop table public.event_claims` and `revoke select on public.event_attendance from authenticated` -- in that order, and only after confirming the two relations hold no rows that predate the apply. That is a data-destroying operation and is out of scope for this lane.",
+    "forwardFix": "Every future change to either relation is a NEW forward migration. The specific gaps this file names as routed, with the migration that would close each: a publication-state predicate on event_posts reads (needs the event publication contract for public.events, public.artist_events and public.events_v2 -- events lane); an events_v2-compatible event_claims (needs a decision on whether claims follow the canonical table -- events lane, with DB-006's cutover evidence); an event_attendance.event_table column (the chain's table has none, and lib/feed/attending-event-posts.ts groups on it -- events lane); a moderation DELETE policy for event_posts (needs an owner column for each of the three parent relations -- events lane); and a `comments_count`/`likes_count` maintenance path, since the counters are defaulted but nothing maintains them and the archived triggers were not carried. Dropping a column is a forward migration too, never a re-transcription of this file."
+  },
+  "postflight": {
+    "queries": [
+      "SELECT * FROM supabase/tests/db023_event_posts_claims_contract.sql  -- expect zero violation rows and exactly one row event_posts_and_event_claims_ready = true",
+      "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = to_regclass('public.event_posts')",
+      "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = to_regclass('public.event_claims')",
+      "SELECT polname, polcmd, pg_get_expr(polqual, polrelid) AS using_expr, pg_get_expr(polwithcheck, polrelid) AS check_expr FROM pg_policy WHERE polrelid IN (to_regclass('public.event_posts'), to_regclass('public.event_claims')) ORDER BY polname",
+      "SELECT has_table_privilege('anon','public.event_posts','select') AS anon_posts_read, has_table_privilege('anon','public.event_posts','insert') AS anon_posts_write, has_table_privilege('authenticated','public.event_claims','insert') AS auth_claim_write, has_table_privilege('service_role','public.event_claims','select,insert,update') AS service_claim_write",
+      "SELECT has_table_privilege('authenticated','public.event_attendance','select') AS attendance_grant_present"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "evidence": {
+    "isolated": "supabase/tests/db023_event_posts_claims.harness.sh -- 154 checks, 0 failures, on a throwaway PostgreSQL 16.15 cluster. Includes 13 negative controls each demonstrated failing, and two anti-vacuity runs: (a) a mutant migration carrying five defects (permissitive read, permissive insert, anon write grant, claim insert without the pending-only clause, and the archived narrower event_table CHECK) is REFUSED by the in-transaction post-condition on its first apply; (b) a harness with three deliberately corrupted expected values reports those three assertions red with the true values, so the behavioural assertions demonstrably run. This is local emulation only and is not evidence about staging or production.",
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

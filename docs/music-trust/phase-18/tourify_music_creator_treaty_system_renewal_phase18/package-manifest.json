@@ -1,0 +1,478 @@
+{
+  "generatedAt": "2026-07-19T19:23:05.853169+00:00",
+  "phase": 18,
+  "root": "tourify_music_creator_treaty_system_renewal_phase18",
+  "hashPolicy": "SHA-256 for all immutable package files; package-manifest.json and VALIDATION_RESULTS.json excluded to avoid circular validation metadata.",
+  "files": [
+    {
+      "path": "00_PHASE_18_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 6235,
+      "sha256": "c00bb3cacb1379ef959a8542576fdbab3857d459c8f643a5a758015f14f83bcf"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_PARTICIPANT_JOURNEYS.md",
+      "bytes": 6256,
+      "sha256": "dd3568dce0490512e6ecd0d5c15acec7d2ea3221b4e395832070624776fa7df3"
+    },
+    {
+      "path": "02_PHASE_17_REPEATED_CYCLE_EVIDENCE_AND_READINESS.md",
+      "bytes": 6273,
+      "sha256": "32d1e3afdeeb2ceb86da59da4a640ce78d0069587a9623dfb287205fe48cc76a"
+    },
+    {
+      "path": "03_LEGAL_CHARACTER_NON_PERPETUITY_AND_COMPETENCE_BOUNDARY.md",
+      "bytes": 6269,
+      "sha256": "8b81e92ecd289fe149d46346b45c33ec53158a487d0d23df9ae82b2d6f0126ad"
+    },
+    {
+      "path": "04_INTERGENERATIONAL_STEWARDSHIP_PRINCIPLES_AND_DUTIES.md",
+      "bytes": 6346,
+      "sha256": "40b922e9bd299af43c883abb205a70b94510ab638b1f07e62cd1d1daeab0850b"
+    },
+    {
+      "path": "05_FUTURE_GENERATIONS_VOICE_REPRESENTATION_AND_CONFLICTS.md",
+      "bytes": 6343,
+      "sha256": "1c861530f12bf4282e6d4a3309ae6a61b7611b7c4a962e912b33bf7c49726501"
+    },
+    {
+      "path": "06_NON_PERPETUITY_SUNSET_RENEWAL_AND_REAUTHORIZATION.md",
+      "bytes": 6301,
+      "sha256": "bc78fbb7021e1bd2fb17c565306b7c81f38de517cdb4e37b9ec28aa4c4e04e44"
+    },
+    {
+      "path": "07_RENEWAL_LIFECYCLE_STATE_MACHINE_AND_DECISION_RIGHTS.md",
+      "bytes": 6292,
+      "sha256": "673fcaccf4d2b4196ae25cefbf89f4f908e7e76f826069a6f201102b58a64aa9"
+    },
+    {
+      "path": "08_AUTHORITY_MEMBERSHIP_AND_MANDATE_REVALIDATION.md",
+      "bytes": 6244,
+      "sha256": "60aa70b291364a4b437caf21a3e82b446e85a614b3437e9b410a8886261a50b1"
+    },
+    {
+      "path": "09_PARTICIPANT_SUCCESSION_STATE_CONTINUITY_AND_NO_INHERITED_AUTHORITY.md",
+      "bytes": 6254,
+      "sha256": "f0f2328d2b315ec77f5e88333e0bb2a726c49d438f0a04fe04a558778dbd42c8"
+    },
+    {
+      "path": "10_LOCAL_SOVEREIGNTY_EXIT_CREATOR_RIGHTS_AND_PROVIDER_PORTABILITY.md",
+      "bytes": 6271,
+      "sha256": "5ffcebb4e654041cfc848393fe82dc90fc1656978649bcb36ab89aa28e1dd39c"
+    },
+    {
+      "path": "11_LONG_HORIZON_RISK_REGISTER_AND_STRUCTURAL_RISK_THRESHOLDS.md",
+      "bytes": 6253,
+      "sha256": "e9ba0cf623a072ad59d008f7b5163b8784a58cf3784ed7a1b362547c740cbabe"
+    },
+    {
+      "path": "12_STRATEGIC_FORESIGHT_SCENARIOS_STRESS_TESTS_AND_EARLY_WARNING.md",
+      "bytes": 6261,
+      "sha256": "eca36eb2d0555305a4e3fa83e05993b1d0c5e71196b825c1421ef098162e998d"
+    },
+    {
+      "path": "13_INSTITUTIONAL_MEMORY_RECORDS_MANAGEMENT_AND_ARCHIVAL_MANDATE.md",
+      "bytes": 6358,
+      "sha256": "d51998b08461135c41280244d36f4656437073807ae8b67861571ce36e67dcf6"
+    },
+    {
+      "path": "14_LONG_TERM_DIGITAL_PRESERVATION_OAIS_AND_DESIGNATED_COMMUNITIES.md",
+      "bytes": 6384,
+      "sha256": "8724d80973d252e41cf9e187d77da3d8421fda5b9e8f39925ba4aa154082ba75"
+    },
+    {
+      "path": "15_AUTHENTIC_RECORDS_EVIDENCE_MANIFESTS_AND_HISTORICAL_REPLAY.md",
+      "bytes": 6342,
+      "sha256": "5c8c34f32f61c685a1e4dc55f7d59b5a77b17107da2fe9ea18f02a9cf8c1bfaf"
+    },
+    {
+      "path": "16_ARCHIVAL_CUSTODY_TRANSFER_ESCROW_AND_INDEPENDENT_RESTORE.md",
+      "bytes": 6339,
+      "sha256": "77d23318416889a88d8a8fb6d5e9269906d4e2761d9f886a010c9059283df1e7"
+    },
+    {
+      "path": "17_PROTOCOL_ARCHAEOLOGY_VERSION_REPLAY_AND_SEMANTIC_CONTINUITY.md",
+      "bytes": 6269,
+      "sha256": "d6980450b971c2a41142cc6d628da956f27013409b52f033464c9b23f1a71d07"
+    },
+    {
+      "path": "18_TECHNOLOGY_OBSOLESCENCE_CRYPTOGRAPHIC_AGILITY_AND_MIGRATION.md",
+      "bytes": 6363,
+      "sha256": "5a77faa5147a188ac54bb390b7d66776409026901ea83082e7b6d115feec223f"
+    },
+    {
+      "path": "19_IDENTIFIER_CREDENTIAL_WALLET_AND_TRUST_ROOT_LONGEVITY.md",
+      "bytes": 6274,
+      "sha256": "4101330a3ff9a84f7f1e93299c0f8166ee12e4d8db4fff86fb30b9da82aa49c0"
+    },
+    {
+      "path": "20_RENEWAL_CONFERENCE_MANDATE_AGENDA_AND_PUBLIC_RECORD.md",
+      "bytes": 6246,
+      "sha256": "9388bab939eb1d7093585ad41e24817d412d630364dc901a2e3da85bea498ad4"
+    },
+    {
+      "path": "21_INTERGENERATIONAL_ASSEMBLY_CREATOR_CHAMBER_AND_ADVISORY_INPUT.md",
+      "bytes": 6260,
+      "sha256": "8dee4497833ed06f187399102b1f16bfbe88c8f64066424869be3988b243e088"
+    },
+    {
+      "path": "22_YOUTH_FUTURE_CREATOR_PARTICIPATION_CAPACITY_AND_SAFEGUARDS.md",
+      "bytes": 6246,
+      "sha256": "09497aa8fab3594ee5d0212862462ff004de18a4a18c096ab29d0462ccb0f990"
+    },
+    {
+      "path": "23_CONSTITUTIONAL_REVIEW_ENTRENCHMENT_AMENDMENT_AND_LEGITIMACY.md",
+      "bytes": 6249,
+      "sha256": "3bef832a2093be2d4f048bbe52d28ae90c7de2f428eff607bc6c1d22ac6682ad"
+    },
+    {
+      "path": "24_PUBLIC_SERVICE_AND_PROTOCOL_PORTFOLIO_RENEWAL.md",
+      "bytes": 6252,
+      "sha256": "fb102de3d1d5bba91bae53c943b9fcbfcab1f36ab49cfc9939528a1ebc5ace1f"
+    },
+    {
+      "path": "25_SERVICE_SUNSET_DECOMMISSION_REVIVAL_AND_ORDERLY_TERMINATION.md",
+      "bytes": 6293,
+      "sha256": "e1f53757d2540e80c7a1ab1f277ab962835944d42b1837732c4836acebc83d63"
+    },
+    {
+      "path": "26_INSTITUTIONAL_LEADERSHIP_SUCCESSION_TERM_LIMITS_AND_CONTINUITY.md",
+      "bytes": 6261,
+      "sha256": "7a77d12234eeca7938c069feac57652041b807415c82eb79246d00fde073797b"
+    },
+    {
+      "path": "27_WORKFORCE_KNOWLEDGE_TRANSFER_FUTURES_LITERACY_AND_SKILLS.md",
+      "bytes": 6260,
+      "sha256": "99313a95e2b96a421fdf5b60e9b6b65a748d1516ea197b77a71c76f07ad798ae"
+    },
+    {
+      "path": "28_INTERGENERATIONAL_FUNDING_ENDOWMENT_RESERVES_AND_FISCAL_RULES.md",
+      "bytes": 6261,
+      "sha256": "f7b4d151bd7161e25cc28dbef767d7603746d99e48693475c6ecb53aa87f792a"
+    },
+    {
+      "path": "29_LONG_TERM_DONOR_FUNDER_VENDOR_AND_OPERATOR_ANTI_CAPTURE.md",
+      "bytes": 6243,
+      "sha256": "b0609af89cfb264d60d5aa5fd6de885816289180c217416392a0880f10a6013b"
+    },
+    {
+      "path": "30_MINIMUM_PUBLIC_SERVICE_FLOOR_AND_ESSENTIAL_CONTINUITY.md",
+      "bytes": 6255,
+      "sha256": "7ea8690ec2e919763ab4d689d67cd32ad44e59415807ad2ffee4b4919f345c80"
+    },
+    {
+      "path": "31_IMPLEMENTATION_ASSISTANCE_TECHNOLOGY_TRANSFER_AND_LOCAL_CAPACITY_SUCCESSION.md",
+      "bytes": 6253,
+      "sha256": "25c786efd9bbf614a8748bc0dc876feba810941e6216ced2f667b5c3906ef9d3"
+    },
+    {
+      "path": "32_TREATY_PARTICIPANT_AND_INTERNATIONAL_ORGANIZATION_SUCCESSION.md",
+      "bytes": 6250,
+      "sha256": "a6fa09e37839a1cfd7643a48283612cb598c2c0c0f106558e38bed73e5b56165"
+    },
+    {
+      "path": "33_HOST_DEPOSITARY_RELATIONSHIP_AND_OPERATIONAL_ARRANGEMENT_RENEWAL.md",
+      "bytes": 6251,
+      "sha256": "78c7c359ec48cc36f7d3a8998c4d8c1e7dd73d9788fbe1b40751272a4293ce82"
+    },
+    {
+      "path": "34_PRIVILEGES_IMMUNITIES_WAIVER_AND_REMEDY_REVALIDATION.md",
+      "bytes": 6266,
+      "sha256": "d1e1349df3fd3864a8d8aec85f4e9665d77ea45956bff7c0a7a19b8bc4667549"
+    },
+    {
+      "path": "35_OVERSIGHT_AUDIT_ETHICS_INVESTIGATION_AND_REVIEW_MANDATE_RENEWAL.md",
+      "bytes": 6239,
+      "sha256": "a6d043aa72a094900883b0372aa2a1beda91064d3fe447eb18676e8ca37a9a43"
+    },
+    {
+      "path": "36_FUTURE_GENERATIONS_IMPACT_ASSESSMENT_AND_DECISION_RECORDS.md",
+      "bytes": 6324,
+      "sha256": "b7773fad441c0eddc81822b95221d117b22410bdb1317c8e7b6b10851d523435"
+    },
+    {
+      "path": "37_LONGITUDINAL_CREATOR_OUTCOMES_PUBLIC_VALUE_AND_HARM_MEASUREMENT.md",
+      "bytes": 6262,
+      "sha256": "1443b2bb587c63af20c6d5af40cb5e482920783ab85ed5e86dcba1785c62c19f"
+    },
+    {
+      "path": "38_INTERGENERATIONAL_BENEFIT_BURDEN_EQUITY_AND_REPARATIVE_ANALYSIS.md",
+      "bytes": 6349,
+      "sha256": "3b8ee1a22bc3a06690036c9e73284e458a6e1aec11aef6469a3947d67884e41f"
+    },
+    {
+      "path": "39_PUBLIC_ARCHIVES_DISCOVERY_ACCESS_RESTRICTIONS_AND_REUSE.md",
+      "bytes": 6343,
+      "sha256": "843281c1ee00bb0c2cf44f7a008ae8efb096d0791906758f1da3d9c70ca15102"
+    },
+    {
+      "path": "40_PRIVACY_RETENTION_ERASURE_ARCHIVAL_EXCEPTION_AND_LEGAL_HOLDS.md",
+      "bytes": 6255,
+      "sha256": "e7a96abba3c6c27c6f528985d2eb48b04485a66782d093c24c5bf52b0ce92e1c"
+    },
+    {
+      "path": "41_RIGHTS_REFERENCE_LONG_TERM_RESOLUTION_AND_NON_ADJUDICATION.md",
+      "bytes": 6258,
+      "sha256": "dfc208526514be43245224fc38fceae36b06ea5e8e05ba0204c5db7984173a3a"
+    },
+    {
+      "path": "42_MULTILINGUAL_ACCESSIBILITY_ASSISTED_SERVICE_AND_INTERGENERATIONAL_INCLUSION.md",
+      "bytes": 6256,
+      "sha256": "9b183d3790c6835fb76af51dee4acec22fb9381e459c4a14f070e7df98eb7f97"
+    },
+    {
+      "path": "43_ENVIRONMENTAL_SUSTAINABILITY_CLIMATE_RESILIENCE_AND_INFRASTRUCTURE_FOOTPRINT.md",
+      "bytes": 6264,
+      "sha256": "701806b70f783131e1cc9faa943be23fc815ddad4665932a86e318096853124f"
+    },
+    {
+      "path": "44_SECURITY_KEYS_POST_QUANTUM_READINESS_AND_CRYPTOGRAPHIC_SUCCESSION.md",
+      "bytes": 6356,
+      "sha256": "a7029f993e3792dfd1fb96237771d8496a6c52a14dbd00b7c6a787579cc26eba"
+    },
+    {
+      "path": "45_DISASTER_ARCHIVE_LOSS_NETWORK_PARTITION_AND_TOURIFY_UNAVAILABLE_CONTINUITY.md",
+      "bytes": 6248,
+      "sha256": "55313e73863f0b504e2112bf3195c13ed505a70a3f4e1e11646444ad01145051"
+    },
+    {
+      "path": "46_DISSOLUTION_ASSET_LOCK_ARCHIVE_SURVIVAL_AND_PUBLIC_SERVICE_WIND_DOWN.md",
+      "bytes": 6275,
+      "sha256": "ccf01f85f6c2ba90621b9a74c3be9a3221ff399af310e9ce1d169d2e5f4da9de"
+    },
+    {
+      "path": "47_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "bytes": 6403,
+      "sha256": "2e4d9603278a2af4ef317b5712a0e44ef31c411e852e974851c67938182e9998"
+    },
+    {
+      "path": "48_API_EVENTS_BACKGROUND_JOBS_AND_EXTERNAL_ADAPTERS.md",
+      "bytes": 6314,
+      "sha256": "cf7cfc83a59a7d5d25eeb1d156f10c7301cf87350a6504ce5cfb6a1adb916ce9"
+    },
+    {
+      "path": "49_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 6239,
+      "sha256": "0fa24ed3702860ff20b38093e76472229cc9dc60da1bb4bb58b2f5d9304b7fa3"
+    },
+    {
+      "path": "50_ADMIN_RENEWAL_STEWARDSHIP_ARCHIVES_AND_SUCCESSION_OPERATIONS.md",
+      "bytes": 6241,
+      "sha256": "dccbae11192258251ddfac9c35f347cc44b56ac89166d7e20c28f6010fd415d4"
+    },
+    {
+      "path": "51_OBSERVABILITY_SERVICE_LEVELS_LONG_HORIZON_INDICATORS_AND_PUBLIC_REPORTING.md",
+      "bytes": 6269,
+      "sha256": "1abf6cafec7231d7e028bbf5da43f3ad859fa8851d17813e8265b2b145b1979d"
+    },
+    {
+      "path": "52_TESTING_REPEATED_CYCLES_INTERGENERATIONAL_PILOT_AND_ROLLOUT.md",
+      "bytes": 6298,
+      "sha256": "453c1546701bc8bf1f9a320508beddd87ff1e335721ee370bb899d492c843ece"
+    },
+    {
+      "path": "53_MODEL_RENEWAL_CONFERENCE_SUNSET_AND_INTERGENERATIONAL_IMPACT_PACKAGE.md",
+      "bytes": 6330,
+      "sha256": "684875a7c431d64c1507680631f063650606de4d0270e55ef4d127bfc8ecd75f"
+    },
+    {
+      "path": "54_PHASE_19_GLOBAL_CREATOR_TREATY_SYSTEM_LEGACY_AND_CIVILIZATIONAL_CONTINUITY_HANDOFF.md",
+      "bytes": 1336,
+      "sha256": "b4b5ef02ee2c2896efca7108ec6bccb27304615a250a3be8b6ea25b66a486df6"
+    },
+    {
+      "path": "55_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 1737,
+      "sha256": "902f8903f6a67ab7c0cf48342557d976e5500a27474fbee07ae20ad169e8f1e9"
+    },
+    {
+      "path": "56_DEFINITION_OF_DONE.md",
+      "bytes": 2154,
+      "sha256": "c8dd0d5d1f0086e3ae6e4634b77c554b4feb1b871a7ab083305273521b714bf0"
+    },
+    {
+      "path": "57_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 2390,
+      "sha256": "fb04b48325dcf154bd13a42e269494dc1ed3b3d73fade5c31bce092a1eeac8a2"
+    },
+    {
+      "path": "58_CURRENT_STANDARDS_LEGAL_PRIVACY_ARCHIVES_AND_FUTURE_GENERATIONS_REVIEW.md",
+      "bytes": 6375,
+      "sha256": "607cebf2a6a424b552bab06635181b2d8d60248d5fdeb67787d85c3b998da153"
+    },
+    {
+      "path": "59_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "bytes": 2296,
+      "sha256": "3628815b3c0ce7401717610e0132f1cf567490592e28e18c9f8fa50f483fcd44"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 819,
+      "sha256": "0154b53229d6d2fcfc67047795079d70d2f3c71f17569ee97cc1cfbc141f4401"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 2036,
+      "sha256": "044c4e6f33dab097ea65654bdacdf167d62cb5210c3b5192ab7a0ef8b36ea969"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2041,
+      "sha256": "63ae3fb1144ea2463f3fa29f18c97e1f601c60afd5bfc7266e30fc48a3c9cfa6"
+    },
+    {
+      "path": "SOURCE_PHASE_17_HANDOFF.md",
+      "bytes": 7095,
+      "sha256": "8c977605236fff01b3dedce78602d2f1e27b71fc2d7dbd69d42c0dc704a0ee60"
+    },
+    {
+      "path": "phase-18-execution-plan.schema.json",
+      "bytes": 3583,
+      "sha256": "82633416a92862c5924bf689e347456c6779dfea34295242ca65768ac27bed22"
+    },
+    {
+      "path": "phase-18-execution-plan.template.json",
+      "bytes": 677354,
+      "sha256": "bf6ffbd709a8e13c299f4915654b38fff5335f835f1b0b6f772a9c62aa8a1834"
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "bytes": 291,
+      "sha256": "400a9820aa0694bdbf56a02b57044673cbafc34922b78983eaa3440368004216"
+    },
+    {
+      "path": "reference/api-examples/archive-package.json",
+      "bytes": 248,
+      "sha256": "9547569c43844811bd9871bb99950cee442604b519831f3690107cd9994e2dca"
+    },
+    {
+      "path": "reference/api-examples/create-renewal-package.json",
+      "bytes": 262,
+      "sha256": "48fd89d1ab4372a62fd82b5be3fcb758585017b46ca9fa85aee2abdc2224dec7"
+    },
+    {
+      "path": "reference/api-examples/operator-succession-webhook.json",
+      "bytes": 214,
+      "sha256": "85bc989bc6433703c2e1575cebe2ef6c306515e431701b4d37be09b2a02bf935"
+    },
+    {
+      "path": "reference/api-examples/public-renewal-status.json",
+      "bytes": 205,
+      "sha256": "c20cd9c8f6408cbada81eebdb26c8eb8fda49b0244f56e9eed8cd39029bf5296"
+    },
+    {
+      "path": "reference/api-examples/revalidate-authority.json",
+      "bytes": 199,
+      "sha256": "90f718e8206e576a08f8e58f44a349a771632a41a5d703225018277a7bef6a54"
+    },
+    {
+      "path": "reference/api-examples/service-sunset-decision.json",
+      "bytes": 188,
+      "sha256": "6aee759c3751a86428a4cb2e1f05cf793b57afd47ea81cc340302bc923947814"
+    },
+    {
+      "path": "reference/api-examples/submit-future-generations-impact.json",
+      "bytes": 366,
+      "sha256": "4360af5bdccee5b1f5d8e6c64a98f6fee5a81cc100acafaf7785e544d5131000"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/archive-preservation-policy.ts",
+      "bytes": 494,
+      "sha256": "7aed321b5ba9ac0a4d6ccbce99116c1ad83b2363c275de4f8d81e1ee113355d7"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/authority-inheritance-gate.ts",
+      "bytes": 836,
+      "sha256": "db5ccd7d04bdd66e2506b3d11900ee35c52c9c973622e60f1128a341e7d64c35"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/dissolution-asset-lock.ts",
+      "bytes": 677,
+      "sha256": "ff7eb8c40dc4c6274305efb3a68e874752fde1c3daf99d28ecf965035ddfb271"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/institutional-succession-policy.ts",
+      "bytes": 680,
+      "sha256": "ddbef1360bac4269fed176f02a1d59ba995dc5352ac132161825760059d08b2e"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/intergenerational-impact-policy.ts",
+      "bytes": 740,
+      "sha256": "037691a0166393059925153d2691822addf1367a916e5de06ca955cc9ad3cb86"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/non-perpetuity-gate.ts",
+      "bytes": 845,
+      "sha256": "a814bf5daaa24099266202bbcfd28dcfd83155a07cea6ce4bdf1849314d70b58"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/phase18-activation-gate.ts",
+      "bytes": 764,
+      "sha256": "a3ac08e589d205f8752af24b2fd238c6884f2c70bedcc29435793a929f157ec5"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/public-service-continuity-policy.ts",
+      "bytes": 534,
+      "sha256": "fa81ca1048859b0d2ceaff61cee0da5398401ffd5f6736b3bf19031cf1b1cd9a"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/renewal-cycle-state-machine.ts",
+      "bytes": 1116,
+      "sha256": "e0c980fe2058c1fcd2bd601223f39699c7faab23d699a2fa8c9fd9150e7eb0ed"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/renewal-domain.ts",
+      "bytes": 866,
+      "sha256": "98fa86dd8a0a9ae51263192e3435058d70916a5ade5e3f43a12c5962644b3113"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/sunset-renewal-policy.ts",
+      "bytes": 684,
+      "sha256": "7d7708235c201b281a9bc092dca32a16949949c4930682481221aaeed8b113fe"
+    },
+    {
+      "path": "reference/lib/music/creator-treaty-system-renewal/technology-obsolescence-policy.ts",
+      "bytes": 861,
+      "sha256": "7f301d5727319e7ce928a4dca92461de4a470a42e262479897d198f07ceb49bd"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_renewal_packages_cycles_and_authority.sql",
+      "bytes": 724,
+      "sha256": "3f9da892f13a31a811b9453dfbc7384599b1991495c148084bb8f44f8d098b06"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_impacts_risks_sunsets_and_successions.sql",
+      "bytes": 388,
+      "sha256": "baa31b1db30655ee1bddf1f4f1ce48407d177f3febc9e787a44686b3600c3f04"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_archives_preservation_technology_and_continuity.sql",
+      "bytes": 284,
+      "sha256": "60bafe037d3bdc85c372a4a09a8bf1ee110d928128cc8998aaaf18def8c83a18"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_public_projections_incidents_audit_and_outbox.sql",
+      "bytes": 306,
+      "sha256": "22490055f8caff5bbbb1896f09944287a2f2bc51efbc317d359509583973d35c"
+    },
+    {
+      "path": "reference/tests/archive-preservation-policy.test.ts",
+      "bytes": 391,
+      "sha256": "3d44ad7c22e2c16400d34eb38bd42b9d6852db0807d3778d43bcfdae50fdc618"
+    },
+    {
+      "path": "reference/tests/non-perpetuity-gate.test.ts",
+      "bytes": 449,
+      "sha256": "07c80cad1cbe33f9ee519802a3948b18340ab2fffc56a8fdb5e9a57918a11301"
+    },
+    {
+      "path": "reference/tests/phase18-activation-gate.test.ts",
+      "bytes": 466,
+      "sha256": "5c3dabd3fc5282b9b606dd5c385704e70fee99815b8af2b09694287d1d0e2e77"
+    },
+    {
+      "path": "reference/tests/renewal-cycle-state-machine.test.ts",
+      "bytes": 397,
+      "sha256": "8e1ed47b3ff0a5977c02f3566c6543d7683d374f941bc83b881a4966a8dfd9cc"
+    }
+  ]
+}

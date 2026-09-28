@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-025",
+  "title": "Retire venue toggle-group primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:56.539Z",
+  "updated_at": "2026-09-11T20:27:33.228Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/toggle-group.tsx to components/ui/toggle-group.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/toggle-group.tsx",
+      "components/ui/toggle-group.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/toggle-group.tsx",
+    "components/ui/toggle-group.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/toggle-group|@/components/venue/ui/toggle-group\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/toggle-group.tsx components/ui/toggle-group.tsx",
+      "git diff --check -- components/venue/ui/toggle-group.tsx components/ui/toggle-group.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "rg zero-use audit: 0 matches (exit 1) for components/venue/ui/toggle-group|@/components/venue/ui/toggle-group across app components hooks lib apps __tests__ scripts (all supported extensions). No live consumer of the venue twin.",
+      "Twin characterization: sha1 94dc04165db18906531da06d509b10353b78917d for BOTH components/venue/ui/toggle-group.tsx and components/ui/toggle-group.tsx; `diff` empty => byte-identical exact duplicate. Public exports identical: { ToggleGroup, ToggleGroupItem }. Radix/cva parity: both forwardRef to ToggleGroupPrimitive.Root/.Item, both use VariantProps<typeof toggleVariants> from @/components/ui/toggle, same ToggleGroupContext size/variant defaults, same displayName assignment. No drift.",
+      "Canonical import inventory: 1 total import of components/ui/toggle-group, located at app/venue/components/staff/venue-staff-shifts-panel.tsx:10 (`import { ToggleGroup, ToggleGroupItem } from \"@/components/ui/toggle-group\"`). This venue-surface consumer is ALREADY migrated to the canonical target.",
+      "CANONICAL_COMPONENT_REGISTER.csv DUP-094 rows: components/ui/toggle-group.tsx = keep; components/venue/ui/toggle-group.tsx = retire later (target components/ui/toggle-group.tsx, 'Exact duplicate; preserve until imports move and zero-use evidence is recorded.'); app/venue/components/ui/toggle-group.tsx also rows as retire later but the file no longer exists on disk (register data point, out of scope).",
+      "eslint components/venue/ui/toggle-group.tsx components/ui/toggle-group.tsx: clean, exit 0 (ESLINT-PASS).",
+      "git diff --check -- components/venue/ui/toggle-group.tsx components/ui/toggle-group.tsx docs/engineering: clean (DIFF-CHECK-PASS). Both target component files are untouched in the worktree (git status --porcelain empty for them).",
+      "npm run agents:validate: validated 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:27:33.228Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded toggle-group audit complete. The venue toggle-group twin has zero consumers; the single canonical consumer (venue-staff-shifts-panel) is already migrated. Files are byte-identical with cva/Radix parity and remain registered retire-later (DUP-094). Twin retained.",
+    "completed": [
+      "Zero-use consumer audit of components/venue/ui/toggle-group.tsx (0 matches).",
+      "Canonical import inventory (1 import; venue-staff-shifts-panel.tsx already on canonical).",
+      "Byte-identical twin characterization (shared sha1, empty diff, export/Radix/cva parity).",
+      "Register disposition confirmed (DUP-094: canonical keep / twin retire later).",
+      "All verification commands executed and recorded (rg, eslint, git diff --check, agents:validate)."
+    ],
+    "next_steps": [
+      "Coordinate deletion of components/venue/ui/toggle-group.tsx in a later authorized pass now that zero-use evidence and parity are recorded (no deletion authorized in this audit).",
+      "Optionally reconcile the stale app/venue/components/ui/toggle-group.tsx register row with disk reality in a register-owner pass.",
+      "Verify no drift on the canonical target if Radix/shadcn bumps occur."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:08:49.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "DESIGN-025 bounded audit pass completed (mirrors DESIGN-005..020 pattern). Zero-use confirmed (rg, no matches); twin byte-identical to canonical (sha1 94dc04165db18906531da06d509b10353b78917d); 1 canonical consumer, already venue-surface on @/components/ui/toggle-group; eslint + git diff --check clean; agents:validate 17 agents / 93 tasks / 0 warnings / 0 errors. Disposition: canonical keep, consumer already-migrated, twin retire-later compatibility debt. No files deleted or edited; task remains active pending authorized deletion pass.",
+        "next": "Await deletion authorization; retain file and register row until then."
+      },
+      {
+        "at": "2026-09-11T20:27:33.228Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded toggle-group audit complete. The venue toggle-group twin has zero consumers; the single canonical consumer (venue-staff-shifts-panel) is already migrated. Files are byte-identical with cva/Radix parity and remain registered retire-later (DUP-094). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

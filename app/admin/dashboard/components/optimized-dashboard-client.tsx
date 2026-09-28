@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, Suspense } from "react"
+import { useState, useEffect, useMemo, useCallback, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { VirtualTable, VirtualList } from "./virtual-scroll"
+import { AdminDataTable } from "@/components/admin/ui/admin-data-table"
 import { ErrorBoundary } from "./error-boundary"
 import { KeyboardShortcutsHelp, useKeyboardShortcutsHelp } from "./keyboard-shortcuts-help"
 import { useProductEducation } from "@/components/product-education/product-education-context"
@@ -62,28 +62,58 @@ import {
   Eye,
   MoreHorizontal,
   Truck,
+  UserCheck,
+  MessageSquare,
 } from "lucide-react"
 import Link from "next/link"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useActingContext } from "@/hooks/use-acting-context"
 import { isOrganizationType } from "@/lib/accounts/account-types"
+import { hiringEntityFromAccount } from "@/lib/hiring/hiring-entity-from-account"
 import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { WidgetsRow } from "./apple-widgets"
 import { AdminStatCard } from "./admin-stat-card"
+import { AdminDashboardMetrics } from "@/components/admin/ui/admin-dashboard-metrics"
+import { AttentionPanel } from "@/components/admin/attention/admin-attention-panel"
+import { useAdminAttention } from "@/components/admin/attention/use-admin-attention"
 import { statusBadgeClass } from "./admin-badge-utils"
 import type { AdminDashboardStats } from "@/types/admin"
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 import { trackDashboardUxEvent } from "@/lib/analytics/ux-event-client"
+import { AdminErrorCard } from "./admin-error-card"
+import {
+  failedAdminRequest,
+  loadingAdminRequest,
+  resolvedAdminRequest,
+  type AdminRequestState,
+} from "@/lib/admin/admin-request-state"
+import { AdminDomainHealthGrid } from "./admin-domain-health-grid"
 
 type DashboardStats = AdminDashboardStats
+
+function AttentionPanelWrapper() {
+  const { state, markAsRead, markAllAsRead, handleAction } = useAdminAttention()
+
+  return (
+    <AttentionPanel
+      state={state}
+      onMarkAsRead={markAsRead}
+      onMarkAllAsRead={markAllAsRead}
+      onAction={handleAction}
+      className="rounded-sm bg-slate-900/60 border-slate-700/50"
+    />
+  )
+}
 
 export default function OptimizedDashboardClient() {
   const router = useRouter()
   const { currentAccount } = useMultiAccount()
-  const { actingHeaders } = useActingContext()
+  const { actingHeaders, actingContextKey, isActingReady } = useActingContext()
   const isOrgAccount = isOrganizationType(currentAccount?.account_type)
   const [organizerPublicPath, setOrganizerPublicPath] = useState<string | null>(null)
+  const hiringHubHref = useMemo(() => buildScopedHiringHref("/admin/dashboard/hiring", currentAccount), [currentAccount])
+  const staffHref = useMemo(() => buildScopedHiringHref("/admin/dashboard/staff", currentAccount), [currentAccount])
 
   // State for data
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -97,14 +127,24 @@ export default function OptimizedDashboardClient() {
   const [eventsLoading, setEventsLoading] = useState(true)
   const [notificationsLoading, setNotificationsLoading] = useState(true)
   
-  // Error state (kept for DataLoadingStatus component — always null since we handle errors gracefully)
-  const statsError: string | null = null
+  type DashboardDomain = 'stats' | 'tours' | 'events' | 'notifications'
+  const [requestStates, setRequestStates] = useState<Record<DashboardDomain, AdminRequestState<unknown>>>(() => ({
+    stats: loadingAdminRequest(),
+    tours: loadingAdminRequest(),
+    events: loadingAdminRequest(),
+    notifications: loadingAdminRequest(),
+  }))
+  const statsError = requestStates.stats.status === 'error'
+    || requestStates.stats.status === 'denied'
+    || requestStates.stats.status === 'unavailable'
+    ? requestStates.stats.message
+    : null
 
   // UI state
   const [activeTab, setActiveTab] = useState('overview')
   const [showDataStatus, setShowDataStatus] = useState(false)
 
-  function buildNoStoreInit(input?: RequestInit): RequestInit {
+  const buildNoStoreInit = useCallback((input?: RequestInit): RequestInit => {
     return {
       credentials: 'include',
       cache: 'no-store',
@@ -117,7 +157,7 @@ export default function OptimizedDashboardClient() {
       },
       ...input,
     }
-  }
+  }, [actingHeaders])
 
   function handleTabChange(nextTab: string) {
     setActiveTab(nextTab)
@@ -191,7 +231,11 @@ export default function OptimizedDashboardClient() {
 
   // Fetch data only when organization / legacy admin mode is active
   useEffect(() => {
-    if (!isOrgAccount) {
+    if (!isActingReady || !isOrgAccount) {
+      setStats(null)
+      setTours([])
+      setEvents([])
+      setNotifications([])
       setStatsLoading(false)
       setToursLoading(false)
       setEventsLoading(false)
@@ -199,44 +243,94 @@ export default function OptimizedDashboardClient() {
       return
     }
 
-    async function safeFetch<T>(url: string, extract: (json: any) => T, fallback: T): Promise<T> {
-      try {
-        const res = await fetch(url, buildNoStoreInit())
-        if (!res.ok) {
-          console.warn(`[Dashboard] ${url} returned ${res.status}`)
-          return fallback
-        }
-        const json = await res.json()
-        return extract(json)
-      } catch (err) {
-        console.warn(`[Dashboard] ${url} fetch failed:`, err)
-        return fallback
+    const controller = new AbortController()
+    setStats(null)
+    setTours([])
+    setEvents([])
+    setNotifications([])
+    setStatsLoading(true)
+    setToursLoading(true)
+    setEventsLoading(true)
+    setNotificationsLoading(true)
+    setRequestStates({
+      stats: loadingAdminRequest(),
+      tours: loadingAdminRequest(),
+      events: loadingAdminRequest(),
+      notifications: loadingAdminRequest(),
+    })
+
+    async function fetchDomain<T>(url: string, extract: (json: any) => T): Promise<T> {
+      const res = await fetch(url, buildNoStoreInit({ signal: controller.signal }))
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const error = new Error(json.error || `Request failed with ${res.status}`) as Error & { status?: number }
+        error.status = res.status
+        throw error
       }
+      return extract(json)
     }
 
     const fetchData = async () => {
       const [statsData, toursData, eventsData, notificationsData] = await Promise.allSettled([
-        safeFetch('/api/admin/dashboard/stats', (j) => j.stats ?? null, null),
-        safeFetch('/api/admin/tours', (j) => j.tours ?? [], []),
-        safeFetch('/api/admin/events', (j) => j.events ?? [], []),
-        safeFetch('/api/admin/notifications', (j) => j.notifications ?? [], []),
+        fetchDomain('/api/admin/dashboard/stats', (j) => j.stats ?? null),
+        fetchDomain('/api/admin/tours', (j) => j.tours ?? []),
+        fetchDomain('/api/admin/events', (j) => j.events ?? []),
+        fetchDomain('/api/admin/notifications', (j) => j.notifications ?? []),
       ])
 
-      if (statsData.status === 'fulfilled') setStats(statsData.value)
+      if (controller.signal.aborted) return
+
+      const nextStates: Record<DashboardDomain, AdminRequestState<unknown>> = {
+        stats: loadingAdminRequest(),
+        tours: loadingAdminRequest(),
+        events: loadingAdminRequest(),
+        notifications: loadingAdminRequest(),
+      }
+
+      if (statsData.status === 'fulfilled') {
+        setStats(statsData.value)
+        nextStates.stats = resolvedAdminRequest(statsData.value, { empty: !statsData.value })
+      } else {
+        const error = statsData.reason as Error & { status?: number }
+        nextStates.stats = failedAdminRequest(error.status || 500, error.message)
+      }
       setStatsLoading(false)
 
-      if (toursData.status === 'fulfilled') setTours(toursData.value ?? [])
+      if (toursData.status === 'fulfilled') {
+        const value = toursData.value ?? []
+        setTours(value)
+        nextStates.tours = resolvedAdminRequest(value, { empty: value.length === 0 })
+      } else {
+        const error = toursData.reason as Error & { status?: number }
+        nextStates.tours = failedAdminRequest(error.status || 500, error.message)
+      }
       setToursLoading(false)
 
-      if (eventsData.status === 'fulfilled') setEvents(eventsData.value ?? [])
+      if (eventsData.status === 'fulfilled') {
+        const value = eventsData.value ?? []
+        setEvents(value)
+        nextStates.events = resolvedAdminRequest(value, { empty: value.length === 0 })
+      } else {
+        const error = eventsData.reason as Error & { status?: number }
+        nextStates.events = failedAdminRequest(error.status || 500, error.message)
+      }
       setEventsLoading(false)
 
-      if (notificationsData.status === 'fulfilled') setNotifications(notificationsData.value ?? [])
+      if (notificationsData.status === 'fulfilled') {
+        const value = notificationsData.value ?? []
+        setNotifications(value)
+        nextStates.notifications = resolvedAdminRequest(value, { empty: value.length === 0 })
+      } else {
+        const error = notificationsData.reason as Error & { status?: number }
+        nextStates.notifications = failedAdminRequest(error.status || 500, error.message)
+      }
       setNotificationsLoading(false)
+      setRequestStates(nextStates)
     }
 
-    fetchData()
-  }, [isOrgAccount, currentAccount?.profile_id])
+    void fetchData()
+    return () => controller.abort()
+  }, [isActingReady, isOrgAccount, actingContextKey, buildNoStoreInit])
 
   // Real-time subscriptions for live updates (organization / legacy admin accounts)
   useEffect(() => {
@@ -306,7 +400,7 @@ export default function OptimizedDashboardClient() {
       cancelled = true
       subscriptions.forEach(sub => { try { sub.unsubscribe() } catch {} })
     }
-  }, [isOrgAccount, currentAccount?.profile_id])
+  }, [isOrgAccount, currentAccount?.profile_id, buildNoStoreInit])
 
   const recentTours = useMemo(() => {
     if (!tours || tours.length === 0) return []
@@ -423,7 +517,7 @@ export default function OptimizedDashboardClient() {
       }
     }
     fetchTasks()
-  }, [isOrgAccount, currentAccount?.profile_id])
+  }, [isOrgAccount, currentAccount?.profile_id, buildNoStoreInit])
 
   const allMappedTasks = useMemo(() => {
     return tasks
@@ -455,7 +549,10 @@ export default function OptimizedDashboardClient() {
   }, [allMappedTasks])
 
   const isFullyLoaded = !statsLoading && !toursLoading && !eventsLoading && !notificationsLoading
-  const hasNoData = isFullyLoaded && !stats && tours.length === 0 && events.length === 0
+  const hasRequestFailure = Object.values(requestStates).some((state) =>
+    state.status === 'error' || state.status === 'denied' || state.status === 'unavailable'
+  )
+  const hasNoData = isFullyLoaded && !hasRequestFailure && tours.length === 0 && events.length === 0
 
   return (
     <ErrorBoundary>
@@ -519,122 +616,177 @@ export default function OptimizedDashboardClient() {
           </div>
         </div>
 
-        {/* Empty state notice */}
-        {hasNoData && (
-          <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <AlertCircle className="h-5 w-5 text-slate-400" />
-                <p className="text-sm text-slate-400">
-                  No data to display yet. Create tours, events, or tickets to see your dashboard come to life.
-                </p>
-              </div>
-              <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-            </CardContent>
-          </Card>
+        {hasRequestFailure && (
+          <AdminErrorCard
+            title="Some dashboard data could not be loaded"
+            message="Unavailable domains are not included in totals. Retry after checking the active organization and your access."
+            onRetry={() => window.location.reload()}
+          />
         )}
-
-        {/* Apple-inspired Widgets overview */}
-        <WidgetsRow tours={tours} events={events} stats={stats} isLoading={statsLoading || toursLoading || eventsLoading} />
-
-        {/* Data Loading Status */}
-        <AnimatePresence>
-          {showDataStatus && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-            >
-              <DataLoadingStatus
-                data={stats}
-                dataType="dashboardStats"
-                isLoading={statsLoading}
-                error={statsError}
-                onRetry={() => window.location.reload()}
-                onRefresh={() => window.location.reload()}
-                showDetails={true}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <AdminStatCard title="Total Tours" value={stats?.totalTours || 0} icon={Globe} color="purple" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Total Events" value={stats?.totalEvents || 0} icon={Calendar} color="blue" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Total Revenue" value={formatSafeCurrency(stats?.totalRevenue || 0)} icon={DollarSign} color="green" size="lg" isLoading={statsLoading} />
-          <AdminStatCard title="Tickets Sold" value={stats?.ticketsSold || 0} icon={Users} color="cyan" size="lg" isLoading={statsLoading} />
-        </div>
-
-        {/* Quick Integration Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/admin/dashboard/logistics" className="block">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 transition-colors cursor-pointer">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-500/20 rounded-sm">
-                    <Truck className="h-4 w-4 text-purple-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">Logistics</p>
-                    <p className="text-xs text-slate-400">{stats?.completedTasks || 0} completed / {(stats?.completedTasks || 0) + (stats?.pendingTasks || 0)} total tasks</p>
-                  </div>
-                </div>
-                <Badge className={stats?.logisticsCompletionRate && stats.logisticsCompletionRate > 50 ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'}>
-                  {stats?.logisticsCompletionRate || 0}%
-                </Badge>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/admin/dashboard/finances" className="block">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-green-500/30 transition-colors cursor-pointer">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-500/20 rounded-sm">
-                    <DollarSign className="h-4 w-4 text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">Finances</p>
-                    <p className="text-xs text-slate-400">Monthly: {formatSafeCurrency(stats?.monthlyRevenue || 0)}</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-400" />
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/admin/dashboard/staff" className="block">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-colors cursor-pointer">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-500/20 rounded-sm">
-                    <Users className="h-4 w-4 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">Staff & Crew</p>
-                    <p className="text-xs text-slate-400">{stats?.staffMembers || 0} team members</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-400" />
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30 flex overflow-x-auto sm:grid sm:grid-cols-6 w-full gap-1">
-            <TabsTrigger value="overview" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Overview</TabsTrigger>
-            <TabsTrigger value="tours" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tours</TabsTrigger>
-            <TabsTrigger value="events" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Events</TabsTrigger>
-            <TabsTrigger value="calendar" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Calendar</TabsTrigger>
-            <TabsTrigger value="analytics" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Analytics</TabsTrigger>
-            <TabsTrigger value="notifications" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Activity</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-sm border border-slate-700/30 bg-slate-800/60 p-1 backdrop-blur-sm sm:grid-cols-6">
+            <TabsTrigger value="overview" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Overview</TabsTrigger>
+            <TabsTrigger value="tours" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tours</TabsTrigger>
+            <TabsTrigger value="events" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Events</TabsTrigger>
+            <TabsTrigger value="calendar" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Calendar</TabsTrigger>
+            <TabsTrigger value="analytics" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Analytics</TabsTrigger>
+            <TabsTrigger value="notifications" className="min-w-0 whitespace-normal py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            <AdminDomainHealthGrid />
+
+            {/* Empty state notice */}
+            {hasNoData && (
+              <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+                <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center space-x-3">
+                    <AlertCircle className="h-5 w-5 shrink-0 text-slate-400" />
+                    <p className="text-sm text-slate-400">
+                      No tours or events yet. Start with a tour or event, then hire crew and open communications from here.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href="/admin/dashboard/tours/create">
+                      <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">
+                        Create tour
+                      </Button>
+                    </Link>
+                    <Link href="/admin/dashboard/events/create">
+                      <Button size="sm" variant="outline" className="border-slate-600 text-slate-200">
+                        Create event
+                      </Button>
+                    </Link>
+                    <Link href={hiringHubHref}>
+                      <Button size="sm" variant="ghost" className="text-slate-300">
+                        Hiring hub
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Apple-inspired Widgets overview */}
+            <WidgetsRow tours={tours} events={events} stats={stats} isLoading={statsLoading || toursLoading || eventsLoading} />
+
+            {/* Data Loading Status */}
+            <AnimatePresence>
+              {showDataStatus && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                >
+                  <DataLoadingStatus
+                    data={stats}
+                    dataType="dashboardStats"
+                    isLoading={statsLoading}
+                    error={statsError}
+                    onRetry={() => window.location.reload()}
+                    onRefresh={() => window.location.reload()}
+                    showDetails={true}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Stats Grid — using AdminMetricStateRenderer */}
+            <AdminDashboardMetrics
+              stats={stats}
+              isLoading={statsLoading}
+              error={statsError}
+              onRetry={() => window.location.reload()}
+            />
+
+            {/* Quick Integration Row — ops + workforce + messaging */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+              <Link href="/admin/dashboard/logistics" className="block">
+                <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 transition-colors cursor-pointer h-full">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="p-2 bg-purple-500/20 rounded-sm shrink-0">
+                        <Truck className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">Logistics</p>
+                        <p className="text-xs text-slate-400 truncate">{stats?.completedTasks || 0} completed / {(stats?.completedTasks || 0) + (stats?.pendingTasks || 0)} tasks</p>
+                      </div>
+                    </div>
+                    <Badge className={stats?.logisticsCompletionRate && stats.logisticsCompletionRate > 50 ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'}>
+                      {stats?.logisticsCompletionRate || 0}%
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/admin/dashboard/finances" className="block">
+                <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-green-500/30 transition-colors cursor-pointer h-full">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="p-2 bg-green-500/20 rounded-sm shrink-0">
+                        <DollarSign className="h-4 w-4 text-green-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">Finances</p>
+                        <p className="text-xs text-slate-400 truncate">Monthly: {formatSafeCurrency(stats?.monthlyRevenue || 0)}</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href={staffHref} className="block">
+                <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-colors cursor-pointer h-full">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="p-2 bg-blue-500/20 rounded-sm shrink-0">
+                        <Users className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">Staff & Crew</p>
+                        <p className="text-xs text-slate-400 truncate">{stats?.staffMembers || 0} team members</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href={hiringHubHref} className="block">
+                <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-cyan-500/30 transition-colors cursor-pointer h-full">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="p-2 bg-cyan-500/20 rounded-sm shrink-0">
+                        <UserCheck className="h-4 w-4 text-cyan-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">Hiring Hub</p>
+                        <p className="text-xs text-slate-400 truncate">Jobs, applicants, onboarding</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/admin/dashboard/communications" className="block">
+                <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-amber-500/30 transition-colors cursor-pointer h-full">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="p-2 bg-amber-500/20 rounded-sm shrink-0">
+                        <MessageSquare className="h-4 w-4 text-amber-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white">Communications</p>
+                        <p className="text-xs text-slate-400 truncate">Inbox and crew threads</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Recent Tours */}
               <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
@@ -649,33 +801,29 @@ export default function OptimizedDashboardClient() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <VirtualList
-                    items={recentTours}
-                    height={300}
-                    itemHeight={60}
-                    loading={toursLoading}
-                    renderItem={(tour, index) => (
-                      <div className="flex items-center justify-between p-3 hover:bg-slate-800/60 rounded-sm transition-all duration-200">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-8 w-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-sm flex items-center justify-center shadow-lg">
-                            <Globe className="h-4 w-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-white">{tour.name}</p>
-                            <p className="text-sm text-slate-400">{tour.artist}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={`text-xs ${statusBadgeClass(tour.status)}`}>
-                            {tour.status}
-                          </Badge>
-                          <div className="mt-1">
-                            <Progress value={tour.progress} className="h-1 w-16" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  />
+                  {toursLoading ? <p className="py-8 text-center text-sm text-slate-400">Loading tours…</p> : recentTours.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-slate-400">No tours to display</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {recentTours.map((tour) => (
+                        <li key={tour.id}>
+                          <Link href={`/admin/dashboard/tours/${tour.id}`} className="group flex min-w-0 items-center gap-3 rounded-sm p-3 transition-colors hover:bg-slate-800/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-400">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-gradient-to-r from-purple-500 to-blue-500 shadow-lg" aria-hidden="true">
+                              <Globe className="h-4 w-4 text-white" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block line-clamp-2 break-words font-medium text-white group-focus-visible:line-clamp-none" title={tour.name}>{tour.name}</span>
+                              <span className="block truncate text-sm text-slate-400">{tour.artist || 'Unknown artist'}</span>
+                            </span>
+                            <span className="flex shrink-0 flex-col items-end gap-1 pl-2">
+                              <Badge className={`max-w-28 whitespace-normal text-right text-xs ${statusBadgeClass(tour.status)}`}>{tour.status}</Badge>
+                              <Progress value={tour.progress} className="h-1 w-16" />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </CardContent>
               </Card>
 
@@ -692,31 +840,29 @@ export default function OptimizedDashboardClient() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <VirtualList
-                    items={upcomingEvents}
-                    height={300}
-                    itemHeight={60}
-                    loading={eventsLoading}
-                    renderItem={(event, index) => (
-                      <div className="flex items-center justify-between p-3 hover:bg-slate-800/60 rounded-sm transition-all duration-200">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-green-500 rounded-sm flex items-center justify-center shadow-lg">
-                            <Music className="h-4 w-4 text-white" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-white">{event.name}</p>
-                            <p className="text-sm text-slate-400">{event.venue_name}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={`text-xs ${statusBadgeClass(event.status)}`}>
-                            {event.status}
-                          </Badge>
-                          <p className="text-xs text-slate-400 mt-1">{event.event_date}</p>
-                        </div>
-                      </div>
-                    )}
-                  />
+                  {eventsLoading ? <p className="py-8 text-center text-sm text-slate-400">Loading events…</p> : upcomingEvents.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-slate-400">No upcoming events</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {upcomingEvents.map((event) => (
+                        <li key={event.id}>
+                          <Link href={`/admin/dashboard/events/${event.id}`} className="group flex min-w-0 items-center gap-3 rounded-sm p-3 transition-colors hover:bg-slate-800/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-gradient-to-r from-blue-500 to-green-500 shadow-lg" aria-hidden="true">
+                              <Music className="h-4 w-4 text-white" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block line-clamp-2 break-words font-medium text-white group-focus-visible:line-clamp-none" title={event.name}>{event.name}</span>
+                              <span className="block truncate text-sm text-slate-400">{event.venue_name}</span>
+                            </span>
+                            <span className="flex shrink-0 flex-col items-end gap-1 pl-2">
+                              <Badge className={`max-w-28 whitespace-normal text-right text-xs ${statusBadgeClass(event.status)}`}>{event.status}</Badge>
+                              <span className="text-xs text-slate-400">{event.event_date}</span>
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -758,7 +904,7 @@ export default function OptimizedDashboardClient() {
                           return task.dueDate.toDateString() === date.toDateString()
                         })
                         
-                        return (
+  return (
                           <div
                             key={i}
                             className={`
@@ -892,23 +1038,20 @@ export default function OptimizedDashboardClient() {
           </TabsContent>
 
           <TabsContent value="tours" className="space-y-6">
-            {/* Inline widgets at top of Tours tab for quick context */}
-            <WidgetsRow tours={tours} events={events} stats={stats} isLoading={statsLoading || toursLoading || eventsLoading} />
             <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-white">All Tours</CardTitle>
               </CardHeader>
               <CardContent>
-                <VirtualTable
+                <AdminDataTable
                   items={tours || []}
-                  height={400}
-                  rowHeight={60}
+                  caption="All tours"
                   loading={toursLoading}
                   columns={[
-                    { key: 'name', header: 'Tour Name', width: '30%' },
+                    { key: 'name', header: 'Tour Name', width: '30%', render: (tour) => tour.name || 'Untitled tour' },
                     { key: 'artist', header: 'Artist', width: '20%',
                       render: (tour) => {
-                        const artistName = tour.artists && tour.artists.length > 0 ? tour.artists[0].name : 'Unknown Artist'
+                        const artistName = tour.artist_name || tour.main_artist || tour.artist || tour.artists?.[0]?.name || 'Unknown Artist'
                         return artistName
                       }
                     },
@@ -920,38 +1063,35 @@ export default function OptimizedDashboardClient() {
                       )
                     },
                     { key: 'totalShows', header: 'Shows', width: '15%',
-                      render: (tour) => tour.totalShows || tour.venues?.length || 0
+                      render: (tour) => tour.total_shows ?? tour.totalShows ?? tour.venues?.length ?? 0
                     },
                     { key: 'revenue', header: 'Revenue', width: '20%',
                       render: (tour) => formatSafeCurrency(tour.revenue || tour.totalRevenue || 0)
                     }
                   ]}
-                  onRowClick={(tour) => {
-                    window.location.href = `/admin/dashboard/tours/${tour.id}`
-                  }}
+                  getRowKey={(tour) => String(tour.id)}
+                  getRowHref={(tour) => `/admin/dashboard/tours/${tour.id}`}
+                  getRowLabel={(tour) => String(tour.name || 'Untitled tour')}
                 />
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
-            {/* Inline widgets at top of Events tab for quick context */}
-            <WidgetsRow tours={tours} events={events} stats={stats} isLoading={statsLoading || toursLoading || eventsLoading} />
             <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold text-white">All Events</CardTitle>
               </CardHeader>
               <CardContent>
-                <VirtualTable
+                <AdminDataTable
                   items={normalizedEvents || []}
-                  height={400}
-                  rowHeight={60}
+                  caption="All events"
                   loading={eventsLoading}
                   columns={[
-                    { key: 'name', header: 'Event Name', width: '25%' },
+                    { key: 'name', header: 'Event Name', width: '25%', render: (event) => event.name || event.title || 'Untitled event' },
                     { key: 'venue_name', header: 'Venue', width: '20%',
                       render: (event) => {
-                        const venueName = event.venueName || (event.venue ? event.venue.name : 'Unknown Venue')
+                        const venueName = event.venue_name || event.venueName || event.venue?.name || 'Unknown Venue'
                         return venueName
                       }
                     },
@@ -969,15 +1109,15 @@ export default function OptimizedDashboardClient() {
                       )
                     },
                     { key: 'tickets_sold', header: 'Tickets', width: '15%',
-                      render: (event) => `${event.ticketsSold || 0}/${event.capacity || 0}`
+                      render: (event) => `${event.tickets_sold ?? event.ticketsSold ?? 0}/${event.capacity ?? 0}`
                     },
                     { key: 'expected_revenue', header: 'Revenue', width: '10%',
                       render: (event) => formatSafeCurrency(event.expectedRevenue || 0)
                     }
                   ]}
-                  onRowClick={(event) => {
-                    window.location.href = `/admin/dashboard/events/${event.id}`
-                  }}
+                  getRowKey={(event) => String(event.id)}
+                  getRowHref={(event) => `/admin/dashboard/events/${event.id}`}
+                  getRowLabel={(event) => String(event.name || event.title || 'Untitled event')}
                 />
               </CardContent>
             </Card>
@@ -994,47 +1134,8 @@ export default function OptimizedDashboardClient() {
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-6">
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold text-white flex items-center justify-between">
-                  <span>Recent Activity</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 rounded-full bg-green-400" />
-                    <span className="text-xs text-slate-400">Live</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <VirtualList
-                  items={recentNotifications}
-                  height={400}
-                  itemHeight={60}
-                  loading={notificationsLoading}
-                  renderItem={(notification, index) => (
-                    <div className="flex items-center space-x-3 p-3 hover:bg-slate-800/60 rounded-sm transition-all duration-200">
-                      <div className={`h-8 w-8 rounded-sm flex items-center justify-center ${
-                        notification.type === 'success' ? 'bg-green-500/20' :
-                        notification.type === 'warning' ? 'bg-yellow-500/20' :
-                        notification.type === 'error' ? 'bg-red-500/20' :
-                        'bg-blue-500/20'
-                      }`}>
-                        {notification.type === 'success' ? <CheckCircle className="h-4 w-4 text-green-400" /> :
-                         notification.type === 'warning' ? <AlertCircle className="h-4 w-4 text-yellow-400" /> :
-                         notification.type === 'error' ? <AlertCircle className="h-4 w-4 text-red-400" /> :
-                         <Bell className="h-4 w-4 text-blue-400" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-white">{notification.title}</p>
-                        <p className="text-xs text-slate-400">{notification.message}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-slate-500">{notification.timestamp}</p>
-                      </div>
-                    </div>
-                  )}
-                />
-              </CardContent>
-            </Card>
+            {/* Attention Panel — replacing Notifications with prioritized attention items */}
+            <AttentionPanelWrapper />
           </TabsContent>
         </Tabs>
 
@@ -1046,4 +1147,19 @@ export default function OptimizedDashboardClient() {
       </div>
     </ErrorBoundary>
   )
+}
+
+function buildScopedHiringHref(
+  path: string,
+  account: ReturnType<typeof useMultiAccount>["currentAccount"],
+) {
+  const entity = hiringEntityFromAccount(account)
+  if (!entity) return path
+
+  const params = new URLSearchParams()
+  params.set("entity_type", entity.entityType)
+  params.set("entity_id", entity.entityId)
+  if (entity.scope?.venueId) params.set("venue_id", entity.scope.venueId)
+  if (entity.displayName) params.set("display_name", entity.displayName)
+  return `${path}?${params.toString()}`
 }

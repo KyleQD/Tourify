@@ -506,8 +506,8 @@ export default function EnhancedCandidateManager({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-white font-medium truncate">{candidate.name}</h4>
+                      <div className="min-w-0">
+                        <h4 className="line-clamp-2 break-words text-white font-medium" title={candidate.name}>{candidate.name}</h4>
                         <p className="text-slate-400 text-sm truncate">{candidate.position}</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -588,4 +588,4 @@ export default function EnhancedCandidateManager({
       </div>
     </div>
   )
-} 
+}

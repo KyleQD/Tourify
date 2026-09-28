@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireApiUser } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 
 export const dynamic = "force-dynamic"
@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic"
  * Does not enable product surfaces — callers must still hit gated APIs.
  */
 export async function GET(request: NextRequest) {
-  const authResult = await requireApiUser(request)
+  const authResult = await requireMarketplaceAccount(request)
   if (!authResult.success) return authResult.response
-  const { user, supabase } = authResult.auth
-  const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+  const { userId, supabase } = authResult.account
+  const flags = await resolveMusicMarketplaceFlags(supabase, userId)
   const offeringsEnabled = flags.music_marketplace_offerings_enabled
   const investorPortalEnabled = flags.music_marketplace_investor_portal_enabled
 

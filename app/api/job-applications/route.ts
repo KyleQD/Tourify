@@ -209,9 +209,37 @@ export async function POST(request: NextRequest) {
     // Increment application count on job posting using RPC-safe approach
     await supabase.rpc('increment_applications_count', { p_job_id: job_posting_id })
 
-    if (jobPosting.allow_applicant_messages && jobPosting.created_by && jobPosting.created_by !== user.id) {
-      const serviceRoleSupabase = createServiceRoleClient()
+    const serviceRoleSupabase = createServiceRoleClient()
+    const auditTimestamp = new Date().toISOString()
+    const { error: auditError } = await serviceRoleSupabase.from('hiring_audit_events').insert({
+      employer_entity_type: employerEntityType,
+      employer_entity_id: employerEntityId,
+      venue_id: resolvedVenueId,
+      application_id: application.id,
+      job_id: job_posting_id,
+      actor_user_id: user.id,
+      event_type: 'application_submitted',
+      action: 'application_submitted',
+      from_status: 'none',
+      to_status: 'pending',
+      subject_type: 'job_application',
+      subject_id: application.id,
+      title: 'New application',
+      content: `${applicantName} submitted an application for ${jobPosting.title}.`,
+      metadata: {
+        entity_table: 'job_applications',
+        entity_id: application.id,
+        application_id: application.id,
+        job_posting_id,
+      },
+      created_at: auditTimestamp,
+    })
 
+    if (auditError) {
+      console.warn('[job-applications POST] hiring audit write failed:', auditError.message)
+    }
+
+    if (jobPosting.allow_applicant_messages && jobPosting.created_by && jobPosting.created_by !== user.id) {
       const { data: existingConversation } = await serviceRoleSupabase
         .from('conversations')
         .select('id')

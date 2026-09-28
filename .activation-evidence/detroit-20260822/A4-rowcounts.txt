@@ -1,0 +1,3 @@
+ERROR:  relation "public.rbac_role_assignments" does not exist
+LINE 12: ...ect 'rbac_world_role_assignments='||count(*) from public.rba...
+                                                              ^

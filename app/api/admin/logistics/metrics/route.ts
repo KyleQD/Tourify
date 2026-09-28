@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   applyOrgLogisticsTaskFilter,
   resolveAuthorizedOrgLogisticsScope,
 } from '@/lib/admin/resolve-authorized-org'
+import { LOGISTICS_TASK_DOMAINS } from '@/lib/admin/logistics-task-taxonomy'
 
-export async function GET(request: NextRequest) {
-  return withAdminAuth(async (_req, { user }) => {
+export const GET = withAdminCapability('logistics.view', async (request: NextRequest, { user, admin }) => {
     try {
       const { searchParams } = new URL(request.url)
       const eventId = searchParams.get('eventId')
       const tourId = searchParams.get('tourId')
-      const requestedOrgId = searchParams.get('orgId')
+      const requestedOrgId = admin.orgId
 
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
       })
       const supabase = scope.service
 
-      const types = ['transportation', 'equipment', 'backline', 'lodging', 'catering', 'communication', 'rental']
+      // LOG-102: non-overlapping domain buckets (tasks only — structured outcomes separate)
+      const types = [...LOGISTICS_TASK_DOMAINS]
       const metrics: Record<string, any> = {}
 
       for (const t of types) {
@@ -199,5 +200,4 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ error: 'Failed to fetch logistics metrics' }, { status: 500 })
     }
-  })(request)
-}
+})

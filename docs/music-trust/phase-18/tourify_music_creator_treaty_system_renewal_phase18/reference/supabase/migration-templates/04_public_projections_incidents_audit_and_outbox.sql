@@ -1,0 +1,5 @@
+-- Reference outline only.
+-- Suggested additive objects: phase18_public_projections,
+-- phase18_public_projection_versions, phase18_incidents,
+-- phase18_audit_events, phase18_outbox_messages, phase18_inbox_receipts.
+-- Public projections must be minimal, purpose-specific, freshness-aware and revocable.

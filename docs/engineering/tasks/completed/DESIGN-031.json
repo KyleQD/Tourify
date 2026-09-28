@@ -1,0 +1,146 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-031",
+  "title": "Domain use-mobile copies: migrate callers to canonical contract",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T20:51:21.542Z",
+  "updated_at": "2026-09-11T21:17:29.529Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (728 entries)",
+  "goal": "Per owner Design Q1-C direction, migrate remaining callers of hooks/venue/use-mobile.tsx and app/admin/dashboard/components/hooks/use-mobile.tsx toward the canonical object-returning hooks/use-mobile.ts, preserving intentional responsive-hook differences and converting leftover copies to re-exports only where an owning surface has an explicit migration constraint.",
+  "scope": {
+    "in": [
+      "hooks/use-mobile.ts (canonical target; verified unchanged)",
+      "hooks/venue/use-mobile.tsx (converted to re-export of canonical)",
+      "app/admin/dashboard/components/hooks/use-mobile.tsx (converted to re-export of canonical)"
+    ],
+    "out": [
+      "Consumer files (all six already consume canonical; none modified)",
+      "components/ui/** canonical primitives",
+      "venue/admin behavior changes (owning surfaces decide final shim removal)",
+      "OTHER-5 mobile app / react-native surfaces (no importers existed)"
+    ]
+  },
+  "working_set": [
+    "hooks",
+    "app/admin/dashboard/components/hooks",
+    "components/mobile",
+    "components/ui",
+    "__tests__/design-system"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/OWNER_DECISIONS_2026-09-10.md",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv",
+    "docs/engineering/tasks/completed/DESIGN-027.json",
+    "docs/engineering/tasks/completed/DESIGN-029.json",
+    "docs/engineering/tasks/completed/DESIGN-002.json"
+  ],
+  "acceptance_criteria": [
+    "Consumer audit: every live importer of any use-mobile source resolves to the canonical hooks/use-mobile.ts object contract; no boolean-only consumer remains.",
+    "Domain copies are not deleted: hooks/venue/use-mobile.tsx and app/admin/dashboard/components/hooks/use-mobile.tsx are converted to pure compatibility re-exports of the canonical hook, preserving their import paths for any owning-surface constraint.",
+    "Register reflects the conversion: row 36 (admin copy) canonical target corrected to hooks/use-mobile.ts; stale components/ui/use-mobile.tsx keep row corrected to retired (file deleted in DESIGN-002).",
+    "Focused verification passes: same-identity contract test, zero-use rg sweep, eslint on changed files, scoped TypeScript on changed files, git diff --check on changed paths, npm run agents:validate with 0 warnings 0 errors."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"use-mobile\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx}\"",
+      "npx vitest run __tests__/design-system/use-mobile-contract.test.ts __tests__/design-system/shared-state-primitives.test.tsx",
+      "./node_modules/.bin/eslint hooks/venue/use-mobile.tsx app/admin/dashboard/components/hooks/use-mobile.tsx __tests__/design-system/use-mobile-contract.test.ts",
+      "npx tsc --noEmit --pretty false -p <temp-scoped-tsconfig-extending-root>",
+      "git diff --check -- hooks/venue/use-mobile.tsx app/admin/dashboard/components/hooks/use-mobile.tsx __tests__/design-system/use-mobile-contract.test.ts docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Consumer audit PASSED (2026-09-11): all six live consumers of use-mobile import the canonical hooks/use-mobile.ts with the object contract — hooks/use-mobile-performance.ts, components/ui/sidebar.tsx, components/mobile/mobile-optimized-card.tsx, components/mobile/unified-mobile-navigation.tsx, components/mobile/enhanced-mobile-navigation.tsx, components/mobile/mobile-navigation-audit.tsx. No consumer imports either domain copy, so no caller migration was needed.",
+      "Zero-consumer validation for both domain copies PASSED: bounded rg sweeps for 'hooks/venue/use-mobile' and 'app/admin/dashboard/components/hooks/use-mobile' across app components hooks lib apps __tests__ scripts (glob *.ts,tsx,js,jsx) returned 0 importer matches each; no barrel files exist at hooks/ or app/admin/dashboard/components/hooks (rg for index/barrel patterns returned none); no tsconfig path alias targets either copy path.",
+      "Copies verified byte-identical boolean-only contracts before conversion (diff(1) IDENTICAL: both returned !!isMobile with 768 breakpoint, no named exports besides useIsMobile); DESIGN-027 documented this boolean-only contract as the intentional surface difference (category b).",
+      "Post-conversion rg sweep PASSED: every use-mobile reference is either the canonical hooks/use-mobile.ts, its consumers, the two re-export shims, or the new contract test; no boolean-only implementation remains anywhere in the source tree. Exit 0.",
+      "Contract test PASSED (2026-09-11): npx vitest run __tests__/design-system/use-mobile-contract.test.ts __tests__/design-system/shared-state-primitives.test.tsx -> 2 files, 5 tests passed. use-mobile-contract.test.ts asserts venueUseIsMobile === canonicalUseIsMobile and adminUseIsMobile === canonicalUseIsMobile (same function object = zero behavioral fork) and full export surface (useTouchDevice, useHapticFeedback) is preserved.",
+      "ESLint PASSED: ./node_modules/.bin/eslint hooks/venue/use-mobile.tsx app/admin/dashboard/components/hooks/use-mobile.tsx __tests__/design-system/use-mobile-contract.test.ts exit 0 (no output).",
+      "Scoped TypeScript PASSED: temp tsconfig extending root tsconfig.json (preserving @/* paths) over the three changed files -> tsc --noEmit exit 0, no diagnostics. (Bare-file tsc invocation is not valid: it ignores tsconfig paths and fails on @/ and vitest internals; the temp-project approach is the correct scoped check.)",
+      "git diff --check PASSED for all DESIGN-031 changed paths (hooks/venue/use-mobile.tsx, app/admin/dashboard/components/hooks/use-mobile.tsx, __tests__/design-system/use-mobile-contract.test.ts, CANONICAL_COMPONENT_REGISTER.csv). Pre-existing trailing-whitespace findings in app/admin/dashboard/venues/page.tsx and app/venue/staff/roles-permissions/page.tsx are unrelated dirty-worktree lanes, untouched by this task.",
+      "CSV integrity PASSED (post-edit): python csv parse -> 1339 data rows + header, every row exactly 9 columns, 0 malformed rows; register prefixes remain only app/ and components/ (hooks/venue path is documented in STATE.md, not register-tracked, matching register convention).",
+      "npm run agents:validate PASSED twice (baseline before edits and after): validated 17 agents, 96 tasks, 0 warnings, 0 errors. (Task prompt expected 95 tasks; the control plane reports 96 — actual count used.)"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T21:17:29.529Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Domain use-mobile copies reconciled under owner Q1-C: audit found all 6 live consumers already on the canonical object-returning hooks/use-mobile.ts; both domain copies (hooks/venue/use-mobile.tsx and app/admin/dashboard/components/hooks/use-mobile.tsx) were ZERO-consumer and converted to pure re-exports of the canonical hook (admin copy uses relative import to avoid its subtree alias cycle). Added use-mobile-contract.test.ts asserting same-function identity; register row 36 retargeted to hooks/use-mobile.ts. Shim-removal decisions handed off to venue/admin owner surfaces.",
+    "completed": [
+      "Audited every consumer of all three use-mobile sources; all six live consumers use canonical hooks/use-mobile.ts (no caller migration required).",
+      "Re-validated both domain copies as zero-consumer (bounded rg per path; no barrels; no tsconfig aliases) and confirmed byte-identical boolean-only implementations.",
+      "Converted hooks/venue/use-mobile.tsx to a compatibility re-export of @/hooks/use-mobile.",
+      "Converted app/admin/dashboard/components/hooks/use-mobile.tsx to a compatibility re-export using RELATIVE import ../../../../../hooks/use-mobile (required: this subtree's tsconfig maps @/* to itself, so an alias import would be circular).",
+      "Added __tests__/design-system/use-mobile-contract.test.ts asserting same-function identity across canonical + both shim paths (5 tests passed with shared-state suite).",
+      "Updated CANONICAL_COMPONENT_REGISTER.csv: row 36 (admin copy) disposition basis corrected + canonical target hooks/use-mobile.ts; row 1102 stale components/ui/use-mobile.tsx keep row corrected to retired (canonical moved to hooks/use-mobile.ts in DESIGN-002); 1339 rows, 9 cols, integrity preserved.",
+      "Updated design-system STATE.md durable facts (copies are now canonical re-exports; admin relative-import requirement documented) and appended a short dependency note to venue STATE.md.",
+      "Ran and recorded the full verification suite (consumer audit, zero-use sweeps, contract test, eslint, scoped tsc, diff check, CSV parse, agents:validate)."
+    ],
+    "next_steps": [
+      "Venue/admin owners: decide removal of the now-shim hooks/venue/use-mobile.tsx and app/admin/dashboard/components/hooks/use-mobile.tsx re-exports or keep them as intentional surface shims."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T21:05:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Consumer audit complete: all six live consumers already use canonical hooks/use-mobile.ts; both domain copies have zero consumers. Copies classified category (b) (intentional boolean-only surface difference, DESIGN-027) -> convert to re-exports, do not delete. Verified both copies byte-identical and admin copy tsconfig maps @/* to itself (relative import required). Baseline agents:validate clean (17/96/0/0).",
+        "completed": [
+          "Per-path zero-consumer sweeps (0 importers; no barrels; no alias targets)",
+          "Consumer inventory (6 canonical consumers, no shim consumers)",
+          "Byte-identity check of the two boolean-only copies",
+          "Admin tsconfig @/* self-mapping discovery (drives relative import)",
+          "Control plane baseline (17 agents, 96 tasks, 0 warnings, 0 errors)"
+        ],
+        "next_steps": [
+          "Convert both copies to re-exports",
+          "Add contract test, update register + STATE.md, record evidence"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T21:15:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Both domain copies converted to canonical re-exports; contract test, register rows, STATE.md (design-system + venue note) updated. Verification green: 2 files/5 tests pass, eslint exit 0, scoped tsc exit 0, diff check clean on task paths, CSV 1339x9 intact, agents:validate 17 agents/96 tasks/0 warnings/0 errors. Complete; handoff recorded for final shim removal by owning surfaces.",
+        "completed": [
+          "Converted hooks/venue/use-mobile.tsx (alias import, root tsconfig)",
+          "Converted admin copy (relative import ../../../../../hooks/use-mobile)",
+          "Same-identity contract test added and passing",
+          "Register rows 36 + 1102 corrected; venue copy documented in STATE.md",
+          "Verification suite pass"
+        ],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T21:17:29.529Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Domain use-mobile copies reconciled under owner Q1-C: audit found all 6 live consumers already on the canonical object-returning hooks/use-mobile.ts; both domain copies (hooks/venue/use-mobile.tsx and app/admin/dashboard/components/hooks/use-mobile.tsx) were ZERO-consumer and converted to pure re-exports of the canonical hook (admin copy uses relative import to avoid its subtree alias cycle). Added use-mobile-contract.test.ts asserting same-function identity; register row 36 retargeted to hooks/use-mobile.ts. Shim-removal decisions handed off to venue/admin owner surfaces.",
+        "completed": [],
+        "next_steps": [
+          "Venue/admin owners: decide removal of the now-shim hooks/venue/use-mobile.tsx and app/admin/dashboard/components/hooks/use-mobile.tsx re-exports or keep them as intentional surface shims."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "to": "venue",
+      "what": "hooks/venue/use-mobile.tsx is now a pure re-export of canonical hooks/use-mobile.ts (DESIGN-031); zero consumers. Owning venue surface decides whether to remove the compatibility shim or keep it.",
+      "deadline": null
+    },
+    {
+      "to": "admin",
+      "what": "app/admin/dashboard/components/hooks/use-mobile.tsx is now a pure re-export of canonical hooks/use-mobile.ts via relative import (DESIGN-031); zero consumers. Owning admin surface decides whether to remove the compatibility shim; if kept, the relative import must remain (subtree tsconfig maps @/* to itself).",
+      "deadline": null
+    }
+  ]
+}

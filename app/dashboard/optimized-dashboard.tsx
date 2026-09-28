@@ -344,8 +344,8 @@ export default function OptimizedDashboard() {
         <div className="container mx-auto px-6 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            {/* Left Column - Account Cards */}
-            <div className="lg:col-span-3 space-y-6">
+            {/* Left Column - Account Cards (desktop only; use top-right switcher on smaller screens) */}
+            <div className="hidden lg:col-span-3 lg:block space-y-6">
               <EnhancedAccountCards />
             </div>
 

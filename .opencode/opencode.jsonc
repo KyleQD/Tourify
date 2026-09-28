@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "skills": {
+    "paths": [".agents/skills"]
+  },
+  "references": {
+    "engineering": {
+      "path": "docs/engineering",
+      "description": "Tourify engineering control plane: INDEX.md, agent registry, task lifecycle, handoffs, exec-plans, and generated system maps."
+    },
+    "admin-audit": {
+      "path": "docs/admin-audit",
+      "description": "Tourify admin UX remediation audit: findings, spec tasks, launch gates, evidence receipts, and generated STATUS/coverage views."
+    }
+  }
+}

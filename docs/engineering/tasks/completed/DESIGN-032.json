@@ -1,0 +1,130 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-032",
+  "title": "Sidebar/chart token gap: surface --sidebar-*/--chart-* via Tailwind projection",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T21:35:45.678Z",
+  "updated_at": "2026-09-13T18:06:56.438Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (749 entries)",
+  "goal": "Close the token gap surfaced by DESIGN-030 Phase 2 (C-10): live components/ui/sidebar.tsx references --sidebar-* CSS vars and bg-sidebar-style Tailwind classes that tailwind.config.ts never projects (classes silently ungenerated), and the only --sidebar-*/--chart-* definitions live in dead CSS roots. Add the sidebar/chart token roles to the central TOKEN_REGISTRY, register the corresponding Tailwind color aliases/classes as a projection, and make the minimum runtime change so the sidebar renders as authored, without regressing other surfaces.",
+  "scope": {
+    "in": [
+      "components/ui/sidebar.tsx",
+      "components/ui/chart.tsx",
+      "tailwind.config.ts",
+      "app/globals.css",
+      "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
+      "docs/engineering/agents/design-system/STATE.md"
+    ],
+    "out": [
+      "lib/design-system/theme.ts",
+      "ThemeProvider implementations (DESIGN-030 Phases 3-5)",
+      "neon/dashboard/admin scope",
+      "venue domain behavior",
+      "admin routes",
+      "4 dead CSS roots (Phase-5 cleanup owns removal)"
+    ]
+  },
+  "working_set": [
+    "components/ui/sidebar.tsx",
+    "components/ui/chart.tsx",
+    "tailwind.config.ts",
+    "app/globals.css",
+    "docs/implementation/ui-ux-completion/TOKEN_REGISTRY.md",
+    "docs/engineering/agents/design-system/STATE.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    "All --sidebar-*/--chart-* var and class references resolved exactly (var/class audit table in task record).",
+    "Token roles registered in TOKEN_REGISTRY.md (role -> canonical var -> runtime value -> tailwind alias/class -> defining file -> status).",
+    "tailwind.config.ts projects the sidebar family + chart ramp mapped to var() references; in-use classes generate.",
+    "Zero non-sidebar visual regression: no key collisions with the pre-existing color map; zero new class/value deltas for non-sidebar consumers.",
+    "Runtime truth for --sidebar-*/--chart-* established at app/globals.css :root; dead-root copies deduped/annotated.",
+    "STATE.md durable facts + task record evidence updated; status stays active."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg class-usage crossing matrix (design-032-matrix.js: every sidebar class token in live files -> projection key)",
+      "rg collision proof (sidebar/chart vs pre-existing extend.colors keys at HEAD)",
+      "rg negative proofs (A: sidebar class tokens outside components/ui/sidebar.tsx; B: --sidebar-*/--chart-* refs outside allowed set; C: chart-* class consumers)",
+      "scoped Tailwind build (tailwindcss CLI, content = sidebar.tsx + probe html) -> utilities emitted",
+      "npx eslint tailwind.config.ts",
+      "npx tsc --noEmit tailwind.config.ts (scoped; repo-wide tsc resource-constrained)",
+      "git diff --check -- app/globals.css tailwind.config.ts",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "CROSSING MATRIX: 5 projection keys hit by live classes (sidebar, sidebar-foreground, sidebar-accent, sidebar-accent-foreground, sidebar-border, sidebar-ring all family-complete); ORPHANS: 0. Raw tokens: bg-sidebar (6 sites: 144,184,201,251,306,has-[...]); text-sidebar-foreground (/70) (184,201,218,442); bg-sidebar-accent (463,515,519,521,609,725,726 + active/hover/data-active/state-open variants); text-sidebar-accent-foreground (463,515,519,521,609,617,635,725,726 + peer/data variants); border-sidebar-border (251,693); bg-sidebar-border (303 hover:after,391); ring-sidebar-ring (344,442,463,515,609,725). Arbitrary shadows hsl(var(--sidebar-border))/hsl(var(--sidebar-accent)) at sidebar.tsx:521 resolve at :root.",
+      "COLLISION PROOF: pre-existing extend.colors keys at HEAD = border, input, ring, background, foreground, primary, secondary, destructive, muted, accent, popover, card, neon-purple/pink/cyan/amber/green/red (18 top-level names). sidebar and chart NOT in that list (rg exit 1) -> both brand-new, no collision.",
+      "NEGATIVE PROOF A: zero sidebar-color class tokens outside components/ui/sidebar.tsx (only matches are the DESIGN-032 :root comment text). NEGATIVE PROOF B: zero --sidebar-*/--chart-* var references outside sidebar.tsx / tailwind.config.ts / app/globals.css / docs / dead roots (rg exit 1). NEGATIVE PROOF C: zero chart-* color class consumers anywhere (rg exit 1).",
+      "BUILD PROOF (scoped tailwindcss CLI, tailwind.config.ts, probe content): .bg-sidebar{background-color:hsl(var(--sidebar-background))}, .bg-sidebar-accent, .bg-sidebar-border, .border-sidebar-border, .text-sidebar-accent-foreground, .text-sidebar-foreground\\/70{color:hsl(var(--sidebar-foreground) / 0.7)} (Tailwind 3.4 alpha syntax), .ring-sidebar-ring{--tw-ring-color:hsl(var(--sidebar-ring))}, .fill-chart-1{fill:hsl(var(--chart-1))} — all emitted (previously absent: keys did not exist).",
+      "ESLINT tailwind.config.ts: 0 errors (exit 0).",
+      "TSC scoped tailwind.config.ts --esModuleInterop --skipLibCheck --target es2020 --module esnext --moduleResolution bundler: 0 errors (exit 0).",
+      "git diff --check -- app/globals.css tailwind.config.ts: clean (exit 0).",
+      "npm run agents:validate: validated 17 agents, 97 tasks, 0 warnings, 0 errors (exit 0).",
+      "PROVENANCE (rg, dead roots): dark sidebar values byte-identical in styles/globals.css :root + .dark blocks of app/admin/dashboard/components/styles/globals.css + styles/venue/globals.css (3 sources); dark chart values in the 2 .dark blocks; light sidebar values in the 2 light-capable roots; light chart values in 3 roots; app/venue/globals.css defines NO --sidebar-*/--chart-* vars (130-line file, verified). :root comment corrected to this provenance."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-13T18:06:56.438Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Sidebar/chart token gap closed (C-10 prerequisite): live components/ui/sidebar.tsx sidebar classes (bg/border/text/ring/accent family) now PROJECT via tailwind.config.ts extend.colors (+17 lines, two new keys sidebar + chart, mapping to var() references), with runtime truth for --sidebar-*/--chart-* established at app/globals.css :root from dead-root authored values (provenance recorded). Registry Tables I+K updated (13 rows dead->live, projection count 28->41); 0 orphans, 0 collisions, 0 non-sidebar deltas; scoped tailwind build emits all previously-ungenerated utilities. Dead-root cleanup remains DESIGN-030 Phase 5's owning step.",
+    "completed": [
+      "AUDIT: var/class reference audit (rg) — exact var lists, class tokens, consumers, dead-root provenance",
+      "REGISTER: TOKEN_REGISTRY.md Tables I+K — sidebar + chart roles live, 13 projection aliases, counts corrected",
+      "PROJECT: tailwind.config.ts extend.colors — sidebar family + chart ramp via var() references (minimal diff, +17 lines)",
+      "RUNTIME: app/globals.css :root — --sidebar-*/--chart-* runtime truth (dark values from authored dead-root sources); provenance comment corrected",
+      "VERIFY: crossing matrix, collision proof, negative rg A/B/C, scoped Tailwind build, eslint, scoped tsc, git diff --check, agents:validate — all pass"
+    ],
+    "next_steps": [
+      "DESIGN-030 Phase 5 owns the now-unblocked dead CSS-root cleanup (C-10)."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T21:39:12.635Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "AUDIT COMPLETE: --sidebar-*/--chart-* refs are only in 4 dead CSS roots (app/venue/globals.css, app/admin/dashboard/components/styles/globals.css, styles/globals.css, styles/venue/globals.css) + live components/ui/sidebar.tsx. Live sidebar class tokens (zero generated today, absent from tailwind.config.ts extend.colors): bg-sidebar, text-sidebar-foreground(+ /70), bg-sidebar-accent, text-sidebar-accent-foreground, border-sidebar-border, bg-sidebar-border, ring-sidebar-ring, plus arbitrary shadow hsl(var(--sidebar-border)) / hsl(var(--sidebar-accent)) at sidebar.tsx:521. --chart-* has ZERO consumers (chart.tsx uses inline recharts --color-* element-scoped props only). Sidebar live consumers: components/app-sidebar.tsx (+8 surfaces) and app/artist/artist-layout-client.tsx (SidebarProvider). Authored dark values identical across all dead roots; app is dark-first :root. app/globals.css pre-modified by other lane (epk-font-* utilities) - preserved.",
+        "completed": [],
+        "next_steps": [
+          "Edit tailwind.config.ts (sidebar family + chart ramp), app/globals.css :root (runtime truth), TOKEN_REGISTRY.md (Tables I+K + counts), STATE.md, then verify"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T17:58:21.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "VERIFY + CLOSE COMPLETE: corrected the :root provenance comment (app/venue/globals.css defines NO --sidebar-*/--chart-* vars; dark sidebar values live in 3 dead-root sources, dark chart in 2; light values authored-only — provenance recorded). All verification commands pass: crossing matrix 0 orphans (5 keys used, family-complete); collision proof clean (sidebar/chart not among 18 pre-existing extend.colors keys); negative rg A/B/C zero (no class/var deltas outside sidebar.tsx + projection + :root); scoped Tailwind build emits .bg-sidebar/.text-sidebar-foreground\\/70 (hsl alpha)/.bg-sidebar-accent/.text-sidebar-accent-foreground/.border-sidebar-border/.bg-sidebar-border/.ring-sidebar-ring/.fill-chart-1; eslint 0; scoped tsc 0; git diff --check clean; agents:validate 17 agents/97 tasks/0 warnings/0 errors. STATE.md durable facts updated. Registry opacity-modifier note corrected (hsl(var) / 0.7 alpha, not color-mix). Worktree other-lane dirt (749 entries incl. DESIGN-030 Phase 3 finalization, epk-font-* utilities) preserved unmodified. Result: pass.",
+        "completed": [
+          "AUDIT",
+          "REGISTER",
+          "PROJECT",
+          "RUNTIME",
+          "VERIFY"
+        ],
+        "next_steps": [
+          "Phase-5 cleanup checkpoint (C-10) owns dead-root removal"
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-13T18:06:56.438Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Sidebar/chart token gap closed (C-10 prerequisite): live components/ui/sidebar.tsx sidebar classes (bg/border/text/ring/accent family) now PROJECT via tailwind.config.ts extend.colors (+17 lines, two new keys sidebar + chart, mapping to var() references), with runtime truth for --sidebar-*/--chart-* established at app/globals.css :root from dead-root authored values (provenance recorded). Registry Tables I+K updated (13 rows dead->live, projection count 28->41); 0 orphans, 0 collisions, 0 non-sidebar deltas; scoped tailwind build emits all previously-ungenerated utilities. Dead-root cleanup remains DESIGN-030 Phase 5's owning step.",
+        "completed": [],
+        "next_steps": [
+          "DESIGN-030 Phase 5 owns the now-unblocked dead CSS-root cleanup (C-10)."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

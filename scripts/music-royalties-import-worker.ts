@@ -3,10 +3,9 @@
  * Pilot parser: generic CSV from private music-royalty-statements storage.
  */
 import { createClient } from "@supabase/supabase-js"
+import { isLaunchCapabilityAvailable } from "../lib/config/launch-capabilities"
 import { CSV_PARSER_VERSION, parseGenericRoyaltyCsv, reconcileSourceTotals } from "../lib/music/royalties/csv-parser"
 import { minorUnitsToDb } from "../lib/music/royalties/royalties-access"
-
-const BATCH_SIZE = Number(process.env.MUSIC_ROYALTIES_IMPORT_BATCH || 10)
 
 function requiredEnv(name: string, fallback?: string) {
   const value = process.env[name] || fallback
@@ -22,13 +21,16 @@ function createWorkerClient() {
   )
 }
 
-async function claimBatches(supabase: ReturnType<typeof createWorkerClient>) {
+async function claimBatches(
+  supabase: ReturnType<typeof createWorkerClient>,
+  batchSize: number,
+) {
   const { data: candidates, error } = await supabase
     .from("music_royalties_import_batches")
     .select("*")
     .eq("status", "received")
     .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE)
+    .limit(batchSize)
   if (error) throw error
 
   const claimed = []
@@ -156,8 +158,15 @@ async function processBatch(supabase: ReturnType<typeof createWorkerClient>, bat
 }
 
 async function main() {
+  if (!isLaunchCapabilityAvailable("music_royalty_ingestion")) {
+    console.error("[music-royalties-import-worker] launch capability unavailable")
+    process.exitCode = 1
+    return
+  }
+
+  const batchSize = Number(process.env.MUSIC_ROYALTIES_IMPORT_BATCH || 10)
   const supabase = createWorkerClient()
-  const claimed = await claimBatches(supabase)
+  const claimed = await claimBatches(supabase, batchSize)
   if (!claimed.length) {
     console.log("[music-royalties-import-worker] no received batches")
     return

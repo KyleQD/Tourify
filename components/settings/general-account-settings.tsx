@@ -39,6 +39,7 @@ import {
   EyeOff
 } from 'lucide-react'
 import { ProfileSettingsOptimized } from './profile-settings-optimized'
+import { PostStylesSettingsPanel } from './post-styles-settings-panel'
 import { DashboardThemePicker } from './dashboard-theme-picker'
 import {
   DEFAULT_DASHBOARD_THEME_ID,
@@ -591,6 +592,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
         )
       case 'appearance':
         return (
+          <>
           <Form {...appearanceForm}>
             <form onSubmit={appearanceForm.handleSubmit(onSubmitAppearance)} className="space-y-6">
               <div className="space-y-4">
@@ -653,6 +655,9 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
               </div>
             </form>
           </Form>
+          <Separator className="bg-white/10 my-6" />
+          <PostStylesSettingsPanel />
+          </>
         )
       default:
         return <div className="text-gray-400">Settings content not found</div>

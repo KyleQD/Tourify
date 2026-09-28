@@ -10,7 +10,7 @@ const listQuerySchema = z.object({
 const createThreadSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
-  thread_type: z.enum(['social', 'project', 'tour']).optional(),
+  thread_type: z.enum(['social', 'project', 'tour', 'logistics']).optional(),
   member_ids: z.array(z.string().uuid()).max(50).default([]),
   context_type: z.string().max(40).optional(),
   context_id: z.string().uuid().optional(),

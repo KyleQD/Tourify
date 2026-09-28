@@ -1,0 +1,45 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-HIER-001-GOVERNANCE-PIN-SLICE",
+  "task_id": "ADMIN-HIER-001",
+  "from_agent": "admin",
+  "to_agent": "admin-governance",
+  "status": "pending",
+  "accepting_task_id": "ADMIN-025",
+  "completion_condition": "The GET expectation in the it('pins the corrected site-map activity read/write capability split ...') block of __tests__/admin/admin-route-capability-matrix.test.ts is bounded to the GET handler body instead of running to end-of-file, the block still passes against the current corrected route, and a deliberate re-inversion of the route is demonstrated to turn the block red. This lands in the same change as the HF-ADMIN-021-DOMAIN039-LEASE-REVERT removal of the shared: entry, because the file cannot be held by an active admin-governance task until that entry is gone. npm run agents:validate -- --strict is green.",
+  "created_at": "2026-09-28T01:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "decision_record": [
+    "DOMAIN-039"
+  ],
+  "summary": "Route one weakly-bound test slice to admin-governance, which does own this file by segment default once the spent DOMAIN-039 lease is reverted. The accepting task is ADMIN-025 because HF-ADMIN-021-DOMAIN039-LEASE-REVERT already targets it for the same file and the same block.",
+  "finding": {
+    "file": "__tests__/admin/admin-route-capability-matrix.test.ts",
+    "line": 345,
+    "what_is_wrong": "const getGate = source.slice(source.indexOf(\"export async function GET\")) has no end index, so getGate runs from the GET handler marker to end-of-file and therefore also covers the POST handler. The assertion on line 346, expect(getGate).toContain('\"logistics.view\"'), can be satisfied by a logistics.view literal that lives in the POST handler.",
+    "how_it_was_observed": "Against the pre-ADMIN-021 route, GET was gated on logistics.manage and POST on logistics.view. The slice from the GET marker to end-of-file contained both literals, so the expectation passed against the inverted route. admin-logistics observed this directly: the block stayed green during ADMIN-021's negative control.",
+    "tight_comparison": "The POST expectation on lines 347-348 uses source.slice(source.indexOf(\"export async function POST\")), and because the POST handler is last in the file that slice is genuinely bounded to the POST body. The asymmetry between the two lines is what makes the GET one weak."
+  },
+  "not_an_open_hole": "Re-inversion is still caught today by three other things: the tightly bound POST expectation in this same block, the per-method gate comparison in __tests__/admin/admin-registry-guard-proof.test.ts, and the behavioural proof in __tests__/admin/site-map-activity-capability.test.ts. Nothing is unguarded. This is a strength defect in one assertion, not an exposure.",
+  "ordering_constraint": "An active admin-governance task that carries __tests__/admin/admin-route-capability-matrix.test.ts in its working_set is rejected by control-plane-validation.mjs:283 with 'belongs to admin-logistics, not admin-governance' for as long as the DOMAIN-039 shared: entry at SEGMENT_OWNERSHIP.yaml:328-330 is still present, because that entry overrides the admin-governance segment default at :36. Whoever activates this must land the shared: removal and the slice edit in the same change, or remove the entry first and validate before editing the test.",
+  "not_done_here_and_why": "The DOMAIN-039 lease is the orchestrator's to grant and to revoke, and admin-logistics was correct not to widen its enumerated authority to this slice. The admin agent has not edited the file, has not removed the shared: entry, and has not activated ADMIN-025.",
+  "working_set": [
+    "__tests__/admin/admin-route-capability-matrix.test.ts"
+  ],
+  "completed": [
+    "The slice was read and its weakness confirmed by construction rather than by assumption.",
+    "The segment owner and the current shared: override were both resolved programmatically.",
+    "The ordering constraint against control-plane-validation.mjs:283 is recorded here so the activating lane does not discover it as a confusing failure."
+  ],
+  "next_steps": [
+    "The orchestrator decides when ADMIN-025 becomes dispatchable; it is blocked/waiting_dependency on RELEASE-013 for an unrelated working-set collision on package.json and .github/workflows/ci.yml.",
+    "admin-governance tightens the slice in the same change as the HF-ADMIN-021-DOMAIN039-LEASE-REVERT removal."
+  ],
+  "blockers": [
+    "ADMIN-025 is blocked/waiting_dependency, so this obligation is recorded and cannot be discharged in this wave. This is the same blocker as HF-ADMIN-021-DOMAIN039-LEASE-REVERT; the two should be discharged together."
+  ],
+  "verification": [
+    "npm run agents:validate -- --strict -> 0 warnings, 0 errors.",
+    "resolveAdminSegmentOwner on the path returns admin-logistics via the shared: entry; removing that entry returns it to the admin-governance segment default at SEGMENT_OWNERSHIP.yaml:36."
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-022",
+  "title": "Run governed Workforce Command Center rollout",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "release",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Instrument, rehearse, and execute a feature-flagged WFC rollout with explicit promotion and rollback gates.",
+  "scope": {
+    "in": [
+      "Flag registry and assignments",
+      "Telemetry, alerts, SLOs, and runbook",
+      "Rollback rehearsal",
+      "Staging soak, pilots, percentage ramp, and GA watch"
+    ],
+    "out": [
+      "Promoting without WFC-021",
+      "Deleting legacy data or fallback"
+    ]
+  },
+  "working_set": [
+    "lib/admin/feature-flags/**",
+    "lib/observability/**",
+    "docs/DEPLOYMENT_ROUTINE.md",
+    "docs/engineering/release/**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-021.json",
+    "docs/engineering/agents/release/CHARTER.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "admin_workforce_command_v2 defaults off and has owner, expiry, telemetry, and rollback metadata",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Alerts cover errors, latency, degradation, parity, authorization, mutations, and financial mismatch without logging PII",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Flag-off rollback is rehearsed before external pilot",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Staging, internal pilot, external pilot, 10/25/50 percent ramps, and seven-day 100 percent watch meet the recorded thresholds",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Every promotion has retained exact-SHA evidence and a go/no-go record",
+      "owner": "release",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "release",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "release",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run verify:release",
+          "npm run check:admin-route-registry",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on integrated QA certification.",
+    "completed": [],
+    "next_steps": [
+      "Consume WFC-021 recommendation",
+      "Configure signals and rehearse rollback before staged promotion"
+    ],
+    "blockers": [
+      "WFC-021 must complete with a rollout recommendation",
+      "No unresolved P0/P1 WFC defect may remain"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Release → WFC-023: GA start time, feature assignment history, monitoring evidence, and legacy usage telemetry"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "release",
+  "decision_owner": "release",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Consume WFC-021 recommendation",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "release",
+      "condition": "WFC-021 must complete with a rollout recommendation",
+      "dependency_task_ids": []
+    }
+  ]
+}

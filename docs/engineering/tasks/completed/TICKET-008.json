@@ -1,0 +1,219 @@
+{
+  "schema_version": "2.0",
+  "id": "TICKET-008",
+  "title": "Disposition the DB-008 ticketing type-drift cluster",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P2",
+  "owner_agent": "ticketing",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "contract",
+  "decision_owner": "ticketing",
+  "created_at": "2026-09-27T22:25:00.000Z",
+  "updated_at": "2026-09-27T22:45:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane record created from the TICKET-006 handoff",
+  "goal": "Disposition the four code-drift objects the DB-008 type inventory attributes to the ticketing domain, so the ticketing share of the 1,384-diagnostic tsc cluster has an accountable owner and a recorded disposition.",
+  "scope": {
+    "in": [
+      "Disposition the four DB-008 code-drift objects the inventory attributes to the ticketing domain (get_enhanced_artist_stats, settlements, ticket_notifications, track_venue_profile_view) against the active migration chain",
+      "Record each disposition with its own evidence in docs/engineering/database-type-inventory-2026-09-25.json",
+      "Fence the dispositions executably so a resurrection fails the suite"
+    ],
+    "out": [
+      "Regenerating lib/database.types.ts (database lane, HF-TICKET-006-DATABASE-TYPES)",
+      "Applying or authoring any migration (CP-051)",
+      "TICKET-006's partial issuance, resume deduplication, or completion-alert work",
+      "Deleting the dead sendTicketNotification method — reported, not performed (lib/services/** is design-system's grant)",
+      "Fixing the two out-of-grant `settlements` consumers (lib/venue/**, app/api/admin/**) — raised as handoffs",
+      "Re-measuring the 1,384-diagnostic baseline; no full-repo tsc was run"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "app/api/ticketing/**",
+    "lib/ticketing/**",
+    "__tests__/ticketing/**",
+    "ADDED (recorded, not leased): docs/engineering/handoffs/pending/HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET.json — reason: the two accepted-debt dispositions name decision owners outside this domain, and the handoff workflow requires a v2 handoff per receiver rather than silent scope expansion",
+    "ADDED (recorded, not leased): docs/engineering/handoffs/pending/HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO.json — same reason, split per receiver because a v2 handoff has exactly one recipient",
+    "ADDED (recorded, not leased): docs/engineering/agents/ticketing/STATE.md and DECISIONS.md — reason: durable disposition facts and the schema-resolution rule belong in the owning agent's memory"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/handoffs/pending/HF-DB008-TYPECHECK-TICKETING.json",
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Selected as the ticketing agent's next collision-free work item. Created to re-home HF-DB008-TYPECHECK-TICKETING, whose accepting task (TICKET-006) completed without discharging it; TICKET-006's scope did not include the type-drift cluster and did not do that work.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Each of the four objects has a recorded disposition backed by the active migration chain: removed, replaced by a named canonical object, or retained with its live consumer named.",
+      "owner": "ticketing",
+      "state": "met",
+      "evidence": [
+        "All four objects carry a recorded disposition with its own evidence in docs/engineering/database-type-inventory-2026-09-25.json (items[].disposition, items[].decisionOwner, items[].dispositionEvidence); the ticketing cluster is marked disposition: complete",
+        "2 dead-consumer: get_enhanced_artist_stats, ticket_notifications — each re-validated zero-use with the method stated",
+        "2 accepted-debt with a named decision owner: settlements (database DB-019 + venue VENUE-006), track_venue_profile_view (venue VENUE-006)",
+        "0 canonical-replacement-required for the cluster as a whole, because two of the four file-level attributions in the inventory were false",
+        "Fence: __tests__/ticketing/db008-drift-cluster-disposition.test.ts, 44 tests, negative-controlled by synthetic SQL, synthetic sources and two live mutations"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "ticketing",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/ticketing/ -> 20 files / 231 tests passed (baseline 19/187; +1 file +44 tests, no reduction)",
+          "npm run check:migration-chain -> active migration chain has no duplicate policy creations (320 files scanned)",
+          "npm run check:migration-validation -> 0 failures (an earlier run in this session reported 3 failures for another lane's news/music manifests; that lane fixed them and the gate is now clean — not this lane's regression, no migration authored here)",
+          "npm run check:db008-harness -> 8 PASS, 1 SKIP (view-delta, needs DB_LINKED_TYPES), 0 failed; the six PostgreSQL 16 harnesses ran via the default macOS Homebrew path",
+          "npm run agents:validate -- --strict -> validated 18 agents, 216 tasks, 102 pending handoffs, 0 warnings, 0 errors. An intermediate run showed 6 errors, all from a concurrent press lane's HF-DB-019-PRESS-* handoffs (unknown `press` agent, unknown PRESS-001 task); that lane fixed them and neither HF-TICKET-008-* handoff ever produced an error",
+          "scoped tsc over app/api/ticketing/** + lib/ticketing/** (temp tsconfig extending the repo config, full-repo typecheck NOT run: 68m18s / OOM on this 8GB box) -> 15 diagnostics, none naming any of the four cluster objects. 9 are the pre-existing enhanced/route.ts TS2589/TS2769 on lines 144,145,286,287,583,735,736,773,774 — identical to the TICKET-005 baseline — and 6 are in lib/services/optimized-notification-service.ts, pulled in transitively by lib/ticketing/notifications.ts, design-system's file, and not drift objects",
+          "npx eslint __tests__/ticketing/db008-drift-cluster-disposition.test.ts -> exit 0",
+          "git diff --check -- docs/engineering/agents/ticketing/ docs/engineering/database-type-inventory-2026-09-25.json -> exit 0"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T22:40:00.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "TICKET-008 complete. All four DB-008 ticketing code-drift objects dispositioned individually from re-derived evidence: get_enhanced_artist_stats and ticket_notifications are dead consumers (deletion NOT performed, both out of grant); settlements and track_venue_profile_view are accepted debt with named decision owners. Two of the inventory's four file-level attributions were falsified. No product code changed; the deliverable is the recorded disposition plus an executable fence that makes a resurrection fail the suite.",
+    "completed": [
+      "Re-homed HF-DB008-TYPECHECK-TICKETING from TICKET-006 to this task, and recorded in TICKET-006 that the type-drift cluster was not part of its scope and was not performed.",
+      "Corrected the task's scope.in, which named the wrong four objects. It listed ticket_sales.ticket_type, artist_financial_transactions.category and booking_requests.venue_id — those are the ARTIST cluster's settlement surfaces, not the ticketing cluster's. The authoritative set is the ticketing cluster's four: get_enhanced_artist_stats, settlements, ticket_notifications, track_venue_profile_view.",
+      "Built a schema-aware chain resolver and negative-controlled it. It resolves each unqualified CREATE to the FIRST existing search_path entry, which is what makes the absence claim correct: 20260821025543 sets search_path = private, public, so ticketing_migration_issues is a private-schema relation. My first resolver answered public and the fence caught it.",
+      "Proved all four objects are created in NO schema of the active chain (320 top-level files) and appear nowhere in lib/database.types.ts, so regeneration cannot fix any of them.",
+      "get_enhanced_artist_stats -> dead consumer. Zero code callers; the inventory's consumerVerdict 'live' with 4 liveConsumers is falsified. The one file the inventory filed under the ticketing domain, lib/marketplace/ticket-source-adapter.ts, has an empty rpc() surface entirely. Canonical capability: lib/public-artist/artist-stats.ts. Already fenced by two artist-lane tests.",
+      "ticket_notifications -> dead consumer. Re-validated zero use: one repository reference, the .from() at lib/services/ticketing.service.ts:343, inside sendTicketNotification, which occurs exactly once (its own definition). The module is LIVE via components/ticketing/ticket-purchase-form.tsx:14, so the inventory's 'unreachable module' verdict is wrong and only the method may be deleted. DELETION NOT PERFORMED (lib/services/** is design-system's grant). Corrected the TICKET-005 recipe: also delete getNotificationTitle (384-396) and getNotificationMessage (398-410), each of which occurs exactly twice and becomes dead with the method.",
+      "settlements -> accepted debt, NOT a dead consumer. Two live out-of-grant consumers remain (lib/venue/finance-snapshot.ts:112, app/api/admin/finances/settlements/route.ts:99), and the chain admits an out-of-band apply: 20260720021441 is marker-only (body `select 1;;`, no DDL token) and records the settlements tables as 'already applied via execute_sql'. The repository therefore holds both 'the chain never creates it' and 'some target has it'. The ticketing share is already closed by TICKET-005 (canonical = ticket_revenue_allocations + financial_transactions, absence reported as settlement: null / settlement_available: false); the object itself needs a target catalog read.",
+      "track_venue_profile_view -> accepted debt. Not dead: app/api/venues/[id]/route.ts:109 is an entry-reachable route, and no canonical replacement exists — the function AND its backing table venue_profile_views are both created in no schema. The ticketing attribution is false; the webhook route contains no occurrence. Already handed to venue by TICKET-005.",
+      "Recorded exec_sql as a prohibition: created in no schema, and its only repository SQL reference is a REVOKE in 20260717194541, which is evidence it must not exist. Fenced so creating it fails the suite.",
+      "New finding raised to venue: lib/venue/finance-snapshot.ts:117 folds the unreadable settlements read into a false zero (settlementsRes.data || [] -> settlement_status 'unsettled'), so a venue is told its revenue is unpaid when the truth is unavailable. The admin consumer of the same relation already fails closed with 503 finance_unavailable, so the handoff is venue-only.",
+      "Cross-checked against TICKET-005's three handoffs so no drift is dispositioned twice: HF-TICKET-035-TICKET-NOTIFICATIONS (design-system, still accepted/unapplied) and HF-TICKET-035-TRACK-VENUE-PROFILE-VIEW (venue, still accepted/undecided) remain the execution paths; HF-TICKET-035-ARTIST-STATS-RPC was informational and needs nothing. This task supplies the evidence, it does not duplicate the requests.",
+      "Wrote and mutation-proved the fence __tests__/ticketing/db008-drift-cluster-disposition.test.ts (44 tests). Three live mutations each failed the expected cases: restoring the dead settlements read fails 3, deleting settlement_available: false fails 1, and weakening queries() to a substring test fails 5. The settlements route was restored to a byte-identical SHA (a69c253f74b04a21c3b7a9e5cef7b36756ac2bbf) after each.",
+      "Confirmed TICKET-006's three columns are known-pending regeneration, not drift: issuance_slot, dedupe_key and issuance_alerted_at are authored in 20260927120000_ticketing_issuance_slot_dedup.sql and absent from lib/database.types.ts, because CP-051 forbids applying it here and the --linked target is permanently disqualified.",
+      "Filed HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET (database, DB-019) and HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO (venue, VENUE-006), one recipient each per the v2 handoff contract.",
+      "Ran npm run agents:generate to refresh the stale generated maps (they were pinned to ca3bb0b0 / 2026-09-25 while the tree had moved to 16fb834f and 320 chain files). The diff is mechanical and leaves agents:validate --strict at 0 warnings / 0 errors.",
+      "Four dispositions recorded in docs/engineering/database-type-inventory-2026-09-25.json with per-object evidence; ticketing cluster marked disposition: complete",
+      "Fence __tests__/ticketing/db008-drift-cluster-disposition.test.ts (44 tests) written and mutation-proved: restoring the dead settlements read fails 3 tests, deleting settlement_available: false fails 1, weakening the reference predicate to a substring test fails 5, and the route was restored to a byte-identical SHA",
+      "Two new handoffs filed, one recipient each: HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET (database, DB-019) and HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO (venue, VENUE-006)",
+      "HF-DB008-TYPECHECK-TICKETING moved to handoffs/completed with a discharge note; TICKET-008 moved to tasks/completed",
+      "Re-targeted HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET from DB-019 to ORCH-004 mid-session: the database lane completed DB-019 while this task was running, and ORCH-004 already holds the paired question (which target is authoritative and what does it contain) plus the same hosted-history-ledger write, so the two must not be decided separately."
+    ],
+    "next_steps": [
+      "database (DB-019): catalog-read a real target for public.settlements and record it in the hosted-history ledger. One read settles both remaining consumers. Do NOT author a settlements migration to make the reads work.",
+      "venue (VENUE-006): stop lib/venue/finance-snapshot.ts rendering a failed settlements read as settlement_status 'unsettled' (false zero); design-system: delete sendTicketNotification plus its two now-dead private helpers"
+    ],
+    "blockers": [
+      "No deployed target and no credentials exist here, so the settlements existence question is undecidable from the repository; CP-051 forbids manufacturing a local chain replay and the --linked target is permanently disqualified. The 22 attributed hits for this cluster are NOT reduced by this task: the ticketing grant already contributed 0 of them."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T22:40:00.000Z",
+        "summary": "Four dispositions recorded, fence written and mutation-proved, all gates re-run green.",
+        "evidence": [
+          "npx vitest run __tests__/ticketing/ -> 20 files / 231 tests passed (baseline 19/187)",
+          "npm run check:migration-chain -> 320 files scanned, clean",
+          "npm run check:migration-validation -> 0 failures",
+          "npm run check:db008-harness -> 8 PASS / 1 SKIP / 0 failed",
+          "npm run agents:validate -- --strict -> 0 warnings, 0 errors",
+          "scoped tsc (app/api/ticketing/** + lib/ticketing/**) -> 15 diagnostics, 0 naming any cluster object; 9 pre-existing enhanced/route.ts on the TICKET-005 baseline lines, 6 in design-system's optimized-notification-service.ts",
+          "mutation: restore the dead settlements read -> 3 tests fail; delete settlement_available: false -> 1 fails; weaken queries() to a substring -> 5 fail; route restored to SHA a69c253f74b04a21c3b7a9e5cef7b36756ac2bbf",
+          "schema resolver negative control: synthetic SQL proves sensitivity in both search_path orders; finds public.ticket_types / venue_profiles / ticket_revenue_allocations / financial_transactions / tickets; resolves ticketing_migration_issues to private"
+        ]
+      },
+      {
+        "at": "2026-09-27T22:43:15.051Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "TICKET-008 complete. All four DB-008 ticketing code-drift objects dispositioned individually from re-derived evidence: get_enhanced_artist_stats and ticket_notifications are dead consumers (deletion NOT performed, both out of grant); settlements and track_venue_profile_view are accepted debt with named decision owners. Two of the inventory's four file-level attributions were falsified. No product code changed; the deliverable is the recorded disposition plus an executable fence that makes a resurrection fail the suite.",
+        "completed": [
+          "Four dispositions recorded in docs/engineering/database-type-inventory-2026-09-25.json with per-object evidence; ticketing cluster marked disposition: complete",
+          "Fence __tests__/ticketing/db008-drift-cluster-disposition.test.ts (44 tests) written and mutation-proved: restoring the dead settlements read fails 3 tests, deleting settlement_available: false fails 1, weakening the reference predicate to a substring test fails 5, and the route was restored to a byte-identical SHA",
+          "Two new handoffs filed, one recipient each: HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET (database, DB-019) and HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO (venue, VENUE-006)",
+          "HF-DB008-TYPECHECK-TICKETING moved to handoffs/completed with a discharge note; TICKET-008 moved to tasks/completed"
+        ],
+        "next_steps": [
+          "database (DB-019): catalog-read a real target for public.settlements and record it in the hosted-history ledger. One read settles both remaining consumers. Do NOT author a settlements migration to make the reads work.",
+          "venue (VENUE-006): stop lib/venue/finance-snapshot.ts rendering a failed settlements read as settlement_status 'unsettled' (false zero); design-system: delete sendTicketNotification plus its two now-dead private helpers"
+        ],
+        "blockers": [
+          "No deployed target and no credentials exist here, so the settlements existence question is undecidable from the repository; CP-051 forbids manufacturing a local chain replay and the --linked target is permanently disqualified. The 22 attributed hits for this cluster are NOT reduced by this task: the ticketing grant already contributed 0 of them."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-DB008-TYPECHECK-TICKETING",
+    "HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET",
+    "HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO"
+  ],
+  "working_set_additions": [
+    {
+      "path": "docs/engineering/handoffs/pending/HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET.json",
+      "reason": "cross-domain decision owner required by the handoff workflow"
+    },
+    {
+      "path": "docs/engineering/handoffs/pending/HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO.json",
+      "reason": "cross-domain decision owner required by the handoff workflow; one recipient per handoff"
+    },
+    {
+      "path": "docs/engineering/agents/ticketing/STATE.md",
+      "reason": "durable disposition facts"
+    },
+    {
+      "path": "docs/engineering/agents/ticketing/DECISIONS.md",
+      "reason": "DOMAIN-002, the schema-resolution and reference-precision rule"
+    },
+    {
+      "path": "docs/engineering/generated/*.md",
+      "reason": "npm run agents:generate, required by the charter before handoff. The maps were stale (pinned to ca3bb0b0 / 2026-09-25) while the tree had moved to 16fb834f and 320 chain files. Diff is mechanical: 117 insertions / 47 deletions across 8 files, all Source-SHA / generated-at / object-count updates reflecting concurrent lanes migrations. Not hand-edited (the files are marked generated: do not edit), and it leaves agents:validate --strict at 0 warnings."
+    }
+  ],
+  "read_only_context": [
+    {
+      "path": "supabase/migrations/**",
+      "reason": "absence proof for all four objects; 320 top-level files, schema-resolved. No migration authored or applied."
+    },
+    {
+      "path": "lib/database.types.ts",
+      "reason": "second absence proof; the contract is database's to regenerate"
+    },
+    {
+      "path": "lib/services/ticketing.service.ts:340-362,384-410",
+      "reason": "the dead method and the two private helpers that die with it; design-system's grant, reported not edited"
+    },
+    {
+      "path": "lib/venue/finance-snapshot.ts:101-133",
+      "reason": "the false-zero consumer; venue's grant, raised as a handoff"
+    },
+    {
+      "path": "app/api/admin/finances/settlements/route.ts:98-118",
+      "reason": "the second settlements consumer; admin's grant, fails closed, no handoff needed"
+    },
+    {
+      "path": "app/api/venues/[id]/route.ts:102-119",
+      "reason": "the only real track_venue_profile_view caller; venue's grant, already handed off by TICKET-005"
+    },
+    {
+      "path": "contexts/artist-context.tsx, lib/artist/artist-stats.ts, lib/public-artist/*, lib/marketplace/ticket-source-adapter.ts",
+      "reason": "re-derivation of get_enhanced_artist_stats consumers"
+    },
+    {
+      "path": "components/ticketing/ticket-purchase-form.tsx",
+      "reason": "proves the ticketing.service.ts module is live, so only the method may be deleted"
+    }
+  ],
+  "completed_at": "2026-09-27T22:45:00.000Z"
+}

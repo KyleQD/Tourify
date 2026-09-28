@@ -24,7 +24,7 @@ export const EventJobPostingPanel = dynamic(
 )
 
 export const EventTicketPanel = dynamic(
-  () => import("@/components/admin/event-ticket-manager").then((m) => m.EventTicketManager),
+  () => import("@/components/ticketing/event-ticketing-workspace").then((m) => m.EventTicketingWorkspace),
   { ssr: false, loading: () => <OperationsPanelLoading /> }
 )
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,10 +15,13 @@ import {
   ListMusic,
   Heart,
   Loader2,
+  Share2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-context"
 import { toast } from "sonner"
+import { MusicShareDialog } from "@/components/music/music-share-dialog"
+import { getMusicTrackPath } from "@/lib/music/routes"
 
 interface ProfileTrack {
   id: string
@@ -27,6 +31,7 @@ interface ProfileTrack {
   file_url: string | null
   cover_art_url: string | null
   user_id: string
+  artist_name?: string | null
 }
 
 interface ProfilePlaylist {
@@ -59,7 +64,7 @@ function toJukeboxTrack(track: ProfileTrack, artistName: string): JukeboxTrack {
   return {
     id: track.id,
     title: track.title,
-    artist_name: artistName,
+    artist_name: track.artist_name || artistName,
     artist_id: track.user_id,
     duration: track.duration ?? undefined,
     file_url: track.file_url || `/api/music/stream?trackId=${track.id}`,
@@ -75,10 +80,12 @@ export function ProfileMusicShowcase({
   className,
 }: ProfileMusicShowcaseProps) {
   const jukebox = useJukeboxOptional()
+  const router = useRouter()
   const [tracks, setTracks] = useState<ProfileTrack[]>([])
   const [playlists, setPlaylists] = useState<ProfilePlaylist[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeView, setActiveView] = useState<"tracks" | "playlists">("tracks")
+  const [sharingTrack, setSharingTrack] = useState<ProfileTrack | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -103,6 +110,7 @@ export function ProfileMusicShowcase({
               file_url: item.metadata?.url || `/api/music/stream?trackId=${item.id}`,
               cover_art_url: item.cover_image || null,
               user_id: item.author?.id || userId,
+              artist_name: item.author?.name || null,
             }))
           )
         }
@@ -150,6 +158,18 @@ export function ProfileMusicShowcase({
     jukebox.playPlaylist(tracks.map((t) => toJukeboxTrack(t, displayName)))
     toast.success(`Playing ${tracks.length} tracks`)
   }, [jukebox, tracks, displayName])
+
+  const shareToPost = async (selected: { id: string; title: string }, note?: string) => {
+    const response = await fetch("/api/music/share", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ musicId: selected.id, createPost: true, content: note?.trim() || `Check out “${selected.title}”` }),
+    })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body?.error?.message || body?.error || "Failed to share track")
+    toast.success("Shared to your feed")
+  }
 
   const handlePlayPlaylist = useCallback(
     (playlist: ProfilePlaylist) => {
@@ -270,13 +290,21 @@ export function ProfileMusicShowcase({
                 {tracks.map((track, idx) => {
                   const playing = isTrackPlaying(track.id)
                   return (
-                    <button
+                    <div
                       key={track.id}
+                      role="link"
+                      tabIndex={0}
                       className={cn(
                         "group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-white/5",
                         playing && "bg-purple-500/10 ring-1 ring-purple-500/20"
                       )}
-                      onClick={() => handlePlay(track)}
+                onClick={() => router.push(getMusicTrackPath(track.id) || "/music")}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          router.push(getMusicTrackPath(track.id) || "/music")
+                        }
+                      }}
                     >
                       {track.cover_art_url ? (
                         <img
@@ -300,7 +328,7 @@ export function ProfileMusicShowcase({
                           {track.title}
                         </p>
                         <p className="truncate text-xs text-white/50">
-                          {track.genre || "Track"}
+                          {track.artist_name || displayName}{track.genre ? ` · ${track.genre}` : ""}
                           {track.duration
                             ? ` · ${formatDuration(track.duration)}`
                             : ""}
@@ -308,13 +336,38 @@ export function ProfileMusicShowcase({
                       </div>
 
                       <div className="flex items-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Share ${track.title}`}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            setSharingTrack(track)
+                          }}
+                        >
+                          <Share2 className="h-4 w-4 text-white/40 hover:text-white" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={playing ? `Pause ${track.title}` : `Play ${track.title}`}
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            handlePlay(track)
+                          }}
+                        >
                         {playing ? (
                           <Pause className="h-4 w-4 text-purple-400" />
                         ) : (
                           <Play className="h-4 w-4 text-white/40 group-hover:text-white" />
                         )}
+                        </Button>
                       </div>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
@@ -357,6 +410,14 @@ export function ProfileMusicShowcase({
           </div>
         )}
       </CardContent>
+      <MusicShareDialog
+        open={Boolean(sharingTrack)}
+        onOpenChange={(open) => {
+          if (!open) setSharingTrack(null)
+        }}
+        track={sharingTrack ? { id: sharingTrack.id, title: sharingTrack.title } : null}
+        onSharePost={shareToPost}
+      />
     </Card>
   )
 }

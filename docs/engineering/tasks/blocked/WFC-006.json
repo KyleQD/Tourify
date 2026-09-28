@@ -1,0 +1,120 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-006",
+  "title": "Build Workforce command and department workspace read models",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Provide typed organization and department workforce read models with honest partial-source behavior.",
+  "scope": {
+    "in": [
+      "GET /api/admin/workforce/command",
+      "GET /api/admin/workforce/departments/[id]/workspace",
+      "Department health and attention projections",
+      "Fresh/stale/unavailable/not-authorized source metadata"
+    ],
+    "out": [
+      "Returning false zeroes",
+      "Disclosing finance metadata without capability"
+    ]
+  },
+  "working_set": [
+    "lib/workforce/read-model/**",
+    "app/api/admin/workforce/command/**",
+    "app/api/admin/workforce/departments/**/workspace/**",
+    "types/workforce/** (read-model response types only; WFC-005 owns the base types)",
+    "__tests__/workforce/** (read-model and partial-source tests)"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-004.json",
+    "docs/engineering/tasks/blocked/WFC-005.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Department managers receive only their departments",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Optional source failures preserve healthy sections and return nullable unavailable metrics",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Core department/roster failure is distinguished from optional-source degradation",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The legacy summary route has a flag-safe adapter",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "work",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/workforce",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on canonical departments, memberships, and status commands.",
+    "completed": [],
+    "next_steps": [
+      "CP-103: the seven live app/api/admin/workforce routes are the parity surface you reconcile, not a second implementation. Inventory each route's actual behavior against the CP-098 source-state contract.",
+      "Build GET /api/admin/workforce/command and GET /api/admin/workforce/departments/[id]/workspace to the frozen WFC-001 URL and source-state vocabulary.",
+      "Produce the source-failure truth table (fresh/stale/unavailable/not_authorized with timestamps and retryability) as a deliverable for WFC-021, proving no unavailable source renders as zero.",
+      "Implement source adapters and typed aggregation",
+      "Add fault-injection and scope tests"
+    ],
+    "blockers": [
+      "WFC-004 and WFC-005 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Work → Admin: WorkforceCommandResponse and DepartmentWorkspaceResponse contracts for WFC-008/WFC-009/WFC-010",
+    "Work → QA: source-failure fixtures and truth table"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "work",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103: the seven live app/api/admin/workforce routes are the parity surface you reconcile, not a second implementation. Inventory each route's actual behavior against the CP-098 source-state contract.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "work",
+      "condition": "WFC-004 and WFC-005 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

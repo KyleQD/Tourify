@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    const auth = await authenticateRequestWithBearerFallback(request)
+    const user = auth?.user
     
     if (!user) {
       console.error('❌ Authentication failed - no user from cookies')

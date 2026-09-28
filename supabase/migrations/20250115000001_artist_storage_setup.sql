@@ -1,104 +1,233 @@
 set client_min_messages = warning;
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_0$
+  begin
 
--- =============================================
--- Artist Storage Setup Migration
--- Creates storage buckets and policies for artist content
--- =============================================
 
--- =============================================
--- CREATE STORAGE BUCKETS
--- =============================================
+    -- =============================================
+    -- Artist Storage Setup Migration
+    -- Creates storage buckets and policies for artist content
+    -- =============================================
 
--- Create artist-music bucket (private)
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'artist-music',
-  'artist-music',
-  false,
-  104857600, -- 100MB limit
-  ARRAY['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/m4a', 'audio/ogg']
-)
-ON CONFLICT (id) DO NOTHING;
+    -- =============================================
+    -- CREATE STORAGE BUCKETS
+    -- =============================================
 
--- Create artist-photos bucket (public)
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'artist-photos',
-  'artist-photos',
-  true,
-  10485760, -- 10MB limit
-  ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-)
-ON CONFLICT (id) DO NOTHING;
+    -- Create artist-music bucket (private)
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES (
+      'artist-music',
+      'artist-music',
+      false,
+      104857600, -- 100MB limit
+      ARRAY['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/m4a', 'audio/ogg']
+    )
+    ON CONFLICT (id) DO NOTHING;
+  exception when others then
+    raise warning
+      'Skipping bucket seed artist-music on %.%: % %',
+      'storage', 'buckets', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_0$;
 
--- =============================================
--- STORAGE POLICIES FOR ARTIST-MUSIC (PRIVATE)
--- =============================================
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_1$
+  begin
 
--- Users can upload to their own folder
-DROP POLICY IF EXISTS "Users can upload music to own folder" ON storage.objects;
-CREATE POLICY "Users can upload music to own folder" ON storage.objects
-  FOR INSERT WITH CHECK (
-    bucket_id = 'artist-music' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
 
--- Users can view their own music files
-DROP POLICY IF EXISTS "Users can view own music files" ON storage.objects;
-CREATE POLICY "Users can view own music files" ON storage.objects
-  FOR SELECT USING (
-    bucket_id = 'artist-music' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
+    -- Create artist-photos bucket (public)
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES (
+      'artist-photos',
+      'artist-photos',
+      true,
+      10485760, -- 10MB limit
+      ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    )
+    ON CONFLICT (id) DO NOTHING;
+  exception when others then
+    raise warning
+      'Skipping bucket seed artist-photos on %.%: % %',
+      'storage', 'buckets', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_1$;
 
--- Users can update their own music files
-DROP POLICY IF EXISTS "Users can update own music files" ON storage.objects;
-CREATE POLICY "Users can update own music files" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'artist-music' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_2$
+  begin
 
--- Users can delete their own music files
-DROP POLICY IF EXISTS "Users can delete own music files" ON storage.objects;
-CREATE POLICY "Users can delete own music files" ON storage.objects
-  FOR DELETE USING (
-    bucket_id = 'artist-music' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
 
--- =============================================
--- STORAGE POLICIES FOR ARTIST-PHOTOS (PUBLIC)
--- =============================================
+    -- =============================================
+    -- STORAGE POLICIES FOR ARTIST-MUSIC (PRIVATE)
+    -- =============================================
 
--- Users can upload photos to their own folder
-DROP POLICY IF EXISTS "Users can upload photos to own folder" ON storage.objects;
-CREATE POLICY "Users can upload photos to own folder" ON storage.objects
-  FOR INSERT WITH CHECK (
-    bucket_id = 'artist-photos' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
+    -- Users can upload to their own folder
+    DROP POLICY IF EXISTS "Users can upload music to own folder" ON storage.objects;
 
--- Anyone can view public photos
-DROP POLICY IF EXISTS "Anyone can view artist photos" ON storage.objects;
-CREATE POLICY "Anyone can view artist photos" ON storage.objects
-  FOR SELECT USING (bucket_id = 'artist-photos');
+    CREATE POLICY "Users can upload music to own folder" ON storage.objects
+      FOR INSERT WITH CHECK (
+        bucket_id = 'artist-music' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can upload music to own folder on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_2$;
 
--- Users can update their own photos
-DROP POLICY IF EXISTS "Users can update own photos" ON storage.objects;
-CREATE POLICY "Users can update own photos" ON storage.objects
-  FOR UPDATE USING (
-    bucket_id = 'artist-photos' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_3$
+  begin
 
--- Users can delete their own photos
-DROP POLICY IF EXISTS "Users can delete own photos" ON storage.objects;
-CREATE POLICY "Users can delete own photos" ON storage.objects
-  FOR DELETE USING (
-    bucket_id = 'artist-photos' AND
-    auth.uid()::text = (storage.foldername(name))[1]
-  );
+
+    -- Users can view their own music files
+    DROP POLICY IF EXISTS "Users can view own music files" ON storage.objects;
+
+    CREATE POLICY "Users can view own music files" ON storage.objects
+      FOR SELECT USING (
+        bucket_id = 'artist-music' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can view own music files on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_3$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_4$
+  begin
+
+
+    -- Users can update their own music files
+    DROP POLICY IF EXISTS "Users can update own music files" ON storage.objects;
+
+    CREATE POLICY "Users can update own music files" ON storage.objects
+      FOR UPDATE USING (
+        bucket_id = 'artist-music' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can update own music files on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_4$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_5$
+  begin
+
+
+    -- Users can delete their own music files
+    DROP POLICY IF EXISTS "Users can delete own music files" ON storage.objects;
+
+    CREATE POLICY "Users can delete own music files" ON storage.objects
+      FOR DELETE USING (
+        bucket_id = 'artist-music' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can delete own music files on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_5$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_6$
+  begin
+
+
+    -- =============================================
+    -- STORAGE POLICIES FOR ARTIST-PHOTOS (PUBLIC)
+    -- =============================================
+
+    -- Users can upload photos to their own folder
+    DROP POLICY IF EXISTS "Users can upload photos to own folder" ON storage.objects;
+
+    CREATE POLICY "Users can upload photos to own folder" ON storage.objects
+      FOR INSERT WITH CHECK (
+        bucket_id = 'artist-photos' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can upload photos to own folder on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_6$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_7$
+  begin
+
+
+    -- Anyone can view public photos
+    DROP POLICY IF EXISTS "Anyone can view artist photos" ON storage.objects;
+
+    CREATE POLICY "Anyone can view artist photos" ON storage.objects
+      FOR SELECT USING (bucket_id = 'artist-photos');
+  exception when others then
+    raise warning
+      'Skipping policy anyone can view artist photos on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_7$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_8$
+  begin
+
+
+    -- Users can update their own photos
+    DROP POLICY IF EXISTS "Users can update own photos" ON storage.objects;
+
+    CREATE POLICY "Users can update own photos" ON storage.objects
+      FOR UPDATE USING (
+        bucket_id = 'artist-photos' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can update own photos on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_8$;
+
+-- [CP-059 replay guard] storage-owned DDL in its own subtransaction: a replay role
+-- outside the owning role set warns (sqlstate/sqlerrm) instead of aborting the chain.
+do $storage_replay_guard_9$
+  begin
+
+
+    -- Users can delete their own photos
+    DROP POLICY IF EXISTS "Users can delete own photos" ON storage.objects;
+
+    CREATE POLICY "Users can delete own photos" ON storage.objects
+      FOR DELETE USING (
+        bucket_id = 'artist-photos' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+      );
+  exception when others then
+    raise warning
+      'Skipping policy users can delete own photos on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
+$storage_replay_guard_9$;
+
+
 
 -- =============================================
 -- HELPER FUNCTIONS FOR STORAGE
@@ -126,7 +255,7 @@ RETURNS BOOLEAN AS $$
 BEGIN
   RETURN mime_type = ANY(ARRAY[
     'audio/mpeg',
-    'audio/wav', 
+    'audio/wav',
     'audio/flac',
     'audio/aac',
     'audio/m4a',
@@ -158,25 +287,25 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     COALESCE(music.file_count, 0) as music_files_count,
     COALESCE(music.total_size, 0) as music_total_size,
     COALESCE(photos.file_count, 0) as photo_files_count,
     COALESCE(photos.total_size, 0) as photo_total_size
   FROM (
-    SELECT 
+    SELECT
       COUNT(*) as file_count,
       SUM(metadata->>'size')::BIGINT as total_size
-    FROM storage.objects 
-    WHERE bucket_id = 'artist-music' 
+    FROM storage.objects
+    WHERE bucket_id = 'artist-music'
     AND (storage.foldername(name))[1] = user_id::text
   ) music
   CROSS JOIN (
-    SELECT 
+    SELECT
       COUNT(*) as file_count,
       SUM(metadata->>'size')::BIGINT as total_size
-    FROM storage.objects 
-    WHERE bucket_id = 'artist-photos' 
+    FROM storage.objects
+    WHERE bucket_id = 'artist-photos'
     AND (storage.foldername(name))[1] = user_id::text
   ) photos;
 END;
@@ -190,16 +319,16 @@ DECLARE
 BEGIN
   -- Delete music files that don't have corresponding database entries
   WITH orphaned_music AS (
-    DELETE FROM storage.objects 
+    DELETE FROM storage.objects
     WHERE bucket_id = 'artist-music'
     AND NOT EXISTS (
-      SELECT 1 FROM artist_music 
+      SELECT 1 FROM artist_music
       WHERE artist_music.file_url LIKE '%' || storage.objects.name
     )
     RETURNING *
   )
   SELECT COUNT(*) INTO deleted_count FROM orphaned_music;
-  
+
   RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

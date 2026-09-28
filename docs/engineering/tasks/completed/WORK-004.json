@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "id": "WORK-004",
+  "title": "Work Mode overview and event workspace",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "work",
+  "created_at": "2026-09-11T01:28:02.469Z",
+  "updated_at": "2026-09-11T02:07:19.549Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (655 entries)",
+  "goal": "Deliver a worker-first overview and secure event workspace with admin communications and reminders",
+  "scope": {
+    "in": [
+      "Canonical Work Mode overview route and legacy redirects",
+      "Worker overview and event read models and route contracts",
+      "Admin-authored messages, updates, and scheduled reminders",
+      "Worker communication read and acknowledgement mutations",
+      "Worker event workspace filtered by assignment permissions"
+    ],
+    "out": [
+      "Replacing the full Messages product",
+      "Publishing draft or admin-only event data",
+      "Unrelated admin dashboard redesigns"
+    ]
+  },
+  "working_set": [
+    "app/work",
+    "app/api/work-mode",
+    "components/work-mode",
+    "lib/work-mode",
+    "types/hiring-roster-work-mode.ts",
+    "supabase/migrations",
+    "app/api/admin/communications/route.ts",
+    "components/account/work-mode-widget.tsx",
+    "app/api/calendar/me/route.ts",
+    "lib/rebuild/shift-assignment-notify.ts",
+    "lib/database.types.ts",
+    "__tests__/work-mode",
+    "__tests__/hiring/shift-assignment-notification.test.ts"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "acceptance_criteria": [
+    "Work Mode Overview is canonical and legacy Today links preserve assignment context",
+    "Overview remains useful when publications or communications fail independently",
+    "Only confirmed or active assignment owners can open worker event workspaces",
+    "Workers can read or acknowledge only communications addressed to them",
+    "Scheduled reminders reuse team communications with worker-safe links",
+    "Focused feature verification is recorded"
+  ],
+  "verification": {
+    "tier": "feature",
+    "commands": [
+      "npx vitest run __tests__/work-mode __tests__/hiring/shift-assignment-notification.test.ts __tests__/hiring/event-tour-staffing-repair.test.ts __tests__/logistics/logistics-route-contract.test.ts",
+      "npx eslint <changed Work Mode, communication, link, and service-role files>",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npm run check:service-role-allowlist",
+      "npx tsc --project /private/tmp/work004-tsconfig.json --noEmit --noCheck",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Vitest: 7 files and 37 tests passed, including overview routes/contracts, assignment ownership, notification links, and staffing repair coverage.",
+      "ESLint: all changed Work Mode, communication, navigation, and notification-link files passed with no diagnostics.",
+      "Migration chain passed; WORK-004 migration validation manifest was recognized as planned.",
+      "Scoped TypeScript parse/module check passed with --noCheck. Semantic checking did not complete because lib/database.types.ts exhausts or stalls the available machine, matching the documented Work-agent constraint.",
+      "Control-plane validation passed with 0 errors. Repository-wide migration validation remains red only for unrelated missing ticketing manifest 20260910230339.",
+      "Service-role allowlist failure contains four unrelated pre-existing bare service-role imports; the new work.communications.response job is registered and uses executeServiceRoleJob.",
+      "Browser layout smoke check rendered the Overview structure and controls; final clean runtime smoke was blocked by the shared dev server's EMFILE watcher state and shared .next cache contention."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T02:07:19.549Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the worker-first Work Mode Overview and secure event workspace implementation with focused verification recorded.",
+    "completed": [
+      "Confirmed current Today UX and publication failure behavior",
+      "Expanded the working set for worker APIs, communications, notification links, migration types, and focused tests",
+      "Made /work/overview canonical and preserved assignment query context across legacy redirects and worker-safe links",
+      "Added a resilient cross-assignment overview with invitations, events, tasks, updates, messages, reminders, unread counts, and partial-source status",
+      "Added assignment-owned event workspaces with position switching and publication, audience, permission, and event-scope filtering",
+      "Added reminder schema and scheduling support plus worker-owned mark-read and acknowledgment mutations",
+      "Added assignment-scoped RLS policies and a planned migration-validation manifest",
+      "Completed focused feature, lint, migration-chain, scoped parse/module, and control-plane validation"
+    ],
+    "next_steps": [
+      "Apply the planned Supabase migration through the gated database pipeline and perform a clean browser smoke test once the shared dev cache is available"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T02:05:07.023Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented canonical Work Mode Overview, secure event workspaces, resilient cross-assignment read models, worker communication responses, admin reminders, worker-safe links, and assignment-scoped publication/RLS contracts.",
+        "completed": [],
+        "next_steps": [
+          "Apply the planned Supabase migration through the gated database pipeline and perform a clean browser smoke test once the shared dev cache is available"
+        ],
+        "blockers": [
+          "Full semantic TypeScript did not complete because the generated database type graph exhausts or stalls the available machine, matching the documented Work-agent constraint",
+          "Repository-wide migration validation remains red only for unrelated missing ticketing manifest 20260910230339"
+        ]
+      },
+      {
+        "at": "2026-09-11T02:07:19.549Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the worker-first Work Mode Overview and secure event workspace implementation with focused verification recorded.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

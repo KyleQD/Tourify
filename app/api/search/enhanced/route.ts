@@ -1,6 +1,16 @@
+// COMPATIBILITY SURFACE — creator-only profile search.
+// Canonical search is /api/search (FTS-backed GlobalSearchResponse). /api/search/enhanced
+// is retained ONLY for creator-only filters/fields (genre, creatorType, service,
+// availableForHire, availability, artistProfileId, and companion profile metadata) that
+// the canonical contract does not yet expose. It shares the canonical 60/min rate-limit
+// bucket (CANONICAL_SEARCH_RATE_LIMIT). New callers must use /api/search; this route is
+// compatibility-gated and must be retired once creator metadata lands in the canonical
+// profile projection (see docs/engineering/handoffs/pending/DISC-002-creator-metadata.md).
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
+import { CANONICAL_SEARCH_RATE_LIMIT } from '@/lib/search/canonical-search'
+import { createRateLimiter, clientKeyFromRequest } from '@/lib/utils/rate-limit'
 
 interface EnhancedSearchResult {
   id: string
@@ -108,7 +118,13 @@ function buildArtistResult(params: {
     skills: [creatorType, ...services, ...credentials].filter(Boolean),
     experience: normalizeText(professional.experience_years) || undefined,
     availability: isAvailableForHire ? 'available' : 'busy',
-    verified: Boolean(profile?.is_verified || artist.verification_status === 'verified'),
+    // Drift repoint (DB-008 / HF-DB008-TYPECHECK-SEARCH): this used to read
+    // `artist.verification_status`. That column exists in neither the active
+    // migration chain nor lib/database.types.ts, so the select below failed
+    // against PostgREST and took the whole artist branch with it. The canonical
+    // platform verification flag is `profiles.is_verified` — the same column the
+    // accounts branch already uses via `accounts.is_verified`.
+    verified: Boolean(profile?.is_verified),
     followers: toNumber(profile?.followers_count),
     following: toNumber(profile?.following_count),
     posts: toNumber(profile?.posts_count),
@@ -131,6 +147,10 @@ function matchesQuery(text: string, tokens: string[]): boolean {
 
 export async function GET(request: NextRequest) {
   try {
+    const rl = createRateLimiter(CANONICAL_SEARCH_RATE_LIMIT)
+    if (!(await rl.check(clientKeyFromRequest(request))).success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
 
@@ -166,9 +186,14 @@ export async function GET(request: NextRequest) {
     const results: EnhancedSearchResult[] = []
 
     if (isArtistSearch) {
+      // Drift repoint (DB-008 / HF-DB008-TYPECHECK-SEARCH): `verification_status`
+      // is not a column on public.artist_profiles in the active chain or in the
+      // generated contract, so selecting it made this query error and returned no
+      // artist rows at all. Verification now comes from `profiles.is_verified`
+      // (see buildArtistResult).
       const { data: artistRows } = await supabase
         .from('artist_profiles')
-        .select('id, user_id, artist_name, url_slug, bio, genres, settings, verification_status, created_at, updated_at')
+        .select('id, user_id, artist_name, url_slug, bio, genres, settings, created_at, updated_at')
         .order('updated_at', { ascending: false })
         .limit(300)
 

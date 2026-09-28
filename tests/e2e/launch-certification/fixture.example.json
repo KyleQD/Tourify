@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "release": {
+    "expectedShaEnv": "QA_CERT_EXPECTED_SHA",
+    "probe": {
+      "path": "/api/health",
+      "expectedStatus": 200,
+      "shaHeader": "x-tourify-release-sha"
+    }
+  },
+  "supabase": {
+    "urlEnv": "QA_CERT_SUPABASE_URL",
+    "anonKeyEnv": "QA_CERT_SUPABASE_ANON_KEY"
+  },
+  "actors": {
+    "member": {
+      "emailEnv": "QA_CERT_MEMBER_EMAIL",
+      "passwordEnv": "QA_CERT_MEMBER_PASSWORD"
+    },
+    "operator": {
+      "emailEnv": "QA_CERT_OPERATOR_EMAIL",
+      "passwordEnv": "QA_CERT_OPERATOR_PASSWORD"
+    }
+  },
+  "browserJourneys": [
+    { "name": "authentication", "area": "authentication", "path": "/login", "expectedUrl": "/login(?:\\?|$)", "accessibility": true, "responsive": true, "performanceBudgetMs": 4000 },
+    { "name": "personas", "area": "personas", "path": "/dashboard", "actor": "member", "expectedUrl": "/dashboard(?:\\?|$)" },
+    { "name": "operator persona", "area": "personas", "path": "/admin/dashboard", "actor": "operator", "expectedUrl": "/admin/dashboard(?:\\?|$)" },
+    { "name": "discovery", "area": "discovery", "path": "/discover", "expectedUrl": "/discover(?:\\?|$)" },
+    { "name": "events", "area": "events", "path": "/events", "expectedUrl": "/events(?:\\?|$)" },
+    { "name": "ticketing", "area": "ticketing", "path": "/events", "expectedUrl": "/events(?:\\?|$)" },
+    { "name": "marketplace", "area": "marketplace", "path": "/marketplace", "expectedUrl": "/marketplace(?:\\?|$)" },
+    { "name": "messaging", "area": "messaging", "path": "/messages", "actor": "member", "expectedUrl": "/messages(?:\\?|$)" },
+    { "name": "uploads", "area": "uploads", "path": "/settings", "actor": "member", "expectedUrl": "/settings(?:\\?|$)" },
+    { "name": "account deletion", "area": "account-deletion", "path": "/settings", "actor": "member", "expectedUrl": "/settings(?:\\?|$)" }
+  ],
+  "apiScenarios": [
+    {
+      "name": "negative authorization",
+      "area": "negative-authorization",
+      "actor": "member",
+      "mode": "sequence",
+      "steps": [
+        {
+          "name": "member cannot act as a foreign organization",
+          "method": "GET",
+          "path": "/api/admin/effective-capabilities",
+          "headers": {
+            "x-acting-profile-id": "{{env.QA_CERT_FOREIGN_ORG_PROFILE_ID}}",
+            "x-acting-account-type": "organization"
+          },
+          "expectedStatuses": [403],
+          "assertions": [{ "path": "code", "equals": "organization_access_denied" }]
+        }
+      ]
+    },
+    {
+      "name": "webhook replay",
+      "area": "replay",
+      "mode": "replay",
+      "request": {
+        "name": "replay one signed marketplace Stripe event",
+        "method": "POST",
+        "path": "/api/marketplace/webhook",
+        "rawBody": "{\"id\":\"evt_qa_cert_{{env.QA_CERT_RUN_ID}}\",\"object\":\"event\",\"api_version\":\"2025-02-24.acacia\",\"created\":1700000000,\"data\":{\"object\":{}},\"livemode\":false,\"pending_webhooks\":1,\"request\":null,\"type\":\"qa.certification.probe\"}",
+        "stripeSigningSecretEnv": "QA_CERT_STRIPE_WEBHOOK_SECRET_MARKETPLACE",
+        "expectedStatuses": [200]
+      },
+      "repetitions": 2,
+      "finalAssertions": [
+        { "path": "received", "equals": true },
+        { "path": "outcome", "equals": "duplicate" }
+      ]
+    },
+    {
+      "name": "marketplace checkout idempotency race",
+      "area": "concurrency",
+      "actor": "member",
+      "mode": "concurrency",
+      "request": {
+        "name": "submit one checkout key concurrently",
+        "method": "POST",
+        "path": "/api/marketplace/checkout",
+        "body": {
+          "lines": [{ "listingId": "{{env.QA_CERT_MARKETPLACE_LISTING_ID}}", "quantity": 1 }],
+          "idempotencyKey": "qa-cert-{{env.QA_CERT_RUN_ID}}-marketplace"
+        },
+        "expectedStatuses": [200, 409]
+      },
+      "attempts": 2,
+      "expectedStatusCounts": { "200": 1, "409": 1 }
+    }
+  ]
+}

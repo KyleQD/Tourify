@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { readMigrationSql } from '../helpers/migration-source'
 
 const root = process.cwd()
 
@@ -10,7 +11,7 @@ function read(path: string) {
 
 describe('follower polls integration contracts', () => {
   it('migration creates poll tables and counters', () => {
-    const sql = read('supabase/migrations/20260712020525_follower_polls_and_analytics.sql')
+    const sql = readFileSync(readMigrationSql('20260712020525_follower_polls_and_analytics.sql'), 'utf8')
     expect(sql).toContain('create table if not exists public.poll_options')
     expect(sql).toContain('create table if not exists public.poll_votes')
     expect(sql).toContain('poll_ends_at')

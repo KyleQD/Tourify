@@ -71,7 +71,9 @@ export async function sendShiftAssignmentNotification(
         employer_name: ctx.employerName ?? null,
         employer_entity_type: ctx.employerEntityType ?? null,
         employer_entity_id: ctx.employerEntityId ?? null,
-        link: "/dashboard/staff-ops",
+        link: ctx.assignmentId
+          ? `/work/overview?assignment=${ctx.assignmentId}`
+          : "/work/overview",
       },
     })
     return { sent: true }
@@ -106,7 +108,9 @@ export async function sendShiftUpdateNotification(
         start_time: ctx.startTime ?? null,
         end_time: ctx.endTime ?? null,
         employer_name: ctx.employerName ?? null,
-        link: "/messages?tab=work",
+        link: ctx.assignmentId
+          ? `/work/overview?assignment=${ctx.assignmentId}`
+          : "/work/overview",
       },
     })
     return { sent: true }
@@ -138,7 +142,9 @@ export async function sendShiftCancelledNotification(
         assignment_id: ctx.assignmentId ?? null,
         role_title: ctx.roleTitle ?? null,
         shift_date: ctx.shiftDate ?? null,
-        link: "/messages?tab=work",
+        link: ctx.assignmentId
+          ? `/work/overview?assignment=${ctx.assignmentId}`
+          : "/work/overview",
       },
     })
     return { sent: true }

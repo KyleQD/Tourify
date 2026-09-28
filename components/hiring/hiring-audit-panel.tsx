@@ -36,9 +36,9 @@ export function HiringAuditPanel({ employer }: HiringAuditPanelProps) {
           />
         ) : null}
         {auditEvents.length > 0 ? (
-          <div className="overflow-hidden rounded-[1.15rem] border border-slate-700/60">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-xl">
             {auditEvents.map((event) => (
-              <div key={event.id} className="border-b border-slate-800/80 bg-slate-900/35 p-4 last:border-0">
+              <div key={event.id} className="border-b border-white/10 bg-transparent p-4 last:border-0">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-medium text-white">{event.action}</p>
                   <p className="text-xs text-muted-foreground">{formatDashboardDate(event.createdAt)}</p>

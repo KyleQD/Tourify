@@ -5,6 +5,13 @@ const upsertRosterFromCompletedOnboarding = vi.fn()
 const sendRosterAddedNotification = vi.fn(async () => ({ sent: true }))
 const sendOnboardingChangesRequestedNotification = vi.fn(async () => ({ sent: true }))
 const resolveHiringEntityDisplayName = vi.fn(async () => "DreamStream")
+const reconcileJobPostingFillStatus = vi.fn(async () => ({
+  jobPostingId: "job_1",
+  activeHires: 1,
+  requestedPositions: 1,
+  status: "filled",
+  changed: true,
+}))
 
 vi.mock("@/lib/auth/hiring-permissions", () => ({
   assertCanManageHiring: (...args: Parameters<typeof assertCanManageHiring>) => assertCanManageHiring(...args),
@@ -32,6 +39,11 @@ vi.mock("@/lib/rebuild/hiring-onboarding-changes-notify", () => ({
 vi.mock("@/lib/auth/hiring-entity-resolver", () => ({
   resolveHiringEntityDisplayName: (...args: Parameters<typeof resolveHiringEntityDisplayName>) =>
     resolveHiringEntityDisplayName(...args),
+}))
+
+vi.mock("@/lib/hiring/job-posting-lifecycle", () => ({
+  reconcileJobPostingFillStatus: (...args: Parameters<typeof reconcileJobPostingFillStatus>) =>
+    reconcileJobPostingFillStatus(...args),
 }))
 
 vi.mock("@/lib/services/worker-onboarding-profile.service", () => ({
@@ -149,6 +161,7 @@ describe("HiringOnboardingService.approveOnboardingCandidate", () => {
     sendRosterAddedNotification.mockClear()
     sendOnboardingChangesRequestedNotification.mockClear()
     resolveHiringEntityDisplayName.mockClear()
+    reconcileJobPostingFillStatus.mockClear()
 
     upsertRosterFromCompletedOnboarding.mockResolvedValue({
       id: "staff_1",
@@ -169,6 +182,7 @@ describe("HiringOnboardingService.approveOnboardingCandidate", () => {
       position: "Growth Specialist",
       department: "Marketing",
       job_application_id: "app_1",
+      job_posting_id: "job_1",
       invitation_token: "token_abc",
     }
 
@@ -203,6 +217,10 @@ describe("HiringOnboardingService.approveOnboardingCandidate", () => {
         employerName: "DreamStream",
       })
     )
+    expect(reconcileJobPostingFillStatus).toHaveBeenCalledWith(expect.objectContaining({
+      jobPostingId: "job_1",
+      actorUserId: "admin_1",
+    }))
   })
 
   it("blocks approve when a required document is rejected", async () => {

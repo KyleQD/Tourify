@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 import { supabase } from '@/lib/supabase'
 
 Notifications.setNotificationHandler({
@@ -32,7 +33,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
     })
   }
 
-  const { data: token } = await Notifications.getExpoPushTokenAsync()
+  // projectId is required in newer Expo SDKs — without it token registration
+  // fails on production (EAS) builds even when extra.eas.projectId is set.
+  const expoProjectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined
+  const { data: token } = await Notifications.getExpoPushTokenAsync(
+    expoProjectId ? { projectId: expoProjectId } : undefined,
+  )
 
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {

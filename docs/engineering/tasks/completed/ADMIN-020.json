@@ -1,0 +1,241 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-020",
+  "title": "Bound the admin user search to the acting organization",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T23:46:15.710Z",
+  "updated_at": "2026-09-28T00:46:36.329Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (676 entries; concurrent DB-017, EVENTS-001/004, ADMVIEW-001, INTG-007, MKT-004 work in flight)",
+  "goal": "Restrict GET /api/admin/users/search to users the acting organization can already see, or remove the route from the core launch surface.",
+  "scope": {
+    "in": [
+      "The users/search route"
+    ],
+    "out": [
+      "The registry proof harness"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/users/search/route.ts",
+    "__tests__/admin/**",
+    "lib/admin/api-route-registry.ts"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [
+    "ADMIN-019"
+  ],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "Complete ADMIN-019.",
+      "dependency_task_ids": [
+        "ADMIN-019"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "AC-1: the handler resolves the organization from admin.orgId, never from a request body or query parameter, and pushes the visible user id list into the profiles query - or the route is registered with an explicit non-user principal.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "Completion path chosen: ORG-BOUND. Code evidence for choosing it over removing the route from the launch surface: (1) the route is mounted by five live admin components that all need a person-picker scoped to the acting organization - components/admin/staff-roster-panel.tsx:88 (add member to the org staff roster), components/admin/rbac-role-assignment.tsx:63 (assign an org role), components/admin/grant-tour-admins-panel.tsx:76, components/admin/tours/tour-quick-start-wizard.tsx:137, components/admin/logistics-dynamic-manager.tsx:271; (2) the registry classifies the route capability_gated, not legacy_pending_migration, so it is a declared core-launch route and not admitted legacy debt; (3) no schema or migration is needed because the acting-admin context already carries a verified organization and a canonical organization directory service already exists (GET /api/admin/workforce/people uses listWorkforcePeople with the same admin.orgId). Removing the route would break RBAC role assignment, a P0 security surface, for no gain.",
+        "app/api/admin/users/search/route.ts:80 - the only organization input is resolveOrganizationUserIds(supabase, admin.orgId); admin comes from withAdminCapability's verified ActingAdminContext (lib/auth/api-auth.ts:284 resolveActingAdminContext), never from the request. Confirmed by the base-SHA source containing no occurrence of admin.orgId (the pre-repair handler destructured only { supabase }).",
+        "app/api/admin/users/search/route.ts:66-72 - org_id, ops_org_id and organizer_account_id are rejected with 400 organization_scope_field_rejected before any read, so a GET cannot carry a caller-chosen organization (ADMIN-013/ADMIN-015 precedent). A mismatched x-acting-org-id header is refused earlier with 403 acting_context_mismatch by the wrapper.",
+        "app/api/admin/users/search/route.ts:20-29 - the visible id list comes from listWorkforcePeople with employerEntityType 'organization' and employerEntityId admin.orgId, which binds .eq('org_id', orgId) on org_members and .eq('employer_entity_type'/'employer_entity_id', ...) on staff_members and employment_assignments (lib/services/admin-workforce-people.service.ts:92,113,144). No branch of that service is reachable with a null or absent employerEntityId, so a context without an organization returns zero rows rather than a global read.",
+        "app/api/admin/users/search/route.ts:31-61 - the id list is pushed into the profiles query itself (.in('id', userIds.slice(index, index + 100)) at line 43) in 100-id chunks with a merge, so the scope is a query predicate and not a post-read filter. The projected columns, the or(full_name.ilike, email.ilike) filter, the full_name ordering, the 1..50 limit clamp and the { users } response shape are unchanged from the base SHA.",
+        "AC-1 assertion 'the route is registered with an explicit non-user principal' was not needed: the route keeps the user principal with an organization bound at the data boundary, which is the AC-1 first branch."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "AC-2: a cross-tenant test proves a second organization admin receives zero rows and zero email values.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "__tests__/admin/admin-user-search-org-scope.test.ts, describe 'a second organization receives zero rows and zero emails': (a) a query only organization B matches returns { users: [] } and the serialized body contains neither B's user id nor cipher@orgb.test; (b) the unlinked platform profile that matches is never returned; (c) the identical query shape still returns organization A's rows, so the denial is not a broken route; (d) replayed as organization B's own admin against organization B's acting account, the route returns B's two users and none of A's emails, proving the organization is resolved from the acting context rather than a fixed id.",
+        "NEGATIVE CONTROL A (CP-104 discipline) - run and observed: the route was temporarily replaced with its base-SHA source (git show 16fb834f:app/api/admin/users/search/route.ts, sha256 fcd48002eb7f9763349751a858b589fc9f3ff813a6bf9a716194edf7b843a59) and the same file re-run. Result: 11 of 21 tests FAILED, including both core cross-tenant tests, 'pushes the organization scope into the query instead of filtering after the read', 'rejects caller-supplied organization scope parameters with 400 and no read', and 'reads a large organization scope in bounded chunks'. The removed bound returned cipher@orgb.test and outsider@platform.test verbatim. The route was then restored from a byte-exact backup and shasum -c confirmed sha256 6564cba0c76f02a9eaa76c51c74abe7f96ae5b66db90e7239ad785f35d6cb3df, and the suite returned to 21/21 green. The AC-2 assertions are therefore not a hardcoded literal over a now-false claim.",
+        "Anti-vacuity is structural, not only behavioural: the first describe block regenerates the base source with git show into a generated mirror (__tests__/admin/.admin020-base-mirror, removed in afterAll), imports it, and asserts the base route returns every platform user id with emails - so the fake client honours filters and a real cross-tenant read is demonstrable rather than assumed. afterAll also asserts the shared route file is byte-identical to what it read in beforeAll, so the proof cannot be produced by editing the shared tree.",
+        "Supporting controls in the same file: exactly 3 response rows, the four original projected columns, the ordering and limit clamp, the under-two-character short circuit, the empty-directory fail-closed path, the zod length rejection, the 400 on a failing profiles read, and a 123-user organization read in two bounded chunks that still returns the same top 12."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "AC-3: adminCommandCapabilities and the registry resourceBoundary for the route are updated in the same change, and the 49 none_recorded count pinned by the ADMIN-016 proof test is reconciled.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "adminCommandCapabilities: 'resolves the same workforce.manage command capability the source enforces' asserts adminCommandCapabilities(entry, 'GET') === ['workforce.manage'] for /api/admin/users/search, which is the literal the route source gates withAdminCapability on. The code-exact record is registry capabilityByMethod.GET = 'workforce.manage'.",
+        "ADDITIONAL CHANGE BY THIS SESSION: the route-level policy projection on the same entry read capability: 'tour.view', which the code has never enforced. With ADMIN-016's precedence (capabilityByMethod is consulted before ADMIN_COMMAND_CAPABILITY_OVERRIDES) adminCommandCapabilities already returned workforce.manage, so the projection was a false claim with no runtime effect - ADMIN_API_ROUTE_REGISTRY is imported by no other module. It is now 'workforce.manage', so the registry carries one truthful answer. Verified to have no consumer impact: npm run check:admin-route-registry 53/53 and the full __tests__/admin suite unchanged at 3701 passed before and after the edit.",
+        "resourceBoundary for the route is now { kind: 'acting_organization', boundBy: ['admin.orgId'], verifiedAt: 'admin.orgId' } in the registry (lib/admin/route-registry/workforce.ts, the fragment the concurrent registry-split lane created; the aggregator lib/admin/api-route-registry.ts no longer holds route entries). It replaces ADMIN-016's F2 record of none_recorded with boundaryOwner admin-misc.",
+        "THE 49 -> 48 RECONCILIATION, reported in full because AC-3 named it: the ADMIN-016 proof test's BASELINE.routesWithoutResourceBoundary now reads 48, one below the 49 recorded in docs/engineering/tasks/completed/ADMIN-016.json (lines 175 and 186) and in the admin STATE.md ADMIN-016 entry. That single decrement was already in the worktree when this session was dispatched: the file is untracked (ADMIN-016 was never committed), its mtime is 2026-09-27 17:03:03, twenty-eight seconds after the route's own mtime 17:02:35, and sha256 e9eb817fc44324f37f2d14e3a50934c794c1de724186f559b177f04caf37e5a7 was verified unchanged across this session. This session did not author that edit. It is nonetheless the correct decrement and it is machine-enforced from both directions: 48 is the exact count of kind 'none_recorded' across the registry, and 291 - 48 = 243 is separately asserted as the number of routes whose verifiedAt and boundBy markers are present in their real source.",
+        "NEGATIVE CONTROL B (the count cannot be satisfied by a claim): the users/search entry's resourceBoundary was temporarily reverted to { kind: 'none_recorded', boundBy: [], verifiedAt: '', boundaryOwner: 'admin-misc' } and __tests__/admin/admin-registry-guard-proof.test.ts re-run. Result: 4 tests FAILED - 'expected 49 to be 48', 'expected 242 to be 243', and the harness error '/api/admin/users/search: declared none_recorded but the source contains acting_organization markers'. The fragment was restored from a byte-exact backup and shasum -c confirmed sha256 1ea53852262cd6741eb81b83d45bfc302e10ebf1be60582aac39a9132b6fed10 (pre-change) before the deliberate one-line capability correction was applied.",
+        "NEGATIVE CONTROL C (the count cannot be satisfied by a boundary that is not in the code): with the registry entry left at acting_organization and the route restored to its base-SHA source, the proof test went red with '/api/admin/users/search: verifiedAt \"admin.orgId\" is not present in the route source'. Together, controls B and C prove the 48 figure is a measurement of real code, not an edit made to make a number pass, and that there was no way to reconcile 49 without repairing the route.",
+        "check:admin-route-registry is unaffected in direction and magnitude: 291 route files on disk, 53/53 legacy, REL-103 OK - no route was added, removed, or reclassified, so the exact legacy baseline is unchanged."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/admin/admin-user-search-org-scope.test.ts",
+          "npx vitest run __tests__/admin/",
+          "npm run check:admin-route-registry",
+          "node --test scripts/ci/check-admin-route-registry.test.mjs",
+          "npx tsc -p tsconfig.admin020-slice.json --noEmit",
+          "npx eslint app/api/admin/users/search/route.ts __tests__/admin/admin-user-search-org-scope.test.ts lib/admin/route-registry/workforce.ts",
+          "npm run check:admin-audit"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/admin/admin-user-search-org-scope.test.ts -> 21 passed (21). Green after both negative controls were reverted byte-exactly.",
+          "npx vitest run __tests__/admin/ -> 280 passed | 1 skipped (281 files); 3701 passed | 12 skipped (3713). ADMIN-019's recorded baseline was 277 passed | 1 skipped (278 files); 3668 passed | 12 skipped (3680): +3 files and +33 tests, of which 21 are this task's new evidence file and 12 belong to files added in the same window by concurrent lanes. No test file lost and no count decreased.",
+          "npm run check:admin-route-registry -> Admin API route files on disk: 291; Legacy route classifications: 53/53; REL-103 check OK - route-method contracts are exact and legacy debt did not grow. Identical before and after the registry capability correction.",
+          "node --test scripts/ci/check-admin-route-registry.test.mjs -> 3 pass, 0 fail (the concurrent registry-split lane's harness test).",
+          "npx tsc -p tsconfig.admin020-slice.json --noEmit -> exit 0, zero diagnostics. Scoped, not full-repo: the full-repo npm run typecheck is documented as exceeding this machine's memory ceiling on lib/database.types.ts (CP-106), and this slice covers the route, the workforce directory service it now imports, and the new evidence file. A scoped typecheck roots downwards only, so it is recorded as a slice and not as a repo-wide pass.",
+          "npx eslint on the three working-set files -> clean. It was NOT clean on arrival: __tests__/admin/admin-user-search-org-scope.test.ts:261 used `const module = await import(...)` and tripped @nextjs/next/no-assign-module-variable. Fixed in this session by renaming the binding to baseModule (one line, inside the declared working set); re-run is clean.",
+          "npm run check:admin-audit -> FAILS with the same 3 errors the orchestrator documented as pre-existing at the base SHA: 'Generated view drift: STATUS.md', 'Generated view drift: coverage.json', 'Workbook registry source hash is stale'. Not moved by this change, and the reason is structural: registrySourceHash() in scripts/audit/admin-workflow-registry.ts:203-210 hashes lib/admin/api-route-registry.ts, the seven lib/admin/route-registry fragments, the baseline json, and the registry/evidence JSON trees - it does not read any route source, so ADMIN-020's route change cannot be an input, and every file it does hash was verified byte-identical across this session's negative controls. Clearing it needs `npm run generate:admin-audit`, which writes generated documentation outside this working set; routed, not done."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T00:51:52.000Z"
+      },
+      {
+        "id": "control_plane",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "FINAL RESULT: npm run agents:validate -- --strict -> validated 27 agents, 240 tasks, 105 pending handoffs, 0 warnings, 0 errors. The gate is recorded with its full history because it was red for most of this session and the final green is the product of two different fixes.",
+          "First run: 13 errors, none in admin. Verbatim: DB-017 invalid execution_state waiting_dependency for active; DB-017 waiting_dependency has no unfinished dependency; WIP limit exceeded for events:implementation: EVENTS-001, EVENTS-004; active working-set collision: EVENTS-001:app/api/events/** <> EVENTS-004:app/api/events/[id]/** (EXCLUDING app/api/events/[id]/route.ts, which EVENTS-001 holds); active working-set collision: EVENTS-001:__tests__/events/** <> EVENTS-004:__tests__/events/**; DB-017 index status mismatch; DB-017 index path mismatch; EVENTS-004 missing from index; EVENTS-004 missing from outcome registry; EVENTS-004 outcome registry mismatch; orchestrator generated child queue rollup does not match task records; events generated queue summary does not match task records; database generated queue summary does not match task records.",
+          "None of the 13 could have been caused by this task's three changed files (app/api/admin/users/search/route.ts, one line of lib/admin/route-registry/workforce.ts, one binding in __tests__/admin/admin-user-search-org-scope.test.ts): none of them is a task record, an index entry, an outcome-registry entry or an agent-registry entry, and DB-017.json and EVENTS-004.json were being rewritten by their own lanes at 17:41:10 and 17:40:57 local while this task was verifying. ADMIN-019 recorded the same command clean (0 errors) at 23:55Z on 2026-09-27, so the regression arrived with the database and events lanes' concurrent work.",
+          "Completing this task through the sanctioned `npm run agents:checkpoint -- --status completed` refreshed TASK_INDEX.json and every agent's generated queue block, which cleared 11 of the 13 on its own: the index-status, index-path, missing-from-index, missing-from-outcome-registry and all three generated-rollup errors were stale-index artifacts, and the events WIP/collision errors no longer matched the refreshed index.",
+          "The remaining 2 were admin-lane serialization artifacts created by completing ADMIN-020, and were fixed state-only with the same tool: ADMIN-021 and ADMIN-024 were blocked on a dependency that had just become satisfied. ADMIN-021 was activated to keep the admin implementation queue collision-free, which surfaced a further pre-existing conflict, and ADMIN-024's chain edge was moved to ADMIN-021. Both fixes are recorded in their own task records with the reason, and neither changed a working set, an acceptance criterion or any product code.",
+          "SURFACED FINDING, still open and not this task's to fix: activating ADMIN-021 exposed 'Admin path __tests__/admin/admin-route-capability-matrix.test.ts belongs to admin-governance, not admin-logistics'. That file is ADMIN-021's AC-3 subject, so ADMIN-021 is now blocked waiting_decision on an admin-governance ownership call. No admin-governance task is open, and a v2 handoff requires a recipient-owned accepting task, so the decision is routed to the orchestrator rather than written as a handoff. Consequence for the queue: no admin implementation task is dispatchable until that ownership question is settled."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T00:51:52.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "AC-1, AC-2 and AC-3 met on the org-bound completion path. GET /api/admin/users/search now takes its organization only from admin.orgId, rejects org_id/ops_org_id/organizer_account_id with 400, resolves the visible id set through the canonical organization workforce directory (listWorkforcePeople with employerEntityId admin.orgId) and pushes that id list into the profiles query as .in('id', ...) in 100-id chunks, so the scope is a query predicate rather than a post-read filter. 21 new tests, of which 11 fail if the org bound is removed. Three facts this session must be explicit about: (1) the route repair, the new test file, tsconfig.admin020-slice.json, the registry boundary and the 49 -> 48 proof-baseline decrement were ALREADY in the shared worktree when this session was dispatched, written by an earlier interrupted ADMIN-020 session at 17:02-17:14 local on 2026-09-27 - this session verified them, ran three negative controls against them, and reverted every control byte-exactly; (2) this session's own code changes are exactly three small ones, itemised in completed; (3) npm run agents:validate -- --strict is RED with 13 errors that are all in the database and events lanes, and it is recorded as a fail gate owned by the orchestrator rather than quietly omitted. The stale 'Waiting for ADMIN-019' blocker and the state-only summary this record was dispatched with are reconciled here.",
+    "completed": [
+      "Verified the org-bound implementation end to end instead of trusting it: the only organization input is admin.orgId, the three scope parameters are rejected before any read, listWorkforcePeople binds org_members/staff_members/employment_assignments to that organization, and .in('id', ...) carries the id list into the profiles query in bounded chunks.",
+      "NEGATIVE CONTROL A: replaced the route with git show 16fb834f:app/api/admin/users/search/route.ts and observed 11 of 21 tests fail, including both cross-tenant tests; restored byte-exactly (sha256 6564cba0c76f02a9eaa76c51c74abe7f96ae5b66db90e7239ad785f35d6cb3df) and re-confirmed 21/21 green",
+      "NEGATIVE CONTROL B: reverted the users/search resourceBoundary to none_recorded and observed 4 proof tests fail with 'expected 49 to be 48' and 'expected 242 to be 243'; restored byte-exactly (sha256 1ea53852262cd6741eb81b83d45bfc302e10ebf1be60582aac39a9132b6fed10)",
+      "NEGATIVE CONTROL C: with the registry boundary claim kept and the route restored to base, observed the proof test go red with 'verifiedAt \"admin.orgId\" is not present in the route source'; restored byte-exactly",
+      "CHANGE 1 (this session, __tests__/admin/admin-user-search-org-scope.test.ts:261): renamed the `const module = await import(...)` binding to baseModule - the file arrived tripping @nextjs/next/no-assign-module-variable, and eslint is now clean on all three working-set files",
+      "CHANGE 2 (this session, lib/admin/route-registry/workforce.ts, users/search entry): corrected the route-level capability projection from the never-enforced 'tour.view' to the code-exact 'workforce.manage', so the registry holds one truthful capability; no runtime consumer exists (ADMIN_API_ROUTE_REGISTRY is imported by no other module) and both the registry check and the full admin suite are unchanged",
+      "Reconciled the dispatched record's stale text: the 'Waiting for ADMIN-019' blocker and the state-only summary are removed, and ADMIN-019's per-method registry record was read before any registry edit as instructed - it confirms no registry change was needed to keep the proof test green, which held here as well",
+      "Recorded the 49 -> 48 proof-baseline reconciliation with its provenance and two negative controls, so no reader has to take the count on trust",
+      "ACCEPTED SCOPE REDUCTION, recorded rather than hidden: the search can now return a person only if the acting organization already owns them in org_members, staff_members or employment_assignments. Five mounted pickers are affected. Four of them (staff roster add-member, RBAC role assignment, tour quick-start, logistics assignment) target organization people by definition and are unaffected in practice. components/admin/grant-tour-admins-panel.tsx can no longer discover a tour-admin candidate who is outside the organization's workforce directory; that panel already carries a share-link invitation path for the non-in_app channel, and granting a tour admin to an arbitrary platform user found by name/email was the cross-tenant exposure itself. An organization directory larger than 500 people is also truncated by listWorkforcePeople's limit, so a person beyond that cap is not findable; this matches the ADMIN-015 tours/artists decision and is the honest cost of a query-bound scope",
+      "ADDED PATH lib/admin/route-registry/workforce.ts (pre-existing, untracked): a concurrent lane split lib/admin/api-route-registry.ts into seven fragment files at 17:11:57 local, so the users/search entry this task must reconcile now lives in the workforce fragment. The aggregator no longer contains route entries. One line of that fragment was edited (CHANGE 2)",
+      "ADDED PATH __tests__/admin/admin-user-search-org-scope.test.ts and tsconfig.admin020-slice.json (pre-existing, untracked): the new evidence file inside the declared working set, and a scoped typecheck slice following the tsconfig.admin003/012/014/015/016/019-slice precedent because full-repo typecheck OOMs on this box. Not imported by any build or runtime path",
+      "AC-1, AC-2 and AC-3 met on the org-bound path with non-vacuous evidence; three negative controls observed red and reverted byte-exactly",
+      "FINAL RE-RUN of every local gate after the record edits: 21/21 focused, 280 files/3701 tests in __tests__/admin, check:admin-route-registry 291 files 53/53, scoped tsc exit 0, eslint clean, registry harness test 3 pass, agents:validate -- --strict 0 errors 0 warnings. sha256 of the negative-controlled files re-verified after the run: route.ts 6564cba0c76f02a9eaa76c51c74abe7f96ae5b66db90e7239ad785f35d6cb3df (identical to the pre-control backup), admin-registry-guard-proof.test.ts e9eb817fc44324f37f2d14e3a50934c794c1de724186f559b177f04caf37e5a7 (untouched), workforce.ts differing from its pre-control backup by exactly one line, the capability correction."
+    ],
+    "next_steps": [
+      "Orchestrator: decide who owns __tests__/admin/admin-route-capability-matrix.test.ts. ADMIN-021 is now blocked waiting_decision on that call and no admin implementation task is dispatchable until it lands; the alternative is opening an admin-governance task to take the file, which would let ADMIN-021 be written as a handoff instead of a decision blocker.",
+      "admin-audit owner owns npm run generate:admin-audit for the 3 pre-existing check:admin-audit errors. Not done here because it writes generated documentation outside this working set, and no route source is an input to the hash it reports stale.",
+      "ADMIN-022..025: lib/admin/route-registry/*.ts and lib/admin/api-route-registry.ts are unblocked by this task's completion. Read the ADMIN-019 per-method record and this task's AC-3 evidence before editing either, exactly as this task did.",
+      "Not fixed here, deliberately: the 500-person directory cap in listWorkforcePeople and the grant-tour-admins external-collaborator gap. Both are product decisions, and DOMAIN-038 records why they are not folded into a security repair."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T23:55:08.311Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "State-only correction, no implementation started. ADMIN-019 is completed, so this task's ADMIN-019 waiting_dependency no longer holds and --strict was failing on it. Left active/ready for the dispatcher to pick up. See docs/engineering/tasks/active/ADMIN-019.json for the per-method registry record the admin lane measured while repairing the four events/[id] siblings.",
+        "completed": [],
+        "next_steps": [
+          "Dispatcher decides whether to start this task; the dependency it was blocked on is resolved. No code, registry, or test change was made by this checkpoint."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T23:57:25.224Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Dispatch-ready. ADMIN-019 is completed, so this task's dependency is satisfied and it is now the single active admin implementation task (the control plane enforces one active implementation task per agent, and ADMIN-021..025 were re-serialized behind it in chain order). No implementation started for ADMIN-020; this is a state-only correction plus a pointer to the registry evidence ADMIN-019 measured.",
+        "completed": [],
+        "next_steps": [
+          "Before editing lib/admin/api-route-registry.ts, read registry_entries in docs/engineering/tasks/completed/ADMIN-019.json: it records the code-exact per-method enforced class for the four events/[id] siblings that ADMIN-019 repaired, and confirms no registry change was required for admin-registry-guard-proof.test.ts to stay green."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-28T00:45:04.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1, AC-2 and AC-3 met on the org-bound path; the org bound, the cross-tenant denial and the registry record are each proven against real code, and the two load-bearing numbers (21/21 tests, 48 none_recorded routes) were each shown to go red when the thing they measure is removed. The work was already present in the shared worktree from an earlier interrupted session and was verified rather than assumed; this session's own changes are three small ones, itemised above. The control-plane gate was red with 13 cross-lane errors at the start of this session and is 0 errors now; its full history, including the ADMIN-021 segment-ownership conflict that activating it surfaced, is in the control_plane gate.",
+        "completed": [
+          "org-bound completion path chosen and justified from five mounted callers plus the route's capability_gated classification",
+          "three negative controls (route bound removed, registry boundary reverted, boundary claimed over unbound source), all observed red and all reverted byte-exactly",
+          "eslint regression on arrival fixed inside the working set; stale route-level capability projection corrected",
+          "49 -> 48 reconciliation recorded with provenance and proven in both directions",
+          "stale blocker and stale state-only summary reconciled"
+        ],
+        "next_steps": [
+          "Orchestrator owns the 13 cross-lane agents:validate --strict errors; re-run the gate after the database and events lanes land their fixes.",
+          "admin-audit owner owns `npm run generate:admin-audit` for the 3 pre-existing check:admin-audit errors.",
+          "ADMIN-021..025 may now take lib/admin/route-registry/*.ts."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-28T00:46:36.329Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "AC-1, AC-2 and AC-3 met on the org-bound completion path. GET /api/admin/users/search now takes its organization only from admin.orgId, rejects org_id/ops_org_id/organizer_account_id with 400, resolves the visible id set through the canonical organization workforce directory (listWorkforcePeople with employerEntityId admin.orgId) and pushes that id list into the profiles query as .in('id', ...) in 100-id chunks, so the scope is a query predicate rather than a post-read filter. 21 new tests, of which 11 fail if the org bound is removed. Three facts this session must be explicit about: (1) the route repair, the new test file, tsconfig.admin020-slice.json, the registry boundary and the 49 -> 48 proof-baseline decrement were ALREADY in the shared worktree when this session was dispatched, written by an earlier interrupted ADMIN-020 session at 17:02-17:14 local on 2026-09-27 - this session verified them, ran three negative controls against them, and reverted every control byte-exactly; (2) this session's own code changes are exactly three small ones, itemised in completed; (3) npm run agents:validate -- --strict was RED with 13 cross-lane errors for most of this session and is now 0 errors, 0 warnings - see the control_plane gate for the full history, including the pre-existing ADMIN-021 segment-ownership conflict that was surfaced rather than papered over. The stale 'Waiting for ADMIN-019' blocker and the state-only summary this record was dispatched with are reconciled here.",
+        "completed": [
+          "AC-1, AC-2 and AC-3 met on the org-bound path with non-vacuous evidence; three negative controls observed red and reverted byte-exactly"
+        ],
+        "next_steps": [
+          "Orchestrator owns the remaining npm run agents:validate -- --strict errors in the database and events lanes; re-run the gate after those land",
+          "admin-audit owner owns npm run generate:admin-audit for the 3 pre-existing check:admin-audit errors",
+          "ADMIN-021..025 may now take lib/admin/route-registry/*.ts; read the ADMIN-019 per-method record before editing",
+          "Not fixed here, deliberately: the 500-person listWorkforcePeople cap and the grant-tour-admins external-collaborator gap; both are product decisions (DOMAIN-038)"
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [],
+  "work_that_predated_this_session": {
+    "finding": "The org-bound route repair, its 21-test evidence file, tsconfig.admin020-slice.json, the registry resourceBoundary, the capabilityByMethod record and the 49 -> 48 proof-baseline decrement were already in the shared worktree when this session was dispatched. They were written by an earlier ADMIN-020 session that was interrupted before recording anything in this task file, whose progress summary still read 'state-only correction'.",
+    "evidence": "app/api/admin/users/search/route.ts mtime 2026-09-27 17:02:35 local; __tests__/admin/admin-user-search-org-scope.test.ts 17:07:20; tsconfig.admin020-slice.json 17:06:57; __tests__/admin/admin-registry-guard-proof.test.ts 17:03:03 (28 seconds after the route, and the only file in that window whose content bears on this task's counts); lib/admin/route-registry/*.ts 17:11:57 and lib/admin/api-route-registry.ts 17:14:21, a concurrent lane's seven-way fragment split. ADMIN-019, the immediately preceding task, finished at 23:55:03Z = 16:55:03 local, so none of these belong to it.",
+    "what_this_session_changed": [
+      "__tests__/admin/admin-user-search-org-scope.test.ts: one binding renamed (const module -> baseModule) to clear a real eslint error",
+      "lib/admin/route-registry/workforce.ts: one line, capability 'tour.view' -> 'workforce.manage' on the users/search entry",
+      "app/api/admin/users/search/route.ts: restored byte-exactly after the negative control; net content change is zero",
+      "docs/engineering/tasks/active/ADMIN-020.json, docs/engineering/agents/admin/STATE.md, docs/engineering/agents/admin/DECISIONS.md: records only"
+    ]
+  },
+  "negative_controls": {
+    "A": "Base-SHA route over the repaired tests: 11 of 21 failed. Failing list captured in the session report; the removed bound leaked cipher@orgb.test and outsider@platform.test. Restored, sha256 verified, 21/21 green.",
+    "B": "users/search resourceBoundary reverted to none_recorded over the proof test: 4 failed, 'expected 49 to be 48' and 'expected 242 to be 243' plus the 'declared none_recorded but the source contains acting_organization markers' harness error. Restored, sha256 verified.",
+    "C": "Registry boundary left at acting_organization with the base-SHA route: 3 failed, 'verifiedAt \"admin.orgId\" is not present in the route source'. Restored, sha256 verified. B and C together show the 48 figure cannot be produced by an edit to the proof harness."
+  },
+  "migrations": "none authored and none required. profiles is read through the acting-organization-scoped id list, so no new column, index or RLS policy was needed; no migration was run."
+}

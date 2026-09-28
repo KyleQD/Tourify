@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "id": "INTG-005",
+  "title": "Split Stripe webhook secrets",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "integrations",
+  "created_at": "2026-09-09T09:35:08.807Z",
+  "updated_at": "2026-09-09T20:00:31.506Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; owned route and test surfaces preserved",
+  "goal": "Split ticketing and subscriptions webhooks onto domain-specific STRIPE_*_WEBHOOK_SECRET env vars",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/api/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/integrations/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Domain-specific Stripe webhook secrets in use"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx jest --runInBand --runTestsByPath app/api/webhooks/__tests__/webhook-secret-boundaries.test.ts",
+      "npx eslint app/api/subscriptions/webhook/route.ts app/api/ticketing/webhook/route.ts app/api/marketplace/webhook/route.ts"
+    ],
+    "evidence": [
+      "Five-route secret-boundary contract passed: subscription, ticketing, photos, marketplace, and music royalties each reference only their endpoint-specific secret and do not reference the generic STRIPE_WEBHOOK_SECRET.",
+      "Focused ESLint passed."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T20:00:31.506Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Verified strict endpoint-specific Stripe webhook secrets without generic fallback.",
+    "completed": [
+      "Subscriptions secret split",
+      "ticketing secret split",
+      "marketplace fallback removal",
+      "five-route contract coverage"
+    ],
+    "next_steps": [
+      "Release provisions each endpoint secret independently and updates Stripe CLI forwarding commands for local smoke tests."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T12:30:00.000Z",
+        "summary": "Removed generic Stripe webhook-secret fallback from the in-scope handlers and verified strict endpoint boundaries.",
+        "next": "Provision endpoint-specific local secrets."
+      },
+      {
+        "at": "2026-09-09T20:00:31.506Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Verified strict endpoint-specific Stripe webhook secrets without generic fallback.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Release: provision the five named endpoint-specific secrets. The generic STRIPE_WEBHOOK_SECRET is no longer accepted by these routes."
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tourify.local/schemas/agent-registry.v3.json",
+  "title": "Tourify engineering agent registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "updated_at", "startup_protocol", "agents"],
+  "properties": {
+    "schema_version": { "const": "3.0" },
+    "updated_at": { "type": "string", "format": "date" },
+    "startup_protocol": { "type": "array", "items": { "type": "string" } },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "purpose", "kind", "reports_to", "execution_policy"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "purpose": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["orchestrator", "domain", "specialist", "manager"] },
+          "reports_to": { "type": ["string", "null"] },
+          "execution_policy": { "enum": ["orchestration", "implementation", "verification_only", "review_only"] }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "journeys": [
+    {
+      "id": "auth-signup-login",
+      "actor": "customer",
+      "route": "/signup \u2192 /login",
+      "goal": "Create a campaign account, sign in, and retain the session after restart",
+      "receiver": "same actor",
+      "result": "Authenticated profile persists",
+      "checks": [
+        "success",
+        "empty",
+        "invalid",
+        "cancel-retry",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "auth-recovery",
+      "actor": "customer",
+      "route": "/forgot-password \u2192 /reset-password",
+      "goal": "Recover access using a valid deep link and reject an invalid link",
+      "receiver": "same actor",
+      "result": "New password signs in; invalid link changes nothing",
+      "checks": [
+        "success",
+        "invalid",
+        "cancel-retry",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "onboarding-profile",
+      "actor": "artist",
+      "route": "/onboarding \u2192 /profile",
+      "goal": "Complete onboarding and update a creator profile",
+      "receiver": "customer",
+      "result": "Profile updates persist and public fields are visible to customer",
+      "checks": [
+        "success",
+        "empty",
+        "invalid",
+        "cancel-retry",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "discover-search-follow",
+      "actor": "customer",
+      "route": "/discover \u2192 /search \u2192 /profile/[username]",
+      "goal": "Find a campaign artist and follow them",
+      "receiver": "artist",
+      "result": "Follow persists and appears on the receiving side",
+      "checks": [
+        "success",
+        "empty",
+        "cancel-retry",
+        "notification",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "feed",
+      "actor": "customer",
+      "route": "/feed",
+      "goal": "Read followed and discovery posts with empty and retry states",
+      "receiver": "artist",
+      "result": "Campaign content displays consistently after restart",
+      "checks": [
+        "success",
+        "empty",
+        "cancel-retry",
+        "persistence",
+        "accessibility"
+      ]
+    },
+    {
+      "id": "music",
+      "actor": "customer",
+      "route": "/music",
+      "goal": "Find and play published campaign music",
+      "receiver": "artist",
+      "result": "Playback works and published track is visible",
+      "checks": [
+        "success",
+        "empty",
+        "cancel-retry",
+        "persistence",
+        "accessibility"
+      ]
+    },
+    {
+      "id": "direct-message",
+      "actor": "customer",
+      "route": "/messages \u2192 /chat/[id]",
+      "goal": "Send a message to the artist",
+      "receiver": "artist",
+      "result": "Artist receives it and customer sees the reply",
+      "checks": [
+        "success",
+        "empty",
+        "invalid",
+        "notification",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "group-chat",
+      "actor": "organization",
+      "route": "/group-chats \u2192 /group-chats/[id]",
+      "goal": "Open a permitted group conversation and send a message",
+      "receiver": "artist",
+      "result": "Member receives it; nonmember is denied",
+      "checks": [
+        "success",
+        "empty",
+        "notification",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "connect-claim",
+      "actor": "artist",
+      "route": "/connect \u2192 /connect/claim",
+      "goal": "Open and complete a campaign owned connect claim",
+      "receiver": "artist",
+      "result": "Claim state persists; foreign claim is denied",
+      "checks": [
+        "success",
+        "invalid",
+        "cancel-retry",
+        "persistence",
+        "accessibility",
+        "authorization",
+        "handoff"
+      ]
+    },
+    {
+      "id": "event-discovery",
+      "actor": "customer",
+      "route": "/events \u2192 /events/[id]",
+      "goal": "Find the published campaign event and inspect ticket availability",
+      "receiver": "organization",
+      "result": "Event details and availability match the organizer's published state",
+      "checks": [
+        "success",
+        "empty",
+        "persistence",
+        "accessibility",
+        "handoff"
+      ]
+    },
+    {
+      "id": "ticket-checkout",
+      "actor": "customer",
+      "route": "/events/[id] \u2192 /checkout",
+      "goal": "Buy a campaign ticket in Stripe test mode and return to the app",
+      "receiver": "organization",
+      "result": "Server verified completion, buyer confirmation, and seller order agree",
+      "checks": [
+        "success",
+        "invalid",
+        "cancel-retry",
+        "notification",
+        "persistence",
+        "accessibility",
+        "authorization",
+        "handoff"
+      ]
+    },
+    {
+      "id": "checkout-recovery",
+      "actor": "customer2",
+      "route": "/checkout",
+      "goal": "Cancel or fail a test checkout and retry",
+      "receiver": "organization",
+      "result": "No false completion or duplicate order; retry remains available",
+      "checks": [
+        "success",
+        "invalid",
+        "cancel-retry",
+        "persistence",
+        "accessibility",
+        "handoff"
+      ]
+    },
+    {
+      "id": "booking-approve",
+      "actor": "venue",
+      "route": "/bookings",
+      "goal": "Approve a campaign booking request",
+      "receiver": "organization",
+      "result": "Both sides show the approved state after restart",
+      "checks": [
+        "success",
+        "empty",
+        "notification",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "booking-reject",
+      "actor": "venue",
+      "route": "/bookings",
+      "goal": "Reject a separate campaign booking request",
+      "receiver": "organization",
+      "result": "Both sides show the rejected state after restart",
+      "checks": [
+        "success",
+        "cancel-retry",
+        "notification",
+        "persistence",
+        "accessibility",
+        "authorization"
+      ]
+    },
+    {
+      "id": "booking-tenant-denial",
+      "actor": "foreignVenue",
+      "route": "/bookings",
+      "goal": "Attempt to view or mutate the first venue's booking",
+      "receiver": "venue",
+      "result": "Private booking is hidden and mutation is denied",
+      "checks": [
+        "success",
+        "authorization",
+        "persistence",
+        "accessibility"
+      ]
+    },
+    {
+      "id": "notifications",
+      "actor": "artist",
+      "route": "/notifications",
+      "goal": "Receive and open a campaign notification",
+      "receiver": "customer",
+      "result": "Tap opens the right destination and read state persists",
+      "checks": [
+        "success",
+        "empty",
+        "notification",
+        "persistence",
+        "accessibility",
+        "handoff"
+      ]
+    }
+  ]
+}

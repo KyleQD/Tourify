@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821025543_unified_guest_list_admissions.sql",
+  "taskId": "TICKETING-UNIFIED-GUEST-LIST",
+  "status": "planned",
+  "owner": "ticketing-platform",
+  "reviewer": "security-data",
+  "domains": ["ticketing", "events", "artists", "staffing", "auth", "rbac"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "local Supabase schema with the current ticketing foundation",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count ticket_types rows whose event_id does not resolve directly or through events.promoted_event_v2_id",
+      "Count accepted booking_requests without a resolvable events_v2 event",
+      "Count confirmed or active employment_assignments without a resolvable events_v2 event",
+      "Count existing ticket_allocations and ticket_inventory_reservations by lifecycle status"
+    ],
+    "expectedAffectedRows": "The audited guest-list, allocation, and complimentary-ticket tables were empty; any newly unresolved event links are recorded rather than guessed",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All additive objects are guarded, backfills update only unresolved or legacy-linked rows, and named policies are recreated deterministically",
+    "resumeCursor": "Supabase migration version 20260821025543",
+    "idempotency": "Tables, columns, indexes, and extensions use IF NOT EXISTS; backfill issue records use stable keys with ON CONFLICT DO NOTHING; ticketing authorization dynamically detects optional legacy helpers"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "private.ticketing_migration_issues",
+    "strategy": "Record unresolved ticket, booking, and employment event links for manual review; never infer an events_v2 identifier"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "ticket_types_event_id_fkey is created NOT VALID and validated only when all rows resolve",
+      "ticket_allocations lifecycle, purpose, and quantity checks use NOT VALID then VALIDATE",
+      "ticket_inventory_reservations consumed bounds use NOT VALID then VALIDATE",
+      "event_attendance event-table check is expanded with NOT VALID then VALIDATE so accepted events_v2 tickets can populate Upcoming Events",
+      "ticket_invites recipient, email, purpose, status, and send-count checks are created with the new table"
+    ],
+    "indexes": [
+      "ticket allocation lifecycle and reservation indexes",
+      "allocation manager user index",
+      "invite allocation, event, recipient, and active-recipient uniqueness indexes",
+      "booking and employment events_v2 eligibility indexes"
+    ],
+    "validationPlan": "Verify constraints and RLS with creator, delegated manager, recipient, service-role, and unrelated-user personas, including an environment without can_ticketing_on_event or has_event_ticketing_grant; confirm accepted tickets are wallet-readable and their events appear in Upcoming Events; run quota and inventory concurrency tests"
+  },
+  "recovery": {
+    "rollback": "Disable the server feature flag and apply a reviewed forward migration that removes new wrappers and policies; retain invite and ownership records for auditability",
+    "forwardFix": "Apply additive corrections for constraints, policies, or backfills, then re-run unresolved-link and inventory reconciliation queries"
+  },
+  "postflight": {
+    "queries": [
+      "Verify unresolved event links in private.ticketing_migration_issues",
+      "Verify all new constraints and the ticket_types FK validation state",
+      "Verify RLS and effective grants for ticket_allocation_managers and ticket_invites",
+      "Reconcile allocation totals, reservation quantities, reserved inventory, issued tickets, and active invites",
+      "Run Supabase security and performance advisors for affected tables and functions"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

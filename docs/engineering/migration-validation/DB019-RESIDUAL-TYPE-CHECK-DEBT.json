@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "artifact": "DB019-RESIDUAL-TYPE-CHECK-DEBT",
+  "taskId": "DB-019",
+  "created_at": "2026-09-27T00:00:00.000Z",
+  "owner": "database",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "why_this_file_exists": "DB-019 has three acceptance criteria and only one of them produces a migration. AC-2 and AC-3 are RECORDING criteria, and the task schema is `additionalProperties: false` with a `progress` object that permits exactly five keys, so neither can be carried in the task record without breaking `npm run agents:validate`. This file is the record, and it lives under `docs/engineering/migration-validation/` because that path is already DB-019's literal working set AND because it already holds a non-manifest engineering artifact of exactly this kind (`wfc004-type-regeneration-specification.json`). It is inert to every gate: `check-migration-validation` derives a manifest path from a MIGRATION basename and never scans the directory, and `history-baseline.json` is read by exact name. No migration has a manifest that points here.",
+  "ac2ColumnDriftDisposition": {
+    "criterion": "AC-2 \u2014 enumerate the 27 column drifts that regeneration cannot close and record a per-object disposition, so the residual typecheck count has a named owner.",
+    "headline": "The 27 are 27 DIAGNOSTICS across 6 (table, column) PAIRS, not 27 distinct objects. The brief and the AC both say '27 column drifts'; the measurement behind them is DB-008's scoped tsc run, which reports 6 pairs summing to exactly 27 column-drift diagnostics (9+8+7+1+1+1). The pair count is the number that matters for action, and both are given so neither reading is wrong.",
+    "sourceOfTheNumber": "docs/engineering/DB008_RECONCILIATION_MATRIX.json -> columnDrift.absentFromChainAndContract_noRegenerationCanFix_these. DB-008's own reading of that set: 'These are the code-drift class: the product code selects a column that no active migration creates and that the contract does not declare. No regeneration can ever satisfy them.' DB-008 also records that the broader bucket is 331 unclosable Supabase-object diagnostics = 27 column-drift diagnostics (these 6 pairs) + 304 relation-literal diagnostics (72 literals). This file owns the 27.",
+    "measurementCaveatCarriedForward": "DB-008's numbers come from a SCOPED tsc run over 1,113 roots (every file under app/, lib/, components/ and types/ containing `.select(`), not a full-repo typecheck, and it was measured on a different worktree with concurrent lanes. The pair list was re-verified on disk for this file \u2014 every relation and every canonical replacement below was read out of `lib/database.types.ts` and the active chain at this SHA \u2014 but the DIAGNOSTIC COUNTS are DB-008's and were not re-measured here, because a full typecheck is prohibited on this machine (68m18s on CI, OOMs locally, shared box). Stated rather than inherited silently.",
+    "dispositionVocabulary": [
+      "canonical-replacement: a column that DOES exist, in the chain and in the contract. The consumer names the wrong column; the fix is to name the right one. Owner is the lane that owns the consumer. This is the only category the database lane may act on, and it did not act on any of them, because every fix is an edit to a file in another lane's working set.",
+      "dead-consumer: the consumer is wrong in a way that no column can satisfy, so the column must not be created. Adding one would be the database lane inventing a product contract.",
+      "accepted-debt: a real, understood gap where the correct answer is known but is not this task's to take, recorded with its owner so the residual count has a name rather than a number."
+    ],
+    "pairs": [
+      {
+        "table": "artist_profiles",
+        "column": "stage_name",
+        "diagnostics": 9,
+        "disposition": "canonical-replacement",
+        "canonicalColumn": "artist_profiles.artist_name",
+        "canonicalEvidence": "Declared in lib/database.types.ts artist_profiles.Row and created in the active chain. Measured: artist_profiles.Row declares 11 columns \u2014 id, user_id, artist_name, bio, genres, settings, social_links, url_slug, global_search_vector, created_at, updated_at \u2014 and stage_name is not among them. `rg -in stage_name supabase/migrations/*.sql` returns exactly ONE hit, and it is a COMMENT in 20260925210000_venue_profile_presentation_columns.sql:35 listing stage_name as an example of a column the chain does not have. So the column exists in neither the chain nor the contract.",
+        "liveConsumer": "components/feed/streamlined-feed.tsx:243-244 \u2014 `.from('artist_profiles').select('id, stage_name, artist_name, profile_image_url, is_verified').eq('id', profileId).single()`. The same select already names `artist_name`, so the replacement is a one-token deletion rather than a new field: the row is missing `profile_image_url` and `is_verified` too, which is a SECOND defect in the same select and is the reason the feed's artist avatar and verified badge do not render. Both are the same fix and the same owner.",
+        "whyNotClosedHere": "components/** is not DB-019's working set and the select is entry-reachable feed UI. Naming the replacement is the database lane's contribution; making the edit is the design/feed lane's.",
+        "owner": "design / feed surface owner, with artist for whether `artist_name` is the right display name (it is the only candidate that exists, so this is a confirmation rather than a choice)"
+      },
+      {
+        "table": "profiles",
+        "column": "display_name",
+        "diagnostics": 8,
+        "disposition": "canonical-replacement",
+        "canonicalColumn": "profiles.full_name (with profiles.username as the fallback), and profiles.name",
+        "canonicalEvidence": "lib/database.types.ts profiles.Row declares 156 columns including `full_name`, `name` and `username`. `display_name` is in neither the chain nor the contract.",
+        "liveConsumers": [
+          "lib/auth/role-based-auth.tsx:196-197 \u2014 `.from('profiles').select('id, display_name, role, avatar_url').eq('id', coreAuth.user.id).single()`, then `display_name: profile.display_name` at :201. Because the select 400s, `profile` is null and the whole role-profile block is skipped.",
+          "app/api/tours/[id]/assign-user/route.ts:48-52 \u2014 `.from('profiles').select('display_name, email').eq('id', validated.userId).maybeSingle()`, then `displayName = displayName || profile?.display_name || \"\"`. The select 400s, so the fallback name is always empty and the tour-assignee form silently drops the user's name when the caller supplied none."
+        ],
+        "alreadyLandedPrecedent": "app/api/admin/events/[id]/task-messages/route.ts:128-138 has already been fixed, by the admin lane, in exactly this shape and with exactly this reasoning \u2014 a comment recording that `profiles` has no `display_name` column, the select changed to `full_name, username`, and `senderName = senderProfile?.full_name || senderProfile?.username || 'Admin'`. That file is in the admin lane's working set, not this one, and it was read here only as the precedent that proves the replacement is the right one. The same replacement applied to the two consumers above is a two-line change each.",
+        "whyNotClosedHere": "lib/auth/** and app/api/tours/** are not DB-019's working set. The precedent edit shows the fix is mechanical and the admin lane's comment records the reason, so nothing about this is left to be decided.",
+        "owner": "auth for lib/auth/role-based-auth.tsx; tours for app/api/tours/[id]/assign-user/route.ts. DB-008's existing HF-DB008-TYPECHECK-* routing already points typecheck findings at the owning lanes, so these are re-pointed at the two specific files rather than raised again."
+      },
+      {
+        "table": "venue_profiles",
+        "column": "name",
+        "diagnostics": 7,
+        "disposition": "canonical-replacement",
+        "canonicalColumn": "venue_profiles.venue_name",
+        "canonicalEvidence": "lib/database.types.ts venue_profiles.Row declares 126 columns including `venue_name`; `name` is in neither the chain nor the contract. The chain migration that owns the column's own documentation says so explicitly: 20260721120000_venue_profiles_url_slug.sql names `venue_name` as the correct column and `name` as wrong \u2014 that is quoted in the already-landed fix below.",
+        "liveConsumer": "components/feed/streamlined-feed.tsx:266-267 \u2014 `.from('venue_profiles').select('id, name, logo_url, is_verified').eq('id', profileId).single()`. Same shape as the artist_profiles defect above, in the sibling branch of the same function: the venue avatar and verified badge are missing for the same reason, and the same select also names `logo_url` and `is_verified`, which the contract does declare.",
+        "alreadyLandedPrecedent": "lib/services/staff-onboarding.service.ts:273-278 \u2014 comment reading 'C-03/DB-008 code-drift repoint: `venue_profiles` has no `name` column in the active migration chain or in the generated contract. The chain's display-name column is `venue_name` (see 20260721120000_venue_profiles_url_slug.sql, which names `venue_name` as the correct column and `name` as wrong).' The select is now `venue_name, address`. This is the exact fix, already applied, and it was read here as the precedent that removes any doubt about the replacement.",
+        "whyNotClosedHere": "components/** is not DB-019's working set.",
+        "owner": "design / feed surface owner, with venue for the `venue_name` confirmation"
+      },
+      {
+        "table": "job_posting_templates",
+        "column": "application_form_template",
+        "diagnostics": 1,
+        "disposition": "dead-consumer",
+        "canonicalColumn": "NOT A COLUMN. `application_form_template` is an EMBEDDED-RESOURCE ALIAS over the separate relation `application_form_templates`, and the correct PostgREST spelling is `application_form_template:application_form_templates(*)`.",
+        "canonicalEvidence": "Measured: lib/database.types.ts job_posting_templates.Row declares 138 columns and none is `application_form_template`. The alias form appears CORRECTLY elsewhere in the same codebase \u2014 app/api/venue/hiring/job-postings/route.ts:60 builds `const baseSelect = \"*, application_form_template:application_form_templates(*)\"` and app/api/job-postings/[id]/route.ts:16 uses the same shape. So the relation exists and the alias convention is established; one caller uses the bare column name instead of the alias.",
+        "liveConsumer": "app/api/hiring/apply/profile-preview/route.ts:29-33 \u2014 `.from('job_posting_templates').select('id, title, status, application_form_template').eq('id', jobPostingId).maybeSingle()`. The select 400s, `jobError` is set, and the route returns the 500 at :36-38. That is the QUICK-APPLY PROFILE PREVIEW, i.e. an applicant-facing route, so this one diagnostic is one broken user-facing surface rather than a cosmetic type error.",
+        "whyNotA schemaGapAndWhyNoColumnMayBeCreated": "This is the pair where a database lane acting alone would do real damage. `ADD COLUMN application_form_template jsonb` would make the select succeed and return NULL for every row, and the route would then render an empty application form for every applicant \u2014 converting a loud 500 into a silent wrong answer. The column must NOT be created. This is recorded as the concrete example of the failure mode DB-008's STATE warns about: 'a database lane that invents a column to make tsc quiet is producing the failure this task exists to prevent.'",
+        "whyNotClosedHere": "app/api/hiring/** is not DB-019's working set, and the fix is a one-token alias change in a route the hiring/work lane owns.",
+        "owner": "work / hiring lane (app/api/hiring/apply/profile-preview/route.ts)"
+      },
+      {
+        "table": "music_comments",
+        "column": "likes_count",
+        "diagnostics": 1,
+        "disposition": "accepted-debt",
+        "canonicalColumn": "NONE EXISTS. There is no like counter on this table and no like relation for it either.",
+        "canonicalEvidence": "Measured: the chain's own CREATE TABLE at 20250115000000_artist_music_system.sql:64-72 gives music_comments exactly seven columns \u2014 id, music_id, user_id, parent_comment_id, content, created_at, updated_at \u2014 and the contract declares the same seven. There is no `music_comment_likes` relation in the active chain. So this is not a wrong-column-name defect: the FEATURE (liking a comment) has no schema at all, which is a different decision from a column rename.",
+        "liveConsumer": "app/api/music/comment/route.ts:125-133 \u2014 `.from('music_comments').select('... likes_count, profiles!inner(username, full_name, avatar_url)').eq('music_id', musicId).is('parent_comment_id', null).order('created_at', ...).range(offset, offset + limit - 1)`. The select 400s and the route returns the 500 at :141-143, so the comment list for a track is entirely unavailable.",
+        "whyAcceptedDebtRatherThanAColumnContract": "Creating `likes_count integer not null default 0` would require a second decision nobody has made \u2014 a `music_comment_likes` relation, a trigger to maintain the counter, RLS for it, and a write path in a route this lane does not own. Four product and authorization decisions to silence one type error. The honest disposition is: the comment list is broken because comment likes were never built, and that is the music lane's call, not a migration.",
+        "namedIntermediateOption": "The narrow fix, if the music lane wants the comment list working THIS week and does not want comment likes: delete `likes_count` from the select and render the count as absent. That is one token, it unbreaks the list, and it makes the missing feature visible instead of hiding it. It is a music-lane decision and is recorded here as the bounded option rather than taken.",
+        "owner": "music lane (app/api/music/comment/route.ts), with the product decision of whether comment likes are in scope for CORE-WEB-LAUNCH"
+      },
+      {
+        "table": "events",
+        "column": "start_date",
+        "diagnostics": 1,
+        "disposition": "accepted-debt",
+        "canonicalColumn": "events.date, or events.event_date, or \u2014 on the canonical relation \u2014 events_v2.start_at. The column `start_date` does not exist on `events` in the chain or the contract.",
+        "canonicalEvidence": "Measured: lib/database.types.ts events.Row declares 141 columns; the date/time family it DOES declare is date, event_date, start_at, start_time, time, end_time, expected_attendance. `start_date` is not among them, and `rg -n start_date supabase/migrations/*.sql` filtered to `events` returns nothing.",
+        "liveConsumer": "app/api/community/activity/route.ts:133-137 \u2014 `.from('events').select('id, title, start_date, location').eq('artist_id', userId).gte('start_date', new Date().toISOString()).order('start_date', { ascending: true }).limit(5)`. The select 400s, so the UPCOMING EVENTS block of the community activity feed is empty.",
+        "whyAcceptedDebtRatherThanAColumnContract": "This is DB-009's and DB-006's surface, not a column rename. `events` is the LEGACY lineage behind `events_v2`, which is canonical after a verified cutover, and the identifier and authorization contracts of the two are distinct. DB-006's STATE records 52 remaining legacy `events` callers, 38 of them explicitly DEFERRED with a named owner, and this route is not among the 14 compatibility-gated ones \u2014 `app/api/community/activity/route.ts` appears in the deferred list under the COMMUNITY owner. So the correct disposition is not 'rename the column in this select'; it is 'cut this caller over to `events_v2.start_at`, or leave it deferred with the community owner', and the second is the decision that has already been taken for 38 other callers.",
+        "secondLiveShapeRecordedNotCountedSeparately": "app/api/venues/[id]/route.ts:134-136 selects `id, title, name, description, event_date, event_time, ticket_price, status, start_date, date` from `events` in the same statement as a parallel `events_v2` read at :141. This is DB-009's deliberate legacy+canonical union and it is ALSO affected, but it is inside `app/api/venues/**`, which DB-006 already lists among the 14 compatibility-gated callers. It is recorded here for completeness and is NOT double-counted against the 27, because DB-008's measurement attributed the single `events.start_date` diagnostic to one file.",
+        "owner": "community lane for app/api/community/activity/route.ts, coordinated with DB-009 (the shared events/artist_events/events_v2 identity contract) and DB-006 (the events_v2 cutover). NOT re-decided here: DB-006 already dispositioned this caller as deferred, and reversing a completed lane's recorded disposition is not this task's authority."
+      }
+    ],
+    "dispositionCounts": {
+      "byCategory": {
+        "canonical-replacement": 3,
+        "dead-consumer": 1,
+        "accepted-debt": 2
+      },
+      "byPair": 6,
+      "byDiagnostic": {
+        "canonical-replacement": 24,
+        "dead-consumer": 1,
+        "accepted-debt": 2
+      },
+      "diagnosticArithmetic": "9 + 8 + 7 = 24 canonical-replacement; 1 dead-consumer; 1 + 1 = 2 accepted-debt; 24 + 1 + 2 = 27.",
+      "readableInOneSentence": "Three pairs are a one-token column rename to something that already exists; one pair is a caller using a bare name where an embedded-resource alias belongs and MUST NOT get a column; two pairs are missing features or a deferred cutover and are not this lane's to close. Twenty-four of the twenty-seven diagnostics are mechanical renames with the replacement already named in the chain and, in two cases, already applied by another lane as a precedent."
+    },
+    "whatThisDoesAndDoesNotEstablish": {
+      "establishes": "Every one of the 6 pairs now has a named replacement or a named reason there is none, a named live consumer FILE AND LINE, and a named owning lane. The residual count of 27 is no longer a number with no owner: 24 diagnostics are three edits in three files, 1 is one alias token in an applicant-facing route, and 2 are two product/cutover decisions. Each of the two canonical-replacement pairs that another lane has already fixed elsewhere in the codebase carries that lane's own comment as proof, so the fix is not a proposal.",
+      "doesNotEstablish": "It does NOT reduce the typecheck count, because DB-019's working set contains no file in any of the 6 consumers' directories. It does NOT re-measure the 27 \u2014 see `measurementCaveatCarriedForward`. It does NOT re-route DB-008's HF-DB008-TYPECHECK-* handoffs, which is the orchestrator's and the owning lanes' call, not this task's; this file is the per-object detail those handoffs point at. And it does NOT claim any of the 304 relation-literal diagnostics in the same 331 bucket, which are owned by the 23 handoffs in docs/engineering/database-type-inventory-2026-09-25.json.",
+      "theFailureModeThisFileExistsToPrevent": "Three of the six pairs would be 'fixed' by a database lane adding a column. `artist_profiles.stage_name` and `venue_profiles.name` would both accept an `ADD COLUMN ... NOT NULL DEFAULT ''` and every tsc diagnostic would go to zero, while the feed's artist and venue bylines became empty strings \u2014 a visible product regression purchased with a green typecheck. `job_posting_templates.application_form_template` is the sharpest case: the column would make an applicant-facing select succeed and return NULL, turning a loud 500 into a silently empty application form. No column was created for any of them, and the reason is recorded per object so the next lane does not have to re-derive it."
+    }
+  },
+  "ac3ChainBuiltRegenerationTarget": {
+    "criterion": "AC-3 \u2014 record the exact chain-built target procedure and its verification, so regeneration becomes a single command once a target exists.",
+    "theVerdictThisProcedureImplements": "CP-127, recorded in docs/engineering/DB008_RECONCILIATION_MATRIX.json -> regenerationTargetVerdict: lib/database.types.ts was generated from a CHAIN-BUILT database \u2014 the active numbered chain applied in version order \u2014 watermarked at 20260910000001_get_active_organizer_account_for_org.sql. The admissible source is a chain-built target and ONLY a chain-built target. `--linked` is PERMANENTLY DISQUALIFIED, and the disqualification does not rest on its size: the committed contract has ZERO out-of-band relations, columns and callables against the chain, so a target with 78 relations and 112 columns the chain never creates is by definition not the contract's source, whatever its size.",
+    "theOneCommandOnceATargetExists": "SUPABASE_TYPE_SOURCE=<local|project-id> npm run generate:database-types",
+    "whyTheCommandIsAlreadySafeToPoint": "`scripts/ci/generate-database-types.mjs:16` now passes `maxBuffer: 64 * 1024 * 1024`. The earlier wave recorded that this call site had NO maxBuffer, so Node's 1 MB cap applied and the generator failed with ENOBUFS (errno -55) on any target, against a 1.18 MB payload. That defect is CLOSED in the current tree and was re-read here rather than carried forward from the older record. `scripts/ci/database-types-source.mjs` is the single place the source is chosen, and it accepts exactly `local`, `linked` and `project-id`; `linked` is admissible as a MECHANISM and inadmissible as a SOURCE, which is why the procedure below never names it.",
+    "routeA_localStack": {
+      "status": "DOCUMENTED, NOT EXECUTED. DB-019's brief forbids attempting `supabase start` on this machine, and it was not attempted.",
+      "whenItBecomesAvailable": "`df -h /System/Volumes/Data` reported 17 GiB free on a 228 GiB volume at 92% capacity when this task ran, against roughly 10 GB of Supabase local stack images. DB-008 measured 6.7 GiB free and recorded the stack as unbuildable. The capacity fact has CHANGED in this task's favour and the route is no longer blocked on disk \u2014 it is blocked only on the instruction not to attempt it.",
+      "commands": [
+        "# 0. Free nothing further and pull nothing. 17 GiB free is sufficient for the local stack.",
+        "# 1. Build a BRAND-NEW local stack. The CLI applies supabase/migrations/ in version order on first start,",
+        "#    which is the DEFINITION of a chain-built target rather than a replay of an existing database.",
+        "#    CP-051 forbids `supabase db reset` and forced/full-chain replays of a database that already exists;",
+        "#    it does not forbid creating a new one from the chain. Confirm the apply log lists every migration.",
+        "supabase start",
+        "",
+        "# 2. PROVE THE STACK IS CHAIN-BUILT BEFORE GENERATING FROM IT. This is the step that makes the route",
+        "#    safe rather than hopeful: a developer stack that has had SQL pasted into it by hand is NOT",
+        "#    admissible, because its provenance is unknown and DB-002 has recorded that some versions on",
+        "#    hosted targets were applied by raw Management API SQL.",
+        "node supabase/tests/db008_chain_contract_replay.mjs . /tmp/db008/replay-local.json",
+        "#    PASS requires: outOfBandColumns 0, outOfBandRelations 0, contractOnlyRelations 0,",
+        "#    contractOnlyRoutines 0, contractReproducibleFromChain true.",
+        "#    If any of those is non-zero, STOP: the stack is not chain-built and must not be generated from.",
+        "",
+        "# 3. Generate. One command, CP-016, the canonical path.",
+        "npm run generate:database-types",
+        "",
+        "# 4. Verify in both directions. check-database-types re-runs the generator and compares byte-for-byte,",
+        "#    so it proves reproducibility; the replay proves the direction of the delta.",
+        "npm run check:database-types",
+        "node supabase/tests/db008_contract_attribution_audit.mjs .",
+        "bash supabase/tests/db008_run_all.sh"
+      ],
+      "expectedResult": "SUPERSEDED BY `measuredAfterDB019`, which was measured on the real repository with DB-019's three files in the chain rather than projected. The direction is unchanged and is the one that matters: a chain-built regeneration is ADDITIVE ONLY, 402 -> 431 relations, 5,275 -> 5,341 columns, 100 -> 143 callables, and it DELETES 0 relations, 0 columns and 0 callables. The deletion direction staying at 0 is the property the replay exists to protect, and a regeneration that deletes anything means the target was not chain-built.",
+      "theStepThatIsEasyToSkipAndMustNotBe": "Step 2. Generating from an unproven stack reproduces exactly the failure CP-127 was written to prevent, and it is silent: the generator succeeds, the file is rewritten, and the loss is only visible afterwards in a diff nobody reads."
+    },
+    "routeB_isolatedStagingProject": {
+      "status": "THE ROUTE THAT ACTUALLY UNBLOCKS CI. Provisioning is release/ops's action and is not this lane's; the procedure below is written so that the operator's work is one script and one review, not a judgement call.",
+      "whyItIsTheBetterRoute": "It needs no local disk, it is reproducible by anyone, and it is the only route on which the generated contract can be produced on a machine that will also run `npm run check:database-types` in CI. Route A produces a contract that only the machine with the stack can verify.",
+      "commands": [
+        "# 1. Provision an ISOLATED, EMPTY staging project. release/ops owns this. It must be empty: this route",
+        "#    builds a target, and the whole admissibility argument rests on there being nothing to inherit.",
+        "",
+        "# 2. APPLY THE CHAIN ONE MIGRATION AT A TIME, IN VERSION ORDER, STOPPING ON THE FIRST FAILURE.",
+        "#    This is CP-051's prescribed shape, not a violation of it: CP-051 forbids `supabase db reset`,",
+        "#    `db push --include-all` and forced/full-chain replays. Applying 320 reviewed files one at a time,",
+        "#    each reviewed and explicit, on a database that did not exist a minute ago, IS the manual apply",
+        "#    CP-051 requires. `--include-all` is the thing being avoided, and it is not used.",
+        "export STAGING_DB_URL='postgresql://...:5432/postgres'",
+        "for f in $(ls supabase/migrations/*.sql | sort); do",
+        "  echo \"== applying $f\"",
+        "  psql \"$STAGING_DB_URL\" -v ON_ERROR_STOP=1 --single-transaction -f \"$f\" || { echo \"STOP at $f\"; break; }",
+        "done",
+        "",
+        "# 3. PROVE THE APPLIED HISTORY IS THE CHAIN, not something that resembles it.",
+        "supabase migration list --db-url \"$STAGING_DB_URL\"",
+        "#    PASS requires: every version under supabase/migrations/ is listed as applied, and nothing else is.",
+        "#    A version MISSING here is the CP-104/DB-008 out-of-band class and must be investigated, not skipped.",
+        "",
+        "# 4. Generate from the project, with an explicit source. Never `linked`.",
+        "export SUPABASE_TYPE_SOURCE=project-id",
+        "export SUPABASE_TYPE_PROJECT_ID='<the project ref, 8-64 lowercase alphanumerics>'",
+        "npm run generate:database-types",
+        "",
+        "# 5. Verify.",
+        "npm run check:database-types",
+        "node supabase/tests/db008_chain_contract_replay.mjs . /tmp/db008/replay-staging.json",
+        "node supabase/tests/db008_contract_attribution_audit.mjs .",
+        "npm run agents:validate"
+      ],
+      "knownObstacleRecordedNotWorkedAround": "Ten active migrations create `storage.objects` policies, and `CREATE POLICY` enforces `pg_class_ownercheck`, which a replay role satisfies only as the exact owner, a superuser, or a member of the owning role. Under a non-owner replay role the chain ABORTS at the first of them. DB-013's lane applied the CP-059 subtransaction-guard pattern to all ten (10/10 harness scenarios pass), so a replay role that is neither the owner nor a superuser should now complete the chain and report a `sqlstate`/`sqlerrm` WARNING for each policy it could not create. The operator should run the replay AS the table owner or as a superuser, which is the ordinary case for a fresh project, and should READ the warnings rather than treat them as success: a warning per policy is the guard working, and a policy set that is materially smaller than the chain's is a target whose provenance is not the chain. `supabase/tests/db008_storage_replay_guard.harness.sh` is the reference for what a correct outcome looks like."
+    },
+    "verificationThatTheProcedureActuallyWorked": [
+      "`npm run check:database-types` \u2014 re-runs the generator against the SAME source and compares byte-for-byte with the committed file. This is the reproducibility proof: it is what makes the committed contract a function of the chain rather than of one moment.",
+      "`node supabase/tests/db008_chain_contract_replay.mjs . <out>` \u2014 the direction proof. `outOfBandColumns`, `outOfBandRelations`, `contractOnlyRelations` and `contractOnlyRoutines` must ALL be 0 after regeneration. A non-zero value in any of them means the target had surface the chain does not create, and the regenerated contract now encodes a database this repository cannot reproduce.",
+      "`node supabase/tests/db008_contract_attribution_audit.mjs .` \u2014 every contract column must be attributable to a named active migration that mentions both the relation and the column. 5,170 attributions with 0 unsupported at this SHA; the count will rise with the regenerated file and the ZERO is the assertion.",
+      "`bash supabase/tests/db008_run_all.sh` \u2014 8 PASS lines when `DB_LINKED_TYPES` is unset, and the assertion must be on the per-harness PASS lines rather than the runner's own summary counter, which DB-008 measured as wrong (`ran 9, skipped 1, failed 0` after executing EIGHT harnesses, because `ran` is incremented before the skip check).",
+      "A SCOPED typecheck, not a full one \u2014 the same shape DB-008 used: every file under app/, lib/, components/ and types/ containing `.select(` as tsconfig `files[]`, run with `--noEmit --noErrorTruncation`. `--noErrorTruncation` is not optional: tsc abbreviates a long union as `... 380 more ...`, and that abbreviation is what made 29 of DB-008's 173 SelectQueryError lines unrecoverable. The expected movement after regeneration is the 76 closable diagnostics (60 column-drift across 3 pairs, plus 16 relation-literal across 4 literals) going to zero. The 27 in this file and the 304 relation-literal diagnostics do NOT move, which is precisely why they needed an owner."
+    ],
+    "theHardRuleAndWhyItIsWrittenDown": "`--linked` must never be used as a generation source for this repository, and the reason is a SET relationship rather than a size, so it cannot be argued away by a target that happens to be smaller. The committed contract has zero out-of-band relations, columns and callables against the active chain. A target carrying 78 relations and 112 columns that no active migration creates is, by that single property, not the contract's source \u2014 no matter how many relations it has. Regenerating from it would delete 78 relations, 112 columns and 27 callables and add 285 relations of which 276 no active migration creates. CP-016 exists to prevent exactly that, silently.",
+    "whoOwnsTheNextAction": "release/ops, for whether a chain-built target is provisioned at all. DB-019 owns the IDENTITY of the source, which CP-127 determined from evidence, and does not own the provisioning. The mechanical blocker is recorded in the same place DB-008 recorded it: no local stack can be built without roughly 10 GB of free disk, and this machine's free space changed from 6.7 GiB to 17 GiB during the task, so route A is now capacity-feasible and route B remains the route that unblocks CI.",
+    "measuredAfterDB019": {
+      "note": "MEASURED, not projected. The replay instrument was run against the real repository with DB-019's three migrations in the chain, so the projected-after numbers in routeA_localStack.expectedResult are superseded by these. Every figure is read out of the report file, not computed by hand.",
+      "command": "node supabase/tests/db008_chain_contract_replay.mjs . /tmp/db019/replay.json",
+      "activeMigrationCount": 320,
+      "chainLast": "20260927130200_music_tracks_certification_view.sql",
+      "chainTables": 413,
+      "chainViews": 18,
+      "chainColumns": 5493,
+      "chainRoutines": 230,
+      "chainOnlyTriggerFunctions": 87,
+      "contractRelations": 402,
+      "contractColumns": 5275,
+      "contractRoutines": 100,
+      "projectedAfterChainBuiltRegeneration": {
+        "relations": 431,
+        "columns": 5341,
+        "callableFunctions": 143,
+        "delete": {
+          "relations": 0,
+          "columns": 0,
+          "callables": 0
+        },
+        "basis": "402 + chainOnlyRelations 29, 5275 + staleColumns 66, 100 + chainOnlyCallables 43. The 29 includes DB-019's two new tables (user_news_preferences, user_news_subscriptions) and one relation from a concurrent lane's 20260927120000_ticketing_issuance_slot_dedup.sql."
+      },
+      "cp016SupersetPropertyHolds": {
+        "contractReproducibleFromChain": true,
+        "outOfBandColumns": 0,
+        "outOfBandRelations": 0,
+        "contractOnlyRelations": 0,
+        "contractOnlyRoutines": 0,
+        "viewColumnsWithoutProvenance": 0,
+        "whyThisIsTheAssertionThatMatters": "These five zeros are what make regeneration SAFE rather than merely possible. A non-zero value in any of them means the target carried surface no active migration creates, and a regenerated contract would then encode a database this repository cannot reproduce. All five are 0 with DB-019's three files in the chain, so adding them did not weaken CP-016's gate."
+      },
+      "db019ColumnsAreVisibleToTheGate": {
+        "artist_blog_posts": [
+          "format",
+          "subtitle",
+          "boilerplate",
+          "embargo_until",
+          "distribution"
+        ],
+        "attributedTo": "20260927130000_news_press_schema_gaps.sql",
+        "howVerified": "All five appear in the replay report's staleColumns list with createdIn = this task's file, which means the CP-016 instrument resolved them out of a multi-clause `add column if not exists` statement rather than treating the statement as one column. That was worth checking: a migration whose columns the instrument cannot see would be invisible to the gate that decides whether regeneration is safe, which is a quiet failure rather than a loud one.",
+        "theTwoNewTables": "Their 11 columns do not appear in staleColumns, and correctly so: a relation the contract does not declare at all is counted once, as a relation, in chainOnlyRelations. The instrument is not blind to them.",
+        "theViewColumns": "The four music_tracks output columns are not in staleColumns either. A view's output columns are resolved by the separate `viewColumnReplay` surface, and that is the harness that measured them - see below."
+      },
+      "viewColumnReplayMeasuredNotPredicted": {
+        "harness": "bash supabase/tests/db008_run_all.sh -> scenario view-replay (supabase/tests/db008_view_column_replay.harness.sh)",
+        "pass": true,
+        "viewDdlExtracted": "17 statements, 4 of them for music_tracks",
+        "musicTracksRow": "DIFF  music_tracks  resolved=38  declared=34  VIEW-ONLY=origin_status,certification_status,certification_level,certification_public_id",
+        "total": "TOTAL  views=13  contractOnlyColumns=0  viewOnlyColumns=4  unresolvedViews=0",
+        "whatThisProvesAndDoesNot": "The repository's existing view gate picked DB-019's `create or replace view` up VERBATIM out of the chain, let a real PostgreSQL 16.15 resolve the SELECT list, and got 38 output columns with the four trust columns named. That is the independent confirmation the inbound handoff asked for: 'Add music_tracks to its relation list asserting the four trust columns, which will reproduce this failure locally and turn the fix into a verified one rather than an assumed one.' The list already contained music_tracks, so no list change was needed, and the assertion now exists in two independent places - this harness and the migration's own post-condition. `contractOnlyColumns=0` is the load-bearing number: the gate fails only on coverage LOSS, and coverage loss is still 0, so appending four columns to a view keeps the chain a strict superset of the contract. `viewOnlyColumns=4` is the correct and expected consequence of the chain now being four columns ahead of an un-regenerated contract, and it is the delta a chain-built regeneration will clear."
+      },
+      "attributionAudit": {
+        "command": "node supabase/tests/db008_contract_attribution_audit.mjs . (executed inside the harness as the `attribution` scenario)",
+        "contractColumnsChecked": 5170,
+        "viewRelationsCovered": 13,
+        "noChainProvenance": 0,
+        "attributionUnsupportedByTheCitedFile": 0,
+        "note": "5,170 is unchanged from DB-008's figure because `lib/database.types.ts` is byte-unchanged. It will rise with the regenerated file; the ZERO is the assertion."
+      }
+    }
+  },
+  "notRunAndNotClaimed": [
+    "`lib/database.types.ts` was NOT regenerated, NOT hand-edited, NOT merged with a partial payload. SHA-256 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7, byte-identical to the value DB-008 recorded, verified with `shasum -a 256` and with `git status --porcelain -- lib/database.types.ts` returning empty.",
+    "`npm run generate:database-types` was NOT run. `supabase start` was NOT attempted, per this task's brief. No image was pulled and no container was started.",
+    "No full-repo `npm run typecheck` was run or is claimed. The 27 diagnostic counts are DB-008's scoped measurement, carried forward with that label, and were not re-measured here.",
+    "`bash supabase/tests/db008_run_all.sh` was not run by this lane, so the prediction recorded under `routeA_localStack.expectedResult` about that harness reporting `viewOnlyColumns=4` for music_tracks is a PREDICTION with a stated basis and not a measurement.",
+    "No environment of any kind was contacted. No migration was applied anywhere. No `supabase db reset`, no `db push --include-all`, no forced or full-chain replay, no rollback, no data edit (CP-051).",
+    "No hosted evidence of any kind exists or is claimed, and the `--linked` target was NOT re-queried \u2014 the disqualification rests on the contract's own zero-out-of-band property, not on re-measuring that target."
+  ]
+}

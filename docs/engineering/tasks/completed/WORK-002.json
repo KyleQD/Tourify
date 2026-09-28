@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "id": "WORK-002",
+  "title": "Build staffing persona matrix",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-09T09:35:21.490Z",
+  "updated_at": "2026-09-11T17:47:55.428Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; task edits are limited to persona documentation and work-agent state",
+  "goal": "Publish the staffing persona matrix (org + staffing personas) required by WS-1.1 acceptance",
+  "scope": {
+    "in": [
+      "docs/organization-personas.md",
+      "docs/engineering/agents/work/"
+    ],
+    "out": []
+  },
+  "working_set": [
+    "docs/organization-personas.md",
+    "docs/engineering/agents/work/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/work/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Staffing persona matrix published; WS-1.1 acceptance met"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Staffing matrix maps every required persona to active Supabase RLS/RBAC functions and migrations.",
+      "agents:validate passed with the pre-existing RELEASE-001 warning only.",
+      "Staffing matrix maps every required persona to active Supabase RLS/RBAC functions and migrations; control-plane validation passed with only the pre-existing RELEASE-001 warning."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T17:47:55.428Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Staffing persona matrix is complete and maps required personas to active RLS/RBAC enforcement.",
+    "completed": [
+      "Published the staffing persona matrix with Supabase enforcement evidence.",
+      "Prepared a non-mutating persona/RLS probe handoff with fixture contract, P01-P14 expected outcomes, read-only policy checks, and evidence requirements."
+    ],
+    "next_steps": [
+      "No further implementation in this bounded task; reopen only for a verified regression."
+    ],
+    "blockers": [
+      "Live persona/RLS probes remain owned by the database/QA release gate after the WS-1.1 migration batch is applied; shift-hardening and workforce-permission manifests are still planned, and no fixture IDs or live target were provided."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T20:00:29.788Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Published the staffing persona matrix in docs/organization-personas.md, mapping owner/admin, operations, workforce, finance, worker, revoked, cross-org, and unauthenticated personas to active Supabase RLS/RBAC evidence.",
+        "completed": [],
+        "next_steps": [
+          "Run WS-1.1 persona/RLS probes against the intended local Supabase target after the staged migration batch is applied."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-09T20:05:20.759Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Expanded documentation scope to the canonical organization persona registry, then recorded the Supabase RLS/RBAC evidence for every staffing persona required by WS-1.1.",
+        "completed": [],
+        "next_steps": [
+          "Database/QA should execute the local Supabase persona probes after WS-1.1 migrations are applied."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-11T00:10:41.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Prepared the staffing persona/RLS probe contract for Database/QA, preserving the canonical registry and server-side boundaries; no migrations or data changes were performed.",
+        "changed_paths": [
+          "docs/engineering/agents/work/PERSONA_RLS_PROBES.md",
+          "docs/engineering/tasks/active/WORK-002.json"
+        ],
+        "verification": [
+          "npm run agents:validate — pass: validated 17 agents, 69 tasks, 0 errors; pre-existing RELEASE-001 warning only.",
+          "Read-only static review of 20260823072000_shift_rls_hardening.sql, 20260823073000_workforce_permission_granularity.sql, and 20260823210000_harden_hiring_onboarding_pii.sql — probe boundaries match the migration contracts.",
+          "No Supabase migrations applied and no data-changing commands run."
+        ],
+        "blockers": [
+          "Live execution requires an isolated Supabase target, disposable fixtures, and the staged migration gate; no live probe was run."
+        ],
+        "next_steps": [
+          "Database/QA executes P01-P14 and records migration versions, fixture manifest, row delta, and policy/session results in the owning release/task evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T00:12:37.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Corrected WORK-002 checkpoint structure and verified the task record plus probe handoff; acceptance remains open pending live Database/QA persona probes.",
+        "changed_paths": [
+          "docs/engineering/agents/work/PERSONA_RLS_PROBES.md",
+          "docs/engineering/tasks/active/WORK-002.json"
+        ],
+        "verification": [
+          "node -e JSON.parse(WORK-002.json) — pass.",
+          "rg probe-contract assertions for P01, P14, can_view_hiring_pii, persisted_row_delta, and fixture guard — pass.",
+          "git diff --check -- docs/engineering/tasks/active/WORK-002.json docs/organization-personas.md — pass.",
+          "npm run agents:validate — pass: validated 17 agents, 69 tasks, 0 errors; pre-existing RELEASE-001 warning only."
+        ],
+        "blockers": [
+          "Acceptance is not complete: live probes require an isolated Supabase target, disposable fixtures, and the staged migration gate; no live probe was run."
+        ],
+        "next_steps": [
+          "Database/QA runs P01-P14 from PERSONA_RLS_PROBES.md after migration reconciliation/apply, then records session outcomes, policy checks, and persisted row delta in release evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T00:13:18.300Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Final task-record validation passed; WORK-002 remains active because live persona/RLS probe acceptance is still gated on Database/QA target, fixtures, and staged migrations.",
+        "changed_paths": [
+          "docs/engineering/agents/work/PERSONA_RLS_PROBES.md",
+          "docs/engineering/tasks/active/WORK-002.json"
+        ],
+        "verification": [
+          "node JSON parse of docs/engineering/tasks/active/WORK-002.json — pass; status active; 4 checkpoints before this entry.",
+          "git diff --check -- docs/engineering/tasks/active/WORK-002.json docs/organization-personas.md — pass.",
+          "npm run agents:validate — pass: validated 17 agents, 69 tasks, 0 errors; pre-existing RELEASE-001 warning only."
+        ],
+        "blockers": [
+          "Live P01-P14 execution was not performed; acceptance remains open until Database/QA runs the probes on an isolated Supabase target after the staged migration gate."
+        ],
+        "next_steps": [
+          "Database/QA runs the documented probe contract and records migration versions, fixture manifest, session outcomes, policy checks, and persisted row delta in release evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T17:47:55.428Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Staffing persona matrix is complete and maps required personas to active RLS/RBAC enforcement.",
+        "completed": [],
+        "next_steps": [
+          "No further implementation in this bounded task; reopen only for a verified regression."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Database/QA: run the documented local Supabase persona probes after WS-1.1 migrations apply; record unrelated-user, assigned-worker, workforce-manager PII, and revoked-member outcomes."
+  ]
+}

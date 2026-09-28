@@ -1,0 +1,302 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-005",
+  "title": "Ticketing schema additive migration",
+  "status": "blocked",
+  "priority": "P0",
+  "owner_agent": "database",
+  "created_at": "2026-09-09T09:35:07.402Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (DB-005 wave 2026-09-22: HF-DISC-002-CREATOR-METADATA actioned — new additive migration 20260922120000_creator_search_metadata_projection.sql + contract test db005c + planned manifest + artist confirmation handoff uncommitted)",
+  "goal": "Overlay missing ticketing objects (admin overview tables RPCs reference) via additive migration within DB reconciliation",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "supabase/migrations/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/database/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The additive ticketing schema is manually applied and verified in isolated staging before production",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Admin ticketing overview RPCs and the core ticketing routes resolve against the deployed schema with the expected authorization and response contracts",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Generated database types match the staged ticketing schema with zero unexplained drift",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Production application is blocked until DB-002 authorization evidence and TICKET-005 deployed lifecycle certification pass",
+      "owner": "database",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "node supabase/tests/db008_chain_surface_replay.mjs",
+          "npm run check:migration-validation"
+        ],
+        "evidence": [
+          {
+            "command": "node supabase/tests/db008_chain_surface_replay.mjs",
+            "result": "pass",
+            "detail": "Confirms ticket_shares, ticket_referrals, ticket_analytics, social_media_performance, get_admin_ticketing_overview and get_admin_ticketing_social_performance are all live in the chain and all absent from lib/database.types.ts."
+          },
+          {
+            "command": "npm run check:migration-validation",
+            "result": "pass",
+            "detail": "Whole repository, exit 0. 20260910230339's manifest still validates."
+          }
+        ],
+        "last_run_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "last_run_at": "2026-09-25T22:00:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+    "completed": [
+      "Inventoried active canonical ticketing foundation objects and the archived admin overview dependency contract.",
+      "Added additive migration 20260910230339_ticketing_admin_overview_contract.sql for ticket_shares, ticket_referrals, ticket_analytics, social_media_performance, RLS, indexes, get_admin_ticketing_overview(uuid, uuid), and get_admin_ticketing_social_performance(uuid, uuid).",
+      "Added supabase/tests/db005_ticketing_schema_contract.sql with zero-drift object, both RPC signature, RLS, policy, and grant checks.",
+      "Confirmed the admin route's second RPC dependency was absent from the active chain and added it without restoring archive SQL.",
+      "Recorded active migration-chain, control-plane, and task JSON validation as passing.",
+      "Completed a static source-contract review against the exact migration and contract-test SHA-256 values; no live schema claim is made.",
+      "Wave 2026-09-21: confirmed the exact current ticket_sales constraint set (metadata jsonb not null default '{}', buyer_user_id uuid nullable, event_id uuid not null; only partial unique indexes on order_number, stripe_checkout_session_id, webhook_event_id).",
+      "Wave 2026-09-21: authored additive migration 20260921120000_ticketing_purchase_idempotency.sql — CREATE UNIQUE INDEX idx_ticket_sales_purchase_idempotency ON ticket_sales(buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL; no column added, no table rewritten, sql lint not run (BLOCKED).",
+      "Wave 2026-09-21: authored supabase/tests/db005b_ticketing_idempotency_contract.sql (zero-drift: index presence, uniqueness, expression, partial predicate, base columns, jsonb precondition; one summary row).",
+      "Wave 2026-09-21: recorded the planned manifest with SHA-256s, layered plan, and manual-apply-pending (CP-051) status; filed pending handoff HF-DB-005-STAGING-APPLY to the release/ops operator.",
+      "Wave 2026-09-21: recorded TICKET-005's PENDING handoff (distributed DB-unique purchase idempotency) as actioned in local scope.",
+      "Wave 2026-09-22: actioned HF-DISC-002-CREATOR-METADATA — verified the canonical /api/search profile path (queryProfiles) reads ONLY public.accounts while creator-only filters (/api/search/enhanced via extractCreatorCapabilitiesV1) derive from artist_profiles.genres + artist_profiles.settings; confirmed subtype already exists as accounts.metadata.subtype within the projection select.",
+      "Wave 2026-09-22: authored additive migration 20260922120000_creator_search_metadata_projection.sql — four ADD COLUMN IF NOT EXISTS on public.accounts (artist_profile_id uuid, genres text[] not null default '{}', creator_settings jsonb not null default '{}', creator_available_for_hire boolean not null default false), column comments documenting source-of-truth + derivation, one change-guarded UPDATE ... FROM public.artist_profiles backfill over the projection identity key (idempotent, explicit WHERE, non-artist rows untouched, updated_at untouched to preserve /api/search/enhanced sort), and two partial indexes (idx_accounts_creator_artist_profile btree, idx_accounts_creator_genres gin) — no trigger, constraint, policy, RLS change, or DROP; artist_profiles remains the source of truth.",
+      "Wave 2026-09-22: authored supabase/tests/db005c_creator_search_projection_contract.sql — zero-violation queries: four columns exist, artist_profile_id mirrors ap.id, projection mirrors artist_profiles (genres/settings/availability formula), empty-safe when no artist_profiles, no leak onto non-artist rows, identity precondition, both indexes exist, plus one summary row with creator_search_projection_ready.",
+      "Wave 2026-09-22: recorded the planned manifest docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json with migration/contract SHA-256s, five documented assumptions (settings shape, public_profile gate, JSON-boolean availability semantics, projection identity key, no-SQL-derivation choice, freshness deferred), layered plan, preflight row counts, and CP-051 manual-apply-pending status.",
+      "Wave 2026-09-22: filed pending handoff HF-DB-005-ARTIST-CREATOR-FIELDS (database -> artist) requesting confirmation of artist_profiles.settings/capabilities semantics, availability JSON-boolean writing, and the freshness-trigger path before apply; marked HF-DISC-002-CREATOR-METADATA consumed with the migration filename in the handoff record.",
+      "The generated contract's staleness watermark is 20260910000001_get_active_organizer_account_for_org.sql, so every DB-005 ticketing object created at 20260910230339 is missing from it. app/api/ticketing/enhanced/route.ts selects ticket_shares (15 diagnostic hits) and ticket_referrals (4) and is entry-reachable.",
+      "Because the active chain DOES create them, these two are classified stale-types, not code-drift: the fix is `npm run generate:database-types` against a reconciled target, never a hand edit and never a new migration.",
+      "ticketing's remaining four share are code-drift and are routed in HF-DB008-TYPECHECK-TICKETING: ticket_notifications (archived only), ticket_sales.ticket_type, artist_financial_transactions.category and booking_requests.venue_id, each with the canonical replacement the chain already provides."
+    ],
+    "next_steps": [
+      "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
+    ],
+    "blockers": [
+      "DB-005's own staged-apply and contract-execution evidence is still absent; this lane applied nothing. The ticketing schema contract and the purchase-idempotency probe remain operator work.",
+      "Types regeneration is blocked repo-wide (see DB-008 remaining_blockers), so the two stale-types objects cannot be cleared until that clears."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T23:04:51.000Z",
+        "summary": "Canonical inventory found active event-ticketing foundation plus an admin RPC marker, but no active definitions for ticket_shares, ticket_referrals, ticket_analytics, or social_media_performance. Archived admin SQL was used as dependency evidence only.",
+        "changed_paths": [],
+        "verification": [
+          "Reviewed docs/engineering/INDEX.md, database charter/state, DB-005.json, database questions/decisions, active ticket migrations, archived dependency definitions, and admin route/RPC references.",
+          "CP-051 preserved: no reset, forced replay, or automatic production apply."
+        ],
+        "blockers": [],
+        "next": "Create the additive contract migration and a zero-drift SQL test without restoring archive history."
+      },
+      {
+        "at": "2026-09-11T00:31:00.000Z",
+        "summary": "Reviewed the admin route against the additive migration and found a second required RPC, get_admin_ticketing_social_performance(uuid, uuid), missing from the active chain. Added the archived-contract-compatible aggregate RPC and extended the zero-drift contract to require both RPC signatures and deny public/anon execution.",
+        "changed_paths": [
+          "supabase/migrations/20260910230339_ticketing_admin_overview_contract.sql",
+          "supabase/tests/db005_ticketing_schema_contract.sql",
+          "docs/engineering/tasks/active/DB-005.json"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — active migration chain has no duplicate policy creations (292 files scanned).",
+          "BLOCKED: SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred.",
+          "PASS: npm run agents:validate — validated 17 agents, 69 tasks, 1 pre-existing warning, 0 errors.",
+          "PASS: DB-005 JSON parse check.",
+          "CP-051: no migration apply, reset, forced replay, or production mutation attempted."
+        ],
+        "blockers": [
+          "Runtime SQL validation requires an available approved local or staging target.",
+          "Staging and production postflight evidence remains pending."
+        ],
+        "next": "Hand off the three changed paths to the approved staging operator for explicit manual application and contract execution; record both RPC postflight results before any production claim."
+      },
+      {
+        "at": "2026-09-11T18:01:06Z",
+        "summary": "Completed the permitted static DB-005 validation. The migration and SQL contract test hashes were captured; source review confirmed the four additive compatibility tables, events_v2 foreign keys, RLS enablement, invoker RPCs, and public/anon execute revocation. No approved running database was available, so runtime apply and postflight remain blocked.",
+        "changed_paths": [
+          "docs/engineering/migration-validation/20260910230339_ticketing_admin_overview_contract.json",
+          "docs/engineering/tasks/active/DB-005.json"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — 293 active migrations, no duplicate policy creations.",
+          "PASS: npm run check:migration-validation — migration scanned with planned manifest.",
+          "PASS: npm run agents:validate — validated 17 agents, 70 tasks, 0 warnings, 0 errors.",
+          "PASS: static symbol review and SHA-256 capture for the migration and SQL contract test.",
+          "BLOCKED: SUPABASE_TELEMETRY_DISABLED=1 supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred."
+        ],
+        "blockers": [
+          "No approved running target is available for SQL execution or RPC/RLS postflight."
+        ],
+        "next": "Run the migration once against an approved staging target, execute supabase/tests/db005_ticketing_schema_contract.sql, and attach staging then production postflight evidence."
+      },
+      {
+        "at": "2026-09-16T19:24:55.209Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Production-readiness audit promoted DB-005 to P0 because ticketing is in the core launch scope. Static migration evidence remains insufficient; staged application, runtime route exercise, generated-type parity, and TICKET-005 certification are required.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-21T16:00:00.000Z",
+        "sha": "bf2c5798cbb1ab12153fe18b5bcdc45038b03961",
+        "summary": "Wave 2026-09-21 lane 1: TICKET-005 PENDING handoff actioned in local scope. Confirmed ticket_sales has no DB-unique purchase idempotency (only partial unique indexes on order_number, stripe_checkout_session_id, webhook_event_id); metadata is jsonb and buyer_user_id is nullable. Authored additive migration 20260921120000_ticketing_purchase_idempotency.sql: partial unique index idx_ticket_sales_purchase_idempotency on (buyer_user_id, event_id, (metadata ->> 'idempotency_key')) WHERE metadata ->> 'idempotency_key' IS NOT NULL — mirrors the app contract (app/api/ticketing/enhanced/route.ts and lib/services/ticketing.service.ts write metadata.idempotency_key; findIdempotentPurchase matches buyer+event+key) so no application change is required and no generated-type drift occurs. Added zero-drift contract test supabase/tests/db005b_ticketing_idempotency_contract.sql, planned manifest with SHA-256s and layered plan (status planned / manual-apply-pending CP-051), and pending handoff HF-DB-005-STAGING-APPLY to the release/ops operator. Existing DB-005 files (20260910230339 migration and db005 contract test) were not modified.",
+        "changed_paths": [
+          "supabase/migrations/20260921120000_ticketing_purchase_idempotency.sql",
+          "supabase/tests/db005b_ticketing_idempotency_contract.sql",
+          "docs/engineering/migration-validation/20260921120000_ticketing_purchase_idempotency.json",
+          "docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json",
+          "docs/engineering/tasks/active/DB-005.json",
+          "docs/engineering/agents/database/STATE.md"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — 294 active migrations, no duplicate policy creations, new migration appears in the chain scan.",
+          "PASS: npm run check:migration-validation — 20260921120000_ticketing_purchase_idempotency.sql scanned with its planned manifest, zero failures.",
+          "PASS: DB-005 JSON parse check.",
+          "PASS: git diff --check on changed tracked paths; new files carry no trailing whitespace.",
+          "PASS: SHA-256 capture — migration 70bbe1c7d55633b18f8d2caa84844bd00c0bcaccf9253cddfe361553913c2106, contract test c49f7a673b5f55e71b823ff19db3a994c45f33473e444e5b249e9ccc277b6e3d.",
+          "BLOCKED: supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred; no services started."
+        ],
+        "blockers": [
+          "No approved running target is available for SQL execution or RPC/RLS postflight; local lint BLOCKED.",
+          "Staged/manual apply of the idempotency migration requires the release/ops operator per CP-051."
+        ],
+        "next": "Apply 20260921120000_ticketing_purchase_idempotency.sql once on an approved staging target, run the db005b contract test, run the concurrent-first-request 23505 probe and the TICKET-005 purchase-idempotency vitest suite, then record postflight evidence."
+      },
+      {
+        "at": "2026-09-22T12:00:00.000Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (uncommitted wave artifacts in dirty worktree)",
+        "summary": "Wave 2026-09-22 lane 2: DISC-002 PENDING handoff HF-DISC-002-CREATOR-METADATA actioned. Authored additive migration 20260922120000_creator_search_metadata_projection.sql on the canonical accounts search projection (CP-052) — artist_profile_id, genres, creator_settings (raw settings snapshot), creator_available_for_hire — backfilled from artist_profiles over profile_table='artist_profiles' AND profile_id=ap.id with a change-guard and explicit WHERE, plus partial btree identity and gin genre indexes; no constraint/policy/RLS/trigger/DROP, updated_at untouched. subtype not duplicated (accounts.metadata.subtype already in the projection select). Skills/creatorType/service stay derived by extractCreatorCapabilitiesV1 from the carried raw settings (no SQL parsing drift). Added zero-drift contract test supabase/tests/db005c_creator_search_projection_contract.sql, planned manifest (SHA-256 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7, taskId DB-005, status planned / manual-apply-pending CP-051, five assumptions), filed pending artist handoff HF-DB-005-ARTIST-CREATOR-FIELDS, and marked HF-DISC-002-CREATOR-METADATA consumed. Existing DB-005 idempotency files were not modified.",
+        "changed_paths": [
+          "supabase/migrations/20260922120000_creator_search_metadata_projection.sql",
+          "supabase/tests/db005c_creator_search_projection_contract.sql",
+          "docs/engineering/migration-validation/20260922120000_creator_search_metadata_projection.json",
+          "docs/engineering/handoffs/pending/HF-DB-005-ARTIST-CREATOR-FIELDS.json",
+          "docs/engineering/handoffs/pending/HF-DISC-002-CREATOR-METADATA.json",
+          "docs/engineering/tasks/active/DB-005.json",
+          "docs/engineering/agents/database/STATE.md"
+        ],
+        "verification": [
+          "PASS: node scripts/ci/check-active-migration-chain.mjs — active chain has no duplicate policy creations and includes the new migration 20260922120000_creator_search_metadata_projection.sql.",
+          "PASS: npm run check:migration-validation — migration scanned with its planned manifest, zero failures (status planned / manual-apply-pending CP-051).",
+          "PASS: SHA-256 capture — migration 9661008d3d023fed024222940420b5e747aa5e61fdc5cea83c3ac3cbcc20c3f7, contract test c8674c4363579c058b525d9951668fe4c5660c772ee561626bed693f475e571a.",
+          "PASS: static symbol probe — four columns, guarded UPDATE ... FROM public.artist_profiles, both partial indexes present; no drop/delete/truncate/reset statements.",
+          "PASS: db005c static review — zero-violation contract queries authored with empty-safe and non-artist-leak assertions.",
+          "BLOCKED: supabase db lint --local — ECONNREFUSED at 127.0.0.1:54322; no database mutation occurred; no services started.",
+          "BLOCKED: contract-test runtime and generated-types regeneration (CP-016) require an approved live Supabase target; skipped locally and recorded, not fabricated."
+        ],
+        "blockers": [
+          "No approved running target is available for SQL execution, db005c runtime, types regen, or postflight; local lint BLOCKED.",
+          "CP-051: manual staging/production apply of 20260922120000_creator_search_metadata_projection.sql requires the release/ops operator.",
+          "Artist-domain confirmation of settings/capabilities source semantics (HF-DB-005-ARTIST-CREATOR-FIELDS) precedes any freshness trigger."
+        ],
+        "next": "Resolve HF-DB-005-ARTIST-CREATOR-FIELDS with the artist agent; operator applies the migration once on staging per CP-051; run db005c + capture postflight evidence; then CP-016 types regen and the DISC-002 canonical-filter extension with /api/search/enhanced retirement."
+      },
+      {
+        "at": "2026-09-25T20:52:43.572Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: found the ticketing contract gap DB-005's own migration created. 20260910230339 creates ticket_shares, ticket_referrals, ticket_analytics, social_media_performance, get_admin_ticketing_overview and get_admin_ticketing_social_performance, and NONE are in lib/database.types.ts, because the committed contract's watermark is 20260910000001. ticket_shares and ticket_referrals are the ONLY two object literals in the entire 1,384-diagnostic failure that a type regeneration would actually fix, so they are classified stale-types, not code-drift, and need no migration.",
+        "completed": [],
+        "next_steps": [
+          "DB-005's staged apply and contract execution are still absent. Types regeneration is blocked repo-wide by DB-008's out-of-band DDL reconciliation, so the two stale-types objects cannot clear until that does."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T21:39:16.039Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 34: no new DB-005 work. Measurement note: ticket_shares and ticket_referrals (20260910230339) remain the only two Wave 33 objects a regeneration alone can satisfy, and they are still chain-created, so that count is unchanged at 2. The refreshed inventory reclassifies them stale-types. The precondition regeneration needed is now green: the chain is a strict superset of the contract, so those two - and the other 11 chain-only relations and 42 chain-only callables - will be added by regeneration rather than lost. Still blocked only on a reachable target.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged: operator manual staging apply of 20260921120000 and the db005b/db005c contract tests, then regeneration. Ticketing schema certification and the events_v2 cutover evidence are unchanged."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-25T23:22:46.989Z",
+        "sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+        "summary": "Wave 35 database lane: no change to this task's surface. Repo gates re-verified green at the shared HEAD (check:migration-chain 309 files, check:migration-validation repo-wide, check:migration-ledger 18 classified / 291 unreconciled, agents:validate 0 errors). Three migrations authored this wave are recorded on DB-011 and DB-008; two of them touch tables this task's acceptance criteria depend on being untouched, and both were verified to leave RLS, policies and triggers alone.",
+        "completed": [],
+        "next_steps": [
+          "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from)."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "CONSUMED (wave 2026-09-21): TICKET-005 PENDING handoff — distributed DB-unique purchase idempotency on ticket_sales — actioned in local scope by migration 20260921120000_ticketing_purchase_idempotency.sql (partial unique index on buyer_user_id, event_id, metadata->>'idempotency_key').",
+    "PENDING HF-DB-005-STAGING-APPLY (docs/engineering/handoffs/pending/HF-DB-005-STAGING-APPLY.json): release/ops operator applies the idempotency migration once on staging, runs the db005b contract test and runtime 23505 probe, and attaches postflight evidence.",
+    "CONSUMED (wave 2026-09-22): HF-DISC-002-CREATOR-METADATA PENDING handoff (docs/engineering/handoffs/pending/HF-DISC-002-CREATOR-METADATA.json) — creator metadata for the canonical search projection — actioned by migration 20260922120000_creator_search_metadata_projection.sql + contract test db005c + planned manifest.",
+    "PENDING HF-DB-005-ARTIST-CREATOR-FIELDS (docs/engineering/handoffs/pending/HF-DB-005-ARTIST-CREATOR-FIELDS.json): database -> artist confirmation of artist_profiles.settings/capabilities semantics, availability JSON-boolean writing, and the freshness-trigger path before the migration is applied.",
+    "HF-DB008-TYPECHECK-TICKETING: ticketing agent to repoint the four ticketing code-drift objects (ticket_notifications, ticket_sales.ticket_type, artist_financial_transactions.category, booking_requests.venue_id); the two stale-types objects (ticket_shares, ticket_referrals) need no code change, only type regeneration after the reconciled target is available."
+  ],
+  "wave34Note": "No new DB-005 work. One measurement correction touches it: the two ticket_shares / ticket_referrals diagnostics were the only Wave 33 objects a regeneration could satisfy, and they still are - 20260910230339_ticketing_admin_overview_contract.sql creates them and the chain has them. The refreshed inventory reclassifies them stale-types, so the count of objects regeneration alone can fix is unchanged at 2. The broader regeneration precondition is now green (see DB-008.wave34), so those two are unblocked in principle and still blocked on a reachable target.",
+  "execution_state": "waiting_dependency",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [
+    "DB-008"
+  ],
+  "resume_condition": "Unchanged. This task's own blockers are unchanged: no hosted apply, no hosted postflight, no security-advisor result. Read HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE for the new CP-016 precondition (the repo's own generator fails with ENOBUFS above 1 MB of type output, and the linked project is a different database that must never be regenerated from).",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "database",
+      "condition": "DB-005's own staged-apply and contract-execution evidence is still absent; this lane applied nothing. The ticketing schema contract and the purchase-idempotency probe remain operator work.",
+      "dependency_task_ids": [
+        "DB-008"
+      ]
+    }
+  ]
+}

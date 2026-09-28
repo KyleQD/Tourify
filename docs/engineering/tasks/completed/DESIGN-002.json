@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-002",
+  "title": "Unify use-mobile hook",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-09T09:35:21.783Z",
+  "updated_at": "2026-09-10T16:30:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Resolve the 4 twin use-mobile files with different return contracts into one canonical hook",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "hooks/",
+    "components/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/design-system/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "One canonical use-mobile hook"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": ["git diff --check", "npx eslint hooks/use-mobile.ts hooks/use-mobile-performance.ts components/ui/sidebar.tsx", "npx tsc --noEmit --strict --skipLibCheck --target ES2020 --module esnext --moduleResolution bundler hooks/use-mobile.ts hooks/use-mobile-performance.ts"],
+    "evidence": ["Removed hooks/use-mobile.tsx and components/ui/use-mobile.tsx after confirming no live imports reference either path.", "hooks/use-mobile.ts remains the canonical object-returning contract used by shared callers.", "git diff --check passed; scoped TypeScript passed; ESLint passed with 0 errors and only pre-existing hook-rule warnings in use-mobile-performance.ts."],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T16:30:00.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed shared use-mobile consolidation; hooks/use-mobile.ts is the canonical contract and duplicate shared implementations are removed.",
+    "completed": ["Removed hooks/use-mobile.tsx and components/ui/use-mobile.tsx after static import verification.", "Validated the canonical hook and direct callers with scoped TypeScript, ESLint, and diff checks."],
+    "next_steps": ["Start DESIGN-003: shared EmptyState/ErrorState/Skeleton primitives."],
+    "blockers": [],
+    "checkpoints": [{"at": "2026-09-10T16:30:00.000Z", "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b", "summary": "Shared use-mobile hook consolidated and verified in the main worktree; no live callers reference removed duplicates.", "next": "Launch DESIGN-003 in a separate worktree."}]
+  },
+  "handoffs": []
+}

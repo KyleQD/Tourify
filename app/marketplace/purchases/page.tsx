@@ -26,6 +26,8 @@ export default function MarketplacePurchasesPage() {
   const [orders, setOrders] = useState<BuyerOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
 
   useEffect(() => {
     void loadOrders()
@@ -57,6 +59,48 @@ export default function MarketplacePurchasesPage() {
     }
   }
 
+  function canCancelOrder(order: BuyerOrder) {
+    return order.status === "pending" && order.payment_status !== "paid" && order.payment_status !== "refunded"
+  }
+
+  async function cancelOrder(order: BuyerOrder) {
+    setCancellingOrderId(order.id)
+    setErrorMessage(null)
+    setActionMessage(null)
+    try {
+      const response = await fetch(`/api/marketplace/orders/${order.id}/cancel`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setErrorMessage(extractApiError(body, "Unable to cancel this order."))
+        return
+      }
+      setOrders(current =>
+        current.map(item =>
+          item.id === order.id
+            ? {
+                ...item,
+                status: "cancelled",
+                payment_status: "failed",
+                marketplace_order_items: item.marketplace_order_items?.map(orderItem => ({
+                  ...orderItem,
+                  fulfillment_status: "cancelled",
+                })),
+              }
+            : item,
+        ),
+      )
+      setActionMessage("Order cancelled.")
+    } catch {
+      setErrorMessage("Unable to cancel this order right now.")
+    } finally {
+      setCancellingOrderId(null)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black px-4 py-8 text-white">
       <div className="mx-auto max-w-4xl space-y-6">
@@ -72,6 +116,9 @@ export default function MarketplacePurchasesPage() {
 
         {errorMessage ? (
           <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">{errorMessage}</div>
+        ) : null}
+        {actionMessage ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">{actionMessage}</div>
         ) : null}
 
         {isLoading ? (
@@ -89,10 +136,13 @@ export default function MarketplacePurchasesPage() {
               <article key={order.id} className="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium">Order {order.id.slice(0, 8)}</div>
+                    <Link href={`/marketplace/order/${order.id}`} className="text-sm font-medium hover:underline">
+                      Order {order.id.slice(0, 8)}
+                    </Link>
                     <div className="mt-1 text-xs text-slate-400">{new Date(order.created_at).toLocaleString()}</div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-200">{order.status}</Badge>
                     <Badge variant="secondary" className="bg-slate-800 text-slate-200">{order.payment_status}</Badge>
                     <div className="text-sm font-semibold">
                       {order.currency || "USD"} {Number(order.total_amount || 0).toFixed(2)}
@@ -111,13 +161,36 @@ export default function MarketplacePurchasesPage() {
                         </Badge>
                         {item.product_type === "digital_asset" ? (
                           <Button asChild size="sm" variant="outline" className="border-slate-700">
-                            <Link href={`/api/marketplace/delivery/${item.id}`}>Download</Link>
+                            <Link href={`/marketplace/delivery/${item.id}`}>Download</Link>
                           </Button>
                         ) : null}
                       </div>
                     </li>
                   ))}
                 </ul>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3">
+                  <p className="text-xs text-slate-400">
+                    {canCancelOrder(order)
+                      ? "Awaiting payment. You can cancel this order before it is paid."
+                      : order.status === "cancelled"
+                        ? "This order has been cancelled."
+                        : order.payment_status === "paid"
+                          ? "Paid orders are handled by the seller refund workflow."
+                          : "No cancellation action is available for this order."}
+                  </p>
+                  {canCancelOrder(order) ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-rose-500/50 text-rose-100 hover:bg-rose-500/10"
+                      disabled={cancellingOrderId === order.id}
+                      onClick={() => void cancelOrder(order)}
+                    >
+                      {cancellingOrderId === order.id ? "Cancelling..." : "Cancel order"}
+                    </Button>
+                  ) : null}
+                </div>
               </article>
             ))}
           </section>

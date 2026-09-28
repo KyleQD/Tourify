@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Briefcase, Loader2, Plus, Send, X } from "lucide-react"
 
 import {
@@ -177,6 +177,19 @@ export function ArtistJobPostingWizard({
   const [equipmentInput, setEquipmentInput] = useState("")
   const [genreInput, setGenreInput] = useState("")
   const [benefitInput, setBenefitInput] = useState("")
+  const latestInitialValues = useRef(initialValues)
+
+  latestInitialValues.current = initialValues
+
+  useEffect(() => {
+    if (!open) return
+    setFormData(buildInitialValues(latestInitialValues.current))
+    setSkillInput("")
+    setEquipmentInput("")
+    setGenreInput("")
+    setBenefitInput("")
+    setStep(1)
+  }, [open])
 
   useEffect(() => {
     if (!open) return

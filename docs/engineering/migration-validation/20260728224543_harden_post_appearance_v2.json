@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728224543_harden_post_appearance_v2.sql",
+  "taskId": "DB-007",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": ["posts", "appearance", "feature-flags"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with post_style_profiles, post_appearances, post_appearance_revisions, posts, follows, and feature_flags present and empty",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.post_appearances",
+      "select count(*) from public.post_style_profiles"
+    ],
+    "expectedAffectedRows": "No rows are rewritten or backfilled; the migration adds constraints, policies, a guard trigger, a revision trigger, and one function against empty tables",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the idempotent drop-if-exists/create-or-replace sequence inside the explicit transaction; no data mutation occurs",
+    "resumeCursor": "post_appearances_schema_version_check and post_appearances_source_profile_id_fkey constraint definitions on post_appearances",
+    "idempotency": "Every policy, constraint, trigger, and function is created with drop-if-exists or create-or-replace; the whole file is wrapped in begin/commit"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant keys or user data are inferred, backfilled, or quarantined; only empty tables are constrained and guarded"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["public.post_appearances.post_appearances_schema_version_check", "public.post_appearances.post_appearances_source_profile_id_fkey"],
+    "indexes": [],
+    "validationPlan": "Both constraints are added to an empty post_appearances table inside a single transaction; the schema_version CHECK expands to (1, 2) in this migration and V3 expands it further (20260731233358) before any V3 writer ships. The source_profile_id FK targets post_style_profiles(id) with ON DELETE SET NULL. REL-102 exception covers the plain (non-NOT VALID) add on the existing table."
+  },
+  "recovery": {
+    "rollback": "Drop the two constraints, the guard/revision triggers, and the reader policy in a forward migration if the family is rolled back",
+    "forwardFix": "Any future schema-version expansion is an additive constraint replacement, never a snapshot rewrite"
+  },
+  "postflight": {
+    "queries": [
+      "select conname, convalidated, pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.post_appearances'::regclass order by conname",
+      "select tgname from pg_trigger where tgrelid = 'public.post_appearances'::regclass and not tgisinternal order by tgname",
+      "select count(*) from pg_policies where schemaname = 'public' and tablename = 'post_appearances'"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": [
+    {
+      "id": "REL102-HARDEN-APPEARANCE-CONSTRAINTS",
+      "type": "blocking-constraint-reviewed",
+      "owner": "database-engineering",
+      "rationale": "Archived V2 harden migration adds post_appearances_schema_version_check (CHECK schema_version IN (1,2)) and post_appearances_source_profile_id_fkey (FK to post_style_profiles, ON DELETE SET NULL) as plain constraints on an existing table. Promoted byte-identical from the pre-reconciliation archive; the file is wrapped in begin/commit and touches only the empty post_appearances table (restored by 20260728001001 in the same promotion). The CHECK is deliberately replaced by the subsequent premiere V3 migration (extends to IN (1,2,3) with NOT VALID + validate) so any blocking risk is bounded, and the base V1/V2 set matches the schema_version contract asserted by __tests__/post-styles/migration-contract.test.ts.",
+      "issue": "REL-102",
+      "expiresOn": "2027-09-01",
+      "evidence": "static-review:REL102-HARDEN-APPEARANCE-CONSTRAINTS",
+      "sourceSha256": "827892c299e90ed362642d21233f2d429c39c38a25e80558a354738a7df1a024"
+    }
+  ]
+}

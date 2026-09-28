@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import type { ChangeEvent } from 'react'
 import { formatSafeDate, formatSafeDateTime } from '@/lib/events/admin-event-normalization'
+import { detailSurfacePattern } from '@/components/dashboard/detail-surface-pattern'
+import { cn } from '@/lib/utils'
 
 interface BookingDetailsModalProps {
   booking: {
@@ -28,21 +29,22 @@ export function BookingDetailsModal({ booking, notes, onChangeNote, onClose }: B
 
   return (
     <Dialog open={!!booking} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className={detailSurfacePattern.dialogContent}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle>Booking Details</DialogTitle>
+          <DialogTitle className={detailSurfacePattern.title}>Booking Details</DialogTitle>
         </DialogHeader>
-        <div>
-          <div className="font-bold text-lg mb-2">{booking.eventName}</div>
+        <div className={cn(detailSurfacePattern.subtleText, "space-y-1 text-slate-200")}>
+          <div className={cn(detailSurfacePattern.title, "font-bold text-lg mb-2")}>{booking.eventName}</div>
           <div>Organizer: {booking.organizer}</div>
           <div>Date: {formatSafeDateTime(booking.date)}</div>
           <div>Attendees: {booking.attendees}</div>
           <div>Status: {booking.status}</div>
           <div>Received: {formatSafeDate(booking.received)}</div>
           <div className="mt-4">
-            <label className="block text-xs text-gray-400 mb-1">Internal Notes</label>
+            <label className={cn(detailSurfacePattern.label, "block text-xs mb-1")}>Internal Notes</label>
             <textarea
-              className="w-full bg-gray-800 border border-gray-700 rounded-md p-2 text-white"
+              className={cn(detailSurfacePattern.textarea, "w-full p-2")}
               value={notes}
               onChange={handleNoteChange}
               rows={3}
@@ -51,9 +53,9 @@ export function BookingDetailsModal({ booking, notes, onChangeNote, onClose }: B
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose} className={detailSurfacePattern.btnPrimary}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
-} 
+}

@@ -1,0 +1,307 @@
+{
+  "schema_version": "2.0",
+  "id": "EVENTS-005",
+  "title": "Fix the event posts and event claims call sites against the new chain",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "events",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "events",
+  "created_at": "2026-09-28T01:40:00.000Z",
+  "updated_at": "2026-09-28T19:30:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree (other lanes in flight, ~690 entries at session start); additive changes only. No migration authored, no database touched, nothing staged, nothing committed (CP-051).",
+  "goal": "Repair the four call-site defects the new event_posts chain exposes and record the two event_claims decisions its consumers depend on.",
+  "scope": {
+    "in": [
+      "The four call-site defects named in HF-DB023-EVENT-POSTS-CALLERS, fixed or explicitly accepted with a recorded reason",
+      "The two decisions named in HF-DB023-EVENT-CLAIMS-POLICY-PATH: whether event_claims follows public.events_v2, and who may transition event_claims.status",
+      "Correcting the FALSE ln claim in HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE so it is not repeated downstream"
+    ],
+    "out": [
+      "Authoring the forward migration for an events_v2 discriminator. The database lane owns supabase/migrations/** and authors it once the decision is recorded",
+      "The operator apply of 20260928010000_event_posts_and_event_claims.sql, which is HF-DB023-EVENT-POSTS-CLAIMS-APPLY and is owner-gated",
+      "EVENTS-003's type-drift reconciliation, which is genuinely blocked on DB-008 and is a different body of work from this one",
+      "The event_attendance event_table question, which is HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR and is addressed to the social lane"
+    ]
+  },
+  "working_set": [
+    "app/api/events/[id]/posts/route.ts",
+    "app/api/events/[id]/page/route.ts",
+    "app/api/events/[id]/claim/route.ts",
+    "app/api/events/[id]/tour/route.ts",
+    "lib/feed/feed-posts-query.ts (READ ONLY -- the established pattern to follow, not to edit)",
+    "components/events/enhanced-event-page.tsx",
+    "__tests__/events/event-posts-chain-contract.test.ts (NEW \u2014 this exact filename is yours alone)",
+    "docs/engineering/agents/events/STATE.md",
+    "docs/engineering/handoffs/pending/HF-DB023-EVENT-POSTS-CALLERS.json (discharge)",
+    "docs/engineering/handoffs/pending/HF-DB023-EVENT-CLAIMS-POLICY-PATH.json (discharge)",
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE.json (annotate the false ln claim)"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/handoffs/pending/HF-DB023-EVENT-POSTS-CALLERS.json",
+    "docs/engineering/handoffs/pending/HF-DB023-EVENT-CLAIMS-POLICY-PATH.json",
+    "docs/engineering/tasks/completed/DB-023.json",
+    "docs/engineering/tasks/completed/EVENTS-004.json",
+    "docs/engineering/agents/events/CHARTER.md",
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The events lane is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The PostgREST embed defect is closed: neither app/api/events/[id]/posts/route.ts nor app/api/events/[id]/page/route.ts selects a profiles:user_id (...) embed, and both hydrate the owner in application code following the existing lib/feed/feed-posts-query.ts pattern. The alternative \u2014 adding a foreign key to public.profiles so the embed resolves \u2014 is explicitly rejected in the record with the canonical user_id shape as the reason, because it would make one profile concept live in two places.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "FIXED, NOT ACCEPTED. Both `profiles:user_id (...)` embeds are removed.",
+        "`app/api/events/[id]/posts/route.ts:89-107` now selects `'*'` and passes the rows to `hydrateEventPostOwners`; `app/api/events/[id]/page/route.ts:150-160` does the same. Verified absent by test: `__tests__/events/event-posts-chain-contract.test.ts` strips comments from both files and asserts no `profiles:user_id (` remains. Comments are stripped because both routes explain in prose exactly which embed they no longer select, so a raw-source regex would match the explanation of the fix.",
+        "HYDRATION IS ONE SHARED DERIVATION, NOT TWO COPIES. `app/api/events/_lib/event-post-owners.ts` (NEW) resolves authors with a second `profiles` read keyed on the distinct `user_id` values, exactly as `app/api/feed/posts/route.ts`'s `fetchOwnerProfiles` (184-202) implements the pattern `lib/feed/feed-posts-query.ts:3` records. The events lane's own state records the rule this follows: do not add a second derivation of the same question.",
+        "PATH EXPANSION, AND WHY. `app/api/events/_lib/event-post-owners.ts` was not in the granted working set. It is added because TWO callers need the identical derivation and the lane's recorded discipline is against duplicating a derivation. It sits beside `event-reference.ts` and `event-permissions.ts` in the events lane's own `_lib`, and `__tests__/events/event-subresource-authorization.test.ts`'s directory walk covers `app/api/events/[id]/` only, so the route enumeration is unaffected (verified: 19 test files, 210 tests pass, including that one).",
+        "THE REJECTED ALTERNATIVE IS RECORDED IN CODE, NOT ONLY HERE. The doc comment on `hydrateEventPostOwners` states that adding a foreign key to `public.profiles` was rejected because it is an authorization-relevant constraint and would make these two routes the only embed of their kind in the repository; the canonical shape is `user_id uuid references auth.users(id)`, the same shape `public.posts` has at `20240430000000_create_posts.sql:6`. A test asserts the migration's `event_posts` block still contains `user_id uuid not null references auth.users(id)` and contains no `references public.profiles`, so 'the embed stopped working, add the FK' fails the suite instead of becoming the next fix.",
+        "RESPONSE CONTRACT UNCHANGED. Each post still carries a `profiles` key, because the embed produced one. A missing profile is `null` rather than a synthesized object, so a consumer can distinguish 'no profile' from 'a profile with empty fields'. Tests assert all three cases: hydrated, hydrated, and null.",
+        "FAILURE DIRECTION IS FAIL-CLOSED ON THE COSMETIC ARM ONLY. A failed profile read degrades every post to `profiles: null` and is logged; it does not fail the post read. The rows are already authorized by the route's own viewer gate, and dropping them because an avatar lookup failed would be an outage on a public page rather than a guard. Tested both ways.",
+        "MEASURED FACT WORTH RECORDING: neither `GET /api/events/[id]/posts` nor `GET /api/events/[id]/page` has a live in-repo consumer. `rg` over app/, components/, lib/ and hooks/ for a fetch of either endpoint returns nothing. The `profiles` key was therefore kept for an unmeasured external surface rather than for a known caller -- a reason to preserve the shape, not a reason to skip the work."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The client-side insert in components/events/enhanced-event-page.tsx is routed through app/api/events/[id]/posts/route.ts so the server-side policy is the only writer, OR the record states in writing that any signed-in user may post publicly on any event and accepts that as the intended spam surface. Silently leaving a second write path is not one of the two acceptable answers.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "ANSWER 1 OF THE 2 ACCEPTABLE: THE WRITE IS ROUTED THROUGH THE API ROUTE. `components/events/enhanced-event-page.tsx:215-288` `handleCreatePost` now does `fetch('/api/events/${eventId}/posts', { method: 'POST' })` and the direct `supabase.from('event_posts').insert(...)` is gone. Verified by test: no `.from('event_posts')...insert(` remains in the component, and a companion test asserts the `fetch` to the API route and `method: 'POST'` are present.",
+        "ANSWER 2 WAS NOT CHOSEN, AND THE SPAM SURFACE IS NOT UNCHANGED. The permissive surface is real and still real: the installed `event_posts_own_insert` is `auth.uid() = user_id AND (visibility = 'public' OR EXISTS(attending))`, so any signed-in account can post a public post on any event id, and DB-023 measured an own 'public' insert SUCCEEDING with that policy installed. The events lane did NOT narrow the policy (it does not own `supabase/migrations/**`) and did NOT accept the surface in writing. It removed the second writer so that the permissive policy is the only path, which is what makes it narrowable later in exactly one place. The doc comment in the component says this in those terms.",
+        "THREE THINGS THE ROUTING FIXED BEYOND 'ONE WRITER':",
+        "  (a) `is_announcement` was previously set by the component from client React state. The route derives it from `isCreator`, which is the resolved owner, so it is no longer a caller-asserted field. Pinned by a test on the route source.",
+        "  (b) `event_table` was hardcoded to `'events'` by the component. The route writes `event_table: reference.table` from `resolveEventReference`. MEASURED CORRECTION TO THE OBVIOUS CLAIM: this component is a LEGACY-`events` surface, not a three-store one -- `loadEventData` reads `supabase.from('events')` and `loadEventPosts` filters `event_table = 'events'`. I checked rather than assumed. For a legacy id the API resolves to `'events'`, so write and read stay consistent. The one behaviour change is that a duplicate id across two event stores now fails closed with 404 (`resolveEventReference` returns null on a cross-store duplicate) where the component previously wrote straight past the resolver. That is the correct direction and it is stated in the code comment.",
+        "  (c) The component no longer needs its own `fetchProfilesByIds` call for the new post: the route hydrates the author and falls back to the caller's auth metadata, so the response already carries `user`.",
+        "THE COMPONENT'S `event_posts` READ WAS DELIBERATELY NOT MOVED, and a test pins that it still reads directly, so nobody 'finishes the job' without noticing the assertion. Rationale and the raised successor: HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "A caller-supplied visibility or type value outside the admitted set is rejected before it reaches the database. The value is validated with a zod enum rather than cast, so an unknown value is a 4xx and not a row the policy never considered.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "`app/api/events/[id]/posts/route.ts:37-45` declares `createEventPostSchema` with `type: z.enum(['text','image','video','announcement']).default('text')` and `visibility: z.enum(['public','attendees']).default('public')`. Those are the installed CHECK literals, asserted by a test that reads the migration text and matches both CHECK clauses literally.",
+        "IT IS `safeParse`, NOT `parse`, and the reason is the status code. `parse` throws a ZodError, the route's catch block catches it, and the caller gets a 500 -- which is the exact status the defect produced. `safeParse` returns 400 with the offending field named (139-151), so the caller can correct the request instead of retrying it unchanged.",
+        "MEASURED BEFORE THE FIX: an unadmitted value did not fail validation, it failed the database CHECK with 23514, and the route's generic error handler reported 500. So a value the disclosure policy never considered arrived as an opaque server error. Now it is a 400 and the write never happens.",
+        "TESTS ASSERT THE ABSENCE OF THE WRITE, not just the status: `visibility: 'organizers'` is 400 with zero `event_posts` writes attempted; `type: 'audio'` is 400 with zero writes; a numeric `content` and a string `media_urls` are each 400; a whitespace-only body is still 400. All four admitted `type` literals are accepted and the written payload is asserted to equal the validated value. An absent type and visibility are asserted to write `'text'` and `'public'`, not `undefined`.",
+        "NEGATIVE CONTROL: every guard in this file was run against the base SHA source to confirm it fires on the defect and is silent on the fix. Nine checks, all load-bearing in both directions -- see progress.verification.",
+        "`media_urls` IS VALIDATED AS AN ARRAY OF STRINGS AND NOT AS URLS, deliberately. The column is `text[]`; a future writer may legitimately store a storage path, and a URL check at the route would be a narrower gate than the column it protects. The array check still earns its place: the previous shape did `media_urls.length`, which throws on a non-array and lands in the catch block as a 500."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "A dated decision records whether public.event_claims follows public.events_v2, and the database lane is handed a forward migration as a handoff rather than being asked to guess. If the answer is that it does not, the record says why the two can coexist.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "DECISION 2026-09-28, EVENTS-005 (events lane, which owns the claim product surface): public.event_claims DOES NOT FOLLOW public.events_v2, and NO discriminator migration is owed. THE FULL REASONING AND THE MEASUREMENTS ARE IN HF-EVENTS-005-CLAIMS-DISCRIMINATOR-ANSWER. Summary of the four independent facts:",
+        "  (1) The code that creates the rows a claim is filed against says so on the INSERT: `lib/events/canonical-event-service.ts:125-128` writes `public.events` with `artist_id: null` and the comment 'Imported events have no owning artist user; ownership arrives via the claims flow'. Provider ingestion writes `public.events` and never `events_v2` (`rg` over lib/events/ and app/api/integrations/: event-matcher.ts:102, canonical-event-service.ts:125/:189/:220, get-upcoming-attending-events.ts:109).",
+        "  (2) A canonical event cannot lack an owner: `supabase/migrations/20250816133000:51` declares `events_v2.created_by uuid not null references auth.users(id)`. There is no `events_v2` row in the schema that a claim could apply to.",
+        "  (3) The claim route independently refuses the same claim, for the same reason, without reference to the FK: `app/api/events/[id]/claim/route.ts:52-54` returns 409 ALREADY_OWNED whenever the event has an owner.",
+        "  (4) All three live consumers read or write `public.events` (claim/route.ts:47, tour/route.ts:26, admin/event-claims/route.ts:59), so the FK and the call sites agree -- the contract is coherent, not consistent by accident.",
+        "THE CONSEQUENCE DB-023 MEASURED IS CORRECT BEHAVIOUR, NOT A DEFECT TO MIGRATE AWAY. A claim against a non-`events` id is refused 23503 by the FK, so a canonical events_v2 event can never be claimed. That is the database refusing to attach a provider-ingestion ownership transfer to an org-owned, natively-created event. The three parents are not three versions of one thing: `public.events` holds provider-imported unowned rows, `public.artist_events` holds creator-owned legacy rows, `public.events_v2` holds Tourify-native org rows owned from creation. A claim names the first. A discriminator would assert all three are claimable, which is false for two, and would replace a real single-relation foreign key (which cascades deletes) with a nullable column nothing can enforce.",
+        "THE MIGRATION WAS NOT AUTHORED, per the task record's own scope exclusion, and is NOT BEING REQUESTED. If the answer had been yes the shape would have been: add `event_table`, drop the `event_id -> public.events(id)` FK (losing the cascade or re-implementing it per arm), and add a three-arm predicate to two policies. That work is deliberately not done and should not be done on the strength of this decision.",
+        "THE SUCCESSOR IS NAMED, NOT IMPOSED: only if the product decides an org or venue should be able to claim a canonical events_v2 event -- a decision that has not been made and is implied by nothing in the repository -- does a discriminator become correct. That is new work with a new decision, and it belongs to EVENTS-001's events_v2 lifecycle surface.",
+        "ONE REAL RESIDUAL THIS DECISION EXPOSES, NAMED AND NOT FIXED: `app/api/events/[id]/tour/route.ts:26` reads `public.events` directly and never goes through `resolveEventReference`, so the only live `event_claims` consumer is legacy-only. Widening it to the three-store resolver changes which store an event id resolves to and is therefore EVENTS-001's decision, not a call-site fix. Left alone, with the reason recorded."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "A dated decision records who may transition public.event_claims.status, in the knowledge that every live consumer is service-role and therefore bypasses its own policies. The decision names the actor, not the mechanism, and states the auditable question: status is what app/api/events/[id]/tour/route.ts:39 reads to grant event ownership.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "DECISION 2026-09-28, EVENTS-005: THE ACTORS ARE NAMED, AND THE MECHANISM IS NOT.",
+        "  ACTOR 1 (the only one that may transition a claim by judgement): A PLATFORM ADMINISTRATOR acting through `app/api/admin/event-claims/route.ts`. No other human or system may.",
+        "  ACTOR 2 (the only other writer, and it is a derivation rather than a decision): the auto-verification arm inside `app/api/events/[id]/claim/route.ts`, which may write `status: 'approved'` ONLY as a computed result of a verified provider connection whose `created_by` is the claimant (claim/route.ts:66-79). It is a function of evidence, not an input.",
+        "  NOBODY ELSE. Specifically: a claimant may FILE a claim and may never set a status. No route may read a status off a request body -- `status` is a SERVER-DERIVED value on this table, always.",
+        "  THE ACTOR IS NOT `service_role`. Naming the role would be naming the mechanism, and the measurement is precisely that the mechanism is not a control: all three consumers resolve `.from()` through `createServiceRoleClient()`, and service_role carries BYPASSRLS.",
+        "THE AUDITABLE CONSEQUENCE, AND WHY IT IS URGENT: `app/api/events/[id]/tour/route.ts:34-42` reads `event_claims` with `.eq('event_id', eventId).eq('claimant_user_id', user.id).eq('status', 'approved')` to grant event ownership, and line 48 then writes `events.tour_id` with that authority. DB-023 measured that a `service_role` insert of `status='approved'` SUCCEEDS with every policy installed. So the actor that decides who owns an event is currently whichever code path holds the service-role key.",
+        "WHY THE SCHEMA CANNOT ENFORCE THIS, AND WHAT ENFORCES IT INSTEAD: `event_claims_self_read` and `event_claims_self_insert` are decorative on every live path (service-role BYPASSRLS), and the `status = 'pending'` clause of the self-insert policy -- the clause that would stop a caller self-approving a claim and thereby taking an event through the tour route -- is decorative too. What actually denies a caller-side write today is the GRANT: `authenticated` holds SELECT on event_claims and nothing else. THAT PAIRING IS RATIFIED, NOT REVISITED, and the events lane's decision adds three application-side rules that are each independently checkable: (a) no route may accept a caller-supplied status; (b) the auto-verify arm's `created_by` predicate is load-bearing and must not be relaxed, because it is the only thing standing between a named account id and a self-approved claim; (c) when a caller-side writer ever appears, `authenticated` must hold no INSERT or UPDATE on event_claims, and the self-insert policy's `status = 'pending'` clause becomes the control.",
+        "VERIFIED THAT THE ONE LIVE READ IS ALREADY CALLER-SCOPED, so no change was needed there: `tour/route.ts:38` filters `claimant_user_id = user.id`, so an approved claim grants authority to its own claimant and to nobody else.",
+        "THE HONEST STATE OF THE SURFACE, WHICH THE DECISION MAKES EXPLICIT: there is currently NO actor that can perform a transition, because the claim WRITE path and the admin REVIEW path are both gated on capabilities inside EXTERNAL_PROVIDER_FLAGS, and `external_event_providers` is `status: 'disabled'`, `exposure: 'none'` in `lib/config/launch-capabilities.ts` ('deferred pending provider approval evidence'). Both are permanently 503 today. So the only live `event_claims` consumer is the tour route, which READS a status and never writes one. The service-role insert of `status='approved'` that DB-023 proved succeeds is reachable from code inside this repository, not from a product surface. That is a launch posture, not an oversight, and the decision records it rather than leaving it to be discovered.",
+        "AND THE SURFACE THAT IS SUPPOSED TO BE ACTOR 1 IS CURRENTLY NON-FUNCTIONAL: `app/api/admin/event-claims/route.ts:53` references `admin.id` with no `admin` in scope. MEASURED with a scoped `tsc --noEmit`: exactly one error, `TS2304: Cannot find name 'admin'` at 53:48. `withPlatformAdmin` (lib/auth/api-auth.ts:251-266) invokes its handler as `(request, auth)` and binds no third argument, so the value the route wants is `auth.user.id` -- the second argument. Because `reviewed_by` is the only column recording WHO decided a claim, a transition with no recorded actor is the exact failure this decision exists to prevent, so the decision is not enforceable until that line resolves. THE EVENTS LANE DID NOT EDIT THAT FILE: `app/api/admin/**` is outside its grant and outside its charter. Raised as HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF, which also flags that the two capability gates must be decided TOGETHER (opening review while filing stays closed yields a queue that can never be filled).",
+        "A NOTE ON THE TRAP, RECORDED BECAUSE IT IS THE SAME ONE THIS LANE HAS ALREADY BEEN HIT BY: binding a third handler argument would silently yield `undefined`, and `reviewed_by` would be written as null on every transition with no error at any layer. `withAdminCapability` (lib/auth/api-auth.ts:276-300) is the wrapper that DOES pass a third `admin: ActingAdminContext`, and it is the one this route appears to have been written against."
+      ]
+    },
+    {
+      "id": "AC-6",
+      "criterion": "The false ln claim in HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE is corrected or annotated so no future lane re-derives a nonexistent object from it, and the correction is attributed to the lane that measured it rather than asserted by this one.",
+      "owner": "events",
+      "state": "met",
+      "evidence": [
+        "CORRECTED, AND THE CORRECTION IS ATTRIBUTED TO THE LANE THAT MEASURED IT (database, DB-023) rather than asserted by this one. EVENTS-005 annotated the record at its own initiative because it is the lane that raised the false claim; it did not re-derive the measurement and does not claim to have.",
+        "`docs/engineering/handoffs/completed/HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE.json`: the `summary` field now LEADS with the correction, because that is the field a future reader reads first and it previously carried the false claim as fact. A new `superseded_evidence` array retains the original wording so the correction is auditable rather than silent, plus `corrected_by` / `measurement_attributed_to` fields naming the lanes.",
+        "SCOPE EXPANSION, AND WHY. The granted working set named only the handoff, and the handoff is in `completed/`, not `pending/`. I searched the whole worktree for a surviving live assertion of `ln` and found two more: this lane's own durable state, and the ORIGIN record `docs/engineering/tasks/completed/EVENTS-004.json:135`, whose acceptance-criteria evidence still stated it as fact. The origin is the likeliest place for a future lane to re-derive a nonexistent object from, so AC-6's intent is not met by correcting only the handoff. Both were annotated; EVENTS-004.json is append-only annotated, no original text rewritten.",
+        "`docs/engineering/agents/events/STATE.md`: the durable fact that asserted 'The `event_claims` archive file names the table `ln`' is REPLACED with the correction, the real object names, the likely origin of the transcription, and a pointer to the evidence. In the same edit the adjacent claim that neither table is created by any active migration was updated, because DB-023 changed it and leaving it would have been a second falsehood in the same list.",
+        "SWEEP RESULT, MEASURED: after the annotation, `rg --no-ignore --hidden` for `ln_self`, `idx_ln_`, `public.ln` and `'\"ln\"'` across the repository returns SIX files -- this task record, the DB-023 record, `agents/database/STATE.md`, the two handoffs, and `agents/events/STATE.md`. EVERY ONE carries a correction or a disproof; none carries the claim as fact. `\"ln\"` as a quoted string appears in NO file at all. The migration header at `20260928010000:62-80` also states the correction, so a lane reading only the SQL is not misled either.",
+        "THE CONCLUSION IS UNCHANGED AND THE RECORD SAYS SO: the claim path still has no row-level guarantee, re-derived independently by DB-023 -- every live consumer uses `createServiceRoleClient()` and service_role carries BYPASSRLS. The correction changes the REASON, not the conclusion, which is the whole reason it needed recording rather than just deleting."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "events",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/events/",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "PASS `npx vitest run __tests__/events/` \u2014 Test Files 19 passed (19), Tests 210 passed (210), Duration 2.36s. Includes the new `__tests__/events/event-posts-chain-contract.test.ts` (28 tests) and the 9 pre-existing events test files, notably `event-subresource-authorization.test.ts`, which still walks `app/api/events/[id]/` and passes unchanged \u2014 the new `_lib` module is not in that directory and the 26-route enumeration is unaffected.",
+          "PASS `npm run agents:validate -- --strict` \u2014 'validated 27 agents, 246 tasks, 113 pending handoffs, 0 warnings, 0 errors'.",
+          "SCOPED TYPECHECK, REPORTED AS SCOPED. A full-repo `tsc --noEmit -p tsconfig.json` OOMs on this machine by design (CP-106): confirmed, exit 134, heap trace in /tmp. Three scoped projects were used instead, each extending the base tsconfig with `incremental: false`: (a) the two routes plus the new `_lib` module; (b) the component; (c) the test file, which needs its own project because the base tsconfig excludes `**/*.test.ts`.",
+          "ROUTES: 6 errors remain, and they are the PRE-EXISTING BASELINE, verified by typechecking the base-SHA copies of the same two files side by side: 2 per route, TS2589 'Type instantiation is excessively deep' plus TS2769 on the `.order()` builder chain. Base had the same 6 at lines 24/25 and 124/125 (posts) and 118/119 (page); after the change they are at 99/100, 243/244 and 145/146. NET NEW TYPE ERRORS: ZERO. One TS2345 I introduced on the hydration call site was found and fixed.",
+          "COMPONENT: 21 errors, down from 40 at base. All 21 are in the pre-existing read path (lines 120-143) and the pre-existing `setEvent({...})` mapping (168-173). ZERO errors in the new `handleCreatePost` (lines 210-300). No new error code appears: `comm` of the base code set against the current one is empty.",
+          "TEST FILE: zero errors.",
+          "ROOT CAUSE OF THE PRE-EXISTING TS2769, NOW NAMED RATHER THAN GUESSED AT: `event_posts` is NOT a table in the generated `lib/database.types.ts`. The overload error text enumerates 385 tables and `event_posts` is not among them, so `.from('event_posts')` falls through to the postgrest fallback. Measured across the four relations: `event_attendance`, `events_v2` and `profiles` are present (1 each); `event_posts` and `event_claims` are ABSENT. Those are exactly the two tables DB-023 introduced, and the fix is the CP-016 types regeneration, which is the release/database lane's gate and not this one. Named as a residual rather than worked around."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T19:28:00.000Z"
+      }
+    ],
+    "negative_controls": [
+      "Every source-level guard in __tests__/events/event-posts-chain-contract.test.ts was run against the base-SHA bytes of the same file. Result: 6/6 'must NOT match' guards fire on the defect and are silent on the fix; 3/3 'must match' guards are absent on base and present now; the new error-code set is empty. Zero vacuous guards. (The tenth check, that no event_posts->profiles foreign key was introduced, cannot run against the base SHA because the migration file is itself new and uncommitted -- it is asserted inside the test and passes.)",
+      "The AC-5 decision's falsifier was checked rather than assumed: it would be wrong if an events_v2 row could be ownerless. `created_by uuid not null` at 20250816133000:51 makes that impossible in the schema, and claim/route.ts:52-54 independently refuses the same claim in application code. Two independent refusals agreeing.",
+      "Absence of a compiler finding was not treated as evidence of safety anywhere. The full-repo typecheck OOMs, so three scoped projects were run and each was compared against a base-SHA baseline of the same files rather than read for cleanliness."
+    ]
+  },
+  "progress": {
+    "summary": "EVENTS-005 is DONE. All six acceptance criteria are met. Four call-site defects FIXED (not accepted): the `profiles:user_id` embed removed from both routes and owners hydrated in application code following lib/feed/feed-posts-query.ts; the component's insert routed through the API so the server-side policy is the only writer; `visibility` and `type` validated with zod enums so an unadmitted value is a 400 and never a 500; and both routes' `event_attendance` read errors handled explicitly instead of silently defaulting isAttending to false. Two decisions RECORDED: event_claims does NOT follow events_v2 (no discriminator migration is owed), and only a platform admin plus one computed auto-verification arm may transition event_claims.status. The false `ln` claim is CORRECTED in four records and swept. Verification: 210/210 events tests, agents:validate --strict clean, zero net-new type errors across three scoped projects.",
+    "completed": [
+      "AC-1 FIXED: both `profiles:user_id (...)` embeds removed; owners hydrated in application code via one new shared module.",
+      "AC-2 ANSWERED 1 OF 2: the component's write is routed through app/api/events/[id]/posts/route.ts. The permissive policy is unchanged and is now the only path, so it is narrowable in one place later.",
+      "AC-3 FIXED: zod enums for `visibility` and `type`, validated with safeParse so the rejection is a 400 rather than a thrown ZodError caught as a 500.",
+      "AC-4 DECIDED (negative): public.event_claims does NOT follow public.events_v2, and no discriminator migration is owed. Handed to the database lane as HF-EVENTS-005-CLAIMS-DISCRIMINATOR-ANSWER so it is not asked to guess.",
+      "AC-5 DECIDED: the actor is a platform admin via app/api/admin/event-claims/route.ts, plus the one computed auto-verification arm in the claim route. `service_role` is explicitly NOT the answer. The surface that is supposed to be that actor is currently non-functional (TS2304) and is handed to the admin lane.",
+      "AC-6 CORRECTED: the false `ln` claim is corrected at the head of HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE's summary, retained under superseded_evidence, and additionally corrected in the ORIGIN record EVENTS-004.json and in this lane's own STATE.md. Attributed to the database lane, which measured it.",
+      "Defect 4 FIXED: both routes now destructure and act on the event_attendance read error. posts/route.ts uses .maybeSingle() (a zero-row match was PGRST116 into a 500) and fails closed on the elevated arm only; page/route.ts states the failure in the response contract (`attendance.unavailable`, `posts_unavailable`) instead of returning an empty-looking page.",
+      "NEW: __tests__/events/event-posts-chain-contract.test.ts, 28 tests, with every guard proven load-bearing by running it against the base-SHA source.",
+      "NEW: app/api/events/_lib/event-post-owners.ts \u2014 one shared owner-hydration derivation for two callers."
+    ],
+    "next_steps": [
+      "NEXT PRODUCT GATE FOR THE EVENTS LANE: EVENTS-001, still blocked on the operator apply of 20260927110000_events_v2_delete_rls.sql. EVENTS-005's AC-4 residual (`tour/route.ts` is the only live event_claims consumer and is legacy-only) belongs to that surface and is recorded in this record rather than absorbed.",
+      "EVENTS-003 remains blocked on DB-008 for type-drift reconciliation and is deliberately NOT folded into this task. It is unaffected by these changes.",
+      "THREE HANDOFFS RAISED, none of which the events lane can discharge itself: HF-EVENTS-005-CLAIMS-DISCRIMINATOR-ANSWER (database), HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF (admin), HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL (orchestrator).",
+      "ORCHESTRATOR OWES TWO RECORD MOVES: append proposed decisions EVENTS-005-D1 and EVENTS-005-D2 to docs/engineering/DECISIONS.md (not written here \u2014 other lanes are appending concurrently), and move HF-DB023-EVENT-POSTS-CALLERS and HF-DB023-EVENT-CLAIMS-POLICY-PATH to completed/ now that both completion conditions are discharged.",
+      "NOT WAITED ON, AND NOT CLAIMED: the operator apply of 20260928010000_event_posts_and_event_claims.sql is HF-DB023-EVENT-POSTS-CLAIMS-APPLY (release, owner-gated). No hosted or database evidence is claimed anywhere in this record. Every test in the new file uses a fake client; none talks to a database."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T18:55:00.000Z",
+        "summary": "Read INDEX, CHARTER, STATE, the task record, the two inbound handoffs in full, DB-023's record, the DB-023 migration in full, the four working-set files, and the precedent at lib/feed/feed-posts-query.ts plus its implementation in app/api/feed/posts/route.ts. Confirmed by measurement which event stores the claim surface actually spans before deciding anything.",
+        "next": "Fix AC-1 and AC-3 in the two routes, then AC-2 in the component."
+      },
+      {
+        "at": "2026-09-28T19:05:00.000Z",
+        "summary": "AC-1, AC-2, AC-3 and defect 4 implemented. Added app/api/events/_lib/event-post-owners.ts as one shared hydration derivation for two callers (working-set expansion, reason recorded in working_set_expansions).",
+        "next": "Write the contract test and make every guard load-bearing."
+      },
+      {
+        "at": "2026-09-28T19:12:00.000Z",
+        "summary": "Wrote __tests__/events/event-posts-chain-contract.test.ts. First run 12 failures, all three of my own making and all found by running it rather than by reasoning: the embed regex matched the COMMENT explaining the removal (fixed by stripping comments before any source assertion), fixtures omitted the (event_id, event_table) pair both routes filter on, and the POST route returns 200 not 201. After the fixes: 28/28.",
+        "next": "Prove the guards are not vacuous by running each against the base-SHA source."
+      },
+      {
+        "at": "2026-09-28T19:18:00.000Z",
+        "summary": "NEGATIVE CONTROL. Ran all nine source-level guards against the base SHA. Six 'must NOT match' guards all fire on the defect and are silent on the fix; three 'must match' guards are absent on base and present now. Zero vacuous guards. Separately named the root cause of the pre-existing TS2769: `event_posts` and `event_claims` are absent from the generated lib/database.types.ts while event_attendance, events_v2 and profiles are present, so `.from('event_posts')` falls through to the postgrest fallback. That is the CP-016 regeneration delta, another lane's gate.",
+        "next": "Scoped typecheck of the three changed surfaces against a base-SHA baseline."
+      },
+      {
+        "at": "2026-09-28T19:24:00.000Z",
+        "summary": "SCOPED TYPECHECKS (reported as scoped; the full-repo check OOMs by design, CP-106, confirmed exit 134). Routes: 6 errors, identical to the base-SHA baseline, net new ZERO; one TS2345 I introduced was found and fixed by typing the hydration boundary the way lib/feed/feed-posts-query.ts does. Component: 21 errors, down from 40 at base, none in the new code, no new error code. Test file: zero, in its own project because the base tsconfig excludes **/*.test.ts.",
+        "next": "Record AC-4 and AC-5 as decisions, correct the `ln` claim, raise the handoffs."
+      },
+      {
+        "at": "2026-09-28T19:28:00.000Z",
+        "summary": "AC-6 corrected in four records and swept: every one of the six files mentioning ln_self / idx_ln_ / public.ln now carries a disproof and none carries the claim as fact; \"ln\" as a quoted string appears in no file. AC-4 and AC-5 recorded with four and five measured facts respectively. Three handoffs raised. Verification run.",
+        "next": "Discharge the two inbound handoffs, move this record to completed, refresh state."
+      }
+    ]
+  },
+  "handoffs": [
+    "HF-EVENTS-005-CLAIMS-DISCRIMINATOR-ANSWER (events -> database, accepting task DB-009): the AC-4 answer, negative, so the database lane is not left to guess and is not asked to author a discriminator. DB-009 is the right recipient: its goal is 'one fail-closed identity and access contract for resolving artist_events, events, and events_v2 references', which is precisely the question this decision settles.",
+    "HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF (events -> admin, accepting task ADMIN-028): the TS2304 at app/api/admin/event-claims/route.ts:53, which is the enforcement point of the AC-5 decision and is outside the events lane's grant. ADMIN-028 was CREATED BY THIS TASK because the handoff schema requires a recipient-owned accepting task and no existing admin task covered this route. It is created BLOCKED on ADMIN-018, was not dispatched, and acceptance is the admin lane's call.",
+    "HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL (events -> orchestrator, accepting task ORCH-004): the publication-state question from HF-DB023-EVENT-POSTS-CALLERS, answered as far as the schema is concerned, with the one reachable anon read deliberately left and routed to a bounded successor the events lane cannot self-dispatch while EVENTS-001 and EVENTS-003 hold the lane.",
+    "DISCHARGED and MOVED TO completed/ BY THIS TASK: HF-DB023-EVENT-POSTS-CALLERS (all four call-site defects fixed; the publication-state question answered and its residual routed).",
+    "DISCHARGED and MOVED TO completed/ BY THIS TASK: HF-DB023-EVENT-CLAIMS-POLICY-PATH (both decisions recorded, the `ln` claim corrected in four records, and the `admin.id` reference resolved as to cause and handed off rather than edited)."
+  ],
+  "working_set_expansions": [
+    {
+      "path": "app/api/events/_lib/event-post-owners.ts",
+      "action": "NEW",
+      "reason": "Two callers (posts/route.ts and page/route.ts) need the IDENTICAL owner-hydration derivation, and the events lane's own recorded discipline is against adding a duplicate derivation of the same question. It sits in the events lane's existing _lib beside event-reference.ts. Verified it does not affect the 26-route enumeration walked by __tests__/events/event-subresource-authorization.test.ts, because that walk covers app/api/events/[id]/ and _lib is a sibling.",
+      "caller_that_required_it": "app/api/events/[id]/page/route.ts (the second of the two)"
+    },
+    {
+      "path": "docs/engineering/tasks/completed/EVENTS-004.json",
+      "action": "append-only annotation (annotations[] and one acceptance_criteria evidence string); no original text rewritten",
+      "reason": "AC-6 names only HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE. A worktree sweep for a surviving live assertion of the false `ln` claim found this ORIGIN record still stating it as fact at its acceptance_criteria evidence. The origin is the likeliest place for a future lane to re-derive a nonexistent object from, so AC-6's intent is not met by correcting only the handoff. This is a measured reason, not a convenience.",
+      "caller_that_required_it": "the AC-6 sweep (`rg --no-ignore --hidden` for ln_self / idx_ln_ / public.ln)"
+    }
+  ],
+  "proposed_decisions_for_orchestrator": [
+    {
+      "id": "EVENTS-005-D1",
+      "date": "2026-09-28",
+      "owner": "events",
+      "title": "public.event_claims follows public.events and NOT public.events_v2; no discriminator migration is owed",
+      "decision": "public.event_claims does NOT follow public.events_v2. Its `event_id uuid not null references public.events(id) on delete cascade`, transcribed from the sole archived definition, is the CORRECT constraint for the object this table describes, and no forward discriminator migration is owed by the database lane.",
+      "because": [
+        "A claim transfers ownership of an event that HAS NONE. The rows it is filed against are provider-imported: lib/events/canonical-event-service.ts:125-128 inserts into public.events with artist_id null and comments that ownership arrives via the claims flow.",
+        "A canonical event cannot lack an owner: supabase/migrations/20250816133000:51 declares events_v2.created_by uuid not null references auth.users(id). No events_v2 row in the schema is claimable, so nothing is lost.",
+        "The claim route independently refuses the same claim for the same reason and without reference to the FK: app/api/events/[id]/claim/route.ts:52-54 returns 409 ALREADY_OWNED on any owned event.",
+        "All three live consumers read or write public.events (claim/route.ts:47, tour/route.ts:26, admin/event-claims/route.ts:59), so the FK and the call sites agree. The contract is coherent, not consistent by accident."
+      ],
+      "the_consequence_that_is_NOT_a_bug": "DB-023 measured that a claim against a non-events id is refused 23503, so a canonical events_v2 event can never be claimed. That is the database correctly refusing to attach a provider-ingestion ownership transfer to an org-owned, natively-created event. The three parents are not three versions of one thing: public.events holds imported unowned rows, public.artist_events creator-owned legacy rows, public.events_v2 org-native rows owned from creation. A claim names the first. A discriminator would assert all three are claimable, which is false for two, and would replace a real cascading foreign key with a nullable column nothing can enforce.",
+      "what_was_deliberately_not_done": "The discriminator migration the task record anticipated was NOT authored, per its own scope exclusion, and is NOT being requested of the database lane. If the answer had been yes the shape would have been: add event_table, drop the event_id FK (losing the cascade or re-implementing it per arm), add a three-arm predicate to two policies. Sending that work back now would contradict this decision.",
+      "named_residual": "app/api/events/[id]/tour/route.ts:26 reads public.events directly and never resolves, so the only live event_claims consumer is legacy-only. Widening it changes which store an event id resolves to, which is EVENTS-001's decision (events_v2 lifecycle), not a call-site fix. Named, not absorbed.",
+      "successor_condition": "Only if the product decides an org or venue should be able to claim a canonical events_v2 event -- a decision not made and implied by nothing in the repository -- does a discriminator become correct. That is new work with a new decision.",
+      "handoff": "HF-EVENTS-005-CLAIMS-DISCRIMINATOR-ANSWER"
+    },
+    {
+      "id": "EVENTS-005-D2",
+      "date": "2026-09-28",
+      "owner": "events",
+      "title": "Only a platform admin, plus one computed auto-verification arm, may transition public.event_claims.status",
+      "decision": "The actor that may transition public.event_claims.status off 'pending' is a PLATFORM ADMINISTRATOR acting through app/api/admin/event-claims/route.ts, and the only other writer is the auto-verification arm inside app/api/events/[id]/claim/route.ts, which may write 'approved' solely as a computed result of a verified provider connection whose created_by is the claimant. A claimant may file a claim and may never set a status. No route may read a status off a request body: status is a SERVER-DERIVED value on this table, always. `service_role` is explicitly NOT the answer.",
+      "because": [
+        "status is what app/api/events/[id]/tour/route.ts:39 reads to grant event ownership, and line 48 then writes events.tour_id with that authority. DB-023 measured that a service_role insert of status='approved' SUCCEEDS with every policy installed, so the actor that decides who owns an event is currently whichever code path holds the service-role key.",
+        "Naming the role would be naming the mechanism, and the measurement is that the mechanism is not a control: all three consumers resolve .from() through createServiceRoleClient() and service_role carries BYPASSRLS, which makes event_claims_self_read and the status='pending' clause of event_claims_self_insert decorative on every live path.",
+        "What actually denies a caller-side write today is the GRANT -- authenticated holds SELECT on event_claims and nothing else. That pairing is ratified by this decision, not revisited."
+      ],
+      "enforcement_rules_added": [
+        "No route may accept a caller-supplied status.",
+        "The auto-verify arm's created_by predicate is load-bearing and must not be relaxed: it is the only thing standing between a named account id and a self-approved claim, and therefore between a claim and events.artist_id through the tour route.",
+        "When a caller-side writer ever appears, authenticated must hold no INSERT or UPDATE on event_claims, and the self-insert policy's status='pending' clause becomes the control."
+      ],
+      "verified_so_no_change_was_needed": "The one live read is already caller-scoped: tour/route.ts:38 filters claimant_user_id = user.id, so an approved claim grants authority to its own claimant and to nobody else.",
+      "the_honest_state_of_the_surface": "There is currently NO actor that can perform a transition. The claim WRITE path and the admin REVIEW path are both gated on capabilities inside EXTERNAL_PROVIDER_FLAGS, and external_event_providers is status 'disabled' with exposure 'none' ('deferred pending provider approval evidence'), so both are permanently 503. The only live event_claims consumer is the tour route, which READS a status and never writes one. The service-role insert of status='approved' is reachable from code inside this repository, not from a product surface. That is a launch posture, and the decision records it rather than leaving it to be discovered.",
+      "blocking_gap_named": "app/api/admin/event-claims/route.ts:53 references admin.id with no admin in scope -- measured TS2304 at 53:48 by a scoped tsc. withPlatformAdmin binds only (request, auth), so the value is auth.user.id. Because reviewed_by is the only column recording WHO decided a claim, the decision is not enforceable until that resolves. The events lane did not edit the file: app/api/admin/** is outside its grant and outside its charter.",
+      "trap_recorded": "Binding a third handler argument would silently yield undefined and write reviewed_by as null on every transition with no error at any layer. withAdminCapability is the wrapper that DOES pass a third admin: ActingAdminContext, and it is the one this route appears to have been written against.",
+      "handoffs": [
+        "HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF",
+        "HF-EVENTS-005-EVENT-POSTS-ANON-READ-RESIDUAL"
+      ]
+    }
+  ],
+  "records_this_task_created": [
+    "ADMIN-028 (admin lane, blocked on ADMIN-028's dependency ADMIN-018) -- created ONLY so that HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF has a recipient-owned accepting task, which the handoff schema requires. Not dispatched. The events lane did not create work in the admin lane's grant; it created the record the handoff points at."
+  ]
+}

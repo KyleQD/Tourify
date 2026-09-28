@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Building2 } from 'lucide-react'
 import {
   addDays,
   addMonths,
@@ -32,6 +33,7 @@ import {
   Radio,
   Search,
 } from 'lucide-react'
+import { AdminEmptyState } from '@/app/admin/dashboard/components/admin-empty-state'
 import {
   CalendarAgendaItemCard,
   CalendarDaySheet,
@@ -78,6 +80,7 @@ const KIND_CHIP: Record<AdminCalendarKind, string> = {
   shift: 'bg-neon-cyan/10 text-neon-cyan',
   production: 'bg-neon-green/15 text-neon-green',
   hiring: 'bg-neon-pink/15 text-neon-pink',
+  travel: 'bg-sky-500/15 text-sky-300',
 }
 
 const SCOPE_STORAGE_PREFIX = 'tourify.admin.calendar.scope'
@@ -236,7 +239,18 @@ export function AdminCalendarView({
 
   const hasScope = (scopeMode === 'tour' || scopeMode === 'event') && Boolean(scopeId)
 
-  const { items, summary, context, orgId, isLoading, error, refetch } = useAdminCalendar({
+  const {
+    items,
+    summary,
+    context,
+    orgId,
+    sources,
+    isDegraded,
+    isLoading,
+    error,
+    refetch,
+    isActingReady,
+  } = useAdminCalendar({
     startDate: range.startDate,
     endDate: range.endDate,
     types: enabledKinds,
@@ -245,6 +259,8 @@ export function AdminCalendarView({
     eventId: scopeMode === 'event' ? scopeId : null,
     enabled: hasScope,
   })
+
+  const degradedSources = sources.filter((source) => source.status === 'degraded')
 
   useEffect(() => {
     let cancelled = false
@@ -298,8 +314,13 @@ export function AdminCalendarView({
   useEffect(() => {
     if (isLoadingOptions || scopeResolved) return
 
-    const urlMode = parseScopeMode(searchParams.get('scope'))
-    const urlId = searchParams.get('scopeId')
+    const aliasTourId = searchParams.get('tourId') || searchParams.get('tour_id')
+    const aliasEventId = searchParams.get('eventId') || searchParams.get('event_id')
+    const urlMode =
+      parseScopeMode(searchParams.get('scope'))
+      || (aliasTourId ? 'tour' as const : null)
+      || (aliasEventId ? 'event' as const : null)
+    const urlId = searchParams.get('scopeId') || aliasTourId || aliasEventId
     if (isValidScope(urlMode, urlId, tours, events)) {
       setScopeMode(urlMode)
       setScopeId(urlId)
@@ -608,6 +629,16 @@ export function AdminCalendarView({
     )
   }
 
+  if (!isActingReady) {
+    return (
+      <AdminEmptyState
+        icon={Building2}
+        title="No organization selected"
+        description="Select an organization from the account switcher in the top navigation to continue."
+      />
+    )
+  }
+
   return (
     <div className={cn('staff-scheduling-prototype space-y-4', className)}>
       {showHeader ? (
@@ -726,6 +757,23 @@ export function AdminCalendarView({
           <div className="mb-4 rounded-xl border border-neon-red/30 bg-neon-red/10 p-3 text-sm text-neon-red">
             {error}
             <Button variant="ghost" size="sm" className="ml-2 text-neon-red" onClick={() => void refetch()}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
+
+        {isDegraded && degradedSources.length > 0 ? (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+            Some calendar sources are degraded
+            {' '}
+            ({degradedSources.map((source) => source.id).join(', ')}).
+            Showing available items.
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-2 text-amber-100 hover:text-amber-50"
+              onClick={() => void refetch()}
+            >
               Retry
             </Button>
           </div>

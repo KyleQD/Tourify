@@ -15,9 +15,11 @@ export function initSentry() {
 
   const release = getReleaseContext()
 
+  // Note: `enableInExpoDevelopment` was removed in current @sentry/react-native.
+  // Dev gating is handled below: init is skipped entirely without a DSN, and
+  // sample rates are zero outside production builds.
   Sentry.init({
     dsn,
-    enableInExpoDevelopment: false,
     debug: false,
     environment: release.buildEnvironment,
     release: `${Constants.expoConfig?.slug || "tourify-mobile"}@${release.appVersion}`,

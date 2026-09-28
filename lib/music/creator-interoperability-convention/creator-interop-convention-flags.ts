@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_INTEROP_CONVENTION_FLAG_NAMES = [
   "creator_interop_convention_readiness_enabled",
   "creator_interop_convention_drafting_enabled",
@@ -43,6 +45,9 @@ export async function resolveCreatorInteropConventionFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorInteropConventionFlags> {
+  if (!isLaunchCapabilityAvailable("creator_interoperability_convention"))
+    return { ...DISABLED_CREATOR_INTEROP_CONVENTION_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

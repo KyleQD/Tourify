@@ -1,0 +1,153 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-013",
+  "title": "Fix site-map import resource authorization",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T20:26:24.092Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Repair the site-map import capability arguments and reject unscoped writes with cross-tenant denial proof.",
+  "scope": {
+    "in": [
+      "Repair the site-map import capability arguments and reject unscoped writes with cross-tenant denial proof."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/logistics/site-maps/import/route.ts",
+    "__tests__/admin/**",
+    "lib/admin/api-route-registry.ts",
+    "scripts/ci/admin-route-registry-baseline.json",
+    "docs/engineering/agents/admin/STATE.md"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/admin/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Selected as the owner's single active implementation or verification lane.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Repair the site-map import capability arguments and reject unscoped writes with cross-tenant denial proof.",
+      "owner": "admin",
+      "state": "met",
+      "evidence": [
+        "__tests__/admin/site-map-import-scope.test.ts: two-tenant denial (403 organization_access_denied) with zero inserts, unscoped-write rejection (400 site_map_scope_required), caller-selected tenant key rejection (400 legacy_scope_field_rejected), and the authorized same-org import writing event_v2_id.",
+        "Failing-before proof: with app/api/admin/logistics/site-maps/import/route.ts restored to its base-SHA content, 6 of 7 tests fail (cross-tenant event import returned 200 and wrote rows; unscoped import returned 200; capability capture was empty).",
+        "npx vitest run __tests__/admin/ -> 272 passed | 1 skipped (273 files), 3613 passed | 12 skipped tests",
+        "node scripts/ci/check-admin-route-registry.mjs -> route files 291, legacy 53/53, OK",
+        "npx eslint app/api/admin/logistics/site-maps/import/route.ts __tests__/admin/site-map-import-scope.test.ts -> clean",
+        "scoped tsc over the two changed TS files -> exit 0, 0 diagnostics",
+        "npm run agents:validate -> 18 agents, 212 tasks, 0 warnings, 0 errors"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/admin/",
+          "node scripts/ci/check-admin-route-registry.mjs",
+          "npx eslint app/api/admin/logistics/site-maps/import/route.ts __tests__/admin/site-map-import-scope.test.ts",
+          "npm run agents:validate"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/admin/site-map-import-scope.test.ts -> 1 file, 7 tests passed",
+          "npx vitest run __tests__/admin/ -> 272 passed | 1 skipped (273), 3613 passed | 12 skipped (3625)",
+          "npx vitest run __tests__/logistics/ -> 14 files, 68 tests passed",
+          "node scripts/ci/check-admin-route-registry.mjs -> Admin API route files on disk: 291; Legacy route classifications: 53/53; OK",
+          "npx eslint <2 files> -> exit 0, no findings",
+          "npx tsc -p <scoped tsconfig over route + test> -> exit 0, 0 diagnostics",
+          "npm run agents:validate -> validated 18 agents, 212 tasks, 101 pending handoffs, 0 warnings, 0 errors"
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T13:25:00.000Z"
+      }
+    ],
+    "not_run": [
+      "Full-repo npm run typecheck was intentionally not run: the control plane measured it at ~68 minutes with 1,384 errors and it OOMs on this 8GB machine. A scoped tsc covering the changed route and its new test was run instead.",
+      "No migration was added, so no migration/RLS gate was needed. The data boundary already exists in supabase/migrations/20260903120000_site_map_zone_security_and_canonical_bridge.sql (sec104_enforce_site_map_scope BEFORE INSERT trigger plus sec104_site_maps_insert RLS policy) and this change makes the handler agree with it.",
+      "Hosted/staging actor-denial evidence remains open and is not claimed by this task."
+    ]
+  },
+  "progress": {
+    "summary": "Site-map import moved onto the canonical organization-scoped logistics.manage guard: the has_entity_permission envelope check (always truthy) and the no-check unscoped path are gone, canonical event/tour scope is required, the target parent is resolved against the acting organization before any write, and the map is written with event_v2_id.",
+    "completed": [
+      "Replaced the always-truthy has_entity_permission envelope check (and the no-check path when neither eventId nor tourId was supplied) with withAdminCapability('logistics.manage').",
+      "Rejects imports with no event or tour (400 site_map_required scope) and imports whose envelope carries event_id, event_v2_id, org_id, or created_by (400 legacy_scope_field_rejected).",
+      "Resolves the target event/tour to the acting organization through resolveAuthorizedOrgLogisticsScope (403 organization_access_denied, 409 acting_context_required) before any write, passing admin.allowedTourIds for collaborator scope.",
+      "Writes event_v2_id/tour_id through the resolved scope service client; child zone, tent, element, and activity-log rows use the same client and the new site_map_id.",
+      "Flipped the /api/admin/logistics/site-maps/import registry entry to capability_gated and lowered scripts/ci/admin-route-registry-baseline.json to 53; REL-103 check is exact at 53/53.",
+      "Added __tests__/admin/site-map-import-scope.test.ts with two-tenant denial, unscoped-write denial, tenant-key rejection, authorized-path, source-contract, and registry-parity coverage.",
+      "Updated docs/engineering/agents/admin/STATE.md: the import route is no longer deferred, and ADMIN-003 precondition handoff 5 no longer lists site-maps/import."
+    ],
+    "next_steps": [],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T13:25:00.000Z",
+        "summary": "ADMIN-013 implemented, verified, and moved to completed.",
+        "result": "AC-1 met.",
+        "evidence": [
+          "npx vitest run __tests__/admin/site-map-import-scope.test.ts -> 7 passed",
+          "Failing-before: base-SHA route restored -> 6 failed | 1 passed (cross-tenant import returned 200 instead of 403)",
+          "npx vitest run __tests__/admin/ -> 3613 passed | 12 skipped",
+          "node scripts/ci/check-admin-route-registry.mjs -> 53/53 legacy, OK"
+        ],
+        "working_set_additions": [
+          {
+            "path": "lib/admin/api-route-registry.ts",
+            "reason": "Registry/code parity: flipping the route to capability_gated would otherwise leave a new code-vs-registry drift on a P0 launch route."
+          },
+          {
+            "path": "scripts/ci/admin-route-registry-baseline.json",
+            "reason": "The REL-103 baseline must stay exact after removing one legacy_pending_migration classification."
+          },
+          {
+            "path": "docs/engineering/agents/admin/STATE.md",
+            "reason": "Three durable notes and precondition handoff 5 declared site-maps/import permanently DEFERRED; that is now stale and would mislead future ADMIN-003 batches."
+          }
+        ]
+      },
+      {
+        "at": "2026-09-27T20:26:24.092Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Site-map import moved onto the canonical organization-scoped logistics.manage guard: the has_entity_permission envelope check (always truthy) and the no-check unscoped path are gone, canonical event/tour scope is required, the target parent is resolved against the acting organization before any write, and the map is written with event_v2_id.",
+        "completed": [
+          "Replaced the always-truthy has_entity_permission capability check and the no-check unscoped path with withAdminCapability('logistics.manage') plus resolveAuthorizedOrgLogisticsScope against admin.orgId.",
+          "Rejects imports with no event/tour scope (400 site_map_scope_required) and caller-selected tenant keys (400 legacy_scope_field_rejected); cross-tenant parents are denied 403 organization_access_denied with no write.",
+          "Writes event_v2_id/tour_id through the resolved scope service client so imported maps are org-resolvable by getSiteMapAccess and the sec104 RLS/trigger boundary.",
+          "Flipped the site-maps/import registry entry to capability_gated and lowered the exact legacy baseline to 53/53 (REL-103 check OK).",
+          "Added __tests__/admin/site-map-import-scope.test.ts: two-tenant denial, unscoped-write denial, tenant-key rejection, authorized path, source contract, and registry parity."
+        ],
+        "next_steps": [],
+        "blockers": []
+      }
+    ],
+    "control_plane_follow_ups": [
+      "Completing ADMIN-013 turns `npm run agents:validate` from 0 warnings / 0 errors to 0 warnings / 8 errors, and `--strict` reports the same 8. All eight are consequences of the completion transition, not of the code change, and all eight are dispatch decisions this task did not silently make. (1) Seven handoffs in docs/engineering/handoffs/pending/ are status 'accepted' with accepting_task_id ADMIN-013: HF-DB008-SCHEMA-MISSING-ADMIN, HF-DB008-TYPECHECK-ANALYTICS, HF-DB008-UNRESOLVED-ADMIN, HF-DB008-TYPECHECK-ADMIN, HF-DESIGN-031-ADMIN, HF-INTG-033-CODEQL-OAUTH-STATE-HASH, HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY. The validator rejects an accepted handoff whose accepting task is completed (control-plane-validation.mjs:300), so each must be re-pointed to a live admin task or closed. They are the realignment tool's parked work, not part of AC-1, and their records are owned jointly with their sending lanes. Note HF-DB008-TYPECHECK-ADMIN lists this route in its working set, but its subject is the profiles.display_name / profiles.phone code-drift cluster; this change adds no profiles.* column access, so its substance is unaffected. (2) ADMIN-014 (docs/engineering/tasks/blocked/ADMIN-014.json) declares depends_on [ADMIN-013] with execution_state waiting_dependency, so it must now leave waiting_dependency for dispatch; its resume_condition 'All dependencies complete: ADMIN-013' is satisfied.",
+      "Remedy for the orchestrator: point the seven handoffs at a live admin task (or close the ones whose subject is already resolved), then activate ADMIN-014. Re-running `npm run agents:validate` afterwards should return to 0 errors."
+    ]
+  },
+  "handoffs": []
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { recordLegacyTourRouteHit, startTourTimer } from '@/lib/admin/tour-observability'
 
 const createTourSchema = z.object({
   name: z.string().min(1, 'Tour name is required'),
@@ -15,6 +16,7 @@ const createTourSchema = z.object({
 })
 
 export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
+  const timer = startTourTimer()
   try {
 
     const { searchParams } = new URL(request.url)
@@ -41,12 +43,24 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
       console.error('[Tours API] Error fetching tours:', toursError)
       // Return empty array instead of error if table doesn't exist
       if (toursError.code === '42P01') {
+        await recordLegacyTourRouteHit({
+          endpoint: '/api/tours',
+          userId: user.id,
+          statusCode: 200,
+          latencyMs: timer.elapsedMs(),
+        })
         return NextResponse.json({ 
           success: true, 
           tours: [],
           message: 'No tours found' 
         })
       }
+      await recordLegacyTourRouteHit({
+        endpoint: '/api/tours',
+        userId: user.id,
+        statusCode: 500,
+        latencyMs: timer.elapsedMs(),
+      })
       return NextResponse.json({ error: 'Failed to fetch tours' }, { status: 500 })
     }
 
@@ -95,6 +109,12 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
     }))
 
 
+    await recordLegacyTourRouteHit({
+      endpoint: '/api/tours',
+      userId: user.id,
+      statusCode: 200,
+      latencyMs: timer.elapsedMs(),
+    })
     return NextResponse.json({ 
       success: true, 
       tours: toursWithEvents,
@@ -103,6 +123,12 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
 
   } catch (error) {
     console.error('[Tours API] Error:', error)
+    await recordLegacyTourRouteHit({
+      endpoint: '/api/tours',
+      userId: user.id,
+      statusCode: 500,
+      latencyMs: timer.elapsedMs(),
+    })
     return NextResponse.json({ 
       success: true, 
       tours: [],

@@ -1,0 +1,40 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-INTG-033-CODEQL-OAUTH-STATE-HASH",
+  "task_id": "INTG-006",
+  "from_agent": "integrations",
+  "to_agent": "admin",
+  "status": "accepted",
+  "created_at": "2026-09-25T14:08:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree, branch codex/qa004-staging-campaign)",
+  "dirty_state_caveat": "Triage and routing only. INTG-033 changed neither lib/admin/content-hub/oauth-state.ts nor __tests__/integrations/security.test.ts, and dismissed no alert on GitHub. The one security-exception entry integrations registered is for the sibling alert whose sink is in an integrations-owned test file (CODEQL-94-INTEGRATIONS-SECURITY-TEST-HMAC-STATE).",
+  "summary": "CodeQL alert #95 (warning, js/insufficient-password-hash) is reported on lib/admin/content-hub/oauth-state.ts:96, which is admin-owned. The key triage finding is that every taint source CodeQL lists for #95 lives in the integrations-owned TEST file __tests__/integrations/security.test.ts at lines 20, 28, 38, 44 and 62 — i.e. the only material the rule reaches is the deterministic test secret `test-integration-secret` that the suite installs at line 15 to isolate the 10-minute TTL check from the signature check. No production secret reaches the sink. integrations triaged and registered the sibling alert on its own file (#94) and did not disposition #95, because the sink is not in the integrations working set.",
+  "working_set": [
+    "lib/admin/content-hub/oauth-state.ts:96 — createHmac('sha256', getStateSigningSecret()) in verifySignedOAuthState (the reported sink)",
+    "__tests__/integrations/security.test.ts:15,20,28,38,44,62 — the taint sources, integrations-owned, left unchanged",
+    "security/security-scan-exceptions.json — add an admin-owned entry if the not_exploitable disposition is accepted"
+  ],
+  "completed": [
+    "Retrieved the live alert record: #95, state open, dismissed_reason null, fixed_at null, rule js/insufficient-password-hash, path lib/admin/content-hub/oauth-state.ts:96, refs/pull/14/merge at d2176904.",
+    "Extracted the full taint path list CodeQL reports for #95 and confirmed all five sources are createSignedOAuthState calls inside __tests__/integrations/security.test.ts (lines 20, 28, 38, 44, 62), not production call sites.",
+    "Read the sink: lib/admin/content-hub/oauth-state.ts:96 computes a keyed HMAC-SHA256 and compares it with a length check plus timingSafeEqual at line 99. This is a message-authentication code over a short-lived state blob, not a stored credential, so a slow salted KDF is not the correct primitive and the rule's password-hash model does not apply.",
+    "Read the key source: getStateSigningSecret refuses to fall back when NODE_ENV === 'production' (lines 46-48) and throws when MARKETPLACE_INTEGRATION_SECRET is absent, so there is no production default key to weaken.",
+    "Registered the integrations-owned sibling alert #94 in security/security-scan-exceptions.json and left #95 undismissed for the owning lane."
+  ],
+  "next_steps": [
+    "Admin: register a security-exception entry for #95 in security/security-scan-exceptions.json with owner admin, decision not_exploitable, and a rationale that states the taint sources are test-fixture calls, or apply a CodeQL path-scoped suppression if the security lane prefers suppressions for test-derived flows. Do not dismiss it without recording the disposition.",
+    "Admin: if you would rather remove the finding at the source, the cleanest option is a CodeQL suppression or a test-file refactor that stops passing a secret-shaped literal into the signer; the signer itself does not need to change and should not be changed to satisfy the rule.",
+    "Return the disposition to INTG-006 so the HF-RELEASE-SEC-CODEQL tally can be reported accurately."
+  ],
+  "blockers": [
+    "lib/admin/content-hub/oauth-state.ts is outside the integrations Wave 33 file set, so integrations cannot register the exception for #95 without overwriting another lane's governance record. Both #94 and #95 stay open on GitHub until the owning lane acts."
+  ],
+  "verification": [
+    "gh api repos/KyleQD/Tourify/code-scanning/alerts/95 — rule js/insufficient-password-hash, lib/admin/content-hub/oauth-state.ts:96, state open, dismissed_reason null, fixed_at null.",
+    "gh api repos/KyleQD/Tourify/code-scanning/alerts/95 markdown — all five reported sources are createSignedOAuthState calls at __tests__/integrations/security.test.ts lines 20, 28, 38, 44, 62.",
+    "node scripts/ci/check-security-exceptions.mjs — exit 0, `Security exception registry OK — 2 active exception(s)`.",
+    "npx eslint __tests__/integrations/security.test.ts — exit 0, no output."
+  ],
+  "accepting_task_id": "ADMIN-018",
+  "completion_condition": "Admin: register a security-exception entry for #95 in security/security-scan-exceptions.json with owner admin, decision not_exploitable, and a rationale that states the taint sources are test-fixture calls, or apply a CodeQL path-scoped suppression if the security lane prefers suppressions for test-derived flows. Do not dismiss it without recording the disposition."
+}

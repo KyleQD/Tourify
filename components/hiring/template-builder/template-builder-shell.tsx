@@ -188,8 +188,13 @@ export function TemplateBuilderShell({ employer, templateId }: TemplateBuilderSh
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.error?.message ?? "Unable to save template")
 
+      const savedId = String(payload?.template?.id || payload?.data?.id || templateId || "")
       toast({ title: "Template saved", description: `${meta.name} is ready to assign.` })
-      router.push(`/admin/dashboard/hiring/templates?${queryString}`)
+      if (savedId) {
+        router.push(`/admin/dashboard/hiring/templates/${savedId}?${queryString}`)
+      } else {
+        router.push(`/admin/dashboard/hiring/templates?${queryString}`)
+      }
       router.refresh()
     } catch (error) {
       toast({
@@ -221,10 +226,19 @@ export function TemplateBuilderShell({ employer, templateId }: TemplateBuilderSh
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to templates
             </a>
           </Button>
-          <Button className="rounded-xl" onClick={saveTemplate} disabled={isSaving || isReadOnly}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            {templateId ? "Save changes" : "Create template"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {templateId && !isReadOnly ? (
+              <Button variant="outline" size="sm" className="rounded-xl" asChild>
+                <a href={`/admin/dashboard/jobs/new?onboarding_template_id=${templateId}&${queryString}`}>
+                  Attach to job
+                </a>
+              </Button>
+            ) : null}
+            <Button className="rounded-xl" onClick={saveTemplate} disabled={isSaving || isReadOnly}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {templateId ? "Save changes" : "Create template"}
+            </Button>
+          </div>
         </div>
 
         <WorkforceHero

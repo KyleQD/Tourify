@@ -1,12 +1,15 @@
 import type { MetadataRoute } from 'next'
 
 import { getPublishedArticleSitemapEntries } from '@/lib/blog/public-articles'
+import { getPublicSitemapOrigin } from '@/lib/config/public-surface'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export const revalidate = 3600
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live'
+  const host = getPublicSitemapOrigin()
+  if (!host) return []
+
   const now = new Date().toISOString()
 
   const entries: MetadataRoute.Sitemap = [

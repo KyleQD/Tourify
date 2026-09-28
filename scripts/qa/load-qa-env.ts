@@ -4,8 +4,13 @@ import { resolve } from "path"
 /** Load .env then .env.local (Next.js order). */
 export function loadQaEnv() {
   const root = process.cwd()
+  const invocationEnv = { ...process.env }
   config({ path: resolve(root, ".env") })
   config({ path: resolve(root, ".env.local"), override: true })
+
+  // Explicit command/CI values must win over repository defaults. dotenv's
+  // second override is only intended to make .env.local win over .env.
+  Object.assign(process.env, invocationEnv)
 }
 
 const DEFAULT_FLOW_PASSWORD = "QaFlowPass123!"

@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from "next/server"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 
 interface TogglePinBody {
   musicId: string
@@ -7,10 +7,10 @@ interface TogglePinBody {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
-  const userId = auth?.user?.id
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const authResult = await requireArtistMusicUser(request)
+  if (!authResult.success) return authResult.response
+  const { user, supabase } = authResult.auth
+  const userId = user.id
 
   let body: TogglePinBody
   try {
@@ -43,4 +43,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ ok: true })
 }
-

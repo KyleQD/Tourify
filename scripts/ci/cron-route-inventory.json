@@ -1,0 +1,9 @@
+{
+  "unscheduled": {
+    "/api/cron/event-reminders": {
+      "owner": "events",
+      "reason": "The route currently only enumerates eligible events; no reminder delivery or idempotency contract exists yet.",
+      "next_action": "Implement durable reminder delivery and replay protection before adding a Vercel schedule."
+    }
+  }
+}

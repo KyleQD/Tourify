@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "id": "INTG-001",
+  "title": "Audit Integrations workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "integrations",
+  "created_at": "2026-09-09T06:17:42.935Z",
+  "updated_at": "2026-09-10T22:03:01.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; docs-only reconciliation preserved unrelated changes",
+  "goal": "Audit the Integrations area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: external providers, webhooks, credential boundaries, workers, and integration resilience",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/integrations/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The integrations default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/integrations/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/integrations/BASELINE.md: what the integrations area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/integrations/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task INTG-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/integrations/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/integrations/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/integrations/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "npm run agents:context -- --task INTG-001 completed and produced the bounded context packet before audit work.",
+      "npm run agents:generate completed at source SHA 7cf660ad with topology maps refreshed; no application or migration files were edited by this task.",
+      "Read-only reconciliation verified the post-audit fixes in INTG-002, INTG-004, INTG-005, and the cryptographic portion of INTG-003 against executable paths, tests, schedules, work packets, and generated maps.",
+      "Focused current checks: Jest photo-webhook, cron-auth, and Stripe-secret suites passed 3 suites / 23 tests; the existing MFA Vitest suite passed its bcrypt-storage test but its one-time-redemption test exceeded the test's explicit 15s timeout on this host, while INTG-003 retains prior 2/2 focused-suite evidence.",
+      "npm run agents:validate passed with 0 errors and 1 pre-existing warning: RELEASE-001 completed without passing verification."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T22:03:01.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "INTG-001 complete. Produced and reconciled BASELINE.md, GAPS.md, QUESTIONS.md, STATE.md, and BACKLOG.md against current source and refreshed generated maps. Four initial findings are resolved by follow-up tasks; 23 current gaps remain (11 missing, 9 incomplete, 3 improve) with 15 prioritized owner questions. No production code or migrations changed.",
+    "completed": [
+      "Read domain working set: charter, state, architecture, backlog, decisions, interfaces, verification, WORKING_SET.json",
+      "Read and refreshed generated maps: project, routes, api-routes, components, database schema/objects, permissions, integrations",
+      "Read named references: DEVELOPMENT_WORKFLOW, PROJECT_STATE, SYSTEM_MAP, DEPENDENCY_MAP, DECISIONS, registry, DEVELOPMENT_BACKLOG",
+      "Searched provider/webhook/credential/worker code across lib/ and app/ paths",
+      "Produced docs/engineering/agents/integrations/BASELINE.md (10 sections, all claims path-referenced)",
+      "Produced and reconciled docs/engineering/agents/integrations/GAPS.md (23 current gaps; resolved findings retained with evidence)",
+      "Produced and reconciled docs/engineering/agents/integrations/QUESTIONS.md (15 prioritized questions to product owner)",
+      "Updated docs/engineering/agents/integrations/STATE.md and BACKLOG.md to reflect current INTG-003 focus and resolved INTG-002/004/005 work",
+      "No production code or migrations changed (read-only audit confirmed)"
+    ],
+    "next_steps": [
+      "Await product owner answers to QUESTIONS.md; convert each answer into a bounded follow-up task or handoff",
+      "Database/Auth contract remains the dependency for the durable MFA verification-code store in INTG-003",
+      "Release still owns runtime secret provisioning and live Upstash/health evidence"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T08:30:00.000Z",
+        "summary": "INTG-001 audit complete. Baseline established for integrations area. 26 gaps documented. Question list produced (P1 first).",
+        "questions": [
+          "Q-001 (P0): Photos webhook idempotency — build or defer? (G-001)",
+          "Q-002 (P1): MFA backup code hashing — fix now or defer? (G-009)",
+          "Q-003 (P1): MFA in-memory code store — move to DB or defer? (G-009)",
+          "Q-004 (P1): Cron route authentication — secure all now or incrementally? (G-014)",
+          "Q-005 (P1): Webhook framework — build shared abstraction or leave ad-hoc? (G-002/G-003)",
+          "Q-006 (P1): Music outbox workers — deploy as scheduled jobs or defer? (G-012)",
+          "Q-007 (P1): Event reminders — implement or drop? (G-013)",
+          "Q-008 (P1): Provider health checks — build now or defer? (G-007)",
+          "Q-009 (P1): Sentry integration instrumentation — build now or defer? (G-020)",
+          "Q-010 (P1): Rate limiting remaining coverage — expand now or incrementally? (G-015)",
+          "Q-011 (P2): Unified provider abstraction — build or leave ad-hoc? (G-006/G-008)",
+          "Q-012 (P2): Provider catalog expansion — extend or leave social-only? (G-005)",
+          "Q-013 (P2): Credential rotation framework — build or defer? (G-010)",
+          "Q-014 (P2): Email service consolidation — merge or leave dual? (G-017)",
+          "Q-015 (P2): Integration audit dashboard — build or leave table-only? (G-021)",
+          "Q-016 (P2): Shopify/Printful integration tests — build or defer? (G-022/G-023)",
+          "Q-017 (P2): Integration code consolidation — restructure or document? (G-025)",
+          "Q-018 (P2): SMS/Push retry and queue — build or leave fire-and-forget? (G-018/G-019)",
+          "Q-019 (P1): Stripe webhook secret env split — implement now or defer? (G-011)"
+        ],
+        "next": "Await owner answers; convert to tasks. Validate control plane (npm run agents:validate)."
+      },
+      {
+        "at": "2026-09-10T22:03:01.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Reconciled the initial audit against current code and refreshed generated maps. Evidence resolved G-001 photo idempotency, G-011 Stripe secret split, G-014 cron authentication, and G-009a backup-code hashing through INTG-002/004/005/003. Current gaps are 23 (11 missing, 9 incomplete, 3 improve); QUESTIONS.md now contains 15 open owner decisions.",
+        "expanded_scope": [
+          {
+            "path": "app/api/**, lib/**, scripts/**, __tests__/**, vercel.json",
+            "reason": "Existing baseline claims and generated integration maps referenced executable provider, webhook, credential, worker, cron, test, and schedule paths; read-only inspection was required to reconcile stale findings without editing production code."
+          }
+        ],
+        "questions": [
+          "Q-003 (P1): durable MFA verification-code store",
+          "Q-005 (P1): shared webhook framework",
+          "Q-006 (P1): music worker scheduling and monitoring",
+          "Q-007 (P1): event reminder implementation or drop",
+          "Q-008 (P1): provider health checks",
+          "Q-009 (P1): Sentry/provider-call instrumentation",
+          "Q-010 (P1): rate-limit coverage and smoke evidence",
+          "Q-011–Q-018 (P2): provider abstraction/catalog, credential rotation, email consolidation, audit dashboard, marketplace tests, code organization, and SMS/push queues"
+        ],
+        "next": "Owner answers become follow-up tasks; INTG-001 is complete and not blocked by unanswered questions."
+      }
+    ]
+  },
+  "handoffs": []
+}

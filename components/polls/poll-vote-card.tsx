@@ -18,9 +18,10 @@ interface PollVoteCardProps {
   poll: PollPayload
   className?: string
   onVoted?: (poll: PollPayload) => void
+  onAuthRequired?: () => void
 }
 
-export function PollVoteCard({ postId, poll: initialPoll, className, onVoted }: PollVoteCardProps) {
+export function PollVoteCard({ postId, poll: initialPoll, className, onVoted, onAuthRequired }: PollVoteCardProps) {
   const [poll, setPoll] = useState(initialPoll)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,6 +31,10 @@ export function PollVoteCard({ postId, poll: initialPoll, className, onVoted }: 
 
   async function handleVote(optionId: string) {
     if (showResults || isSubmitting) return
+    if (onAuthRequired) {
+      onAuthRequired()
+      return
+    }
     setIsSubmitting(true)
     setError(null)
 

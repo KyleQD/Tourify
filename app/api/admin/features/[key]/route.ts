@@ -1,24 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
-import { z } from 'zod'
-import { logAuditEvent } from '@/lib/audit'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 
-function serviceClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } })
-}
-
-async function resolveOrgId(userId: string): Promise<string | null> {
-  const { data } = await serviceClient().from('profiles').select('org_id').eq('id', userId).maybeSingle()
-  return data?.org_id ?? null
-}
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
 const patchSchema = z.object({
+  environment: z.enum(["local", "staging", "pilot", "production"]),
   enabled: z.boolean().optional(),
-  rollout_percentage: z.number().min(0).max(100).optional(),
-  name: z.string().min(1).optional(),
-  description: z.string().optional(),
-  target_org_ids: z.array(z.string().uuid()).nullable().optional(),
+  rollout_percentage: z.number().int().min(0).max(100).optional(),
+  reason: z.string().trim().min(3).max(2000),
+  idempotency_key: z.string().trim().min(8).max(200),
+  expected_version: z.number().int().positive(),
+}).refine((value) => value.enabled !== undefined || value.rollout_percentage !== undefined, {
+  message: "enabled or rollout_percentage is required",
 })
 
 function extractKey(url: string): string | null {
@@ -27,39 +20,41 @@ function extractKey(url: string): string | null {
   return idx >= 0 ? decodeURIComponent(segments[idx + 1] || '') || null : null
 }
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PATCH = withAdminCapability("org.settings.manage", async (request: NextRequest, { supabase, user, admin }) => {
   const key = extractKey(request.url)
   if (!key) return NextResponse.json({ error: 'Missing flag key' }, { status: 400 })
 
-  const body = await request.json()
-  const parsed = patchSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  const parsed = patchSchema.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten(), code: "validation_failed" }, { status: 422 })
+
+  const { reason, idempotency_key, expected_version, environment, ...updates } = parsed.data
 
   const { data, error } = await supabase
-    .from('feature_flags')
-    .update({ ...parsed.data, updated_at: new Date().toISOString() })
-    .eq('key', key)
-    .select('*')
-    .single()
+    .from("admin_org_feature_flag_assignments")
+    .update({
+      ...updates,
+      change_reason: reason,
+      idempotency_key,
+      updated_by: user.id,
+    })
+    .eq("org_id", admin.orgId)
+    .eq("flag_key", key)
+    .eq("environment", environment)
+    .eq("assignment_version", expected_version)
+    .select("*")
+    .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const orgId = await resolveOrgId(user.id)
-  if (orgId) await logAuditEvent({ actorId: user.id, orgId, action: 'toggle', entityType: 'feature_flag', entityId: data.id, newValues: parsed.data })
-
-  return NextResponse.json({ flag: data })
+  if (error) {
+    const conflict = error.code === "23505"
+    return NextResponse.json({ error: conflict ? "Idempotency key already used." : error.message, code: conflict ? "feature_flag_conflict" : "feature_flag_store_unavailable" }, { status: conflict ? 409 : 503 })
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Assignment changed or does not exist.", code: "feature_flag_version_conflict" }, { status: 409 })
+  }
+  return NextResponse.json({ assignment: data })
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
-  const key = extractKey(request.url)
-  if (!key) return NextResponse.json({ error: 'Missing flag key' }, { status: 400 })
-
-  const { data: existing } = await supabase.from('feature_flags').select('id').eq('key', key).maybeSingle()
-  const { error } = await supabase.from('feature_flags').delete().eq('key', key)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const orgId = await resolveOrgId(user.id)
-  if (orgId && existing?.id) await logAuditEvent({ actorId: user.id, orgId, action: 'delete', entityType: 'feature_flag', entityId: existing.id, oldValues: { key } })
-
-  return NextResponse.json({ success: true })
-})
+export const DELETE = withAdminCapability("org.settings.manage", async () => NextResponse.json({
+  error: "Feature assignments are retained for audit. Disable with PATCH instead of deleting.",
+  code: "feature_flag_delete_forbidden",
+}, { status: 405 }))

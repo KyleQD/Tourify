@@ -16,10 +16,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { 
-  Send, 
-  Clock, 
-  Hash, 
+import {
+  Send,
+  Clock,
+  Hash,
   Calendar as CalendarIcon,
   Copy,
   Lightbulb,
@@ -39,6 +39,8 @@ import { useActingContext } from '@/hooks/use-acting-context'
 import { useAuth } from '@/contexts/auth-context'
 import { cn } from '@/lib/utils'
 import type { PostTemplate } from '@/lib/services/cross-platform-posting.service'
+import { ComposerStyleControl } from '@/components/posts/appearance/composer-style-control'
+import type { PostAppearanceInput } from '@/lib/appearance/contracts'
 import Link from 'next/link'
 import {
   ARTIST_CARD,
@@ -63,9 +65,9 @@ interface CrossPlatformComposerProps {
   initialHashtags?: string[]
 }
 
-export function CrossPlatformComposer({ 
-  onPostCreated, 
-  defaultContent = '', 
+export function CrossPlatformComposer({
+  onPostCreated,
+  defaultContent = '',
   preselectedAccounts = EMPTY_PRESELECTED_ACCOUNTS,
   defaultPostType = 'text',
   initialHashtags = [],
@@ -74,18 +76,18 @@ export function CrossPlatformComposer({
   const { user } = useAuth()
   const { userAccounts: accounts, currentAccount } = useMultiAccount()
   const { actingHeaders, isActingReady } = useActingContext()
-  const { 
-    createCrossPlatformPost, 
-    schedulePost, 
-    templates, 
-    hashtagGroups, 
+  const {
+    createCrossPlatformPost,
+    schedulePost,
+    templates,
+    hashtagGroups,
     useTemplate: applyTemplate,
     createTemplate,
     deleteTemplate,
     flattenHashtagGroups,
-    loading 
+    loading
   } = useCrossPlatformPosting()
-  
+
   // Form state
   const [content, setContent] = useState(defaultContent)
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>(preselectedAccounts)
@@ -108,6 +110,7 @@ export function CrossPlatformComposer({
   const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
   const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
   const [alsoPostToTourify, setAlsoPostToTourify] = useState(true)
+  const [appearanceInput, setAppearanceInput] = useState<PostAppearanceInput | null>(null)
   const platformLimits: Record<string, number> = { twitter: 280, instagram: 2200, facebook: 63206, youtube: 5000, tiktok: 2200 }
 
   useEffect(() => {
@@ -126,7 +129,7 @@ export function CrossPlatformComposer({
       })
     }
   }, [initialHashtags])
-  
+
   // Template creation state
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -135,11 +138,11 @@ export function CrossPlatformComposer({
   const [templateCategory, setTemplateCategory] = useState<'general' | 'promotion' | 'announcement' | 'event' | 'personal' | 'business'>('general')
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<'all' | PostTemplate['template_category']>('all')
   const [isDeletingTemplateId, setIsDeletingTemplateId] = useState<string | null>(null)
-  
+
   // Posting state
   const [isPosting, setIsPosting] = useState(false)
   const hasAutoSelectedRef = useRef(preselectedAccounts.length > 0)
-  
+
   // Content suggestions
   const { suggestions } = useContentSuggestions(currentAccount?.account_type || 'primary')
 
@@ -188,7 +191,7 @@ export function CrossPlatformComposer({
 
   // Handle account selection
   const toggleAccountSelection = (accountId: string) => {
-    setSelectedAccounts(prev => 
+    setSelectedAccounts(prev =>
       prev.includes(accountId)
         ? prev.filter(id => id !== accountId)
         : [...prev, accountId]
@@ -315,7 +318,7 @@ export function CrossPlatformComposer({
           return account?.account_type || 'primary'
         })
       })
-      
+
       setTemplateName('')
       setTemplateBody('')
       setTemplateHashtagsInput('')
@@ -420,6 +423,7 @@ export function CrossPlatformComposer({
             media_urls: mediaUrls,
             poll_options: postType === 'poll' ? pollOptions : undefined,
             poll_duration: postType === 'poll' ? pollDuration : undefined,
+            appearance: appearanceInput ?? { mode: 'standard' },
           }),
         })
         const payload = await response.json().catch(() => ({}))
@@ -442,7 +446,7 @@ export function CrossPlatformComposer({
               .map(([k, v]) => [k, { content: v }])
           )
         })
-        
+
         toast.success(tourifyPostId ? 'Posted to Tourify and selected accounts!' : 'Posted to selected accounts!')
         onPostCreated?.(tourifyPostId || postId)
 
@@ -455,7 +459,7 @@ export function CrossPlatformComposer({
         toast.success(postType === 'poll' ? 'Poll posted to your followers!' : 'Posted to Tourify feed!')
         if (tourifyPostId) onPostCreated?.(tourifyPostId)
       }
-      
+
       setContent('')
       setHashtags([])
       setMediaUrls([])
@@ -463,7 +467,8 @@ export function CrossPlatformComposer({
       setTemplateVariables({})
       setPollOptions(['', ''])
       setPollDuration('7d')
-      
+      setAppearanceInput(null)
+
     } catch (error) {
       toast.error(error instanceof Error ? error.message : (isScheduled ? 'Failed to schedule post' : 'Failed to create post'))
     } finally {
@@ -495,7 +500,7 @@ export function CrossPlatformComposer({
       setMediaUrls(prev => [...prev, ...uploaded])
       if (detectedType && postType === 'text') setPostType(detectedType)
       else if (detectedType === 'video') setPostType('video')
-      toast.success(`Uploaded ${uploaded.length} file(s)`) 
+      toast.success(`Uploaded ${uploaded.length} file(s)`)
     } catch (err) {
       toast.error('Upload failed')
     } finally {
@@ -690,7 +695,7 @@ export function CrossPlatformComposer({
                         {isVideo ? (
                           <video src={url} className="h-full w-full object-cover" muted />
                         ) : (
-                          // eslint-disable-next-line @next/next/no-img-element
+
                           <img src={url} alt="" className="h-full w-full object-cover" />
                         )}
                         <button
@@ -809,6 +814,16 @@ export function CrossPlatformComposer({
                 disabled={postType === 'poll'}
               />
               <span className="text-sm text-slate-300">Also post to Tourify feed</span>
+              <ComposerStyleControl
+                value={appearanceInput}
+                onChange={setAppearanceInput}
+                preview={{
+                  content,
+                  mediaCount: mediaUrls.length,
+                  pollOptions: postType === 'poll' ? pollOptions : undefined,
+                }}
+                className="ml-auto border-purple-400/25 bg-purple-500/10 text-purple-100"
+              />
             </div>
 
             {/* Scheduling Options */}
@@ -875,7 +890,7 @@ export function CrossPlatformComposer({
                   </>
                 )}
               </Button>
-              
+
               <Button
                 variant="outline"
                 className={cn(ARTIST_OUTLINE_BTN, 'rounded-full')}
@@ -991,7 +1006,7 @@ export function CrossPlatformComposer({
                       className={ARTIST_INPUT}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label className="text-slate-300">Category</Label>
                     <Select value={templateCategory} onValueChange={(value: any) => setTemplateCategory(value)}>
@@ -1035,8 +1050,8 @@ export function CrossPlatformComposer({
                     className={ARTIST_INPUT}
                   />
                 </div>
-                
-                <Button 
+
+                <Button
                   onClick={() => handleCreateTemplate()}
                   disabled={isCreatingTemplate || !templateName.trim() || !templateBody.trim()}
                   className={cn(ARTIST_PRIMARY_BTN, 'w-full')}
@@ -1247,4 +1262,4 @@ export function CrossPlatformComposer({
       </CardContent>
     </Card>
   )
-} 
+}

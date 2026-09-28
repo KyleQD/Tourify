@@ -84,8 +84,10 @@ describe("tour operations builder", () => {
     })
     expect(payload.events[0]).not.toHaveProperty("venue_name")
     expect(payload.events[0]).not.toHaveProperty("event_date")
-    expect(payload.routing[0].market).toBe("Austin")
-    expect(payload.settings.route[0].market).toBe("Austin")
+    // PLAN-101: route state is written through the canonical /plan command;
+    // the shell-create payload must not revive either legacy JSON projection.
+    expect(payload).not.toHaveProperty("routing")
+    expect(payload.settings).not.toHaveProperty("route")
     expect(payload.settings.creation_source).toBe("admin_tour_operations_builder")
   })
 
@@ -108,6 +110,32 @@ describe("tour operations builder", () => {
     expect(payload.events[0].id).toBe(stop.id)
     expect(payload.events[0].venue).toBe("The Factory")
     expect(payload.events[0].date).toBe("2026-08-22")
+  })
+
+  it("keeps attached events that are not represented by a route stop and de-duplicates stop ids", () => {
+    const attachedStop = {
+      ...makeTourStop(),
+      id: "11111111-1111-4111-8111-111111111111",
+      event_id: "11111111-1111-4111-8111-111111111111",
+      name: "Austin",
+    }
+    const form = {
+      ...initialTourBuilderForm,
+      name: "Texas Run",
+      stops: [attachedStop],
+      attachedEventIds: [
+        attachedStop.id,
+        "22222222-2222-4222-8222-222222222222",
+        attachedStop.id,
+      ],
+    }
+
+    const payload = buildTourBuilderPayload(form)
+
+    expect(payload.event_ids).toEqual([
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    ])
   })
 
   it("hydrates tour builder form from tour + linked events", () => {

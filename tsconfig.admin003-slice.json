@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "next-env.d.ts",
+    "app/api/admin/events/[id]/communications/route.ts",
+    "app/api/admin/events/[id]/communication-settings/route.ts",
+    "app/api/admin/marketplace/moderation/route.ts",
+    "lib/admin/api-route-registry.ts",
+    "__tests__/admin/admin-route-capability-matrix.test.ts",
+    "__tests__/admin/admin-platform-guard.test.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions/**",
+    "apps/mobile/**",
+    "docs/**",
+    "scripts/**"
+  ]
+}

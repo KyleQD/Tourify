@@ -2,6 +2,10 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { resolveActingContext } from '@/lib/auth/acting-context'
 import { aggregatePollAnalytics } from '@/lib/polls/poll-analytics'
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from '@/lib/config/audit-feature-gates'
 
 interface PollAnalyticsPostRow {
   id: string
@@ -21,6 +25,8 @@ interface PollAnalyticsOptionRow {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isAuditFeatureApproved('polls')) return auditFeatureUnavailable('polls')
+
   try {
     const ctx = await resolveActingContext(request)
     if (ctx instanceof NextResponse) return ctx

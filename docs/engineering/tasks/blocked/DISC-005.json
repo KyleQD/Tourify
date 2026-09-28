@@ -1,0 +1,90 @@
+{
+  "schema_version": "2.0",
+  "id": "DISC-005",
+  "title": "Verify the internal API origin contract",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P1",
+  "owner_agent": "discover",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "verification",
+  "decision_owner": "discover",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Prove fail-closed discovery behavior with the environment-specific internal origin in isolated staging.",
+  "scope": {
+    "in": [
+      "Prove fail-closed discovery behavior with the environment-specific internal origin in isolated staging."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "lib/security/**",
+    "app/api/discover/**",
+    "app/api/hub/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/discover/CHARTER.md"
+  ],
+  "depends_on": [
+    "RELEASE-007"
+  ],
+  "resume_condition": "All dependencies complete: RELEASE-007.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "discover",
+      "condition": "Complete RELEASE-007.",
+      "dependency_task_ids": [
+        "RELEASE-007"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Prove fail-closed discovery behavior with the environment-specific internal origin in isolated staging.",
+      "owner": "discover",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "discover",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created by the core-launch realignment; implementation has not started.",
+    "completed": [],
+    "next_steps": [
+      "Wait for RELEASE-007 and then confirm the working set is collision-free."
+    ],
+    "blockers": [
+      "Waiting for RELEASE-007."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

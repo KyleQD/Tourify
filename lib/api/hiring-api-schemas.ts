@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { JOB_SEAT_CAPABILITIES } from "@/lib/hiring/job-seat-permissions"
 
 const hiringEntityTypeSchema = z.enum(["venue", "organization", "artist"])
 
@@ -36,6 +37,10 @@ export const applicationFormFieldSchema = z.object({
 })
 
 export const createJobPostingApiSchema = hiringScopeApiSchema.extend({
+  eventId: z.string().uuid().nullable().optional(),
+  event_id: z.string().uuid().nullable().optional(),
+  tourId: z.string().uuid().nullable().optional(),
+  tour_id: z.string().uuid().nullable().optional(),
   title: z.string().min(1),
   description: z.string().min(1),
   department: z.string().optional(),
@@ -60,13 +65,33 @@ export const createJobPostingApiSchema = hiringScopeApiSchema.extend({
     })
     .optional(),
   onboarding_template_id: z.string().uuid().nullable().optional(),
-  status: z.enum(["draft", "published", "closed", "archived"]).optional(),
+  assignment_scope: z.enum(["organization", "event", "tour"]).optional(),
+  seat_role: z.string().min(1).max(64).nullable().optional(),
+  seat_permissions: z.array(z.enum(JOB_SEAT_CAPABILITIES as [string, ...string[]])).max(42).optional(),
+  status: z.enum(["draft", "published", "paused", "closed", "filled", "archived"]).optional(),
 }).superRefine((data, context) => {
-  if (data.status === "published" && !data.onboarding_template_id) {
+  const scope = data.assignment_scope ?? (data.event_id || data.eventId ? "event" : data.tour_id || data.tourId ? "tour" : "organization")
+  const eventId = data.event_id ?? data.eventId
+  const tourId = data.tour_id ?? data.tourId
+
+  if (scope === "event" && !eventId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["event_id"], message: "Select an event for this job." })
+  }
+  if (scope === "tour" && !tourId) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["tour_id"], message: "Select a tour for this job." })
+  }
+  if ((scope !== "event" && eventId) || (scope !== "tour" && tourId) || (eventId && tourId)) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["onboarding_template_id"],
-      message: "An onboarding template is required before publishing a job posting.",
+      path: ["assignment_scope"],
+      message: "A job can target the organization, one event, or one tour.",
+    })
+  }
+  if (scope !== "organization" && (data.seat_permissions?.length || data.seat_role)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["seat_permissions"],
+      message: "Organization seat permissions are only available for organization jobs.",
     })
   }
 })

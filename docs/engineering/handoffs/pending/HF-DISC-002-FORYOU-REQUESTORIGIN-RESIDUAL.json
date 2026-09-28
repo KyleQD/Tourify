@@ -1,0 +1,43 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DISC-002-FORYOU-REQUESTORIGIN-RESIDUAL",
+  "task_id": "DISC-002",
+  "from_agent": "discover",
+  "to_agent": "social",
+  "status": "accepted",
+  "created_at": "2026-09-25T16:08:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "summary": "ONE LINE. This is the last remaining call site of the Wave 34 SSRF fix, and it is the only thing still blocking the complete removal of the `@deprecated requestOrigin` field from `BuildNewsFeedParams`. Wave 35 removed the other call site (app/api/news/feed/route.ts) because `app/api/news/**` is discover-owned; `app/api/feed/for-you/**` is a social-owned shared file, so discover must not touch it. Delete the line `requestOrigin: request.nextUrl.origin,` at app/api/feed/for-you/route.ts:27. That is the whole change; it cannot break anything, because nothing reads the field. The field and this argument are then deleted together from lib/news/feed-service.ts:22-38 in a follow-up, also by discover.",
+  "working_set": [
+    "app/api/feed/for-you/route.ts:26-34 (the only edit needed: drop line 27; the surrounding `buildNewsFeed({ supabase, userId, limit, cursor: undefined, query, facet })` call is unchanged)",
+    "lib/news/feed-service.ts:22-38 (BuildNewsFeedParams.requestOrigin — the optional, @deprecated, unread field; discover-owned; NOT to be edited by the receiver)",
+    "lib/discover/internal-json-fetch.ts (the guarded transport that replaced the self-fetch; read-only context)",
+    "__tests__/discover/hub-news-self-fetch-ssrf.test.ts:438-453 (the regression guard, which asserts the field still exists today)"
+  ],
+  "completed": [
+    "Established the taint path end to end in Wave 34 and severed it inside lib/news/**, so the value is currently read by nothing: `request.nextUrl.origin` -> buildNewsFeed({ requestOrigin }) -> fetchExternalCandidates -> new URL('/api/feed/rss-news', params.requestOrigin) -> global fetch. That whole leg is gone; fetchExternalCandidates now selects the `newsRssFeed` key from the frozen route map and the base origin comes only from the operator allowlist.",
+    "Wave 35: removed the app/api/news/feed/route.ts call site. After that, `rg -n 'requestOrigin' app lib components` reports exactly two live occurrences in production code, and only one of them passes a value: app/api/feed/for-you/route.ts:27.",
+    "Wave 35: updated the field's own doc comment in lib/news/feed-service.ts to name this file and this line as the single remaining blocker, so the next reader does not have to re-derive it.",
+    "Wave 35: confirmed app/api/feed/for-you/route.ts is the only file in that directory and that nothing else constructs buildNewsFeed with a request-derived value. `rg -n 'buildNewsFeed\\(' app lib` returns exactly two call sites."
+  ],
+  "next_steps": [
+    "social: delete the single line `requestOrigin: request.nextUrl.origin,` from app/api/feed/for-you/route.ts. No other edit in that file. `request` is still used at line 18 for `authenticateApiRequest(request)` and line 19 for `request.nextUrl.searchParams`, so nothing becomes unused.",
+    "social: no test change is required. __tests__/discover/hub-news-self-fetch-ssrf.test.ts reads lib/news/feed-service.ts only, so it is unaffected either way; a later discover wave will update it when the field itself is deleted.",
+    "discover (after this lands): delete the `requestOrigin?: string` field and its doc comment from BuildNewsFeedParams in lib/news/feed-service.ts, and update __tests__/discover/hub-news-self-fetch-ssrf.test.ts:443-447, which currently asserts that the field declaration is the single remaining mention of `requestOrigin` in the file. That assertion becomes vacuous once the field is gone and must be replaced with a stronger one: the file must not contain the identifier at all.",
+    "discover: re-run `rg -n \"nextUrl\\.origin\" app lib` afterwards. app/api/feed/for-you/route.ts:27 is currently the ONLY remaining `request.nextUrl.origin` in the whole discover charter surface, and after this handoff it should be zero."
+  ],
+  "blockers": [
+    "discover must not edit app/api/feed/for-you/route.ts: `app/api/feed/for-you` is a social-owned shared file and the Wave 35 grant reserves it for coordination. There is no synchronous way to coordinate with a concurrent lane from this workspace, so this is routed rather than done. The change is one line and carries no risk, so it is worth taking rather than leaving one more wave of 'deliberately retained' residuals.",
+    "Because the field cannot be deleted while this call site exists, the `@deprecated requestOrigin?: string` must stay in BuildNewsFeedParams. It is unread and documented as ignored, so it is inert — but it is a footgun in that a future caller may reasonably pass an origin and believe it does something. That is the reason this handoff exists rather than a comment.",
+    "No code-scanning alert is affected by any of this. Neither DISC-SSRF-002, DISC-SSRF-003 nor DISC-SSRF-004 was ever an alert: js/request-forgery models request.url as a remote-flow source and not request.nextUrl.origin, so all three were found by grep, and they will never appear as new alerts. A local fix is not a re-scan; only a hosted re-scan on the PR can move any alert's state."
+  ],
+  "verification": [
+    "PASS — `rg -n 'requestOrigin' app lib components` after the Wave 35 edit returns the field declaration in lib/news/feed-service.ts:36, the two comment blocks at :22-35 and :680-697, and exactly one live value at app/api/feed/for-you/route.ts:27.",
+    "PASS — `rg -n 'buildNewsFeed\\(' app lib` returns exactly 2 call sites: app/api/news/feed/route.ts:82 and app/api/feed/for-you/route.ts:26.",
+    "PASS — `rg -n 'nextUrl\\.origin' app/api/discover app/api/hub app/api/search app/api/feed app/api/news app/api/opportunities lib/discover lib/news lib/search lib/opportunities` returns exactly one live occurrence, app/api/feed/for-you/route.ts:27. Every other hit is prose in a doc comment or the guard's own documentation.",
+    "PASS — `npx vitest run __tests__/discover/ __tests__/search/ lib/discover/__tests__/` -> 12 files, 117 tests, including the Wave 34 guard that asserts the deprecated field is still declared exactly once.",
+    "NOT RUN — no edit to app/api/feed/for-you/route.ts by this lane, no hosted or credentialed test, no CodeQL re-analysis. No hosted evidence is claimed."
+  ],
+  "accepting_task_id": "SOCIAL-004",
+  "completion_condition": "social: delete the single line `requestOrigin: request.nextUrl.origin,` from app/api/feed/for-you/route.ts. No other edit in that file. `request` is still used at line 18 for `authenticateApiRequest(request)` and line 19 for `request.nextUrl.searchParams`, so nothing becomes unused."
+}

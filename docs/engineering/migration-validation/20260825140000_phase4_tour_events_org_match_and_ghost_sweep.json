@@ -1,0 +1,65 @@
+{
+ "schemaVersion": 1,
+ "migration": "20260825140000_phase4_tour_events_org_match_and_ghost_sweep.sql",
+ "taskId": "ADM-M-012",
+ "status": "planned",
+ "owner": "security-data",
+ "reviewer": "release-engineering",
+ "domains": [
+  "tours",
+  "events_v2",
+  "tour_events",
+  "rls"
+ ],
+ "riskLevel": "medium",
+ "representativeSnapshot": {
+  "kind": "isolated production-like Supabase branch",
+  "evidenceArtifact": null
+ },
+ "preflight": {
+  "rowCountQueries": [
+   "count tour_events rows where tour.org_id <> event.org_id (existing violations become invisible rather than deleted)"
+  ],
+  "expectedAffectedRows": "DDL only; sweep function is callable, not auto-executed",
+  "artifact": null
+ },
+ "execution": {
+  "lockBudgetMs": 5000,
+  "statementTimeoutMs": 60000,
+  "batchSize": 0,
+  "resumeStrategy": "Drop named policies + re-issue with org-match conjunct in every branch; ghost sweep implemented at application layer (lib/admin/tour-stop-hygiene.ts via executeServiceRoleJob)",
+  "resumeCursor": "supabase migration version 20260825140000",
+  "idempotency": "drop-if-exists + create converges"
+ },
+ "quarantine": {
+  "required": false,
+  "table": null,
+  "strategy": "Existing cross-org link rows are not mutated; they simply stop satisfying policies until reconciled"
+ },
+ "constraintsAndIndexes": {
+  "constraints": [],
+  "indexes": [],
+  "validationPlan": "REL-101 live matrix: org_b owner cannot insert tour_event linking org_a event even when owning the tour"
+ },
+ "recovery": {
+  "rollback": "Re-issue 20260710032640 policy bodies (emergency only); drop sweep function",
+  "forwardFix": "Backfill reconciliation for any legacy cross-org links"
+ },
+ "postflight": {
+  "queries": [
+   "is_tour_owner-alone insert of foreign-org event denied",
+   "org member with event.manage unchanged",
+   "sweep_orphaned_tour_stops returns count and only touches NULL-event active stops"
+  ],
+  "artifact": null,
+  "securityAdvisorArtifact": null,
+  "performanceAdvisorArtifact": null
+ },
+ "verificationOwner": "security-data",
+ "evidence": {
+  "isolated": null,
+  "staging": null,
+  "production": null
+ },
+ "exceptions": []
+}

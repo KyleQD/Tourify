@@ -1,0 +1,11 @@
+{
+  "idempotencyKey": "p18-renewal-001",
+  "entityId": "uuid",
+  "subjectType": "public_service",
+  "subjectId": "uuid",
+  "jurisdiction": "US-NV",
+  "policyVersion": "p18.1",
+  "schemaVersion": "1.0",
+  "sourceManifestId": "uuid",
+  "actorAuthorityId": "uuid"
+}

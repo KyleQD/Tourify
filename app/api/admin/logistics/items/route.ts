@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { authenticateApiRequest, checkAdminPermissions, withAdminCapability } from '@/lib/auth/api-auth'
+import { resolveActingAdminContext } from '@/lib/auth/admin-context'
 import { hasEntityPermission } from '@/lib/services/rbac'
 import {
   applyOrgLogisticsTaskFilter,
   resolveAuthorizedOrgLogisticsScope,
 } from '@/lib/admin/resolve-authorized-org'
+import {
+  executeLogisticsCommand,
+  getLogisticsCommandErrorStatus,
+  LogisticsCommandError,
+} from '@/lib/admin/logistics-command.service'
+import { parseLogisticsCommand } from '@/lib/admin/logistics-command-schemas'
 
 interface QueryParams {
   eventId?: string | null
@@ -25,12 +32,12 @@ function parseQuery(request: NextRequest): QueryParams {
 }
 
 export async function GET(request: NextRequest) {
-  return withAdminAuth(async (_req, { user }) => {
+  return withAdminCapability('logistics.view', async (_req, { user, admin }) => {
     try {
-      const { eventId, tourId, type, orgId: requestedOrgId } = parseQuery(request)
+      const { eventId, tourId, type } = parseQuery(request)
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
-        requestedOrgId,
+        requestedOrgId: admin.orgId,
         eventId,
         tourId,
       })
@@ -152,52 +159,41 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await authenticateApiRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const admin = await resolveActingAdminContext(request, auth)
+  if (admin instanceof NextResponse) return admin
+
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     const body = await request.json()
 
     let resolvedAssignee: string | null = null
-    if (body.assignedTo) {
-      const candidate: string = body.assignedTo
+    if (body.assignedTo || body.assigned_to_user_id) {
+      const candidate: string = body.assignedTo || body.assigned_to_user_id
       const uuidRegex = /^[0-9a-fA-F-]{36}$/
       if (uuidRegex.test(candidate)) resolvedAssignee = candidate
-      else if (candidate.includes('@')) {
-        const { data: profile } = await supabase
+      else if (typeof candidate === 'string' && candidate.includes('@')) {
+        const { data: profile } = await auth.supabase
           .from('profiles')
           .select('id, email')
           .ilike('email', candidate)
           .single()
-        if (profile) resolvedAssignee = profile.id as any
+        if (profile) resolvedAssignee = profile.id as string
       }
     }
 
-    const payload = {
-      event_id: body.eventId || null,
-      tour_id: body.tourId || null,
-      type: body.type,
-      title: body.title,
-      description: body.description || null,
-      status: body.status || 'pending',
-      priority: body.priority || 'medium',
-      assigned_to_user_id: resolvedAssignee,
-      due_date: body.dueDate || null,
-      budget: body.budget ?? null,
-      actual_cost: body.actualCost ?? null,
-      notes: body.notes || null,
-      tags: body.tags || null,
-      created_by: body.createdBy || user.id,
-    }
-
-    const eventId: string | null = payload.event_id
-    const tourIdForPerm: string | null = payload.tour_id
+    const eventId: string | null = body.eventId || body.event_id || null
+    const tourIdForPerm: string | null = body.tourId || body.tour_id || null
     let allowed = false
 
     if (eventId || tourIdForPerm) {
       try {
         const scope = await resolveAuthorizedOrgLogisticsScope({
-          userId: user.id,
+          userId: auth.user.id,
+          requestedOrgId: admin.orgId,
           eventId,
           tourId: tourIdForPerm,
         })
@@ -211,7 +207,7 @@ export async function POST(request: NextRequest) {
     if (!allowed && eventId) {
       try {
         allowed = await hasEntityPermission({
-          userId: user.id,
+          userId: auth.user.id,
           entityType: 'Event',
           entityId: eventId,
           permission: 'EDIT_EVENT_LOGISTICS',
@@ -222,7 +218,7 @@ export async function POST(request: NextRequest) {
     if (!allowed && tourIdForPerm) {
       try {
         allowed = await hasEntityPermission({
-          userId: user.id,
+          userId: auth.user.id,
           entityType: 'Tour',
           entityId: tourIdForPerm,
           permission: 'EDIT_EVENT_LOGISTICS',
@@ -231,32 +227,47 @@ export async function POST(request: NextRequest) {
     }
 
     if (!eventId && !tourIdForPerm) allowed = true
-
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-    const { data, error } = await supabase
-      .from('logistics_tasks')
-      .insert(payload)
-      .select('*')
-      .single()
-
-    if (error) throw error
-
-    if (data?.assigned_to_user_id) {
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: data.assigned_to_user_id,
-          type: 'task_assigned',
-          title: `New task: ${data.title}`,
-          content: data.description || null,
-          metadata: { task_id: data.id, event_id: data.event_id },
-        })
+    const parsed = parseLogisticsCommand({
+      action: 'create_task',
+      type: body.type,
+      title: body.title,
+      description: body.description ?? null,
+      category: body.category ?? null,
+      priority: body.priority || 'medium',
+      event_id: eventId,
+      tour_id: tourIdForPerm,
+      assigned_to_user_id: resolvedAssignee,
+      due_date: body.dueDate || body.due_date || null,
+      budget: body.budget ?? null,
+      actual_cost: body.actualCost ?? body.actual_cost ?? null,
+      notes: body.notes || null,
+      tags: body.tags || null,
+      source_type: body.sourceType || body.source_type || null,
+      source_id: body.sourceId || body.source_id || null,
+      is_authoritative: body.isAuthoritative || body.is_authoritative || undefined,
+    })
+    if (!parsed.ok) {
+      return NextResponse.json(
+        { error: parsed.error, details: parsed.details, code: 'validation_failed' },
+        { status: 400 },
+      )
     }
 
-    return NextResponse.json({ item: data }, { status: 201 })
+    const result = await executeLogisticsCommand({
+      supabase: auth.supabase,
+      userId: auth.user.id,
+      orgId: admin.orgId,
+      command: parsed.data,
+    })
+
+    return NextResponse.json({ item: result.data, message: result.message }, { status: 201 })
   } catch (error) {
     console.error('[Logistics Items] POST error:', error)
-    return NextResponse.json({ error: 'Failed to create logistics item' }, { status: 500 })
+    const status = getLogisticsCommandErrorStatus(error, 500)
+    const message = error instanceof Error ? error.message : 'Failed to create logistics item'
+    const code = error instanceof LogisticsCommandError ? error.code : 'create_failed'
+    return NextResponse.json({ error: message, code }, { status })
   }
 }

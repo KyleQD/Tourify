@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isAuthorizedInternalRequest } from '@/lib/auth/route-guards'
+import { getReleaseMetadataHeaders } from '@/lib/config/release-metadata'
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -28,12 +29,13 @@ interface ServiceStatus {
 const startTime = Date.now()
 
 export async function GET(request: NextRequest) {
+  const releaseHeaders = getReleaseMetadataHeaders()
   const isInternal = isAuthorizedInternalRequest(request)
   if (!isInternal) {
     return NextResponse.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-    })
+    }, { headers: releaseHeaders })
   }
 
   const supabase = await createClient()
@@ -65,7 +67,7 @@ export async function GET(request: NextRequest) {
   const statusCode = healthCheck.status === 'healthy' ? 200 : 
                     healthCheck.status === 'degraded' ? 200 : 503
 
-  return NextResponse.json(healthCheck, { status: statusCode })
+  return NextResponse.json(healthCheck, { status: statusCode, headers: releaseHeaders })
 }
 
 async function checkDatabase(supabase: Awaited<ReturnType<typeof createClient>>): Promise<ServiceStatus> {
@@ -166,16 +168,17 @@ async function checkSupabase(supabase: Awaited<ReturnType<typeof createClient>>)
 
 // Readiness probe endpoint
 export async function HEAD(request: NextRequest) {
+  const releaseHeaders = getReleaseMetadataHeaders()
   try {
     const supabase = await createClient()
     const { error } = await supabase.auth.getUser()
     
     if (error) {
-      return new NextResponse(null, { status: 503 })
+      return new NextResponse(null, { status: 503, headers: releaseHeaders })
     }
 
-    return new NextResponse(null, { status: 200 })
-  } catch (error) {
-    return new NextResponse(null, { status: 503 })
+    return new NextResponse(null, { status: 200, headers: releaseHeaders })
+  } catch {
+    return new NextResponse(null, { status: 503, headers: releaseHeaders })
   }
-} 
+}

@@ -223,7 +223,7 @@ export function TokenOnboardingFlow({ token }: TokenOnboardingFlowProps) {
 
   useEffect(() => {
     loadPayload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [token])
 
   const fields = payload?.template.fields || []

@@ -1,0 +1,357 @@
+{
+  "schemaVersion": "world-place-v0.1",
+  "fixtureVersion": "world-seed-fixture-v0.3",
+  "publicationState": "draft_needs_review_not_deployed",
+  "place": {
+    "id": "4febfb31-3fb8-4221-b9ea-13d0ec039f08",
+    "canonicalPath": "us/mi/detroit",
+    "name": "Detroit",
+    "displayName": "Detroit",
+    "placeType": "city",
+    "parent": {
+      "id": "37db9ea3-4d17-4e27-ba38-19b4cbd142e2",
+      "canonicalPath": "us/mi",
+      "name": "Michigan"
+    },
+    "breadcrumb": [
+      {
+        "id": "32784f98-b28b-4efe-9b16-a62914966273",
+        "canonicalPath": "us",
+        "name": "United States",
+        "placeType": "country"
+      },
+      {
+        "id": "37db9ea3-4d17-4e27-ba38-19b4cbd142e2",
+        "canonicalPath": "us/mi",
+        "name": "Michigan",
+        "placeType": "state_province"
+      },
+      {
+        "id": "4febfb31-3fb8-4221-b9ea-13d0ec039f08",
+        "canonicalPath": "us/mi/detroit",
+        "name": "Detroit",
+        "placeType": "city"
+      }
+    ],
+    "countryCode": "US",
+    "admin1Code": "MI",
+    "timezone": null,
+    "languages": [],
+    "center": {
+      "latitude": 42.3316667,
+      "longitude": -83.0475
+    },
+    "aliases": [
+      "Detroit, Michigan",
+      "Detroit, MI"
+    ],
+    "externalRefs": [
+      {
+        "provider": "wikidata",
+        "external_type": "place",
+        "external_id": "Q12439",
+        "canonical_url": "https://www.wikidata.org/wiki/Q12439",
+        "attribution_text": null,
+        "source_key": "wikidata_geo"
+      },
+      {
+        "provider": "musicbrainz",
+        "external_type": "area",
+        "external_id": "b03ff310-d8e2-45cf-9455-769f76641eb2",
+        "canonical_url": "https://musicbrainz.org/area/b03ff310-d8e2-45cf-9455-769f76641eb2",
+        "attribution_text": null,
+        "source_key": "musicbrainz_geo"
+      }
+    ]
+  },
+  "overview": {
+    "shortDescription": null,
+    "musicalIdentity": "Musical identity summary is pending editorial review.",
+    "hero": null,
+    "listenHere": null,
+    "listenHereStatus": {
+      "status": "unavailable",
+      "reason": "Pilot recordings and sound guides are metadata/description-only until playback rights are independently resolved."
+    },
+    "stats": {
+      "publishedClaims": 0,
+      "artists": 1,
+      "tracks": 0,
+      "radioStations": 0,
+      "eventsUpcoming": 0,
+      "culturalEntities": 1
+    },
+    "quality": {
+      "modelVersion": "world-quality-model-v0.1",
+      "averageEntityQuality": 0.9165,
+      "averageRelationshipQuality": 0,
+      "corroboratedEntityRate": 1,
+      "stableArtistIdentityRate": 1,
+      "recordingYearCoverage": 1,
+      "landmarkIdentityCoverage": 1,
+      "sourceDomainCount": 2,
+      "sourceTypeCount": 2,
+      "publicationEligible": false,
+      "gaps": [
+        "current popularity signals not seeded",
+        "live event/venue signals not seeded",
+        "radio/playback rights not seeded"
+      ]
+    },
+    "explore": {
+      "basis": "draft_quality_heuristic_not_editorial",
+      "suggestedPath": [
+        {
+          "role": "meet_a_key_artist",
+          "id": "detroit_artist_juan_atkins",
+          "kind": "artist_reference",
+          "name": "Juan Atkins",
+          "qualityScore": 0.9165
+        }
+      ]
+    }
+  },
+  "sections": {
+    "fromHere": {
+      "status": "draft_seed_data",
+      "items": [
+        {
+          "id": "detroit_artist_juan_atkins",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "juan-atkins",
+            "name": "Juan Atkins",
+            "summary": "External knowledge-graph identity for Juan Atkins; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_juan_atkins"
+            }
+          ]
+        }
+      ]
+    },
+    "popularHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No current popularity signal is seeded. Historical prominence must never be represented as current popularity.",
+      "items": []
+    },
+    "happeningHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Live events and venue activity must come from current Tourify operational sources, not historical seed data.",
+      "items": []
+    },
+    "historyHere": {
+      "status": "draft_seed_data",
+      "timeline": [],
+      "genresAndScenes": [],
+      "instruments": [],
+      "soundSignatures": [],
+      "notableArtists": [
+        {
+          "id": "detroit_artist_juan_atkins",
+          "kind": "artist_reference",
+          "data": {
+            "slug": "juan-atkins",
+            "name": "Juan Atkins",
+            "summary": "External knowledge-graph identity for Juan Atkins; this record is not a Tourify user or artist profile.",
+            "entityType": "artist_reference",
+            "metadata": {
+              "external_ids": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "identity_kind": "person",
+              "identity_policy": "external_reference_not_tourify_profile",
+              "tourify_match_status": "no_exact_demo_match_checked_2026_08_20"
+            },
+            "identity": {
+              "kind": "person",
+              "policy": "external_reference_not_tourify_profile",
+              "externalIds": {
+                "wikidata_qid": null,
+                "musicbrainz_artist_mbid": "57dd6359-f4ef-422a-9566-b8f54a0904fe",
+                "tourify_artist_profile_id": null
+              },
+              "tourifyMatchStatus": "no_exact_demo_match_checked_2026_08_20",
+              "isTourifyProfile": false
+            }
+          },
+          "placeRelation": "associated_with",
+          "confidence": 0.98,
+          "timeScope": null,
+          "provenance": {
+            "claimId": null,
+            "sourceKeys": [
+              "detroit_historical_atkins",
+              "musicbrainz_artist_identity"
+            ],
+            "reviewed": false
+          },
+          "quality": {
+            "score": 0.9165,
+            "band": "strong_basis",
+            "confidence": 0.98,
+            "metadataCompleteness": 0.775,
+            "sourceCount": 2,
+            "distinctDomains": 2,
+            "domains": [
+              "detroithistorical.org",
+              "musicbrainz.org"
+            ],
+            "sourceTypes": [
+              "museum",
+              "music_metadata"
+            ],
+            "authorities": [
+              "community_music_metadata",
+              "local_history_institution"
+            ],
+            "authorityScore": 0.825,
+            "diversityScore": 1,
+            "provenanceIntegrity": 1,
+            "corroboratedAcrossDomains": true,
+            "publicationEligible": false,
+            "blockers": [
+              "editorial_review_required"
+            ]
+          },
+          "actions": [
+            {
+              "type": "explore_related",
+              "entityKind": "artist_reference",
+              "entityId": "detroit_artist_juan_atkins"
+            }
+          ]
+        }
+      ],
+      "notableRecordings": [],
+      "landmarks": []
+    },
+    "tourifyHere": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "No exact pilot historical artist identities currently match Tourify Demo artist profiles; fake profiles are forbidden.",
+      "items": []
+    },
+    "radio": {
+      "status": "not_available_in_seed_fixture",
+      "reason": "Radio station ingestion and stream-rights review are not part of this static history fixture.",
+      "items": []
+    }
+  },
+  "relationships": {
+    "count": 0,
+    "items": []
+  },
+  "provenance": {
+    "reviewed": false,
+    "sourceCount": 2,
+    "sourceTypes": [
+      "museum",
+      "music_metadata"
+    ],
+    "sourceRefs": [
+      {
+        "key": "detroit_historical_atkins",
+        "name": "Detroit Historical Society — Juan Atkins",
+        "canonicalUrl": "https://www.detroithistorical.org/learn/online-research/encyclopedia-of-detroit/atkins-juan",
+        "attribution": null,
+        "licenseClass": "unknown",
+        "authority": "local_history_institution",
+        "ingestionPermission": "manual_reference",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "unknown"
+      },
+      {
+        "key": "musicbrainz_artist_identity",
+        "name": "MusicBrainz — core artist identity metadata",
+        "canonicalUrl": "https://musicbrainz.org/",
+        "attribution": null,
+        "licenseClass": "cc0",
+        "authority": "community_music_metadata",
+        "ingestionPermission": "allowed",
+        "mediaReusePermission": "restricted",
+        "commercialUsePermission": "allowed"
+      }
+    ],
+    "missingSourceKeys": [],
+    "lastReviewedAt": null
+  },
+  "freshness": {
+    "knowledgeSeedRetrievedAt": "2026-08-22T15:18:12.699555+00:00",
+    "historicalDataClass": "long_lived_reviewed_on_publish",
+    "currentSignalDataPresent": false
+  },
+  "permissions": {
+    "previewOnly": true,
+    "publicEligible": false,
+    "playbackEligible": false,
+    "containsPrivateStreamLocators": false,
+    "containsRawIngestionPayloads": false
+  },
+  "generatedAt": "2026-08-22T16:47:17.455Z"
+}

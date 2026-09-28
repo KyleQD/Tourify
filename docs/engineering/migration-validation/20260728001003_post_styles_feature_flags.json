@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260728001003_post_styles_feature_flags.sql",
+  "taskId": "DB-007",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": ["posts", "appearance", "feature-flags"],
+  "riskLevel": "low",
+  "representativeSnapshot": {
+    "kind": "production-like disposable database with feature_flags present and empty",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select key from public.feature_flags where key like 'post_styles_%' order by key"
+    ],
+    "expectedAffectedRows": "Up to four new rows inserted into feature_flags ON CONFLICT (key) DO NOTHING; all flags disabled",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 1000,
+    "statementTimeoutMs": 30000,
+    "batchSize": 0,
+    "resumeStrategy": "Rerun the single idempotent INSERT ... ON CONFLICT DO NOTHING statement; duplicate keys are skipped",
+    "resumeCursor": "feature_flags unique constraint on key",
+    "idempotency": "INSERT ... VALUES ... ON CONFLICT (key) DO NOTHING"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No tenant keys or user data are inferred, backfilled, or quarantined; only four feature-flag rows are seeded"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [],
+    "indexes": [],
+    "validationPlan": "No constraints or indexes are created; the ON CONFLICT target uses the existing unique feature_flags.key"
+  },
+  "recovery": {
+    "rollback": "Delete the four post_styles_% flag rows in a forward migration if the family is rolled back",
+    "forwardFix": "Flag lifecycle continues through the existing feature-flag governance migrations"
+  },
+  "postflight": {
+    "queries": [
+      "select key, enabled, rollout_percentage from public.feature_flags where key like 'post_styles_%' order by key"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

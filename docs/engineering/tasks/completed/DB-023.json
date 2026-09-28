@@ -1,0 +1,280 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-023",
+  "title": "Create the event tables the active chain never creates",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "database",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "created_at": "2026-09-28T01:12:00.000Z",
+  "updated_at": "2026-09-28T04:35:00.000Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree (713 entries at session end, from concurrent lanes); migrations were AUTHORED and locally proved, never APPLIED (CP-051)",
+  "goal": "public.event_posts and public.event_claims are read and written by live routes but are created by no file in the active migration chain; bring both into the chain idempotently with asserted row-level policies, or record which out-of-band artifact creates them.",
+  "scope": {
+    "in": [
+      "public.event_posts: an additive, idempotent definition in the active chain with RLS enabled and forced and each policy predicate asserted, or a recorded ledger entry naming the out-of-band artifact that creates it",
+      "public.event_claims: the same, plus an explicit disposition of the ln-versus-event_claims naming inconsistency in the only archived definition",
+      "Evaluating the transcribed policies against the service-role call sites that bypass RLS, not only against authenticated callers",
+      "Local proof of each migration against a throwaway PostgreSQL instance with negative controls that fire"
+    ],
+    "out": [
+      "Applying any migration to any project database. CP-051: manual, explicit, operator-driven, one at a time, no db reset",
+      "Modifying or re-transcribing any applied migration. These files add forward",
+      "Editing app/api/events/** or app/api/integrations/**; the events and integrations lanes own those call sites and receive the requirements as handoffs",
+      "The separate provider-connection ownership question, which is DB-022"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/ (NEW forward-only migration files only)",
+    "supabase/tests/ (NEW db023-prefixed contract files only)",
+    "docs/engineering/migration-validation/ (NEW db023-prefixed evidence only)",
+    "docs/engineering/agents/database/STATE.md",
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE.json (discharge)",
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE.json (discharge)"
+  ],
+  "shared_working_set": [
+    "supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/** (READ ONLY -- archive, never a source to copy verbatim)",
+    "supabase/migrations_backup/** (READ ONLY, and its MANIFEST.csv marks at least one file duplicate_version_noncanonical)"
+  ],
+  "references": [
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE.json",
+    "docs/engineering/handoffs/pending/HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE.json",
+    "docs/engineering/tasks/completed/EVENTS-004.json",
+    "supabase/migrations/20260927140000_event_provider_connections.sql",
+    "docs/engineering/agents/database/CHARTER.md",
+    "docs/DEVELOPMENT_WORKFLOW.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "Closed. The operator apply is HF-DB023-EVENT-POSTS-CLAIMS-APPLY (release). The caller-side defects are HF-DB023-EVENT-POSTS-CALLERS and HF-DB023-EVENT-CLAIMS-POLICY-PATH (events) and HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR (social).",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "For each of public.event_posts and public.event_claims, a dated decision records which of the two states is true: the active chain creates the table, or an out-of-band artifact does. The decision names the artifact and the evidence, and does not assume the chain's silence proves the table is absent.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "DECISION 2026-09-28, BOTH TABLES: THE ACTIVE CHAIN IS THE ANSWER, so both are created by the new migration 20260928010000_event_posts_and_event_claims.sql. The chain's silence was NOT treated as proof of absence: the absence is re-derived by EXECUTION in the harness, which builds the chain's own public.events and public.event_attendance from their migration bytes and then asserts to_regclass('public.event_posts') and to_regclass('public.event_claims') are both NULL.",
+        "NO OUT-OF-BAND ARTIFACT IS AUTHORITATIVE, AND THERE IS NONE TO NAME. public.event_posts has exactly two candidate definitions: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20250120000000_event_social_features.sql, whose MANIFEST.csv:2 status is duplicate_version_noncanonical inside a directory named local-only-unapplied, and supabase/migrations_backup/20250115000003_event_pages_system.sql, a backup copy this repository classifies as evidence only. They are MUTUALLY INCOMPATIBLE and neither is a source of truth: media_urls text[] vs jsonb; type NOT NULL with ('text','image','video','announcement') vs nullable with six literals; visibility NOT NULL default 'public' with ('public','attendees','organizers') vs nullable default 'attendees' with ('public','attendees','collaborators'). The migrations_backup policy set is not even transcribable: it references public.events.created_by, public.event_collaborators and public.event_page_settings, none of which any active migration creates, so CREATE POLICY would abort 42703; and it ships GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated at line 443. media_urls was decided by three independent call sites that write or type a JS string array (app/api/events/[id]/posts/route.ts:147, components/events/enhanced-event-page.tsx:228, lib/feed/attending-event-posts.ts:213).",
+        "public.event_claims has exactly one definition: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804132000_event_claims_merges.sql, whose MANIFEST.csv:285 status is local_only_unapplied. That file also creates four further relations and a SECURITY DEFINER merge function, none of which is carried and none of which is in any active chain.",
+        "BOTH TABLES MAY STILL EXIST ON SOME ENVIRONMENT, CREATED OUT OF BAND, AND THE FILE IS BUILT FOR THAT CASE RATHER THAN ASSUMED AWAY. DB-002 documents prior application by raw Management API SQL, so out-of-band creation is a real possibility. `create table if not exists` skips a pre-existing relation and the in-transaction post-condition then ABORTS the file naming every differing contract entry. Proven by control N8: a table built to the exact migrations_backup shape, with a row in it, is refused with seven named differences.",
+        "WHAT REMAINS UNKNOWN, AND IS NOT PAPERED OVER: whether either relation exists on any ACTIVE environment. DB-023 applied nothing (CP-051) and the local proof is a throwaway cluster. The statement that is now defensible is 'no artifact in the source of truth creates these tables and the chain now does', not 'these tables exist'."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Where the chain is the answer, an additive idempotent migration defines each table with RLS enabled AND forced, in the CP-104 shape that 20260927140000_event_provider_connections.sql already documents, so re-running it is a no-op rather than an abort.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "supabase/migrations/20260928010000_event_posts_and_event_claims.sql, sha256 d56fdb54df7fdd347a6b7606191d6a122fe3925a66200e98142acef1e693a636. Additive and forward-only: two new relations, no existing relation created, dropped, renamed or rewritten, no data written, one SELECT grant on a table it does not create (declared and asserted). No applied migration was modified or re-transcribed.",
+        "RLS enabled AND forced on both: `alter table public.event_posts enable row level security; alter table public.event_posts force row level security;` and the same pair for public.event_claims. Asserted in the post-condition with separate messages for 'enabled = false' and 'forced = false', and proven load-bearing rather than decorative by control N6 (a dropped FORCE is detected and named) and by stage 6 of the harness.",
+        "RE-RUNNABILITY PROVEN AS A NO-OP, NOT MERELY AS A NON-ABORT. Applied three times against a throwaway PostgreSQL 16.15 cluster; a full catalog digest -- columns, types, defaults, nullability, CHECK literal sets, FKs with delete actions, index definitions, every policy's command, roles and rendered predicate, RLS flags, and the grant set per role -- is compared after each apply. All three digests are identical, and the digest is asserted non-empty so it cannot be comparing nothing.",
+        "CP-104 shape, with one deliberate refinement over 20260927140000: policies are created at TOP LEVEL and never inside a DO block, because scripts/ci/check-active-migration-chain.mjs strips $tag$...$tag$ bodies before scanning policy DDL and a policy created inside one escapes duplicate detection. `drop policy if exists` + `create policy` per policy makes a second apply correct and replaces a pre-existing policy of the same name rather than silently keeping it.",
+        "NO FUNCTION IS CREATED, so the private-schema search_path trap is avoided by construction: there is no unqualified reference anywhere in the file. The archived file's SECURITY DEFINER public.event_merge_execute, which qualifies nothing and depends on six relations no active migration creates, was deliberately NOT carried.",
+        "npm run check:migration-chain -- PASS: no duplicate policy creations, 324 files scanned."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Every transcribed policy is asserted in a post-condition that names the policy, so a future permissive USING (true) is reported by name instead of appearing silently. A policy that is created and never asserted is not evidence that it constrains anything.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "SEVEN policies, seven assertions, each naming its policy, its command, its role scope, and its NORMALIZED rendered using and check expressions: event_posts_visibility_read, event_posts_attendee_read, event_posts_own_insert, event_posts_own_update, event_claims_self_read, event_claims_self_insert, event_claims_service_role_all. The post-condition compares in BOTH directions, so an expected entry the catalog does not produce AND a catalog entry the file does not claim are both reported.",
+        "DELIBERATELY ASSERTED ABSENCES: no DELETE policy and no service_role policy on public.event_posts; no UPDATE or DELETE policy for authenticated on public.event_claims. Each is an expected-list entry that is absent from the catalog, so a future permissive DELETE or an undeclared service_role policy is reported by name rather than inherited silently.",
+        "roles= IS PART OF EVERY POLICY ENTRY. That is not decoration: it is what distinguishes event_posts_attendee_read, whose subplan needs authenticated to hold SELECT on public.event_attendance, from event_posts_visibility_read, which must stay free of that subplan. A first revision merged the two and made every caller-side read fail 42501, for anon as well as authenticated, because a table-level ACL is checked when the subplan runs rather than per disjunct. The roles field is what makes that regression impossible to reintroduce unnoticed.",
+        "The grant set is asserted per role and in the negative direction too: anon SELECT only on event_posts and nothing at all on event_claims; authenticated SELECT/INSERT/UPDATE and NOT delete on event_posts, SELECT and nothing else on event_claims; service_role nothing on event_posts and select/insert/update and NOT delete on event_claims; PUBLIC no write privilege on either. The DEPENDENCY GRANT on public.event_attendance is asserted in both directions (authenticated must hold it, anon must not).",
+        "EVERY TRANSPERED PREDICATE IS DEMONSTRATED FIRING. Controls N1-N4 and N13 each break one named predicate and the post-condition names it: a permissive USING (true) read; a permissive WITH CHECK (true) write; a claim insert stripped of its `status = 'pending'` clause; a permissive claim read; a revoked dependency grant. Controls N5-N9 break non-policy facts the same way: a re-typed media_urls column, a dropped FORCE, a blanket anon grant, a pre-existing wrong-shaped table, and the archived narrower event_table CHECK.",
+        "supabase/tests/db023_event_posts_claims_contract.sql is an INDEPENDENT postflight: zero violation rows and exactly one row event_posts_and_event_claims_ready on a healthy target, and it fails closed when a policy is removed (N10, and it withholds the summary row), when a named policy loses a clause (N11), and when an extra permissive policy appears under a new name (N12, which also identifies it as the CP-104 unconditional shape)."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "The ln-versus-event_claims naming inconsistency in the sole archived definition is dispositioned explicitly rather than transcribed verbatim. Copying a file whose CREATE TABLE, indexes and policies all name a different table would create a table nobody asked for and leave the real one still missing.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "DISPOSITION: THE INCONSISTENCY DOES NOT EXIST. The premise of AC-4 and of HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE is false against the repository at base SHA, and this is recorded as a defect in the handoff's evidence rather than as a property of the schema.",
+        "PROOF. The string `ln` occurs ZERO times in supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804132000_event_claims_merges.sql, a 182-line file. `public.ln`, `ln_self_read`, `ln_self_insert`, `idx_ln_event` and `idx_ln_claimant` occur nowhere in the working tree (rg --no-ignore --hidden over the whole repository) and in no object git has ever held (git log --all -S'ln_self_read' and -S'idx_ln_event' both return nothing). The only occurrences of those strings anywhere are the two prose sentences in the handoff itself. The file's blob is unmodified from HEAD: git hash-object equals git rev-parse HEAD: for that path.",
+        "WHAT THE FILE ACTUALLY CONTAINS, read line by line: line 47 `create table if not exists public.event_claims`; lines 65-66 `create index if not exists idx_event_claims_event on public.event_claims (event_id, status)` and `idx_event_claims_claimant on public.event_claims (claimant_user_id, status)`; line 91 `alter table public.event_claims enable row level security`; line 104 `create policy event_claims_self_read on public.event_claims for select using (auth.uid() = claimant_user_id)`; line 111 `create policy event_claims_self_insert on public.event_claims for insert with check (auth.uid() = claimant_user_id and status = 'pending')`; line 115 `grant select, insert on public.event_claims to authenticated`. Every object names public.event_claims. The file is coherent, not internally inconsistent; it is merely incomplete relative to what the routes need.",
+        "MOST LIKELY ORIGIN, recorded so it is not repeated: the two POLICY NAMES the handoff cites as its evidence, `ln_self_read` and `ln_self_insert`, are the two real policy names. The object names in the handoff's evidence are the real names with a spurious `ln_`/table-name substitution applied to them.",
+        "TRANSCRIBED FROM THE REAL FILE, NOT VERBATIM AND NOT INVENTED. Columns 47-63 are copied in full including the NOT NULL timestamps and the jsonb evidence default, and then narrowed deliberately: `authenticated` receives SELECT and NOT the archive's INSERT, because an authenticated INSERT would be an escalation primitive whose only protection is a predicate the service-role live writer bypasses, and because no caller-side consumer of any kind exists today. FORCE is added, which the archive does not have. An event_claims_service_role_all policy is added, because app/api/events/[id]/tour/route.ts is reachable today with no feature gate and would otherwise depend on service_role carrying BYPASSRLS. No UPDATE or DELETE policy is created for authenticated and DELETE is not granted to service_role.",
+        "THE SAME QUESTION, ASKED ABOUT THE TABLE WHERE A REAL INCONSISTENCY EXISTS, WAS ALSO DISPOSITIONED: public.event_posts has two mutually incompatible archived definitions (see AC-1) and the installed contract is derived from the live code with every divergence named, rather than copied from either. The archived read predicate is INCOMPATIBLE with the code and was not used: `visibility = 'public' OR auth.uid() = user_id` makes the `.in('visibility', ['public','attendees'])` filter in lib/feed/attending-event-posts.ts:220 dead and would show an attendee none of the attendee-visible posts."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Each policy is evaluated against the call sites that bypass RLS, not only against authenticated callers. The events lane found that the claim and tour routes read and write through a service-role client, so a self-read policy adds no protection on those paths; the record says which predicates are load-bearing and which are decorative on the current code.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "EVERY event_claims CALL SITE USES createServiceRoleClient(), so every self-scoped predicate on that table is decorative on today's code. The three consumers, all measured: app/api/events/[id]/claim/route.ts:82 (INSERT), app/api/events/[id]/tour/route.ts:35 (SELECT, the ownership fallback reading status='approved'), app/api/admin/event-claims/route.ts:21,42,52 (SELECT and the status UPDATE). service_role carries BYPASSRLS on Supabase, so event_claims_self_read constrains no live path, and the `status = 'pending'` clause of event_claims_self_insert -- the clause that would stop a caller self-approving a claim and thereby taking events.artist_id through the tour route -- is decorative and additionally unreachable.",
+        "MEASURED, NOT INFERRED: with all three policies in place, a service_role insert of status='approved' SUCCEEDS and the resulting row is readable, which is exactly what app/api/events/[id]/tour/route.ts:39 consumes. This is recorded as a positive assertion, not as an absence of an error, so the exposure cannot be lost silently.",
+        "WHAT ACTUALLY DENIES A CALLER-SIDE PATH TODAY IS THE GRANT, NOT THE POLICY, and both are asserted so the pairing is the invariant: authenticated holds SELECT and nothing else on event_claims, so an authenticated insert is 42501 and an authenticated status transition is 42501, twice over. A service_role status transition succeeds (the admin review route) and a service_role DELETE is refused 42501.",
+        "REACHABILITY CHANGES THE VERDICT AND IS RECORDED: app/api/events/[id]/claim/route.ts:29 and both app/api/admin/event-claims/route.ts handlers are gated on flags in EXTERNAL_PROVIDER_FLAGS, hence behind isLaunchCapabilityAvailable('external_event_providers'), which is status 'disabled' at lib/config/launch-capabilities.ts:46 and is therefore unopenable by any environment value. The claim WRITE path and the admin review path are permanently 503 today. The only live event_claims path is app/api/events/[id]/tour/route.ts, which has NO feature gate -- which is why the service_role policy is installed rather than relying on BYPASSRLS, and why its absence would have failed a reachable route closed.",
+        "public.event_posts IS THE OPPOSITE CASE, AND IT WAS ESTABLISHED BY BEHAVIOUR, NOT BY CATEGORIZING. All four consumers use a caller or browser client -- app/api/events/[id]/posts/route.ts:39,139, app/api/events/[id]/page/route.ts:119, lib/feed/attending-event-posts.ts:213, components/events/enhanced-event-page.tsx:121,221 with lib/supabase/client.ts:13 being the anon key -- so the policies on that table ARE the access control, and each is classified by measurement:",
+        "  LOAD-BEARING: event_posts_visibility_read. anon reads 2 of 4 seeded posts and 0 attendees-visibility posts; an authenticated non-attendee reads 2; an ATTENDING authenticated caller reads 4; the author reads 3 (own rows whatever the visibility, plus the public rows of others).",
+        "  LOAD-BEARING: event_posts_attendee_read. Removing the caller's attendance row drops that same caller from 4 back to 2, which is what proves the arm is the cause rather than a coincidence. Without this arm, visibility='attendees' would be a label with no enforcement.",
+        "  LOAD-BEARING: event_posts_own_insert. A cross-account insert is refused 42501; a non-attendee's attendees-visibility insert is refused 42501; a caller's own public insert SUCCEEDS. That last one is pinned deliberately, as a positive assertion, because a proof that only showed denials would hide the one predicate that is a named residual.",
+        "  DECORATIVE TODAY: event_posts_own_update. No live consumer updates an event_posts row; the four consumers are two readers and two writers. Created and asserted anyway so the first caller-side update meets an own-row predicate, and asserted to be absent for anon INSERT so it never evaluates the insert policy's subplan.",
+        "  DELIBERATELY ABSENT: no DELETE policy and no service_role policy on event_posts. No live consumer deletes, and service_role has no consumer of this table at all, so a USING (true) policy there would be the CP-104 shape with nothing to permit. Both absences are asserted.",
+        "NAMED RESIDUAL, installed as the recorded model and routed rather than narrowed: the public-visibility disjunct of event_posts_own_insert lets ANY authenticated account post a public post on ANY event id, with no organizer, attendee or event-existence check. The application route gates it, but components/events/enhanced-event-page.tsx:221 posts straight to PostgREST behind a client-side canPost flag. Narrowing it in SQL would break the documented behaviour of a live route, so it is installed, asserted by name, and routed in HF-DB023-EVENT-POSTS-CALLERS.",
+        "NAMED RESIDUAL on the read side, same treatment: there is no predicate on the parent event's publication state, so a public-visibility post of a DRAFT or CANCELLED event is readable by anyone holding the anon key who knows the event id. Closing it needs the publication contract for public.events, public.artist_events and public.events_v2 together, which this lane does not own. Routed in HF-DB023-EVENT-POSTS-CALLERS rather than guessed at here."
+      ]
+    },
+    {
+      "id": "AC-6",
+      "criterion": "Every authored migration is proved against a throwaway PostgreSQL instance: applied three times for re-runnability, with negative controls that fail when a policy or predicate is wrong. Nothing is applied to any project database and no hosted result is claimed.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "supabase/tests/db023_event_posts_claims.harness.sh, sha256 82958a74250bc0603a619973b420dc88b96d6ac2aabb71f6b9575418a136aae2, plus supabase/tests/db023_event_posts_claims.harness.sh.bootstrap.sql, sha256 5751ffad205d50f8559ab30a389c6b7ffe7305467ae25655f56dc8447808e489. Throwaway PostgreSQL 16.15 cluster: initdb under a temp dir, unix-socket only, destroyed on exit by a trap. Not Supabase, not a hosted project, not a chain replay, no supabase db reset, nothing applied to any project database (CP-051).",
+        "154 CHECKS, 0 FAILURES, run twice with identical results. Nothing was applied to any project database and no hosted, database or advisory result is claimed.",
+        "RE-RUNNABILITY: three applies, three byte-identical catalog digests, and the digest is asserted non-empty so it cannot be comparing nothing.",
+        "THIRTEEN NEGATIVE CONTROLS, EACH DEMONSTRATED FAILING, each naming the object it broke: N1 permissive USING (true) read; N2 permissive WITH CHECK (true) write; N3 claim insert stripped of its status='pending' clause; N4 permissive claim read; N5 re-typed media_urls column; N6 dropped FORCE RLS; N7 blanket anon grant; N8 a pre-existing table in the migrations_backup shape, with a row in it, refused with seven named differences; N9 the archived narrower event_table CHECK; N10 a removed policy (the contract also withholds its summary row); N11 a policy that kept its name and lost a clause; N12 an extra permissive policy under a new name; N13 a revoked dependency grant.",
+        "ANTI-VACUITY, because this repository has already shipped a green check over an instrument that measured nothing. (a) A MUTANT migration carrying five of those defects -- permissive read, permissive insert, anon write grant, claim insert without the pending-only clause, and the archived narrower event_table CHECK -- is REFUSED by the post-condition on its first apply, and the harness reports 5 failures. (b) A harness with three deliberately CORRUPTED expected values, against the correct migration, reports exactly those three assertions red with the true values, which proves the behavioural assertions run and are not skipped. (c) The harness asserts its own fixture after every rebuild and the extraction of the chain's own statements is checked for emptiness, because the Wave 33 and Wave 34 harnesses both shipped revisions that passed while the emulation had silently failed to rebuild.",
+        "TWO DEFECTS THE PROOF FOUND IN THIS LANE'S OWN WORK, both fixed and both now guarded: (1) the first revision put the event_attendance subquery in an unscoped policy, which made EVERY caller-side read and write of an event post fail 42501 including anonymous ones -- a launch outage on the public event page rather than a fix; the read is now split into a role-agnostic policy and a `to authenticated` attendees policy, and both the migration's post-condition and the contract assert the split and assert that the unscoped policy does NOT reference event_attendance. (2) the same first revision also revealed that authenticated held NO SELECT on public.event_attendance, which two live routes already depend on, so the migration now issues that grant and asserts it in both directions, and control N13 proves revoking it breaks the read. Three harness-instrument defects were found and fixed on the way, and are recorded in the checkpoints below because they are the same class of error as the two above: nine negative controls were initially green while measuring only that the migration REPAIRS damage rather than that the post-condition DETECTS it; the FORCE stage initially read the table as a superuser, which FORCE cannot bind, and would have reported FORCE as decorative; and a multi-statement psql -c is one implicit transaction, so a duplicate-key error on a repeated auth.users seed rolled back the create table that preceded it and made control N8 measure a table that did not exist."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260928010000_event_posts_and_event_claims.sql",
+          "bash supabase/tests/db023_event_posts_claims.harness.sh",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npm run check:migration-chain -- `\u2713 active migration chain has no duplicate policy creations (324 files scanned)`, exit 0. 323 files before this task; the new migration is in the scan.",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260928010000_event_posts_and_event_claims.sql -- `\u2713 scanned supabase/migrations/20260928010000_event_posts_and_event_claims.sql with planned manifest`, exit 0.",
+          "npm run check:migration-validation (repo-wide) -- exit 0. No pre-existing exception in this state; the `job-posting-scope-not-null` exception DB-008 renewed in Wave 33 is still valid and untouched.",
+          "bash supabase/tests/db023_event_posts_claims.harness.sh -- `checks: 154   failures: 0` / `DB-023 event posts / event claims: ALL 154 CHECKS PASS`, exit 0, run twice with identical results, on a throwaway PostgreSQL 16.15 cluster. Includes 13 negative controls each demonstrated failing, plus the two anti-vacuity runs recorded under AC-6.",
+          "bash -n on the harness -- syntax OK.",
+          "npm run agents:validate -- --strict -- see the checkpoint dated 2026-09-28T04:35Z for the recorded output.",
+          "SCOPED AND DELIBERATELY NOT RUN: `npm run typecheck`. CP-106 records that a full-repo typecheck OOMs on this machine by design; four lanes share one 8GB box. No TypeScript file was authored or modified by this task, so there was nothing to typecheck. `npm run generate:database-types` and `npm run check:database-types` were not run: they need an applied target, and DB-008's backward-drift finding on public.venue_profiles still blocks a chain-only regeneration. `supabase db lint --local` was not run: Docker is not running on this machine and no linked or project-id target is configured."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-28T04:35:00.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Both tables are now in the chain, with the disclosure decision for event posts established in the schema for the first time and measured rather than asserted. The AC-1 answer is the same for both: the active chain is the source of truth and neither archived definition is authoritative -- for event_posts because the two are mutually incompatible and the migrations_backup policy set is not even transcribable, for event_claims because the sole definition is local_only_unapplied. AC-4's premise turned out to be false and is recorded as a defect in the inbound handoff's evidence rather than as a property of the schema: the string `ln` appears nowhere in the repository or in any object git has ever held. The proof found two real defects in this lane's own first revision -- an unscoped policy subquery that would have 42501'd every caller-side read of an event post including anonymous ones, and a dependency grant on public.event_attendance that two live routes already depended on and the chain never issued -- and both are fixed with controls that prove they stay fixed.",
+    "completed": [
+      "AC-1 through AC-6 met, with real evidence recorded above.",
+      "Authored supabase/migrations/20260928010000_event_posts_and_event_claims.sql (sha256 d56fdb54df7fdd347a6b7606191d6a122fe3925a66200e98142acef1e693a636): both relations, RLS enabled AND forced, seven policies, explicit grants, a declared dependency grant, and two in-transaction post-conditions that assert the entire contract by name in both directions.",
+      "Authored supabase/tests/db023_event_posts_claims_contract.sql (sha256 2d05dd3f3db70cd9c1a2d4b8f4c9c8072006994431f10acaec4dd810c846a988): an independent operator postflight that re-reads the catalog, asserts the three unguarded dependencies exist, asserts each policy's conjuncts by name, and fails closed on a removed policy, a lost clause and an extra unconditional predicate.",
+      "Authored supabase/tests/db023_event_posts_claims.harness.sh (sha256 82958a74250bc0603a619973b420dc88b96d6ac2aabb71f6b9575418a136aae2) and its bootstrap (sha256 5751ffad205d50f8559ab30a389c6b7ffe7305467ae25655f56dc8447808e489): 154 checks, 13 negative controls, two anti-vacuity runs.",
+      "Authored docs/engineering/migration-validation/20260928010000_event_posts_and_event_claims.json: status planned, Layer 0 stop conditions, a dependency-grant declaration, a rollback that refuses to improvise a data drop, and a forward-fix list naming the migration each routed gap would need.",
+      "Discharged both inbound handoffs into completed/ with the AC-1 disposition, the AC-4 correction, the measured load-bearing/decorative classification, and an explicit statement of what remains unverified."
+    ],
+    "next_steps": [
+      "OPERATOR APPLY, and it is the only thing between these tables and being live: HF-DB023-EVENT-POSTS-CLAIMS-APPLY (release). Its preflight decides whether the file is right for the target, because both relations may already exist out of band and the file will refuse, by name, if they do.",
+      "Caller-side defects, four of them, none fixed here because app/ is outside this grant: HF-DB023-EVENT-POSTS-CALLERS (events) covers the `profiles:user_id` PGRST embed in two routes, the client-side insert in components/events/enhanced-event-page.tsx, the unvalidated `visibility` passthrough, and the open publication-state disclosure question. HF-DB023-EVENT-CLAIMS-POLICY-PATH (events) covers the events_v2 claim gap, who may transition status, the `admin.id` reference in the admin route, and the two permanently-503 gates. HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR (social) covers public.event_attendance having no event_table column while three live consumers group on it.",
+      "CP-016 regeneration of lib/database.types.ts will clear the TS2769 diagnostics on public.event_posts and add public.event_claims, but it needs this file applied to a reconciled target first, and DB-008's backward-drift finding on public.venue_profiles still blocks a chain-only regeneration. DB-008 owns that.",
+      "NOT ABSORBED, RECORDED AS A CO-DEPENDENCY: the archived 20260804132000_event_claims_merges.sql also creates event_merge_candidates, event_merge_decisions, event_slug_redirects and event_field_overrides plus the SECURITY DEFINER public.event_merge_execute, and its function depends on public.event_external_sources, public.event_ticket_offers, public.event_discovery_index and public.event_merge_candidates. None of those is created by any active migration, and the function qualifies nothing, so it is exactly the private-schema search_path hazard this repository has been bitten by twice. That is the same class of gap as DB-023's own and belongs in a bounded follow-on, not here. DB-022 is unblocked and should be dispatched next."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-28T02:05:00.000Z",
+        "summary": "AC-1 disposition established for both tables, and AC-4's premise disproved. The chain's silence was not treated as proof of absence: the harness re-derives the absence by executing the chain's own create table statements for public.events and public.event_attendance (extracted by line range) and then asserts to_regclass returns NULL for both target tables. The string `ln` occurs zero times in the sole archived event_claims definition and nowhere in any git object; the two policy NAMES the inbound handoff cites as evidence are the two real policy names, which is the likeliest origin of the transcription. The genuine inconsistency turned out to be on the OTHER table: the two archived event_posts definitions are mutually incompatible on media_urls, type and visibility, and the migrations_backup one references three relations no active migration creates.",
+        "next": "Decide the event_posts contract from the live code, write the migration, and prove it."
+      },
+      {
+        "at": "2026-09-28T02:55:00.000Z",
+        "summary": "Migration authored and the FIRST TWO FAULTS FOUND IN IT, both by execution. (1) The post-condition's expected policy strings were written in the wrong form: the normalization strips redundant parentheses only from the outside of a whole entry, so the rendered double parens on the complex quals are load-bearing and the file refused a healthy target on its first apply. That is the false failure DB-013 recorded once. (2) The FK target was spelled `public.events`, which the same normalization silently reduced to `events`, so the assertion would have compared a relation in ANY schema equal to one in public. Fixed by joining the namespace with a colon, which the stripper does not match. The correction is recorded in the file rather than left for a reader to rediscover.",
+        "next": "Re-apply three times, then write the independent contract postflight."
+      },
+      {
+        "at": "2026-09-28T03:40:00.000Z",
+        "summary": "THE PROOF FOUND A LAUNCH OUTAGE IN THIS LANE'S OWN FIRST REVISION. With the attendees arm in the same unscoped read policy, every caller-side read and write of an event post failed `42501 permission denied for table event_attendance` -- for anon as well as authenticated -- because a table-level ACL is checked when the subplan runs, not per row and not per disjunct, so the OR does not protect it. The migration would have turned a missing-relation 500 into a total read outage on the public event page. Fixed by splitting the read into an unscoped `event_posts_visibility_read` and a `to authenticated` `event_posts_attendee_read`, scoping the insert and update policies to authenticated for the same reason, and asserting `roles=` on every policy entry so the split cannot be silently reverted. The same run surfaced the second fault: `authenticated` held NO SELECT on public.event_attendance, which app/api/events/[id]/posts/route.ts:113 and app/api/events/[id]/page/route.ts:97 already depend on and which 20250814091000 never grants. The migration now issues that grant, deliberately not to anon, and asserts it in both directions.",
+        "next": "Add the negative controls and prove each one fires."
+      },
+      {
+        "at": "2026-09-28T04:05:00.000Z",
+        "summary": "Three defects in the PROOF ITSELF, found and fixed, recorded because they are the same class of error as the two above. (a) Nine of the thirteen negative controls were GREEN while measuring nothing: they re-applied the whole migration and asserted on its output, which proves only that the migration REPAIRS damage, not that the post-condition DETECTS it. The controls now run the post-condition alone, extracted from the migration at run time. (b) The FORCE ROW LEVEL SECURITY stage read the table as the superuser that created it, saw every row with FORCE on, and would have reported FORCE as decorative -- FORCE binds the OWNER role and is inert against a superuser, so the emulated owner is now an ordinary NOSUPERUSER role, which is the only configuration in which the flag is observable. On Supabase the owning postgres role is NOSUPERUSER, so FORCE is real there; the property is recorded in the migration. (c) A multi-statement psql -c is ONE implicit transaction, so a duplicate-key error on a repeated auth.users seed rolled back the create table that preceded it in the same string, and control N8 was measuring a table that did not exist. All fixture seeds are now conflict-tolerant, the fixture asserts its own post-state after every rebuild, and N8 asserts that the pre-existing table and its row really were built.",
+        "next": "Run the anti-vacuity checks, then the repository gates."
+      },
+      {
+        "at": "2026-09-28T04:25:00.000Z",
+        "summary": "Anti-vacuity confirmed in both directions. A mutant migration carrying five of the thirteen defects -- permissive read, permissive write, anon write grant, claim insert without the pending-only clause, and the archived narrower event_table CHECK -- is refused by the post-condition on its first apply and the harness reports 5 failures. A harness with three deliberately corrupted expected values, against the CORRECT migration, reports exactly those three assertions red with the true values, so the behavioural assertions demonstrably run. 154 checks, 0 failures, twice, identical.",
+        "next": "Repository gates, manifest, handoffs, record."
+      },
+      {
+        "at": "2026-09-28T04:35:00.000Z",
+        "summary": "Gates green: check:migration-chain PASS (324 files), check:migration-validation PASS for the new file and repo-wide exit 0, harness 154/154 twice. Manifest authored and validated. Both inbound handoffs discharged to completed/ with the correction recorded. Four handoffs raised: the operator apply (release), the event_posts caller defects (events), the event_claims policy path (events), and the event_attendance discriminator (social). Nothing was applied to any project database and no hosted, database or advisory result is claimed. npm run agents:validate -- --strict recorded in the verification gate.",
+        "next": "Move this record to completed/ and refresh the generated queue summary."
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "id": "HF-DB023-EVENT-POSTS-CLAIMS-APPLY",
+      "direction": "out",
+      "to_agent": "release",
+      "status": "pending",
+      "condition": "Apply exactly one file on the target, run the contract postflight to zero violations and one summary row, and record the Layer 0 preflight result -- particularly whether public.event_posts or public.event_claims already exists."
+    },
+    {
+      "id": "HF-DB023-EVENT-POSTS-CALLERS",
+      "direction": "out",
+      "to_agent": "events",
+      "status": "pending",
+      "condition": "Fix or explicitly accept four call-site defects in app/api/events/** and components/events/**, and answer whether an anon-readable public post on an unpublished event is acceptable."
+    },
+    {
+      "id": "HF-DB023-EVENT-CLAIMS-POLICY-PATH",
+      "direction": "out",
+      "to_agent": "events",
+      "status": "pending",
+      "condition": "Decide whether event_claims follows public.events_v2 and who may transition event_claims.status; correct the ln claim in the EVENTS-004 record."
+    },
+    {
+      "id": "HF-DB023-EVENT-ATTENDANCE-DISCRIMINATOR",
+      "direction": "out",
+      "to_agent": "social",
+      "status": "pending",
+      "condition": "Decide whether public.event_attendance gains an event_table column with the canonical three-value set, and confirm the target's attendance policies before the apply."
+    },
+    {
+      "id": "HF-EVENTS-004-EVENT-POSTS-TABLE-TO-DATABASE",
+      "direction": "in",
+      "from_agent": "events",
+      "status": "completed",
+      "condition": "Met, branch one: an additive migration that creates the table idempotently, enables and forces RLS, and asserts every policy predicate."
+    },
+    {
+      "id": "HF-EVENTS-004-EVENT-CLAIMS-TABLE-TO-DATABASE",
+      "direction": "in",
+      "from_agent": "events",
+      "status": "completed",
+      "condition": "Met, branch one: an additive migration that creates the table with its RLS policies, each predicate asserted. The recorded ln premise was false and is corrected in the record."
+    }
+  ],
+  "proposed_decisions": [
+    "PROPOSED FOR docs/engineering/DECISIONS.md (the orchestrator appends; this wave's DECISIONS.md is a shared claim and was not written to).",
+    "DECISION: A table that live routes read and write and that no active migration creates is CREATED, not ledgered, when no artifact is authoritative for it. AC-1 has two branches and the honest answer for both event tables was the first. The archive is not a source of truth, and for public.event_posts it is not even self-consistent: two definitions exist and they disagree on a column type three call sites decide.",
+    "DECISION: When two archived definitions of one relation disagree, the column contract is DERIVED FROM THE LIVE CODE and every divergence from both archives is named in the migration. Transcribing either one verbatim is not an option when the call sites contradict them. Three divergences were forced by code rather than preference: event_table admits 'events_v2' because DB-009's resolver puts it first and the route writes reference.table; author_id exists because two live writers write it and no archive declares it; visibility admits exactly the literals live code writes or reads.",
+    "DECISION: A policy predicate that needs a subquery against another relation must be scoped to the roles that hold a privilege on that relation, and the scope is asserted. A table-level ACL is checked when the subplan runs, not per row and not per disjunct, so an unscoped subquery makes EVERY caller's read fail with 42501 even when an earlier OR disjunct would have allowed the row. The first revision of DB-023's own migration did exactly that and would have turned a missing-relation 500 into a read outage on a public page.",
+    "DECISION: Where a live policy needs a privilege on a relation the migration does not own, the migration issues that privilege as an EXPLICIT, ASSERTED, MINIMAL dependency grant rather than leaving the policy unbuildable. Here that meant `grant select on public.event_attendance to authenticated` -- and the investigation showed two live routes already depended on that grant and the chain never issued it, so the declaration also fixed a pre-existing latent break. The privilege is granted to the narrowest role that needs it and explicitly NOT to anon, because the archived definition of that table ships USING (TRUE) for SELECT.",
+    "DECISION: A service-role policy is created only where a REACHABLE route needs it, and reachability includes feature gates. A route gated behind a launch capability whose status is 'disabled' is not a reason to install a permissive policy; a route with no gate is. On this migration that meant a service_role policy on event_claims (the tour route has no gate) and none on event_posts (all four consumers are caller-side).",
+    "DECISION: A residual that a live route's documented behaviour depends on is INSTALLED, ASSERTED BY NAME, and ROUTED, not narrowed in SQL. The public-visibility disjunct of the event-post INSERT policy and the absence of a publication-state predicate on the read are both recorded this way, with the consequence measured, because narrowing either would change a live route's behaviour and that is the owning lane's decision.",
+    "DECISION: A policy that is created and never asserted is not evidence that it constrains anything, so every policy, every CHECK literal set, every FK delete action, every index definition and every per-role grant is asserted in an in-transaction post-condition, in BOTH directions, with the comparison running against NORMALIZED rendered catalog facts. The expected list is written in normalized form because only the collected values are normalized -- a distinction that cost one false failure during authoring.",
+    "DECISION: FORCE ROW LEVEL SECURITY is load-bearing against the OWNING ROLE and inert against a superuser, so any proof of it must impersonate a NOSUPERUSER owner. A harness that reads the table as the superuser that created it will report FORCE as decorative. Recorded because the same trap would silently invalidate a future proof."
+  ]
+}

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Printer, Download, Send, Clock, MapPin, Utensils, Users } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,8 +11,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OpsWorkspaceChrome } from "@/components/admin/operations/ops-workspace-chrome"
+import { PublicationShareLinkDialog } from "@/components/admin/publication/publication-share-link-dialog"
+import { buildAdminSiteMapHref } from "@/lib/admin/admin-ops-context"
 import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
+import { useAdminActingRequest } from "@/hooks/use-admin-acting-request"
 import { toast } from "sonner"
+import { ArrowLeft, Printer, Download, Send, Clock, MapPin, Utensils, Users, Share2 } from "lucide-react"
 
 interface DaySheet {
   event_id?: string
@@ -66,6 +69,7 @@ const SCHEDULE_ITEMS = [
 export default function DaySheetPage() {
   const params = useParams()
   const eventId = params.id as string
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminActingRequest()
 
   const [ds, setDs] = useState<DaySheet>({})
   const [eventTitle, setEventTitle] = useState('')
@@ -73,6 +77,7 @@ export default function DaySheetPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showDistributeDialog, setShowDistributeDialog] = useState(false)
+  const [showShareDialog, setShowShareDialog] = useState(false)
   const [recipientInput, setRecipientInput] = useState('')
   const [distributing, setDistributing] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -87,7 +92,9 @@ export default function DaySheetPage() {
         fetch(`/api/admin/events/${eventId}/day-sheet`, { credentials: 'include' }),
         fetch(`/api/admin/events/${eventId}`, { credentials: 'include' }),
       ])
-      const siteMapsRes = await fetch(`/api/admin/logistics/site-maps?eventId=${eventId}`, { credentials: 'include' }).catch(() => null)
+      const siteMapsRes = isAdminReady
+        ? await adminFetch(`/api/admin/logistics/site-maps?eventId=${eventId}`).catch(() => null)
+        : null
       if (dsRes.status === 'fulfilled' && dsRes.value.ok) {
         const d = await dsRes.value.json()
         setDs(d.day_sheet || {})
@@ -106,7 +113,7 @@ export default function DaySheetPage() {
     } finally {
       setLoading(false)
     }
-  }, [eventId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady])
 
   useEffect(() => { void fetchData() }, [fetchData])
 
@@ -208,6 +215,10 @@ export default function DaySheetPage() {
       badge={dateLabel || undefined}
       actions={
             <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 h-8" onClick={() => setShowShareDialog(true)}>
+                <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                Secure share
+              </Button>
               <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 h-8" onClick={() => setShowDistributeDialog(true)}>
                 <Send className="h-3.5 w-3.5 mr-1.5" />
                 Distribute
@@ -323,7 +334,10 @@ export default function DaySheetPage() {
                 </SelectContent>
               </Select>
               {ds.site_map_id ? (
-                <Link href={`/admin/dashboard/logistics?tab=site-maps&siteMapId=${ds.site_map_id}`} className="text-xs text-purple-300 hover:text-purple-200">
+                <Link
+                  href={buildAdminSiteMapHref({ siteMapId: ds.site_map_id, eventId })}
+                  className="text-xs text-purple-300 hover:text-purple-200"
+                >
                   Open attached site map
                 </Link>
               ) : null}
@@ -383,6 +397,14 @@ export default function DaySheetPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PublicationShareLinkDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        eventId={eventId}
+        publicationType="day_sheet"
+        title="Share day sheet publication"
+      />
     </div>
     </OpsWorkspaceChrome>
   )

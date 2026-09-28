@@ -1,0 +1,23 @@
+{
+  "label": "pre-del-C3",
+  "roots": [
+    "lib/services/staff-management.service.ts"
+  ],
+  "tscExitCode": 2,
+  "elapsedSeconds": 482.7,
+  "primaryDiagnosticLines": 52,
+  "filesWithDiagnostics": 1,
+  "byFile": {
+    "lib/services/staff-management.service.ts": 52
+  },
+  "byCode": {
+    "TS2769": 16,
+    "TS2589": 14,
+    "TS2322": 12,
+    "TS2339": 8,
+    "TS2345": 2
+  },
+  "tsFilesParsed": "907",
+  "tsLines": null,
+  "stderr": ""
+}

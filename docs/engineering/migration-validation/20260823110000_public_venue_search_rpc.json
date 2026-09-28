@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823110000_public_venue_search_rpc.sql",
+  "taskId": "REL-102",
+  "status": "planned",
+  "owner": "database-engineering",
+  "reviewer": "security-data",
+  "domains": [
+    "venue"
+  ],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch required before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "select count(*) from public.venue_profiles",
+      "select verification_status, count(*) from public.venue_profiles group by verification_status order by verification_status",
+      "select count(*) from public.venue_profiles where is_public = true"
+    ],
+    "expectedAffectedRows": "Adds missing nullable/default-safe public-card fields when absent and replaces the deterministic public-only search function; no venue row is published or reclassified by the migration",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional re-issue or an additive forward-fix after isolated rehearsal",
+    "resumeCursor": "Supabase migration version 20260823110000",
+    "idempotency": "Compatibility columns and indexes use IF NOT EXISTS; CREATE OR REPLACE converges the function body and explicit grants"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Do not infer tenant ownership; stop and quarantine unresolved rows before any backfill"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "venue_types defaults to an empty array rather than an inferred category",
+      "verification_status defaults to unverified rather than an unsupported verification claim",
+      "SECURITY DEFINER output remains restricted to is_public rows and an explicit public-card column list"
+    ],
+    "indexes": [
+      "idx_venue_profiles_public_created",
+      "idx_venue_profiles_public_city"
+    ],
+    "validationPlan": "Fresh-chain rehearsal, anonymous/private negative tests, deterministic ranking and pagination fixtures, bounded page-size checks, EXPLAIN review, and explicit EXECUTE-grant inspection"
+  },
+  "recovery": {
+    "rollback": "Prefer flag-off rollback; use an additive compensating migration for persisted schema changes",
+    "forwardFix": "Ship a later additive migration after preserving unresolved records and evidence"
+  },
+  "postflight": {
+    "queries": [
+      "Read-only object, row-count, RLS, grant, constraint, and advisor checks must be captured"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

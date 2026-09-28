@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-07-28T17:33:34Z",
+  "project_ref": "auqddrodjezjlypkzfpi",
+  "source_kind": "user_supplied_read_only_export",
+  "source_filename": "pasted-text.txt",
+  "source_sha256": "8a114bdf25d97d38376f99f26421be5802cb7e57c99d5ce91c32eec7e1b67e64",
+  "record_count": 180,
+  "unique_version_count": 180,
+  "first_version": "20240410000000",
+  "last_version": "20260720070144",
+  "validation": "ACCEPTED_FOR_READ_ONLY_RECONCILIATION",
+  "database_writes_performed": false,
+  "preservation": "The normalized records and source checksum are retained in generated/migration-reconciliation-ledger.json.",
+  "generated_ledger_sha256_at_acceptance": "eb95003cc610ba3d972fd0d8a1aab933472605eb171d7f20404ae8b887e06be9"
+}

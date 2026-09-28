@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260721235608_admin_feature_flag_governance_rel008.sql",
+  "taskId": "REL-008",
+  "status": "planned",
+  "owner": "admin-platform",
+  "reviewer": "security-data",
+  "domains": ["feature-flags", "tenancy", "rbac", "audit"],
+  "riskLevel": "high",
+  "representativeSnapshot": { "kind": "isolated production-like Supabase branch", "evidenceArtifact": null },
+  "preflight": { "rowCountQueries": ["legacy and governed flag definitions/assignments grouped by org and environment"], "expectedAffectedRows": "Create three empty governed tables and seed two safe-default-off definitions; infer zero org assignments", "artifact": null },
+  "execution": { "lockBudgetMs": 5000, "statementTimeoutMs": 120000, "batchSize": 0, "resumeStrategy": "Expand-only DDL uses existence guards and deterministic definition upserts; retry whole migration", "resumeCursor": "supabase migration version 20260721235608", "idempotency": "IF NOT EXISTS and conflict-safe definition inserts converge without duplicating history" },
+  "quarantine": { "required": false, "table": null, "strategy": "No legacy rows are migrated or guessed; legacy/global state remains untouched for explicit later reconciliation" },
+  "constraintsAndIndexes": { "constraints": ["assignment organization, flag, actor, version, and expiry checks"], "indexes": ["org/environment lookup and org/created history indexes"], "validationPlan": "Verify all constraints, indexes, trigger immutability, RLS policies, grants, and two-org role matrix" },
+  "recovery": { "rollback": "Disable rollout at application layer; preserve the new empty/additive schema and any audit history", "forwardFix": "Ship later additive policy/function corrections; never remove legacy or governed flag rows" },
+  "postflight": { "queries": ["row counts, safe-default definitions, constraints, indexes, triggers, RLS, grants, history immutability, and advisors"], "artifact": null, "securityAdvisorArtifact": null, "performanceAdvisorArtifact": null },
+  "verificationOwner": "release-engineering",
+  "evidence": { "isolated": null, "staging": null, "production": null },
+  "exceptions": []
+}

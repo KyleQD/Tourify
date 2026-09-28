@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "review_id": "REVIEW-00000000-000",
+  "record_status": "draft",
+  "reviewer": "admin-design-manager",
+  "review_type": "design_audit",
+  "created_at": "1970-01-01T00:00:00.000Z",
+  "source_sha": "0000000000000000000000000000000000000000",
+  "environment": "local",
+  "contains_production_data": false,
+  "actor_goal": "Replace with the user's concrete goal.",
+  "evidence": [
+    {
+      "category": "reproduction",
+      "reference": "Replace with a reproducible non-production reference.",
+      "observation": "Replace with the observed behavior; separate observation from inference."
+    }
+  ],
+  "expected_outcome": "Replace with the expected user-visible outcome.",
+  "severity": "P3",
+  "recommendation": "Replace with one bounded recommendation.",
+  "proposed_specialist": "admin-experience-insights",
+  "disposition": "deferred_with_rationale",
+  "disposition_rationale": "Draft awaiting parent Admin triage.",
+  "linked_task_ids": [],
+  "verification": {
+    "state": "pending",
+    "verified_by": null,
+    "verified_at": null,
+    "evidence": []
+  }
+}
+

@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-TICKET-035-DB-TEST-CONTRACT",
+  "task_id": "TICKET-005",
+  "from_agent": "ticketing",
+  "to_agent": "database",
+  "status": "accepted",
+  "created_at": "2026-09-25T16:40:00.000Z",
+  "updated_at": "2026-09-25T16:40:00.000Z",
+  "source_sha": "ca3bb0b08870b87ce5f6e4ac69c65ddf31942c96",
+  "dirty_state_caveat": "Wave 35 worktree, 6 concurrent lanes, HEAD ca3bb0b0, nothing committed. The ticketing lane authored one migration and one validation manifest, both of which are inside its grant. It did NOT author anything under supabase/tests/, because this wave's instructions scope the ticketing grant to migrations and manifests it authors and treat the rest of supabase/** as database-owned.",
+  "summary": "The ticketing lane authored supabase/migrations/20260926130000_ticketing_webhook_completion_marker.sql plus a planned manifest, and its validationPlan references a file-based catalog contract test under supabase/tests/ — the pattern DB-005 established with supabase/tests/db005b_ticketing_idempotency_contract.sql. That file was not authored here because supabase/tests/** is outside the ticketing grant. The queries it needs are already written and are inline in the manifest's postflight, so this is a transcription request with a proven source, not new analysis. Two decisions in the migration also need the database lane's explicit review as manifest reviewer, and one of them is a judgement call worth an independent opinion: the deliberate absence of a backfill.",
+  "working_set": [
+    "supabase/migrations/20260926130000_ticketing_webhook_completion_marker.sql (authored by ticketing, awaiting database review as manifest reviewer and operator apply)",
+    "docs/engineering/migration-validation/20260926130000_ticketing_webhook_completion_marker.json (authored by ticketing; postflight.queries already contains every assertion the contract test needs)",
+    "Requested output: supabase/tests/db008_ticketing_webhook_completion_contract.sql — NOT authored, see blockers"
+  ],
+  "completed": [
+    "Wrote the migration and the manifest inside the ticketing grant and kept both green: npm run check:migration-chain (306 files, exit 0) and npm run check:migration-validation (exit 0, scanned with the planned manifest).",
+    "Recorded the lock and cost reasoning in the manifest: both ADD COLUMNs are metadata-only on PostgreSQL 11+ (completed_at is nullable with no default; attempts has a constant default), the index is partial on the incomplete subset, no statement narrows an existing constraint, and the whole file is re-appliable.",
+    "Wrote every postflight assertion inline in the manifest so no query has to be reconstructed: column nullability and defaults, the partial index definition, the expected non-zero count of uncompleted claims, the expected zero count of completed claims, the unchanged RLS deny policy, and the operator stuck-claim probe.",
+    "Documented the no-backfill decision as a decision rather than an omission, in both the SQL header and the manifest quarantine.strategy, with the reason that a pre-existing row has an unprovable outcome under the old claim-time-only schema."
+  ],
+  "next_steps": [
+    "database: author supabase/tests/db008_ticketing_webhook_completion_contract.sql from the manifest's postflight.queries. Follow the db005b pattern: assert completed_at exists and is nullable with no default, assert attempts exists as integer NOT NULL default 1, assert processed_at is still NOT NULL with default now() (the P0's root cause, so this is a regression assertion, not a formality), assert idx_ticket_stripe_webhook_events_incomplete is partial on processed_at where completed_at is null, and assert the ticket_stripe_webhook_events_deny policy is unchanged. It should fail closed on the absence of any of them, so a target that skipped the migration cannot pass.",
+    "database: review the manifest in your reviewer role. The one call worth an independent opinion is the deliberate no-backfill: historical rows keep completed_at NULL, which means a replay of an old event RESUMES rather than being acknowledged. That is safe only because the fulfilment transitions are guarded, and it is the fail-closed direction — the alternative backfill would assert every historical claim finished, which is the unprovable claim behind the P0.",
+    "database: apply to an approved staging target once (CP-051 forbids this lane from applying, resetting, replaying, or pushing it) and then move the manifest off 'planned' with a real artifact in postflight.artifact. All three evidence tiers are honestly null today.",
+    "database: the two pre-existing TypeScript diagnostics in this lane's area (app/api/ticketing/enhanced/route.ts TS2589/TS2769 at lines 144, 145, 286, 287, 583, 735, 736, 773, 774) are unrelated to schema and stay with ticketing; flagged only so they are not mistaken for a type-surface issue if regeneration is re-attempted."
+  ],
+  "blockers": [
+    "supabase/tests/** is outside the ticketing grant in Wave 35, so the contract test was not authored here. Every query it needs is already written in the manifest's postflight.queries, so the work is transcription plus the db005b harness pattern.",
+    "CP-051: the migration is authored only and has never been applied. Nothing about its behaviour on a real database is claimed — the certification is local behavioural proof against a recording stub plus static migration and contract assertions.",
+    "The generated type surface was not touched. completed_at and attempts are not in lib/database.types.ts, and the ticketing route and the finalize module use untyped or loosely typed Supabase clients, so the app compiles without a regeneration. If the database lane's separate reachability work for regeneration concludes that it is reachable, this migration's two columns must be included in that regeneration or the type surface will be wrong for these columns."
+  ],
+  "verification": [
+    "npm run check:migration-chain — exit 0, 'active migration chain has no duplicate policy creations (306 files scanned)'.",
+    "npm run check:migration-validation — exit 0, 'scanned supabase/migrations/20260926130000_ticketing_webhook_completion_marker.sql with planned manifest'.",
+    "npx vitest run __tests__/ticketing/webhook-completion-migration-contract.test.ts — 17 passed. Its manifest case calls the CI validator directly (validateManifest from scripts/ci/check-migration-validation.mjs) rather than restating its rules, and asserts the manifest sha256 equals the SHA-256 of the migration file, so the manifest cannot silently drift from the SQL it describes.",
+    "Mutation check on the migration: restoring a backfill (update ... set completed_at = processed_at) fails the no-backfill contract case AND the checksum case; stamping completed_at at claim time in the insert fails the claim-site contract case.",
+    "The migration is not applied and no database was touched from this lane; no hosted or isolated evidence is claimed."
+  ],
+  "accepting_task_id": "DB-005",
+  "completion_condition": "database: author supabase/tests/db008_ticketing_webhook_completion_contract.sql from the manifest's postflight.queries. Follow the db005b pattern: assert completed_at exists and is nullable with no default, assert attempts exists as integer NOT NULL default 1, assert processed_at is still NOT NULL with default now() (the P0's root cause, so this is a regression assertion, not a formality), assert idx_ticket_stripe_webhook_events_incomplete is partial on processed_at where completed_at is null, and assert the ticket_stripe_webhook_events_deny policy is unchanged. It should fail closed on the absence of any of them, so a target that skipped the migration cannot pass."
+}

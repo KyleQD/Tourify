@@ -1,4 +1,5 @@
 import type { OrganizationSubtype } from '@/lib/organizations/org-subtypes'
+import type { RawPostAppearanceRow } from '@/lib/feed/resolve-post-appearance-dto'
 
 export interface PublicOrganizationRosterMember {
   membershipId: string
@@ -34,6 +35,8 @@ export interface PublicOrganizationPost {
   createdAt: string | null
   likesCount: number
   commentsCount: number
+  sharesCount: number
+  appearance: RawPostAppearanceRow | null
 }
 
 export interface PublicOrganizationTour {

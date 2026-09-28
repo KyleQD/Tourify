@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260927120000_ticketing_issuance_slot_dedup.sql",
+  "taskId": "TICKET-006",
+  "status": "planned",
+  "manualApplyStatus": "authored - manual apply pending (CP-051)",
+  "sha256": "b1afcbb00b025ddce4147e406b36a05f03e13995ac31a3f08d1ac1e462b6ea80",
+  "owner": "ticketing",
+  "reviewer": "database",
+  "domains": ["ticketing", "money-path", "data-integrity", "analytics"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "static source review of the three items TICKET-005 recorded as still open after the wave-35 claim/complete fix, each confirmed by reading the code rather than a summary: (1) lib/ticketing/issuance.ts decided 'already issued' with a read-then-act pre-check (`.select('id').eq('order_id', orderId)` and return on any hit), so a delivery that died between ticket 1 and 2 left the order indistinguishable from a finished one, and nothing in the database could refuse a second admission for a position already filled — tickets carries no per-position key and no unique index; (2) ticket_analytics_events (20260821000000_reconcile_ticketing_foundation.sql:350-365) has no unique key at all, so the resume path re-emits checkout_completed / ticket_purchased / ticket_issued and inflates the funnel once per Stripe retry; (3) the order-confirmed alert is emitted by whichever delivery reaches that line, and OptimizedNotificationService.createNotification has no idempotency handling, so the decorative `idempotency_key: order_confirmed:{orderId}` in lib/ticketing/notifications.ts dedupes nothing and the alert repeats once per retry. The generate types carry none of the three columns",
+    "evidenceArtifact": "static-review:TICKET-006-ISSUANCE-DEDUP-2026-09-27 (migration SHA-256 b1afcbb00b025ddce4147e406b36a05f03e13995ac31a3f08d1ac1e462b6ea80; behaviour certified by __tests__/ticketing/issuance-repair-dedup-alert.test.ts, which fails when the issuance-slot constraint, the analytics dedupe key, the completion-alert compare-and-set, or the partial-issuance mark is inverted, and by the app/schema contract in __tests__/ticketing/issuance-slot-dedup-migration-contract.test.ts)"
+  },
+  "layeredPlan": [
+    "Layer 0 (preflight, read-only, operator): confirm the three columns are absent and both partial unique indexes are absent, and confirm no pre-existing row carries a value for them — every partial predicate excludes all pre-existing rows by construction, so this is the check that the target is a pre-apply lineage of this chain and not a partially applied copy",
+    "Layer 1 (apply, five statements, operator): ADD COLUMN tickets.issuance_slot integer; CREATE UNIQUE INDEX idx_tickets_order_issuance_slot on (order_id, issuance_slot) where issuance_slot is not null; ADD COLUMN ticket_analytics_events.dedupe_key text; CREATE UNIQUE INDEX idx_ticket_analytics_events_dedupe_key on dedupe_key where dedupe_key is not null; ADD COLUMN ticket_sales.issuance_alerted_at timestamptz. All three ALTERs are catalog-only nullable adds with no default, and all three indexes are built over an empty set, so there is no table rewrite, no backfill, and no statement that can fail on existing data",
+    "Layer 2 (postflight, read-only, operator): run the postflight queries below and expect the three columns to exist and be nullable with no default, the two partial unique indexes to exist with the stated predicates, and the row counts of tickets and ticket_analytics_events to be unchanged by the apply",
+    "Layer 3 (runtime certification, release/ops): drive one paid checkout.session.completed whose issuance dies between two admissions, then let Stripe retry, and prove the retry inserts only the missing slot (one admission per issuance_slot, never two), the order reaches issuance_status = 'issued' only after every slot is filled, the analytics table holds exactly one row per (order, event_name) across the retry, and exactly one order-confirmed alert exists for the order; then prove the alert is not emitted twice by replaying the completed event and by clearing completed_at to force further resumes"
+  ],
+  "preflight": {
+    "rowCountQueries": [
+      "SELECT column_name, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('tickets','ticket_analytics_events','ticket_sales') AND column_name IN ('issuance_slot','dedupe_key','issuance_alerted_at') ORDER BY table_name, column_name — pre-apply expectation: zero rows returned",
+      "SELECT count(*) FROM public.tickets",
+      "SELECT count(*) FROM public.ticket_analytics_events",
+      "SELECT count(*) FROM public.tickets WHERE issuance_slot IS NOT NULL — pre-apply expectation: the column does not exist yet; after the apply and before any new issuance it must be 0, which is what makes the unique index build over an empty set",
+      "SELECT count(*) FROM public.ticket_analytics_events WHERE dedupe_key IS NOT NULL — pre-apply expectation: the column does not exist yet; after the apply and before any new event it must be 0",
+      "SELECT count(*) FROM public.ticket_sales WHERE issuance_alerted_at IS NOT NULL — pre-apply expectation: the column does not exist yet; after the apply it must be 0, since no alert has been claimed yet",
+      "Confirm RLS is already enabled on tickets, ticket_analytics_events, and ticket_sales so no client surface widens; this migration creates no table and no policy"
+    ],
+    "expectedAffectedRows": "DDL only: three added columns and two partial unique indexes. Zero rows inserted, updated, or deleted; no backfill is executed, deliberately — a pre-existing admission has no provable issuance position and a pre-existing analytics row cannot be proven to be the first emission of a key",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Authored - manual apply pending (CP-051). Apply to an approved staging target once, via `supabase migration up` with the exact file or a targeted psql apply; a partial or failed apply is corrected with a later additive forward fix, never a replay or reset",
+    "resumeCursor": "Supabase migration version 20260927120000",
+    "idempotency": "All three ALTER TABLE ... ADD COLUMN IF NOT EXISTS and both CREATE UNIQUE INDEX IF NOT EXISTS are deterministic and repeatable, and COMMENT ON COLUMN re-asserts the same text. No object creation depends on a pre-check, no DML is executed, and no statement narrows an existing constraint, so re-applying the file is safe. The two unique indexes are created over empty sets (every pre-existing row has a NULL key), so the apply cannot fail on data and CONCURRENTLY is not required"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data movement and no quarantine: the migration adds three nullable columns and two partial unique indexes and writes nothing. Deliberately NO backfill on any of the three keys. Backfilling issuance_slot by numbering legacy rows would assert an issuance order the database never recorded and could alias two real admissions onto one slot, failing the unique index on real data or silently disarming it. Backfilling dedupe_key would claim a historical metric row was the first emission of a key, which is unprovable, and is the same unprovable assertion that caused the wave-35 P0. Backfilling issuance_alerted_at would claim every historical buyer was alerted. All three stay NULL: pre-existing rows are excluded from both indexes by their partial predicates, and the application reconciles an unslotted admission as the lowest unclaimed position, which is exactly true for the sequential prefix a partial issuance can have"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "No CHECK, FK, NOT NULL, or existing constraint is added to or changed on an existing column. All three new columns are nullable with no default, so no table is rewritten and no backfill is implied by a default",
+      "Uniqueness is expressed as a partial UNIQUE INDEX rather than a table constraint: it is built over an empty set at apply time, needs no ACCESS EXCLUSIVE lock beyond catalog work, and leaves a pre-existing NULL-key row out of the enforcement set instead of forcing a history repair",
+      "tickets.issuance_slot is guarded by idx_tickets_order_issuance_slot; ticket_analytics_events.dedupe_key by idx_ticket_analytics_events_dedupe_key. Both are partial on IS NOT NULL",
+      "ticket_sales.issuance_alerted_at is intentionally not stamped at issuance time. The alert claim is a compare-and-set (issuance_status = 'issued' AND issuance_alerted_at IS NULL), so a delivery that completes issuance and then dies before delivering the alert leaves the marker NULL and the next resume can still claim it. Stamping it at issuance would lose the alert instead",
+      "No RLS policy is created or dropped. tickets, ticket_analytics_events, and ticket_sales keep their existing RLS and are written only by the service-role client, so no client surface widens"
+    ],
+    "indexes": [
+      "Adds partial unique index idx_tickets_order_issuance_slot on public.tickets(order_id, issuance_slot) where issuance_slot is not null — the database-side 'a ticket is never issued twice for one purchase' guard, arbitrating two concurrent deliveries of the same order",
+      "Adds partial unique index idx_ticket_analytics_events_dedupe_key on public.ticket_analytics_events(dedupe_key) where dedupe_key is not null — absorbs a resumed delivery's re-emitted money/completion event as a 23505 duplicate instead of a second metric row",
+      "Existing indexes are untouched, including idx_tickets_order, idx_ticket_analytics_events_event, idx_ticket_sales_order_number, idx_ticket_sales_stripe_session, idx_ticket_sales_webhook_event, and idx_fin_tx_idempotency",
+      "Index sizes are bounded by post-migration traffic rather than history: every pre-existing row is excluded by the IS NOT NULL predicate, so both indexes start empty"
+    ],
+    "validationPlan": "Post-apply catalog probes assert the three columns exist and are nullable with no default, both partial unique indexes exist with the stated column list and predicate, and the row counts of tickets and ticket_analytics_events are unchanged. Runtime behaviour is certified by __tests__/ticketing/issuance-repair-dedup-alert.test.ts (route-level, over real Stripe signature verification and a constraint-faithful Supabase stub) and by the app/schema alignment assertions in __tests__/ticketing/issuance-slot-dedup-migration-contract.test.ts, which fail if either unique index is removed from this file or if the application stops writing the key the index depends on. The file-based catalog contract test under supabase/tests is database-owned and is requested in the TICKET-006 handoff rather than authored from this lane"
+  },
+  "recovery": {
+    "rollback": "No object is dropped and no data is rewritten, so rollback means accepting the columns: if they must be removed, drop issuance_slot, dedupe_key, issuance_alerted_at, idx_tickets_order_issuance_slot, and idx_ticket_analytics_events_dedupe_key through an explicit reviewed additive migration, and only while no deployed route depends on them. Dropping idx_tickets_order_issuance_slot while the issuance resume path is live would restore the concurrent double-issuance race, and dropping issuance_alerted_at would make the completion alert fire once per retry again, so neither may be removed before a successor guard replaces it",
+    "forwardFix": "Extend scope (a dead-letter state for an order that cannot complete issuance, a claim lease, or an operator replay tool for a partial issuance) through a later additive migration; never re-apply or replay the chain"
+  },
+  "postflight": {
+    "queries": [
+      "SELECT table_name, column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'tickets' AND column_name = 'issuance_slot') OR (table_name = 'ticket_analytics_events' AND column_name = 'dedupe_key') OR (table_name = 'ticket_sales' AND column_name = 'issuance_alerted_at')) ORDER BY table_name — expect integer YES NULL, text YES NULL, timestamptz YES NULL",
+      "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname IN ('idx_tickets_order_issuance_slot','idx_ticket_analytics_events_dedupe_key') — expect CREATE UNIQUE INDEX with the (order_id, issuance_slot) WHERE issuance_slot IS NOT NULL and (dedupe_key) WHERE dedupe_key IS NOT NULL predicates",
+      "SELECT count(*) FROM public.tickets WHERE issuance_slot IS NOT NULL AND order_id = (select id from public.ticket_sales limit 1) — expected 0 immediately after the apply; a non-zero value means something wrote a key before certification, which is the first signal to investigate",
+      "SELECT order_id, issuance_slot, count(*) FROM public.tickets WHERE issuance_slot IS NOT NULL GROUP BY order_id, issuance_slot HAVING count(*) > 1 — MUST return zero rows; this is the operator proof that the one-admission-per-position invariant holds on real data",
+      "SELECT dedupe_key, count(*) FROM public.ticket_analytics_events WHERE dedupe_key IS NOT NULL GROUP BY dedupe_key HAVING count(*) > 1 — MUST return zero rows; a non-zero value means a resume wrote a duplicate metric",
+      "SELECT count(*) FROM public.tickets, public.ticket_analytics_events, public.ticket_sales — capture and compare against the Layer 0 counts to confirm the apply wrote no data",
+      "SELECT policyname, cmd FROM pg_policies WHERE schemaname = 'public' AND tablename IN ('tickets','ticket_analytics_events','ticket_sales') ORDER BY tablename, policyname — expect the pre-existing policies unchanged; this migration adds none",
+      "Re-run npx vitest run __tests__/ticketing and confirm the suite is green against the migrated shape",
+      "Layer 3 runtime probe: replay a paid checkout.session.completed whose issuance dies between two admissions and confirm the next delivery inserts only the missing slot, sets issuance_status = 'issued', leaves exactly one row per (order, event_name) in ticket_analytics_events, and leaves exactly one order-confirmed notification for the order"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "ticketing",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

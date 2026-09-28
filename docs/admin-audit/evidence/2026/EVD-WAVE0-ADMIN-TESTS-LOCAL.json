@@ -1,0 +1,20 @@
+{
+  "evidenceId": "EVD-WAVE0-ADMIN-TESTS-LOCAL",
+  "kind": "test_run",
+  "result": "pass",
+  "environment": "local",
+  "capturedAt": "2026-08-28T01:09:35-07:00",
+  "capturedBy": "Codex",
+  "commitSha": "8c40df23a4995088cf88ea69bf809035f0c3de28",
+  "artifact": "/Users/kyledaley/.nvm/versions/node/v20.20.2/bin/node node_modules/vitest/vitest.mjs run __tests__/admin",
+  "sha256": null,
+  "findingIds": [
+    "AOA-012"
+  ],
+  "workflowIds": [
+    "ADM-WF-017"
+  ],
+  "specTaskIds": [],
+  "launchGateIds": [],
+  "notes": "Local pinned-toolchain run: 227 test files passed, 1 file skipped; 3,203 tests passed and 2 tests skipped. The skipped live/environment security cases remain unverified and prevent this receipt from satisfying LG-03."
+}

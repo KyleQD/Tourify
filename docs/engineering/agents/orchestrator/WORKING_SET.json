@@ -1,0 +1,15 @@
+{
+  "schema_version": "2.0",
+  "agent": "orchestrator",
+  "description": "Route bounded work, manage dependencies and overlaps, and maintain project-level execution truth.",
+  "paths": [
+    "docs/engineering/**"
+  ],
+  "exclusions": [
+    "node_modules/**",
+    ".next/**",
+    "docs/implementation/** unless explicitly referenced",
+    "Post-launch paths unless the task outcome authorizes them"
+  ],
+  "expansion_rule": "Add paths only when task evidence requires them; record the reason in the task checkpoint."
+}

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createRateLimiter } from '@/lib/utils/rate-limit'
 import { escapeHtml, emailLayout, emailButton, emailFallbackUrl } from '@/lib/email/email-layout'
+import { createHash } from 'crypto'
 
 const action = createSafeActionClient()
 
@@ -63,12 +64,32 @@ export const createInviteAction = action.schema(inviteSchema).action(async ({ pa
   const { success } = await rl.check(`invite_${user.user.id}`)
   if (!success) return { ok: false, error: 'rate_limited' }
 
+  // SECURITY: caller must already be an owner/admin member of THIS org.
+  // Never trust a client-supplied orgId without verifying membership first.
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('org_id', parsedInput.orgId)
+    .eq('user_id', user.user.id)
+    .maybeSingle()
+
+  const callerRole = membership?.role
+  if (callerRole !== 'owner' && callerRole !== 'admin') {
+    return { ok: false, error: 'not_authorized' }
+  }
+
+  // Only owners may mint additional owner invitations.
+  if (parsedInput.role === 'owner' && callerRole !== 'owner') {
+    return { ok: false, error: 'not_authorized' }
+  }
+
   const token = crypto.randomUUID().replace(/-/g, '')
   const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7) // 7d
 
+  const tokenHash = createHash('sha256').update(token).digest('hex')
   const { error } = await supabase
     .from('org_invites')
-    .insert({ org_id: parsedInput.orgId, email: parsedInput.email, role: parsedInput.role, token, expires_at: expires.toISOString(), created_by: user.user.id })
+    .insert({ org_id: parsedInput.orgId, email: parsedInput.email, role: parsedInput.role, token_hash: tokenHash, expires_at: expires.toISOString(), created_by: user.user.id })
 
   if (error) return { ok: false, error: 'invite_failed' }
 
@@ -109,4 +130,3 @@ export const createInviteAction = action.schema(inviteSchema).action(async ({ pa
 
   return { ok: true }
 })
-

@@ -1,5 +1,7 @@
 "use client"
 
+/** Admin Dashboard Builder: Deferred until realtime tracking API exists (cmp-equipment-tracker wont-fix). */
+
 import React, { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

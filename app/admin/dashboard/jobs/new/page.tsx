@@ -1,6 +1,9 @@
+import Link from "next/link"
 import { JobPostingBuilder } from "@/components/hiring/job-posting-builder"
 import { HiringMissingScope } from "@/components/hiring/hiring-missing-scope"
 import { WorkforceHero, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { Button } from "@/components/ui/button"
+import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
 import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workforce-employer"
 
 interface NewHiringJobPageProps {
@@ -34,6 +37,13 @@ export default async function NewHiringJobPage({ searchParams }: NewHiringJobPag
         title="Create Job Posting"
         description={`Create a scoped workforce job for ${employer.displayName}. Applicant intake fields are saved with the posting and onboarding is resolved after approval.`}
         badge={employer.entityType}
+        actions={
+          <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-200">
+            <Link href={`/admin/dashboard/hiring?tab=jobs&${getEmployerQueryString(employer)}`}>
+              Back to Hiring Hub
+            </Link>
+          </Button>
+        }
       />
       <JobPostingBuilder
         employer={employer}

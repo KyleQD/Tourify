@@ -1,0 +1,127 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-014",
+  "title": "Harden workflow scope and build Workforce action projection",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "work",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Provide secure organization/department workflow scope and a normalized source-backed WorkforceActionItem projection.",
+  "scope": {
+    "in": [
+      "Workflow organization/department authorization",
+      "Tasks, workflow tasks, logistics tasks, and derived exception adapters",
+      "Source-routed transitions",
+      "Partial-source behavior"
+    ],
+    "out": [
+      "Copying tasks into a new table",
+      "Marking unresolved derived exceptions complete",
+      "Writing under lib/logistics/**, which the active logistics overhaul holds (ADMIN-005/011, DB-011, WORK-007)",
+      "Creating a second task silo or writing action mutations that bypass the owning domain (CP-097)"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/workforce/actions/**",
+    "lib/workforce/actions/**",
+    "types/workforce/actions.ts (action projection types only; WFC-005 owns the base types)",
+    "__tests__/workforce/actions/**",
+    "lib/workflows/** (read-only projection input per CP-097: you normalize, you do not mutate)"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-004.json",
+    "docs/engineering/tasks/blocked/WFC-006.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Every action exposes source, owner, department, due date, priority, blockers, dependencies, and source URL",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Mutations dispatch to the authoritative source",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Workflow and logistics access is organization/department scoped",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Source failures remain explicit without erasing healthy actions",
+      "owner": "work",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "work",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npx vitest run __tests__/workforce/actions",
+          "npm run test:rls-matrix",
+          "npm run verify:feature -- --changed"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked on canonical department authority and the command read model.",
+    "completed": [],
+    "next_steps": [
+      "CP-103 partition: app/api/admin/workforce/actions/** and lib/workforce/actions/** are yours alone.",
+      "CP-097 is binding: mutations continue through the owning domain. lib/workflows/** and lib/logistics/** are read-only projection inputs. Any mutation you believe is missing is a handoff to the owning lane, not a new writer here.",
+      "Build the normalized WorkforceActionItem projection with explicit source and navigation target per item, and derived exceptions that resolve only when their source condition resolves.",
+      "lib/logistics/** is NOT in your working set: it is held by the active logistics overhaul (ADMIN-005, ADMIN-011, DB-011, WORK-007). Read it if a logistics source requires it and record the expansion reason in your checkpoint; do not write it.",
+      "CP-103 partition: claim only your own subtrees of app/api/admin/workforce/**. WFC-005/012/014/019 previously each claimed the whole tree, which already contains seven live routes (attendance, conflicts, conversions, health, identity-merge, payroll-exports, people).",
+      "Before authoring anything, disposition each route in your subtrees: adopt as-is, reconcile, or leave to its named owner. Do not write a parallel second implementation.",
+      "Harden workflow resource scope",
+      "Implement source adapters and transition dispatch"
+    ],
+    "blockers": [
+      "WFC-004 and WFC-006 must complete"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "Work → Admin: WorkforceActionItem and transition contracts for WFC-015",
+    "Work → QA: derived-exception and partial-source fixtures"
+  ],
+  "scope_expansions": [],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "implementation",
+  "decision_owner": "work",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "CP-103 partition: app/api/admin/workforce/actions/** and lib/workforce/actions/** are yours alone.",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "work",
+      "condition": "WFC-004 and WFC-006 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

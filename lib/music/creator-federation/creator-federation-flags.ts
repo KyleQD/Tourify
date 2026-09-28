@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_FEDERATION_FLAG_NAMES = [
   "creator_federation_readiness_enabled",
   "creator_federation_entity_registry_enabled",
@@ -42,6 +44,9 @@ export async function resolveCreatorFederationFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorFederationFlags> {
+  if (!isLaunchCapabilityAvailable("creator_federation"))
+    return { ...DISABLED_CREATOR_FEDERATION_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

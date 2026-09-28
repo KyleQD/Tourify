@@ -40,6 +40,7 @@ import { SortableEpkSection, SortableEpkSectionOverlay } from "@/components/epk/
 import { EpkHiddenSectionsPanel } from "@/components/epk/epk-hidden-sections-panel"
 import { EpkBuilderToolbar } from "@/components/epk/epk-builder-toolbar"
 import { epkGlassPanel, epkIconButton, epkStatusPill } from "@/components/epk/epk-ui-styles"
+import { buildEpkAppearanceAiPrompt } from "@/lib/epk/epk-appearance-ai-prompt"
 
 interface StyleSnapshot {
   appearance: EpkAppearance
@@ -435,6 +436,15 @@ export function EpkBuilderView({
           onUndo={handleUndoStyle}
           canUndo={canUndoStyle}
           onReset={handleResetStyle}
+          appearancePrompt={buildEpkAppearanceAiPrompt({
+            surface: "epk",
+            artistName: epkData.artistName || null,
+            bio: epkData.bio || null,
+            genres: epkData.genre ? [epkData.genre] : [],
+            location: epkData.location || null,
+            currentTemplate: epkData.template || "modern",
+            currentFont: epkData.epkFont || "sans",
+          })}
         />
       </div>
 

@@ -1,3 +1,5 @@
+import { isLaunchCapabilityAvailable } from "@/lib/config/launch-capabilities"
+
 export const CREATOR_TREATY_OPS_FLAG_NAMES = [
   "creator_treaty_ops_readiness_enabled",
   "creator_treaty_ops_multi_year_evidence_enabled",
@@ -65,6 +67,9 @@ export async function resolveCreatorTreatyOpsFlags(
   supabase: any,
   subjectId?: string | null,
 ): Promise<CreatorTreatyOpsFlags> {
+  if (!isLaunchCapabilityAvailable("creator_multilateral_treaty_operations"))
+    return { ...DISABLED_CREATOR_TREATY_OPS_FLAGS }
+
   const { getTrustedMusicWriteClient } = await import("@/lib/music/music-access")
   const readClient = await getTrustedMusicWriteClient(supabase)
   const { data, error } = await readClient

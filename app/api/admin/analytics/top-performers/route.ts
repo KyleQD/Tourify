@@ -6,13 +6,12 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   const from = searchParams.get('from')
   const to = searchParams.get('to')
 
-  // Top artists by event_participants count
+  // Top artists by event_attendance count (event_participants table does not exist)
   let artistQuery = supabase
-    .from('event_participants')
+    .from('event_attendance')
     .select('user_id')
 
   if (from || to) {
-    // We join via events to filter by date — use a simpler approach
     if (from) artistQuery = artistQuery.gte('created_at', `${from}T00:00:00Z`)
     if (to) artistQuery = artistQuery.lte('created_at', `${to}T23:59:59Z`)
   }

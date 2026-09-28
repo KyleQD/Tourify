@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireMarketplaceAccount } from "@/lib/marketplace/music-commerce-auth"
 import { computeDisclosureManifestHash, projectMarketingFields } from "@/lib/music/marketplace/disclosure-versions"
 import { resolveMusicMarketplaceFlags } from "@/lib/music/marketplace/music-marketplace-flags"
 
@@ -18,10 +19,10 @@ const createSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireMarketplaceAccount(request)
     if (!authResult.success) return authResult.response
-    const { user, supabase } = authResult.auth
-    const flags = await resolveMusicMarketplaceFlags(supabase, user.id)
+    const { userId, supabase } = authResult.account
+    const flags = await resolveMusicMarketplaceFlags(supabase, userId)
     if (!flags.music_marketplace_offerings_enabled)
       return jsonError({
         status: 404,
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       .from("music_marketplace_issuers")
       .select("id, owner_user_id")
       .eq("id", offering.issuer_id)
-      .eq("owner_user_id", user.id)
+      .eq("owner_user_id", userId)
       .maybeSingle()
     if (!issuer)
       return jsonError({ status: 404, code: "offering_not_found", message: "Offering not found.", retryable: false })

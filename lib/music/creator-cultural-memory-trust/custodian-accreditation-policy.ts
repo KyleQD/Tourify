@@ -1,0 +1,2 @@
+export interface CustodianEvidence { independentGovernance:boolean; defaultDenyAccess:boolean; restoreTestPassed:boolean; exportSupported:boolean; restrictionPropagationPassed:boolean; currentFunding:boolean; unresolvedCriticalFindings:number; }
+export function isCustodianReady(e:CustodianEvidence):boolean { return e.independentGovernance && e.defaultDenyAccess && e.restoreTestPassed && e.exportSupported && e.restrictionPropagationPassed && e.currentFunding && e.unresolvedCriticalFindings===0; }

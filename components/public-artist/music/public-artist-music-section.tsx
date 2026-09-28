@@ -1,13 +1,17 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import type { PublicArtistTrackDTO, PublicArtistViewerDTO } from "@/lib/public-artist/public-artist-types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Library, Play, Pause, Pin, ListPlus, Shuffle, Music, ShoppingBag, Star } from "lucide-react"
+import { Library, Play, Pause, Pin, ListPlus, Shuffle, Music, ShoppingBag, Star, Share2 } from "lucide-react"
 import { paBtnRound, paCard, paInset, paRow } from "@/components/public-artist/public-artist-ui"
 import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-context"
+import { ProviderBadge } from "@/components/music/provider-badge"
+import { MusicShareDialog } from "@/components/music/music-share-dialog"
+import { getMusicTrackPath } from "@/lib/music/routes"
 import { toast } from "sonner"
 
 function dtoToJukeboxTrack(
@@ -19,13 +23,18 @@ function dtoToJukeboxTrack(
     title: track.title,
     artist_name: artistName || "Artist",
     duration: track.durationSeconds ?? undefined,
-    file_url: track.audioUrl || "",
+    // Audius tracks have no audioUrl — they resolve at playback time via /api/music/playback/resolve
+    file_url: track.provider === "audius" ? "" : (track.audioUrl || ""),
     cover_art_url: track.artworkUrl ?? undefined,
     genre: track.genre ?? undefined,
     is_public: true,
     listing_id: track.listingId ?? null,
+    provider: track.provider ?? "tourify",
+    provider_track_id: track.providerTrackId ?? undefined,
   }
 }
+
+const isAudiusEnabled = process.env.NEXT_PUBLIC_AUDIUS_PROFILE_PLAYBACK_ENABLED === "true"
 
 export function PublicArtistMusicSection({
   viewer,
@@ -41,9 +50,14 @@ export function PublicArtistMusicSection({
   defaultTrackId: string | null
   artistName?: string
 }) {
-  const playableTracks = useMemo(() => tracks.filter(t => Boolean(t.audioUrl)), [tracks])
+  // For Audius tracks with no audioUrl, they are still "playable" via the resolve endpoint
+  const playableTracks = useMemo(
+    () => tracks.filter(t => Boolean(t.audioUrl) || (isAudiusEnabled && t.provider === "audius")),
+    [tracks]
+  )
   const jukebox = useJukeboxOptional()
-  const [optimisticPinnedById, setOptimisticPinnedById] = useState<Record<string, boolean>>({})
+  const router = useRouter()
+  const [sharingTrack, setSharingTrack] = useState<PublicArtistTrackDTO | null>(null)
 
   // Public URL always uses visitor empty rules — no setup CTAs here
   if (tracks.length === 0) return null
@@ -52,7 +66,10 @@ export function PublicArtistMusicSection({
     jukebox?.state.currentTrack?.id === trackId && jukebox?.state.isPlaying
 
   const handlePlay = (track: PublicArtistTrackDTO) => {
-    if (!jukebox || !track.audioUrl) return
+    const isAudius = track.provider === "audius"
+    if (!jukebox) return
+    if (!isAudius && !track.audioUrl) return
+    if (isAudius && !isAudiusEnabled) return
     const jTrack = dtoToJukeboxTrack(track, artistName)
     if (isTrackPlaying(track.id)) {
       jukebox.pause()
@@ -128,23 +145,16 @@ export function PublicArtistMusicSection({
     }
   }
 
-  const togglePin = async (track: PublicArtistTrackDTO) => {
-    if (!viewer.isOwner) return
-
-    const nextPinned = !(optimisticPinnedById[track.id] ?? track.isPinned)
-    setOptimisticPinnedById(prev => ({ ...prev, [track.id]: nextPinned }))
-
-    try {
-      const res = await fetch("/api/artist/music/pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ musicId: track.id, isPinned: nextPinned })
-      })
-
-      if (!res.ok) setOptimisticPinnedById(prev => ({ ...prev, [track.id]: track.isPinned }))
-    } catch {
-      setOptimisticPinnedById(prev => ({ ...prev, [track.id]: track.isPinned }))
-    }
+  const shareToPost = async (selected: { id: string; title: string }, note?: string) => {
+    const response = await fetch("/api/music/share", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ musicId: selected.id, createPost: true, content: note?.trim() || `Check out “${selected.title}”` }),
+    })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body?.error?.message || body?.error || "Failed to share track")
+    toast.success("Shared to your feed")
   }
 
   return (
@@ -188,7 +198,18 @@ export function PublicArtistMusicSection({
       <CardContent className="pt-0">
         <div className="flex flex-col gap-4">
           {featuredTrack ? (
-            <div className={`${paInset} flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between`}>
+            <div
+              role="link"
+              tabIndex={0}
+              className={`${paInset} flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between`}
+              onClick={() => router.push(getMusicTrackPath(featuredTrack.id) || "/music")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  router.push(getMusicTrackPath(featuredTrack.id) || "/music")
+                }
+              }}
+            >
               <div className="flex items-center gap-3 min-w-0">
                 {featuredTrack.artworkUrl ? (
                   <img
@@ -225,7 +246,10 @@ export function PublicArtistMusicSection({
                   <Button
                     variant="secondary"
                     className={`${paBtnRound} px-4`}
-                    onClick={() => buyTrack(featuredTrack)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      buyTrack(featuredTrack)
+                    }}
                   >
                     <ShoppingBag className="mr-2 h-4 w-4" /> Buy
                   </Button>
@@ -233,7 +257,10 @@ export function PublicArtistMusicSection({
                   <Button
                     variant="ghost"
                     className={`${paBtnRound} px-4 text-white/70 hover:text-white`}
-                    onClick={() => addToLibrary(featuredTrack)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      addToLibrary(featuredTrack)
+                    }}
                   >
                     <Library className="mr-2 h-4 w-4" /> Library
                   </Button>
@@ -241,7 +268,10 @@ export function PublicArtistMusicSection({
                 <Button
                   variant="secondary"
                   disabled={!featuredTrack.audioUrl}
-                  onClick={() => handlePlay(featuredTrack)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handlePlay(featuredTrack)
+                  }}
                   className={`${paBtnRound} px-5`}
                 >
                   {isTrackPlaying(featuredTrack.id) ? (
@@ -255,7 +285,8 @@ export function PublicArtistMusicSection({
                     variant="ghost"
                     size="sm"
                     className="rounded-full text-white/60 hover:text-white"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.stopPropagation()
                       if (!featuredTrack.audioUrl) return
                       jukebox.addToQueue(dtoToJukeboxTrack(featuredTrack, artistName))
                       toast.success("Added to queue")
@@ -264,6 +295,18 @@ export function PublicArtistMusicSection({
                     <ListPlus className="h-4 w-4" />
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full text-white/60 hover:text-white"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setSharingTrack(featuredTrack)
+                  }}
+                  aria-label={`Share ${featuredTrack.title}`}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ) : null}
@@ -271,17 +314,24 @@ export function PublicArtistMusicSection({
           <div className="grid gap-2.5">
             {tracks.map(t => {
               const playing = isTrackPlaying(t.id)
-              const isPinned = optimisticPinnedById[t.id] ?? t.isPinned
+              const isPinned = t.isPinned
               return (
-                <button
+                <div
                   key={t.id}
-                  type="button"
+                  role="link"
+                  tabIndex={0}
                   className={[
                     paRow,
                     "w-full px-3.5 py-3.5 text-left flex items-center",
                     playing ? "ring-2 ring-purple-500/50 border-purple-500/35" : ""
                   ].join(" ")}
-                  onClick={() => handlePlay(t)}
+                  onClick={() => router.push(getMusicTrackPath(t.id) || "/music")}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      router.push(getMusicTrackPath(t.id) || "/music")
+                    }
+                  }}
                 >
                   {t.artworkUrl ? (
                     <img
@@ -298,6 +348,12 @@ export function PublicArtistMusicSection({
                     <div className="text-white text-sm truncate flex items-center gap-2">
                       {t.title}
                       {isPinned ? <Pin className="h-3.5 w-3.5 text-purple-300" /> : null}
+                      {t.provider === "audius" && isAudiusEnabled && (
+                        <ProviderBadge
+                          provider="audius"
+                          canonicalUrl={t.canonicalUrl}
+                        />
+                      )}
                     </div>
                     <div className="text-white/55 text-xs mt-1">
                       {t.genre || "Track"} · {t.playCount.toLocaleString()} plays
@@ -305,20 +361,6 @@ export function PublicArtistMusicSection({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {viewer.isOwner ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          togglePin(t)
-                        }}
-                      >
-                        <Pin className={["h-4 w-4", isPinned ? "text-purple-300" : "text-white/60"].join(" ")} />
-                      </Button>
-                    ) : null}
                     {!viewer.isOwner && t.accessMode === "paid" && t.listingId ? (
                       <Button
                         variant="ghost"
@@ -377,7 +419,24 @@ export function PublicArtistMusicSection({
                         <ListPlus className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" disabled={!t.audioUrl} className="rounded-full">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-full text-white/50 hover:text-white"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setSharingTrack(t)
+                      }}
+                      aria-label={`Share ${t.title}`}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" disabled={!t.audioUrl} className="rounded-full" onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      handlePlay(t)
+                    }}>
                       {playing ? (
                         <Pause className="h-4 w-4 text-purple-400" />
                       ) : (
@@ -385,12 +444,20 @@ export function PublicArtistMusicSection({
                       )}
                     </Button>
                   </div>
-                </button>
+                </div>
               )
             })}
           </div>
         </div>
       </CardContent>
+      <MusicShareDialog
+        open={Boolean(sharingTrack)}
+        onOpenChange={(open) => {
+          if (!open) setSharingTrack(null)
+        }}
+        track={sharingTrack ? { id: sharingTrack.id, title: sharingTrack.title } : null}
+        onSharePost={shareToPost}
+      />
     </Card>
   )
 }

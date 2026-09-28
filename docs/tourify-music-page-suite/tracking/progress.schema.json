@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tourify Music Implementation Progress",
+  "type": "object",
+  "required": [
+    "project",
+    "overall_status",
+    "current_phase",
+    "phases"
+  ],
+  "properties": {
+    "project": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "overall_status": {
+      "enum": [
+        "not_started",
+        "in_progress",
+        "blocked",
+        "complete",
+        "deferred"
+      ]
+    },
+    "current_phase": {
+      "type": "string"
+    },
+    "completion_percentage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "rules": {
+      "type": "object"
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "completion_gate_passed",
+          "tasks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "not_started",
+              "in_progress",
+              "blocked",
+              "complete",
+              "deferred"
+            ]
+          },
+          "completion_gate_passed": {
+            "type": "boolean"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tasks": {
+            "type": "array"
+          },
+          "files_created": {
+            "type": "array"
+          },
+          "files_modified": {
+            "type": "array"
+          },
+          "migrations": {
+            "type": "array"
+          },
+          "tests": {
+            "type": "array"
+          },
+          "evidence": {
+            "type": "array"
+          },
+          "blockers": {
+            "type": "array"
+          },
+          "known_limitations": {
+            "type": "array"
+          },
+          "notes": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  }
+}

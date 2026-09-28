@@ -25,9 +25,7 @@ const POST_SELECT_COLUMNS = `
   account_avatar_url,
   content_ref_type,
   content_ref_id,
-  metadata,
-  poll_ends_at,
-  poll_total_votes
+  metadata
 `
 
 const POST_SELECT_COLUMNS_LEGACY = `
@@ -45,6 +43,44 @@ const POST_SELECT_COLUMNS_LEGACY = `
   visibility,
   location,
   hashtags
+`
+
+// Stable attribution fallbacks deliberately exclude optional preview, poll,
+// tagging, and relationship fields. Older deployments can therefore lose an
+// optional feature without losing the account that authored the post.
+const POST_SELECT_COLUMNS_ACCOUNT_STABLE = `
+  id,
+  user_id,
+  content,
+  media_urls,
+  likes_count,
+  comments_count,
+  shares_count,
+  is_pinned,
+  created_at,
+  updated_at,
+  type,
+  visibility,
+  location,
+  hashtags,
+  posted_as_profile_id,
+  posted_as_type,
+  account_display_name,
+  account_username,
+  account_avatar_url
+`
+
+const POST_SELECT_COLUMNS_ACCOUNT_MINIMAL = `
+  id,
+  user_id,
+  content,
+  created_at,
+  visibility,
+  posted_as_profile_id,
+  posted_as_type,
+  account_display_name,
+  account_username,
+  account_avatar_url
 `
 
 const POST_SELECT_COLUMNS_CORE_WITH_PROFILE = `
@@ -92,6 +128,20 @@ export const FEED_POST_SELECT_VARIANTS: FeedPostSelectVariant[] = [
     selectColumns: POST_SELECT_COLUMNS,
     supportsAccountAttribution: true,
     supportsPinnedOrder: true,
+    supportsVisibility: true,
+  },
+  {
+    name: 'account_stable',
+    selectColumns: POST_SELECT_COLUMNS_ACCOUNT_STABLE,
+    supportsAccountAttribution: true,
+    supportsPinnedOrder: true,
+    supportsVisibility: true,
+  },
+  {
+    name: 'account_minimal',
+    selectColumns: POST_SELECT_COLUMNS_ACCOUNT_MINIMAL,
+    supportsAccountAttribution: true,
+    supportsPinnedOrder: false,
     supportsVisibility: true,
   },
   {
@@ -149,6 +199,7 @@ const OPTIONAL_POST_READ_FIELDS = [
   'metadata',
   'poll_ends_at',
   'poll_total_votes',
+  'appearance',
 ]
 
 export type FeedAttributionMode = 'legacy' | 'strict'
@@ -170,6 +221,8 @@ export type FeedQueryScope = {
   viewerCanSeeFollowersPosts?: boolean
   /** legacy (default): profile_id OR user_id owner posts. strict: posted_as_profile_id only. */
   attribution?: FeedAttributionMode
+  /** Exclude pinned posts so profile pagination cannot repeat the pinned lane. */
+  excludePinned?: boolean
 }
 
 export function isPostReadSchemaError(error: unknown): boolean {
@@ -257,6 +310,10 @@ function buildBasePostsQuery(
 
   if (variant.supportsPinnedOrder && shouldPrioritizePinnedPosts(scope)) {
     query = query.order('is_pinned', { ascending: false })
+  }
+
+  if (scope.excludePinned && variant.supportsPinnedOrder) {
+    query = query.eq('is_pinned', false)
   }
 
   return query
@@ -372,6 +429,7 @@ function matchesTaggedScope(row: any, scope: FeedQueryScope) {
 
 function applyScopeInMemory(rows: any[], scope: FeedQueryScope) {
   return rows.filter(row => {
+    if (scope.excludePinned && Boolean(row?.is_pinned)) return false
     if (!isVisiblePost(row, scope)) return false
     if (scope.type === 'user') return matchesUserScope(row, scope)
     if (scope.type === 'following') return matchesFollowingScope(row, scope)
@@ -398,7 +456,7 @@ function compareCreatedAtDesc(left: any, right: any) {
 
 function comparePostsForScope(scope: FeedQueryScope) {
   return (left: any, right: any) => {
-    if (shouldPrioritizePinnedPosts(scope)) {
+    if (shouldPrioritizePinnedPosts(scope) && !scope.excludePinned) {
       const leftPinned = Boolean(left?.is_pinned)
       const rightPinned = Boolean(right?.is_pinned)
       if (leftPinned !== rightPinned) return leftPinned ? -1 : 1
@@ -541,18 +599,11 @@ export async function fetchFeedPostsWithFallback(
   let lastError: any = null
 
   for (const variant of FEED_POST_SELECT_VARIANTS) {
-    // #region agent log
-    const __variantStart = Date.now()
-    // #endregion
     let query = buildBasePostsQuery(supabase, variant, scope, limit, offset)
     query = applyFeedScopeToQuery(query, variant, scope)
     query = applyVisibilityScopeToQuery(query, variant, scope)
 
     const { data, error } = await query
-
-    // #region agent log
-    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'881a75'},body:JSON.stringify({sessionId:'881a75',runId:'post-fix',hypothesisId:'B',location:'lib/feed/feed-posts-query.ts:fetchFeedPostsWithFallback',message:'variant_attempt',data:{variant:variant.name,stageMs:Date.now()-__variantStart,hasError:Boolean(error),errorCode:error?.code||null,isSchemaError:error?isPostReadSchemaError(error):false,rowCount:data?.length||0,scopeType:scope.type},timestamp:Date.now()})}).catch(()=>{})
-    // #endregion
 
     if (!error) {
       return { data, error: null, variantName: variant.name }
@@ -567,13 +618,7 @@ export async function fetchFeedPostsWithFallback(
     console.warn(`[Feed Posts API] ${variant.name} posts query hit a schema mismatch; trying a safer select.`)
   }
 
-  // #region agent log
-  const __rawStart = Date.now()
-  // #endregion
   const rawFallback = await fetchPostsWithStarFallback(supabase, scope, limit, offset)
-  // #region agent log
-  fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'881a75'},body:JSON.stringify({sessionId:'881a75',runId:'post-fix',hypothesisId:'B',location:'lib/feed/feed-posts-query.ts:fetchPostsWithStarFallback',message:'raw_star_fallback',data:{stageMs:Date.now()-__rawStart,hasError:Boolean(rawFallback.error),rowCount:rawFallback.data?.length||0,scopeType:scope.type},timestamp:Date.now()})}).catch(()=>{})
-  // #endregion
   if (!rawFallback.error) {
     return { data: rawFallback.data, error: null, variantName: 'raw_star' }
   }

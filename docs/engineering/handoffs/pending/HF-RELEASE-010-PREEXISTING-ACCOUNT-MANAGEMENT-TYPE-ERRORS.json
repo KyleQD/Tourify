@@ -1,0 +1,113 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-RELEASE-010-PREEXISTING-ACCOUNT-MANAGEMENT-TYPE-ERRORS",
+  "task_id": "RELEASE-010",
+  "from_agent": "release",
+  "to_agent": "general-user",
+  "for_task": null,
+  "cc_agents": [
+    "orchestrator",
+    "social",
+    "database",
+    "organization",
+    "marketplace",
+    "admin",
+    "qa"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T03:20:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, 120 entries; this lane made no commit)",
+  "summary": "RELEASE-010 made `npm run verify:feature -- --changed` runnable, and the first honest end-to-end run of the step immediately reported two REAL pre-existing type errors that no lane could previously have seen, because the tier died before reaching a verdict. They are in `lib/services/account-management.service.ts` at HEAD, are byte-identical to base SHA 16fb834f, and are outside this lane's grant to fix. They are routed, not fixed.",
+  "why_not_just_fixed": "`lib/services/account-management.service.ts` is application code in another domain's surface, is not in RELEASE-010's working set (scripts/verify.mjs, package.json, docs/DEVELOPMENT_WORKFLOW.md), and is in a shared dirty worktree with live lanes. RELEASE-010 is a verification-tooling task; it does not modify implementation code. Fixing an unrelated service's types from a release lane would also destroy the diagnostic's value as a measurement of the new gate.",
+  "the_finding_verbatim": [
+    "lib/services/account-management.service.ts(1015,50): error TS2345: Argument of type '\"create_post_with_context\"' is not assignable to parameter of type '\"_tourify_has_columns\" | \"accept_org_invite\" | ... | \"write_venue_lifecycle_audit\"'.",
+    "lib/services/account-management.service.ts(1025,7): error TS2322: Type 'Json | string[] | { already_accepted: boolean; invitation_id: string; tour_id: string; }[] | { already_existed: boolean; outbox_id: string; transaction_id: string; }[] | { aggregate_id: string; ... 18 more ...; status: string; }[] | ... 31 more ... | undefined' is not assignable to type 'string'."
+  ],
+  "how_it_was_found_and_proven": {
+    "how": "A scoped tsc program rooted at a file that imports the service. `lib/services/account-management.service.ts` is neither a root nor a changed file, so the diagnostics can only have come from the transitive closure — which is also the demonstration that the scoped step reaches unchanged code.",
+    "scoped_run": "npx tsc -p <generated scope project rooted at types/rel010-transitive.ts, which does `import '@/lib/services/account-management.service'>` --noEmit --pretty false",
+    "exit_status": 2,
+    "seconds": 2.03,
+    "peak_rss_mb": 576,
+    "pre_existing_proof": "`git status --porcelain -- lib/services/account-management.service.ts` is empty, so the file is byte-identical to HEAD 16fb834f. The errors therefore exist at the base SHA, not in any lane's working changes. Reproduced in a DETACHED CLEAN WORKTREE at 16fb834f, independently of the shared dirty worktree."
+  },
+  "read_of_what_the_errors_mean": "Line 1015 passes a literal RPC name that is absent from the generated contract's function list, and line 1025 assigns a `Json | undefined`-shaped Supabase response to a `string`. Both are consistent with the stale generated-contract drift CP-HF-DISC-002 records, i.e. the code was written against a contract that has since moved. The type-generation ceiling (CP-089, CP-092) means the contract cannot simply be regenerated locally to settle it, so the disposition needs a decision rather than a regeneration: either the contract is stale and the code is right, or the code is stale and the contract is right. THIS LANE DOES NOT KNOW WHICH, AND SAYS SO.",
+  "explicitly_out_of_scope_here": [
+    "Editing lib/services/account-management.service.ts",
+    "npm run generate:database-types / check:database-types — separately blocked by the 1 MB ENOBUFS generator pipe limit (CP-089, CP-092), a DIFFERENT constraint from the typecheck ceiling RELEASE-010 fixed",
+    "The `linked` Supabase project, which is a different database and must never be regenerated from"
+  ],
+  "working_set": [
+    "lib/services/account-management.service.ts",
+    "lib/database.types.ts (read-only, for the contract side of the diagnosis)"
+  ],
+  "completed": [
+    "Both diagnostics captured verbatim with file, line, column and full type text",
+    "Proven pre-existing at base SHA 16fb834f and reproduced in a clean detached worktree",
+    "Proven reachable by the now-runnable scoped typecheck, so the gate that reports it is proven non-vacuous"
+  ],
+  "next_steps": [
+    "`general-user` accepts this handoff and picks A or B. A is recommended on the evidence above and B is a `social` + `database` decision, not a general-user one.",
+    "Whichever is chosen, the lane that lands it re-runs `npm run verify:feature -- --changed`; the scoped typecheck reaches this service through a transitive import, so a lane that does not touch the service at all can still see this red.",
+    "Orchestrator: no further assignment work is needed for this finding."
+  ],
+  "blockers": [
+    "The generated contract cannot be regenerated on this machine (CP-089/CP-092), so the diagnosis cannot be closed locally"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "docs/engineering/tasks/active/RELEASE-010.json",
+      "docs/engineering/DECISIONS.md (CP-111)"
+    ],
+    "last_run_sha": null,
+    "last_run_at": null,
+    "result": "not-run"
+  },
+  "updated_at": "2026-09-27T20:10:00.000Z",
+  "re_addressed": {
+    "at": "2026-09-27",
+    "by": "RELEASE-011",
+    "from": "orchestrator",
+    "to": "general-user",
+    "why": "The original handoff asked the orchestrator to assign an owner. The evidence needed to assign one is now in the repository, so the assignment question is closed: the registry gives `general-user` ownership of 'user profiles, settings, accounts, and the general dashboard', which is `lib/services/account-management.service.ts`. `social` is copied because the missing capability is post creation, and `database` because option B is an additive RPC.",
+    "not_moved_to_completed": "A handoff moves to completed/ when the receiver ACCEPTS it. RELEASE-011 is not the receiver and has not accepted on their behalf; this stays in pending/ until `general-user` picks it up."
+  },
+  "open_question_is_now_closed": {
+    "question_as_first_recorded": "Is the code stale or is the generated contract stale? THIS LANE DID NOT KNOW.",
+    "answer": "THE CODE IS STALE. The generated contract is not behind: `create_post_with_context` is absent from BOTH the active chain (317 files in supabase/migrations/*.sql) and from lib/database.types.ts, so the contract correctly does not declare it.",
+    "evidence": [
+      "grep -rn create_post_with_context supabase/migrations/*.sql -> NO MATCH. The only three hits in the whole repository are in supabase/migrations/archive/: APPLY_TO_SUPABASE_DASHBOARD.sql:315 (CREATE OR REPLACE FUNCTION), complete_migration.sql:403 (the same), FIX_FUNCTION_CONFLICT.sql:12 (DROP FUNCTION IF EXISTS).",
+      "grep -n create_post_with_context lib/database.types.ts -> NO MATCH.",
+      "The two diagnostics are ONE defect, not two: an RPC name absent from the contract's Functions union raises TS2345 at the call site and simultaneously widens the response to `Json | undefined`, which is what raises TS2322 where the result is returned. Fixing one without the other is not possible.",
+      "AccountManagementService.createPostWithContext has ZERO callers: grep -rn createPostWithContext over the repository returns only its own declaration at lib/services/account-management.service.ts:1002.",
+      "lib/database.types.ts DOES contain a `posts` relation that the active chain also never creates. So the contract was generated from a real database that had `posts` and did NOT have this RPC. The contract is therefore not merely un-stale; it is evidence about what a target actually holds."
+    ],
+    "target_caveat_that_does_not_change_the_answer": "DB-002 established that migrations have been applied out of band through the Management API, so a hosted target MAY hold the archived function even though the chain does not create it. That is why this has never surfaced: a staging database that happens to carry the function makes the call look correct. It does not make the code right — it makes the code accidentally alive on one environment, which is the most dangerous form of CP-109's class."
+  },
+  "options_and_why_they_are_not_symmetric": {
+    "A_delete_the_dead_method": {
+      "action": "Remove AccountManagementService.createPostWithContext. It has no callers, so this is a deletion with no behavioural surface, and it removes both diagnostics.",
+      "cost": "minutes",
+      "risk": "none identified; the only risk is that a caller exists outside this repository, which the zero-caller grep over the whole tree argues against and which the owner can confirm against its own knowledge of consumers."
+    },
+    "B_author_the_rpc_additively": {
+      "action": "Author `create_post_with_context` in a new migration, with the generated contract question handled by the normal type-generation path, not by a local regeneration.",
+      "DO_NOT_PROMOTE_THE_ARCHIVED_DDL_AS_WRITTEN": "The archive version is `SECURITY DEFINER`, has no `set search_path`, and inserts into `posts` with a caller-supplied `profile_id` and `account_type` that it never checks against the calling user. Promoting it as written would create a cross-tenant write primitive. It also returns UUID while the TypeScript signature declares Promise<string>. If this option is chosen the function needs an explicit ownership check on the posting-as profile and a pinned search_path, and it is a `social` + `database` decision with a security review rather than a mechanical move.",
+      "cost": "a migration, a security review, and a generated-type change"
+    },
+    "NOT_an_option": "Regenerating the contract to make the error go away. The contract already agrees with the chain; regenerating would change nothing here, and the 1 MB ENOBUFS generator pipe limit (CP-089, CP-092) makes it unavailable in any case. The `linked` project is a different database and must never be regenerated from."
+  },
+  "release_agent_response": {
+    "at": "2026-09-27",
+    "by": "RELEASE-011",
+    "decision_recorded": "CP-123 in docs/engineering/DECISIONS.md",
+    "what_release_011_did_not_do": "Did not edit lib/services/account-management.service.ts, did not regenerate any types, did not touch the archive, and did not move this handoff to completed/.",
+    "why_the_tier_no_longer_needs_a_workaround": "The feature tier now reports `incomplete` (exit 3) for an unprovisioned environment instead of aborting with a stack trace, but it still FAILS on this type error, correctly. A lane whose changed files reach this service records a red naming the file and the two diagnostics. That is the intended behaviour and the reason the typecheck step was not weakened."
+  },
+  "accepting_task_id": "USER-007",
+  "completion_condition": "`general-user` accepts this handoff and picks A or B. A is recommended on the evidence above and B is a `social` + `database` decision, not a general-user one."
+}

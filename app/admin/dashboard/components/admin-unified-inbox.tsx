@@ -719,7 +719,7 @@ export function AdminUnifiedInbox() {
                     <Hash className="h-5 w-5 text-purple-400" />
                   )}
                   <div className="min-w-0">
-                    <h3 className="font-medium text-white truncate">{selection.label}</h3>
+                    <h3 className="line-clamp-2 break-words font-medium text-white" title={selection.label}>{selection.label}</h3>
                     {selection.isPendingCompose ? (
                       <p className="text-[11px] text-slate-500">New conversation</p>
                     ) : null}

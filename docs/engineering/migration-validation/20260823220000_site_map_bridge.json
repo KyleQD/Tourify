@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823220000_site_map_bridge.sql",
+  "taskId": "VEN-224-227-SITE-MAP-BRIDGE",
+  "status": "planned",
+  "owner": "venue-operations",
+  "reviewer": "release-engineering",
+  "domains": ["venues", "site-maps", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "reconciled branch checkpoint ae6b4574; remote application state still to be confirmed",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "site_maps rows without venue_profile_id grouped by creator",
+      "site_map_collaborators rows that do not satisfy the proposed active-state constraint"
+    ],
+    "expectedAffectedRows": "Backfills resolvable site-map venue ownership; unresolved maps remain null",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Preserve checkpointed migration bytes; confirm hosted history before replay and use a forward fix if already applied",
+    "resumeCursor": "supabase migration version 20260823220000",
+    "idempotency": "Columns/indexes are conditional and policies/functions are replaced; backfill only fills null ownership"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "site_maps",
+    "strategy": "Leave ambiguous venue_profile_id values null for explicit ownership review"
+  },
+  "constraintsAndIndexes": {
+    "constraints": ["site_map_collaborators_state_check from checkpointed migration"],
+    "indexes": ["idx_site_maps_venue_profile"],
+    "validationPlan": "Confirm remote history first; on a representative clone, inventory invalid collaborator states before applying and record lock duration"
+  },
+  "recovery": {
+    "rollback": "Remove operator policies through a forward migration while retaining venue ownership data",
+    "forwardFix": "If the checkpoint is already applied, correct constraint or policy behavior only with a new migration"
+  },
+  "postflight": {
+    "queries": [
+      "site_maps ownership resolution counts by venue_profile_id",
+      "site_map_collaborators_state_check validation state",
+      "site_maps operator policies and effective grants"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "security-data",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

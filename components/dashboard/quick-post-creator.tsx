@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
 import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
+import { ComposerStyleControl } from '@/components/posts/appearance/composer-style-control'
+import type { PostAppearanceInput } from '@/lib/appearance/contracts'
 
 const DASHBOARD_POST_VISIBILITY = 'followers'
 
@@ -23,6 +25,7 @@ export function QuickPostCreator() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 })
+  const [appearanceInput, setAppearanceInput] = useState<PostAppearanceInput | null>(null)
   const { toast } = useToast()
   const isPostEmpty = !content.trim() && selectedFiles.length === 0
   const isSubmitDisabled = isSubmitting || isUploadingMedia || !isActingReady || isPostEmpty
@@ -107,7 +110,8 @@ export function QuickPostCreator() {
         content: content.trim(),
         type: mediaUrls.length > 0 ? 'media' : 'text',
         visibility: DASHBOARD_POST_VISIBILITY,
-        media_urls: mediaUrls
+        media_urls: mediaUrls,
+        appearance: appearanceInput ?? { mode: 'standard' as const },
       }
 
       console.log('[QuickPostCreator] POST /api/feed/posts payload (sanitized):', {
@@ -145,6 +149,7 @@ export function QuickPostCreator() {
       
       setContent('')
       setSelectedFiles([])
+      setAppearanceInput(null)
 
       // Notify dashboard surfaces to refresh without a full page reload.
       window.dispatchEvent(
@@ -206,6 +211,12 @@ export function QuickPostCreator() {
             </div>
 
             <div className="flex items-center gap-2">
+              <ComposerStyleControl
+                value={appearanceInput}
+                onChange={setAppearanceInput}
+                preview={{ content, mediaCount: selectedFiles.length }}
+                className="border-purple-400/25 bg-purple-500/10 text-purple-100 hover:bg-purple-500/20"
+              />
               <span className="min-w-[66px] text-right text-sm tabular-nums text-slate-400">
                 {content.length}/2000
               </span>

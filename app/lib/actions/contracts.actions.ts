@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { createSafeActionClient } from 'next-safe-action'
 import { createClient } from '@/lib/supabase/server'
+import type { Json } from '@/lib/database.types'
 
 const action = createSafeActionClient()
 
@@ -33,9 +34,11 @@ export const createContractAction = action
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
+  const metadata = parsedInput.metadata as Json | undefined
+
   const { error, data } = await supabase
     .from('artist_contracts')
-    .insert({ ...parsedInput, user_id: user.id })
+    .insert({ ...parsedInput, metadata, user_id: user.id })
     .select()
     .single()
 
@@ -51,9 +54,10 @@ export const updateContractAction = action
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const { id, ...update } = parsedInput
+  const metadata = update.metadata as Json | undefined
   const { error, data } = await supabase
     .from('artist_contracts')
-    .update({ ...update, updated_at: new Date().toISOString() })
+    .update({ ...update, metadata, updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('user_id', user.id)
     .select()
@@ -98,5 +102,4 @@ export const updateContractStatusAction = action
   if (error) return { success: false, error: error.message }
   return { success: true, data }
 })
-
 

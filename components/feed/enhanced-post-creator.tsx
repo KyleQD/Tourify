@@ -36,6 +36,8 @@ import { PostingAccountSelector } from '@/components/account/posting-account-sel
 import { toast } from 'sonner'
 import { PollOptionEditor } from '@/components/polls/poll-option-editor'
 import type { PollDuration } from '@/lib/polls/poll-duration'
+import { ComposerStyleControl } from '@/components/posts/appearance/composer-style-control'
+import type { PostAppearanceInput } from '@/lib/appearance/contracts'
 
 interface PostCreatorProps {
   onPostCreated?: (post: any) => void
@@ -52,6 +54,7 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
   const [isPollMode, setIsPollMode] = useState(false)
   const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
   const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
+  const [appearanceInput, setAppearanceInput] = useState<PostAppearanceInput | null>(null)
 
   const { user, loading } = useAuth()
   const { actingHeaders, isActingReady } = useActingContext()
@@ -77,6 +80,7 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
       visibility: postData.visibility,
       location: postData.location || null,
       hashtags: allHashtags,
+      appearance: appearanceInput ?? { mode: 'standard' },
     }
 
     if (postData.type === 'poll') {
@@ -147,6 +151,7 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
       setIsPollMode(false)
       setPollOptions(['', ''])
       setPollDuration('7d')
+      setAppearanceInput(null)
       
       onPostCreated?.(post)
       
@@ -368,6 +373,12 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
               {/* Action Bar */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
+                  <ComposerStyleControl
+                    value={appearanceInput}
+                    onChange={setAppearanceInput}
+                    preview={{ content, pollOptions: isPollMode ? pollOptions : undefined }}
+                    className="border-slate-600/50 bg-slate-800/50 text-slate-200"
+                  />
                   {!isExpanded && (
                     <div className="flex gap-1">
                       <Button

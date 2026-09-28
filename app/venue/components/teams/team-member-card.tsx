@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -394,10 +395,10 @@ export function TeamMemberCard({ teamId }: TeamMemberCardProps) {
       )}
       <div className="flex justify-end mt-6">
         <ButtonLink variant="outline" asChild>
-          <a href="/venue/dashboard/teams/crew-profiles">
+          <Link href="/venue/dashboard/teams/crew-profiles">
             <UserPlus className="h-4 w-4 mr-2" />
             Manage Crew Profiles
-          </a>
+          </Link>
         </ButtonLink>
       </div>
     </div>

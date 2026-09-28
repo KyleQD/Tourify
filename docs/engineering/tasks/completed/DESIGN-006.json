@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-006",
+  "title": "Retire venue alert primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:32.715Z",
+  "updated_at": "2026-09-11T19:46:10.407Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/alert.tsx to components/ui/alert.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/alert.tsx",
+      "components/ui/alert.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/alert.tsx",
+    "components/ui/alert.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical system state preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/alert|@/components/venue/ui/alert\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/alert.tsx components/ui/alert.tsx",
+      "git diff --check -- components/venue/ui/alert.tsx components/ui/alert.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded source audit across app/, components/, hooks/, lib/, apps/, __tests__, and scripts found 0 consumers and 0 exact import references for components/venue/ui/alert.tsx; no approved external dependency was found.",
+      "The canonical shared primitive is the owning design-system surface: 72 source files import components/ui/alert.tsx, including 7 venue-surface consumers under app/venue/** and components/venue/**. Venue consumers are already migrated and require no source changes.",
+      "components/venue/ui/alert.tsx and components/ui/alert.tsx are byte-identical: both are 59 lines, 1,919 bytes, and have SHA-256 c7c9dbd016c0d43406fc124a890fdcb13c6781efabeb0affc47b24df64e0e049.",
+      "Public/export parity is exact because both files have identical implementations and export Alert, AlertTitle, and AlertDescription with matching ref and prop contracts.",
+      "Disposition: components/ui/alert.tsx = keep/canonical; audited venue consumers = migrate/already migrated; components/venue/ui/alert.tsx = retire-later compatibility debt. The venue twin remains retained because deletion is outside this task's authorization.",
+      "Focused consumer audit passed with no matches.",
+      "Focused ESLint passed for components/venue/ui/alert.tsx and components/ui/alert.tsx.",
+      "Focused git diff check passed for both primitive files and docs/engineering.",
+      "npm run agents:validate passed: 17 agents, 93 tasks, 0 warnings, 0 errors."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T19:46:10.407Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the bounded alert consumer and parity audit. The shared design-system alert owns the contract; all audited venue consumers already use it, while the byte-identical venue twin has zero live consumers and remains retained as retire-later compatibility debt.",
+    "completed": [],
+    "next_steps": [
+      "Retain components/venue/ui/alert.tsx until a separately authorized cleanup action removes retire-later compatibility debt.",
+      "If cleanup is authorized later, re-run the bounded zero-use and parity checks before deleting the venue twin."
+    ],
+    "blockers": [
+      "Compatibility-file deletion is explicitly out of scope for this audit pass; the venue twin remains retained despite complete zero-use and parity evidence."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T18:43:20.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded alert audit. Zero venue-twin consumers were found; 72 source files use the canonical shared alert, including 7 venue-surface consumers. The two primitives are byte-identical with matching public exports. Recorded canonical keep, already-migrated consumer, and retire-later venue-twin dispositions.",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-006.json"
+        ],
+        "verification": [
+          "Bounded venue-twin consumer audit: 0 matches",
+          "Canonical import inventory: 72 source files; venue-surface inventory: 7 files",
+          "Byte comparison and SHA-256 parity",
+          "Focused ESLint: passed",
+          "Focused git diff check: passed",
+          "npm run agents:validate: 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [
+          "Retire-later compatibility-file deletion was not authorized in this pass."
+        ],
+        "next_steps": [
+          "Preserve the venue twin until a separately authorized cleanup task revalidates zero-use evidence."
+        ]
+      },
+      {
+        "at": "2026-09-11T19:46:10.407Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded alert consumer and parity audit. The shared design-system alert owns the contract; all audited venue consumers already use it, while the byte-identical venue twin has zero live consumers and remains retained as retire-later compatibility debt.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -2,19 +2,7 @@ import { NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 import { startRouteTiming } from '@/lib/observability/route-timing'
 import { requireOpsOrgId, resolveOptionalAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
-
-const emptyStats = {
-  totalTours: 0, activeTours: 0, totalEvents: 0, upcomingEvents: 0,
-  totalArtists: 0, totalVenues: 0, totalRevenue: 0, monthlyRevenue: 0,
-  ticketsSold: 0, totalCapacity: 0, staffMembers: 0,
-  completedTasks: 0, pendingTasks: 0, averageRating: 0,
-  totalTravelGroups: 0, totalTravelers: 0, confirmedTravelers: 0,
-  coordinationCompletionRate: 0, fullyCoordinatedGroups: 0,
-  ticketRevenue: 0, approvedVenueBookings: 0, pendingVenueBookings: 0,
-  activeTransportation: 0, completedTransportation: 0,
-  logisticsCompletionRate: 0, totalLodgingBookings: 0,
-  activeLodgingBookings: 0, totalRentalAgreements: 0, activeRentalAgreements: 0,
-}
+import { collectUnavailableDashboardDomains } from '@/lib/admin/dashboard-stats'
 
 export const GET = withAdminAuth(async (_request, { user, supabase }) => {
   const endTiming = startRouteTiming('/api/admin/dashboard/stats')
@@ -31,7 +19,7 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
     orgEventsQuery = orgId
       ? orgEventsQuery.or(`org_id.eq.${orgId},created_by.eq.${user.id}`)
       : orgEventsQuery.eq('created_by', user.id)
-    const { data: orgEvents } = await orgEventsQuery
+    const { data: orgEvents, error: orgEventsError } = await orgEventsQuery
     const eventIds = (orgEvents || []).map((event: { id: string }) => event.id)
 
     let eventsV2Query = supabase.from('events_v2').select('id, status, start_at, capacity').limit(500)
@@ -88,10 +76,44 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'artist'),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'venue'),
       orgId ? supabase.from('financial_transactions').select('amount, type').eq('org_id', orgId).gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()).limit(1000) : Promise.resolve({ data: [] }),
-      orgId ? supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
-      orgId ? supabase.from('lodging_bookings').select('id, status, total_amount').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
-      orgId ? supabase.from('rental_agreements').select('id, status, total_amount').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
+      // travel_groups has no org_id column — scope by event_id or tour_id from org's events/tours
+      eventIds.length > 0
+        ? supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members').in('event_id', eventIds).limit(200)
+        : Promise.resolve({ data: [] }),
+      // lodging_bookings has no org_id column — scope by event_id from org's events
+      eventIds.length > 0
+        ? supabase.from('lodging_bookings').select('id, status, total_amount').in('event_id', eventIds).limit(200)
+        : Promise.resolve({ data: [] }),
+      // rental_agreements has no org_id column; total_amount column is named subtotal
+      eventIds.length > 0
+        ? supabase.from('rental_agreements').select('id, status, subtotal').in('event_id', eventIds).limit(200)
+        : Promise.resolve({ data: [] }),
     ])
+
+    const domainResults = [
+      ['eventScope', { status: 'fulfilled', value: { error: orgEventsError } }],
+      ['tours', toursResult],
+      ['events', eventsV2Result],
+      ['staff', staffResult],
+      ['logistics', logisticsResult],
+      ['ticketing', ticketsResult],
+      ['venueBookings', venueBookingsResult],
+      ['artists', artistsResult],
+      ['venues', venuesResult],
+      ['finance', monthFinanceResult],
+      ['travel', travelGroupsResult],
+      ['lodging', lodgingBookingsResult],
+      ['rentals', rentalAgreementsResult],
+    ] as const
+    const failedDomains = collectUnavailableDashboardDomains(domainResults)
+    if (failedDomains.length > 0) {
+      // Sidebar statistics are supplemental. A missing reporting table or
+      // temporarily unavailable domain must not break tour/event workflows.
+      console.warn('[Dashboard Stats API] Returning partial statistics', {
+        failedDomains,
+        orgId,
+      })
+    }
 
     const tours = toursResult.status === 'fulfilled' ? (toursResult.value.data || []) : []
     const eventsV2 = eventsV2Result.status === 'fulfilled' ? (eventsV2Result.value.data || []) : []
@@ -132,6 +154,8 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
 
     const response = NextResponse.json({
       success: true,
+      partial: failedDomains.length > 0,
+      unavailableDomains: failedDomains,
       stats: {
         totalTours: tours.length,
         activeTours,
@@ -168,11 +192,27 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
         activeRentalAgreements: rentalAgreements.filter((r: any) => r.status === 'active').length,
       },
     })
-    endTiming({ userId: user.id, queryCount: 13, metadata: { orgId, organizerAccountId: scope?.organizerAccountId } })
+    endTiming({
+      userId: user.id,
+      queryCount: 13,
+      metadata: {
+        orgId,
+        organizerAccountId: scope?.organizerAccountId,
+        partial: failedDomains.length > 0,
+        unavailableDomains: failedDomains,
+      },
+    })
     return response
   } catch (error) {
     endTiming({ userId: user.id, metadata: { error: true } })
     console.error('[Dashboard Stats API] Error:', error)
-    return NextResponse.json({ success: true, stats: emptyStats })
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Dashboard statistics are temporarily unavailable',
+        code: 'dependency_unavailable',
+      },
+      { status: 503 },
+    )
   }
 })

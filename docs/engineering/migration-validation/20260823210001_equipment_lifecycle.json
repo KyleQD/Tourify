@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260823210001_equipment_lifecycle.sql",
+  "taskId": "VEN-207-209-EQUIPMENT-LIFECYCLE",
+  "status": "planned",
+  "owner": "venue-operations",
+  "reviewer": "release-engineering",
+  "domains": ["venues", "equipment", "rls"],
+  "riskLevel": "medium",
+  "representativeSnapshot": {
+    "kind": "isolated production-like Supabase branch",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "venue_equipment row count and existing lifecycle-column inventory",
+      "equipment_maintenance_log existence and row count"
+    ],
+    "expectedAffectedRows": "Existing venue_equipment rows receive nullable lifecycle columns; no data backfill",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Transactional additive DDL; retry after interruption because columns, table, index, policy and trigger replacements converge",
+    "resumeCursor": "supabase migration version 20260823210001",
+    "idempotency": "IF NOT EXISTS and DROP-before-CREATE guards make schema objects converge on replay"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No data backfill or unresolved ownership inference"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "equipment_maintenance_log equipment_id foreign key",
+      "maintenance type/status and non-negative value checks"
+    ],
+    "indexes": ["idx_equip_maint_equipment"],
+    "validationPlan": "Confirm lifecycle columns, maintenance constraints, RLS policy, index and completion trigger definitions"
+  },
+  "recovery": {
+    "rollback": "Disable the completion trigger and stop writes; preserve added columns and maintenance history",
+    "forwardFix": "Apply a later migration that replaces the policy, trigger or constraints without deleting maintenance records"
+  },
+  "postflight": {
+    "queries": [
+      "venue_equipment lifecycle columns exist with expected types",
+      "equipment_maintenance_log has RLS enabled and equip_maint_owner policy",
+      "trg_equip_maint_completion updates last_maintenance for a disposable test record"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "venue-operations",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

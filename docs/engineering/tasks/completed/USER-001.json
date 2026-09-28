@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0",
+  "id": "USER-001",
+  "title": "Audit General User workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "general-user",
+  "created_at": "2026-09-09T06:17:40.563Z",
+  "updated_at": "2026-09-09T08:04:49.469Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Audit the General User area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: authentication, onboarding, user profiles, settings, accounts, and the general dashboard",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/general-user/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The general-user default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/general-user/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/general-user/BASELINE.md: what the general-user area contains today (routes, components, services, API routes, database objects, tests, evidence), each claim backed by a real path reference; plus the area's intended direction, cited to docs/DEVELOPMENT_BACKLOG.md, docs/work-packets/, docs/engineering/agents/general-user/BACKLOG.md, and relevant specs.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task USER-001; expanded scope only on evidence, with the path and reason recorded in a checkpoint.",
+    "Used deep research and sequential thinking to identify everything that is missing, incomplete, or needs improvement; recorded as docs/engineering/agents/general-user/GAPS.md, every item triaged (missing / incomplete / improve) with evidence and location.",
+    "Produced docs/engineering/agents/general-user/QUESTIONS.md: a prioritized list of questions to the product owner explaining how to build or fix each gap (build vs fix vs drop and sequencing); the questions are also surfaced in the final checkpoint summary.",
+    "Updated docs/engineering/agents/general-user/STATE.md (working / partial / broken / focus) and BACKLOG.md to reflect the baseline findings.",
+    "No production code or migration files changed; this is a read-only audit task (qa/release additionally honor their edit: deny permission).",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records owned by this agent."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "npm run agents:validate on 2026-09-09: validated 17 agents, 21 tasks, 8 warnings (pre-existing stale-map SHA warnings for docs/engineering/generated/*), 0 errors"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-09T08:05:00.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Read-only audit complete. Produced BASELINE.md, GAPS.md (20 triaged items), and QUESTIONS.md (13 prioritized owner questions); updated STATE.md and BACKLOG.md. Key findings: WS-0.1 committed code is clean but forged-cookie regression tests are untracked and the bearer path in lib/auth/api-auth.ts is untested; GDPR erasure coverage is unverified beyond job_applications; multiple canonical-surface candidates for onboarding/settings/profile/dashboard; auth helpers duplicated (lib/auth/server.ts legacy vs lib/auth/api-auth.ts vs production-auth vs mobile bearer); /api/auth/session is a stale stub. No production code or migrations changed.",
+    "completed": [
+      "BASELINE.md written with path-cited inventory of auth/onboarding/profiles/settings/accounts/dashboard surfaces, DB objects, tests, and intended direction",
+      "GAPS.md written with 20 gaps triaged missing/incomplete/improve, each with evidence and location",
+      "QUESTIONS.md written with 13 prioritized owner questions (build/fix/drop + sequencing), blocking questions flagged",
+      "STATE.md updated (last reviewed SHA, durable facts, risks); BACKLOG.md updated with 12 candidate tasks",
+      "Verification: npm run agents:validate passed with 0 errors (evidence in verification block)"
+    ],
+    "next_steps": [
+      "Owner answers to QUESTIONS.md P1 (canonical onboarding/settings/profile surfaces), then execute BACKLOG.md candidates 1-12 as follow-up task records"
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T06:17:40.563Z",
+        "summary": "Task created by orchestrator; implementation not started.",
+        "next": "Run the audit"
+      },
+      {
+        "at": "2026-09-09T08:04:49.469Z",
+        "summary": "Scope expansion (reason: generated maps are stale topology indexes - map SHA a7193116c... vs base 7cf660ad8..., dirty 399 vs 386; behavioral claims require source reads): read real route/service/component files under app/auth, app/login, app/signup, app/onboarding, app/profile, app/settings, app/dashboard, app/api/{auth,accounts,account,onboarding,profile,settings,dashboard}, lib/auth, lib/supabase, lib/services, lib/accounts, contexts, components/{auth,onboarding,settings,profile,dashboard}, apps/mobile/app/(auth), __tests__/{auth,onboarding}, .agents/flows/west-coast-tour, and supabase migrations referenced via database-objects.md. Audit complete: BASELINE.md, GAPS.md, QUESTIONS.md written; STATE.md and BACKLOG.md updated; no production code changed.",
+        "next": "Run npm run agents:validate; record evidence; close task"
+      }
+    ]
+  },
+  "handoffs": []
+}

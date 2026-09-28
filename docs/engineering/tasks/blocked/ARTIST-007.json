@@ -1,0 +1,90 @@
+{
+  "schema_version": "2.0",
+  "id": "ARTIST-007",
+  "title": "Reconcile DB-008 artist consumer contracts",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P1",
+  "owner_agent": "artist",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "artist",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; control-plane-only task creation",
+  "goal": "Resolve the DB-008 consumer inventory assigned to artist without inventing missing schema.",
+  "scope": {
+    "in": [
+      "Resolve the DB-008 consumer inventory assigned to artist without inventing missing schema."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope"
+    ]
+  },
+  "working_set": [
+    "app/artist/**",
+    "app/api/artist/**",
+    "components/artist/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/artist/CHARTER.md"
+  ],
+  "depends_on": [
+    "DB-008"
+  ],
+  "resume_condition": "All dependencies complete: DB-008.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "artist",
+      "condition": "Complete DB-008.",
+      "dependency_task_ids": [
+        "DB-008"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Resolve the DB-008 consumer inventory assigned to artist without inventing missing schema.",
+      "owner": "artist",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "artist",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created by the core-launch realignment; implementation has not started.",
+    "completed": [],
+    "next_steps": [
+      "Wait for DB-008 and then confirm the working set is collision-free."
+    ],
+    "blockers": [
+      "Waiting for DB-008."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

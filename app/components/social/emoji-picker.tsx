@@ -10,9 +10,9 @@ let Picker: any = null
 let data: any = null
 if (typeof window !== 'undefined') {
   // Lazy load to avoid type dependency at build time
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   data = require('@emoji-mart/data')
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+
   Picker = require('@emoji-mart/react')
 }
 
@@ -136,4 +136,4 @@ export function EmojiPicker({ onEmojiSelect, triggerClassName = "", disabled = f
       </PopoverContent>
     </Popover>
   )
-} 
+}

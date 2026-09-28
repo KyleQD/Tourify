@@ -25,6 +25,8 @@ interface AchievementCardProps {
   onClick?: () => void
   className?: string
   silhouette?: boolean
+  /** Tighter public-profile cards without hover scale collision */
+  compact?: boolean
 }
 
 const rarityConfig = {
@@ -74,6 +76,7 @@ export function AchievementCard({
   onClick,
   className,
   silhouette = false,
+  compact = false,
 }: AchievementCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const isCompleted = userAchievement?.is_completed || false
@@ -85,10 +88,12 @@ export function AchievementCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden transition-all duration-300 hover:scale-[1.02] cursor-pointer",
+        "relative overflow-hidden transition-all duration-300",
+        !compact && "hover:scale-[1.02] cursor-pointer",
         "border-white/10 bg-white/5 text-white backdrop-blur-sm",
         isCompleted && "ring-2 ring-emerald-400/40",
         rarity.glow,
+        compact && "min-w-0",
         className
       )}
       onClick={onClick}

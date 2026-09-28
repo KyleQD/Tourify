@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Utensils, Plus } from 'lucide-react'
 import { LogisticsDynamicManager } from '@/components/admin/logistics-dynamic-manager'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 interface CateringOpsPanelProps {
   eventId?: string
@@ -16,6 +17,8 @@ interface CateringOpsPanelProps {
 }
 
 export function CateringOpsPanel({ eventId, tourId, siteMapId }: CateringOpsPanelProps) {
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
+  const hasScope = Boolean(eventId || tourId)
   const [services, setServices] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
@@ -31,10 +34,14 @@ export function CateringOpsPanel({ eventId, tourId, siteMapId }: CateringOpsPane
   })
 
   const load = useCallback(async () => {
+    if (!isAdminReady) {
+      setServices([])
+      return
+    }
     const params = new URLSearchParams()
     if (eventId) params.set('eventId', eventId)
     if (tourId) params.set('tourId', tourId)
-    const res = await fetch(`/api/admin/logistics/catering?${params}`, { credentials: 'include' })
+    const res = await adminFetch(`/api/admin/logistics/catering?${params}`)
     const data = await res.json()
     if (!res.ok) {
       setError(data.error || 'Failed to load catering')
@@ -42,7 +49,7 @@ export function CateringOpsPanel({ eventId, tourId, siteMapId }: CateringOpsPane
     }
     setServices(data.services || [])
     if (data.needsMigration) setError('Apply logistics foundation migration for catering tables')
-  }, [eventId, tourId])
+  }, [actingContextKey, adminFetch, eventId, isAdminReady, tourId])
 
   useEffect(() => {
     load()
@@ -56,7 +63,7 @@ export function CateringOpsPanel({ eventId, tourId, siteMapId }: CateringOpsPane
       .filter(Boolean)
       .map((allergy) => ({ allergy }))
 
-    const res = await fetch('/api/admin/logistics/catering', {
+    const res = await adminFetch('/api/admin/logistics/catering', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -143,7 +150,8 @@ export function CateringOpsPanel({ eventId, tourId, siteMapId }: CateringOpsPane
           />
         </div>
         <div className="md:col-span-2">
-          <Button onClick={createService}><Plus className="h-4 w-4 mr-2" />Create service</Button>
+          <Button disabled={!isAdminReady || !hasScope} onClick={createService}><Plus className="h-4 w-4 mr-2" />Create service</Button>
+          {!hasScope ? <p className="mt-2 text-xs text-slate-400">Select a tour or event before creating catering service.</p> : null}
         </div>
       </div>
 

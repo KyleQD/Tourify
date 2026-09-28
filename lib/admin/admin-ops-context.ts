@@ -63,7 +63,7 @@ export function buildAdminSiteMapHref(params: AdminOpsContextParams = {}): strin
   return buildAdminLogisticsHref({
     tourId: params.tourId,
     eventId: params.eventId,
-    tab: params.tab || "site-maps",
+    tab: params.tab || "maps",
     siteMapId: params.siteMapId,
     entityType: params.entityType,
     entityId: params.entityId,

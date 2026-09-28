@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260924120000_venue_availability_reservations_scope_rls.sql",
+  "taskId": "VENUE-005",
+  "status": "planned",
+  "manualApplyStatus": "authored - isolated staging apply pending (CP-051)",
+  "sha256": "0b8893adba62654964f552518cd788859a08c74b76339cd5a5219441ef170c23",
+  "owner": "venue",
+  "reviewer": "database",
+  "domains": ["venue", "rls", "bookings", "database"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "Static review of venue_availability/venue_reservations RLS policies and table grants across the active migration chain, plus every app/lib caller of the two raw tables",
+    "evidenceArtifact": "VENUE-005 migration SHA-256 0b8893adba62654964f552518cd788859a08c74b76339cd5a5219441ef170c23; contract test SHA-256 9bfca7fbb732b351f769ee5a0e3a5e913e811b7260b215e8f465493366538cd7"
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Record exact staging project reference, deployed SHA, and hosted migration history before any apply",
+      "SELECT to_regclass('public.venue_availability'), to_regclass('public.venue_reservations')",
+      "SELECT count(*), count(blocked_reason) FROM public.venue_availability WHERE blocked_reason IS NOT NULL",
+      "SELECT count(*) FROM public.venue_reservations WHERE source_id IS NOT NULL OR created_by IS NOT NULL",
+      "Snapshot pg_policies for public.venue_availability and public.venue_reservations (policyname, cmd, roles, qual) and role_table_grants rows for anon/public/authenticated/service_role"
+    ],
+    "expectedAffectedRows": "No data rows change. Only table-level ACLs and two SELECT policies change; write policies (venue_reservations_operator, venue owners manage availability) are untouched.",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "Apply this active migration once to verified isolated staging through the operator-controlled CP-051 path; inspect partial state before any reviewed forward fix",
+    "resumeCursor": "20260924120000",
+    "idempotency": "Every statement is re-runnable: REVOKE/GRANT are idempotent, and both CREATE POLICY statements are preceded by DROP POLICY IF EXISTS on their own names (plus the legacy permissive names) so an operator retry after a partial apply converges instead of raising a duplicate-policy error"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "No rows are moved, rewritten, or deleted"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "RLS stays enabled on public.venue_availability and public.venue_reservations",
+      "No SELECT grant for anon/public/authenticated on either raw table; service_role retains SELECT",
+      "Only surviving SELECT policy on either raw table is the service-role-only read policy pair; venue_reservations_operator (FOR ALL, venue_has_operator_access) and the availability owner FOR ALL policy remain",
+      "public_venue_availability sanitized view keeps anon/authenticated SELECT so public block dates still render"
+    ],
+    "indexes": [],
+    "validationPlan": "Run supabase/tests/venue005_availability_reservations_scope_contract.sql as a role that is a MEMBER of both anon and authenticated (authenticator or a superuser — the file refuses to run otherwise and must never be reported as a pass), then transactional persona probes: anon SELECT on venue_reservations/venue_availability denied; unrelated authenticated user SELECT denied to raw columns (blocked_reason/source_id/created_by); venue operator reads raw rows via /api/venue/availability and /api/venue/reservations after canManageVenue('manage_bookings'); non-operator same-origin API calls denied"
+  },
+  "recovery": {
+    "rollback": "Re-grant SELECT to anon/authenticated at the matching migration boundary via a later corrective migration if the sanitized surface regresses; do not drop tables or delete rows",
+    "forwardFix": "Review exact failing policy/grant against recorded staging state and ship a later additive corrective migration"
+  },
+  "postflight": {
+    "queries": [
+      "Run supabase/tests/venue005_availability_reservations_scope_contract.sql as a role that can SET ROLE anon/authenticated; it must report ready = true and raise on any client read or inconclusive probe",
+      "Record hosted schema_migrations entry, migration SHA-256, deployed app SHA, pg_policies, role_table_grants, and security/performance advisor output",
+      "Confirm /api/venue/availability and /api/venue/reservations return calendar data for the venue operator and public_venue_availability still resolves for anon/authenticated visitors",
+      "Regenerate the generated database types (CP-016) only after the hosted apply, and confirm the regenerated type still exposes venue_availability/venue_reservations rows for the service-role venue-scoped surfaces"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "venue",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

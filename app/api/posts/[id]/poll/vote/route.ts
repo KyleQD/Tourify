@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { parseAuthFromCookies } from '@/lib/auth/api-auth'
 import {
   canVoteOnPoll,
   resolvePollFollowerFlags,
 } from '@/lib/polls/poll-eligibility'
+import { resolvePostCommentAccess } from '@/lib/feed/post-comment-access'
 import { buildPollPayload } from '@/lib/polls/hydrate-polls'
+import {
+  auditFeatureUnavailable,
+  isAuditFeatureApproved,
+} from '@/lib/config/audit-feature-gates'
 
 async function loadPollBundle(supabase: any, postId: string) {
   const { data: post, error: postError } = await supabase
@@ -32,20 +38,52 @@ async function loadPollBundle(supabase: any, postId: string) {
   return { post, options: options || [] }
 }
 
+/**
+ * SOC-007 / SIM-20260922-SOC-003: mandatory, fail-closed post authorization
+ * for the poll read path. Runs on the caller-scoped client (RLS applies) and
+ * returns the same 404 for a missing post and a non-entitled post so poll
+ * existence cannot be probed. A gate failure is a denial, never a bypass.
+ */
+async function authorizePollRead(
+  postId: string,
+  viewerUserId: string | null,
+  viewerSupabase: any,
+) {
+  try {
+    const gateClient = viewerSupabase || (await createServerClient())
+    const access = await resolvePostCommentAccess({
+      supabase: gateClient,
+      postId,
+      viewerUserId,
+    })
+    return access.allowed
+  } catch (error) {
+    console.error('[Poll Vote API] post authorization failed', { error })
+    return false
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAuditFeatureApproved('polls')) return auditFeatureUnavailable('polls')
   try {
     const resolved = await params
     const postId = resolved.id
-    const supabase = createServiceRoleClient()
     const auth = await parseAuthFromCookies(request as any)
     const userId = auth?.user?.id || null
 
     if (!postId)
       return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
 
+    // Gate before any poll read: an outsider must not learn that a poll
+    // exists, nor read its options or per-option vote tallies.
+    if (!(await authorizePollRead(postId, userId, auth?.supabase))) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+    }
+
+    const supabase = createServiceRoleClient()
     const bundle = await loadPollBundle(supabase, postId)
     if ('error' in bundle && bundle.error)
       return NextResponse.json({ error: bundle.error }, { status: bundle.status })
@@ -82,6 +120,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAuditFeatureApproved('polls')) return auditFeatureUnavailable('polls')
   try {
     const resolved = await params
     const postId = resolved.id

@@ -1,0 +1,4961 @@
+{
+  "summary": {
+    "chain": {
+      "migrations": 323,
+      "matrixWrites": 17,
+      "matrixRoles": 12,
+      "chainFunctions": 287,
+      "policyReachableFunctions": 50,
+      "distinctPermissionsRead": 16,
+      "naiveCrossCheckLiterals": 16,
+      "naiveLiteralsMissed": 0
+    },
+    "pairs": {
+      "total": 504,
+      "roles": 12,
+      "capabilities": 42,
+      "agree": 298,
+      "gateExceedsMatrix": 206,
+      "matrixExceedsGate": 0
+    },
+    "byDecision": {
+      "declared_intent_only": 148,
+      "catalog_authoritative": 58
+    },
+    "byEnforcement": {
+      "none": 29,
+      "rls_policy": 10,
+      "non_row_level_only": 1,
+      "rls_policy_via_function": 2
+    },
+    "byRole": {
+      "owner": 37,
+      "admin": 35,
+      "tour_manager": 26,
+      "production": 23,
+      "production_manager": 24,
+      "department_manager": 11,
+      "finance": 13,
+      "finance_manager": 14,
+      "ticketing": 7,
+      "ticketing_manager": 7,
+      "viewer": 9
+    },
+    "inertMatrixGrants": [
+      {
+        "role": "owner",
+        "capability": "workforce.publish"
+      },
+      {
+        "role": "admin",
+        "capability": "workforce.publish"
+      },
+      {
+        "role": "production",
+        "capability": "workforce.publish"
+      },
+      {
+        "role": "tour_manager",
+        "capability": "workforce.publish"
+      },
+      {
+        "role": "production_manager",
+        "capability": "workforce.publish"
+      },
+      {
+        "role": "department_manager",
+        "capability": "workforce.publish"
+      },
+      {
+        "role": "owner",
+        "capability": "finance.manage"
+      },
+      {
+        "role": "admin",
+        "capability": "finance.manage"
+      },
+      {
+        "role": "finance",
+        "capability": "finance.manage"
+      }
+    ],
+    "enforcedCapabilities": 13,
+    "declaredIntentOnly": 29,
+    "strict": false
+  },
+  "decisions": {
+    "workforce.view": {
+      "decision": "matrix_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "database",
+      "reason": "Reconciled by DB-016 under CP-102 and read by 12 literal policy sites plus the private.user_can_read_staff_zone / user_can_read_event_zone helpers. The matrix is the row-level control, so the application gate must not exceed it; it currently does not, for any of the 12 roles.",
+      "evidence": "supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql:175-186 (seed); 20260720020544_admin_tour_collaboration_security.sql, 20260821031214, 20260903120000:782-783, 20260926150000:173-197, 20260927100100, 20260927100200 (readers)"
+    },
+    "workforce.manage": {
+      "decision": "matrix_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "database",
+      "reason": "Reconciled by DB-016 under CP-102 and read by 43 literal policy sites plus four private.user_can_*_zone helpers. The department_manager subtraction is a PAIR-level decision inside this one, not a separate capability decision: `has_perm` has no target argument, so seeding workforce.manage for department_manager would be organization-wide and would violate CP-094.",
+      "evidence": "20260926200000:183 (department_manager deliberately left without manage, with the CP-094 reason in the message at :373); 20260927100100_workforce_departments_and_memberships.sql (readers)"
+    },
+    "tour.view": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by an RLS policy and carried in the catalog by OPERATIONS_VIEW, so nine roles pass the route gate and the policy then denies the row. Deny, never open: the direction is safe, the symptom is a plausible zero.",
+      "evidence": "20260720020544_admin_tour_collaboration_security.sql (1 policy site); lib/auth/admin-capabilities.ts:50-61",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING: project the catalog slice into org_role_permissions for every role whose catalog carries it"
+    },
+    "tour.manage": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by 11 literal policy sites. The catalog grants it to 5 roles and the matrix to 4, so one catalog role reads zero. Narrowing the catalog instead would be a product change, which is not this lane's to make silently.",
+      "evidence": "20260720020302_admin_tour_stop_publish.sql, 20260720020544, 20260731193454",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "tour.delete": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by exactly one policy, which no matrix row grants to any role, so the catalog's owner and admin pass the gate and the policy denies. Deletion is the operation where a false denial is least likely to be reported, which is a reason to record it rather than to leave it.",
+      "evidence": "20260720020302_admin_tour_stop_publish.sql:1372",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "event.manage": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "The most-read capability in the chain: 46 literal and 14 dynamically built policy sites. The catalog grants it to 5 roles and the matrix to 4. The single open pair is production_manager, whose catalog slice is IDENTICAL to production's and whose matrix row was created empty by DB-016 — an artefact of the seed, not a designed asymmetry, and therefore a projection gap rather than a decision.",
+      "evidence": "11 files, incl. 20250816133000_event_core.sql, 20260710032640, 20260927110000_events_v2_delete_rls.sql; 20260926200000:176 creates production_manager with only the workforce.* slice",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "routing.manage": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by 4 policy sites and granted by the catalog to 5 roles, none of which the matrix carries it for. Departure and routing control is staff-facing, so the false denial lands on people who will file it as a bug rather than as an authorization zero.",
+      "evidence": "20260720020302_admin_tour_stop_publish.sql (4 sites)",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "hiring.manage": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by 5 policy sites and granted by the catalog to 3 roles, none of which the matrix carries it for. WFC-004 already recorded the same shape for vendor.*, and the two families are the same gap in the same table.",
+      "evidence": "20260720020544_admin_tour_collaboration_security.sql (5 sites)",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "vendor.view": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by 3 policy sites, two of them in WFC-004's new vendor_entities migration. The catalog grants it to 9 roles and the matrix to none, which is the exact finding WFC-004 routed as HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS and which this file now measures across the whole catalog rather than for two permissions.",
+      "evidence": "20260720020544, 20260927100000_workforce_vendor_entity_home.sql",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS"
+    },
+    "vendor.manage": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy",
+      "owner": "wfc-003",
+      "reason": "Read by 14 policy sites, the second most-read capability in the chain, and granted by the catalog to 5 roles and by the matrix to none. Deny, never open.",
+      "evidence": "20260720020544 (3), 20260927100000_workforce_vendor_entity_home.sql (11)",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING-VENDOR-PERMS"
+    },
+    "logistics.view": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy_via_function",
+      "owner": "wfc-003",
+      "reason": "Read ONLY through private.user_can_read_staff_zone, one call, and that function IS called from policy predicates, so the enforcement is real and indirect. It is the case that proves the classification cannot be a literal grep of policy text: a grep for the capability name in a `create policy` statement finds nothing here.",
+      "evidence": "20260903120000_site_map_zone_security_and_canonical_bridge.sql:53500 (via :1793-1826)",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "logistics.manage": {
+      "decision": "catalog_authoritative",
+      "enforcement": "rls_policy_via_function",
+      "owner": "wfc-003",
+      "reason": "Read only through the private.user_can_*_staff_zone helpers, which policy predicates call. Same indirect shape as logistics.view, and the same reason a policy-text grep cannot classify it.",
+      "evidence": "20260903120000_site_map_zone_security_and_canonical_bridge.sql:53568 (via :1793-1826)",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING"
+    },
+    "tour.publish": {
+      "decision": "catalog_authoritative",
+      "enforcement": "non_row_level_only",
+      "owner": "wfc-003",
+      "reason": "The only capability read anywhere in the chain that NO RLS policy reads: three publication RPCs call has_perm and then RAISE. So it is enforced, and enforced at a command boundary rather than a row boundary — a different failure mode that a policy-only instrument cannot see. The matrix has no vocabulary for it at all, so the three catalog roles pass the gate and the publish RPC denies. On a launch-critical publication path, which is why it is not filed as a cosmetic gap.",
+      "evidence": "20260720200000_admin_publication_transactional_publish_pub204.sql, 20260721215705_admin_publication_snapshot_immutability_adr005.sql, 20260720020302_admin_tour_stop_publish.sql:8001",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING; and decide whether publish authority belongs in an org-wide matrix at all, since the guard is per-tour"
+    },
+    "workforce.publish": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "workforce",
+      "reason": "THE NAMED FOURTH ANSWER, and the test case for it. DB-016 seeded it into eight roles so the matrix would agree with the route gate at app/api/admin/events/[id]/work-mode/route.ts:32. It is read by no policy, by no function and by no trigger anywhere in the chain: its only occurrence is the org_members_permissions_check constraint, which ADMITS the value and authorizes nothing. It changes NO row-level access. Do not read the seed as a claim that publish is database-enforced, and do not let a reviewer count it among the enforced capabilities.",
+      "evidence": "20260821180438_job_posting_scopes_and_organization_seats.sql:88 (the CHECK, and nothing else); 20260926200000:162,175-183 (the seed and its post-condition)",
+      "nextAction": "WFC-005/WFC-006 own the publish decision: either a policy starts reading it, which turns this into catalog_authoritative and makes this check fail until the decision is updated, or it stays a route-level declaration and the matrix value stays inert"
+    },
+    "finance.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "finance",
+      "reason": "A SECOND, previously unrecorded instance of the fourth class, and the only capability that is both in the catalog and in the matrix while constraining nothing. Three roles have carried it since 20250816132000:45-48 and it has gated nothing for the whole life of the chain. DB-016's additivity rule forbids removing it, so the honest disposition is to label it, and to say plainly that the matrix has never enforced a finance permission.",
+      "evidence": "20250816132000_org_rbac.sql:45,46,48 (the grants); no has_perm site anywhere",
+      "nextAction": "Finance owns whether finance.manage means anything at the row level. Until a policy reads it, the matrix entry is a label; a money-path capability with no row-level control is a launch question, not a tidy-up item"
+    },
+    "org.roles.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "The closest thing the chain has to a role-administration control, and nothing reads it. The matrix instead carries the LEGACY pair org.manage / org.invite, which four policies do read, so the control exists under a name the catalog cannot express. The gap is a vocabulary gap, not a missing control, and saying so is more useful than calling the catalog capability unenforced.",
+      "evidence": "no has_perm site; 20250816132000_org_rbac.sql:79,86-104 read the legacy org.manage / org.invite instead",
+      "nextAction": "ORG owns the vocabulary decision: map org.roles.manage onto org.manage/org.invite or seed it and migrate the readers"
+    },
+    "org.settings.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "No reader. organizations UPDATE is governed by org.manage, so a settings-level capability with no matrix row and no reader is a declaration the route gate alone honours.",
+      "evidence": "no has_perm site; 20250816132000:78-79 governs organizations UPDATE via org.manage",
+      "nextAction": "ORG owns whether settings needs its own capability distinct from org.manage"
+    },
+    "audit.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "admin",
+      "reason": "No reader, and the catalog grants it to 8 roles. An audit-log capability with no row-level control is worth a decision precisely because the absence is invisible: nothing denies it, so nothing reports it.",
+      "evidence": "no has_perm site",
+      "nextAction": "Admin owns whether audit visibility is RLS-governed; if it is, this decision and the matrix both change"
+    },
+    "tour.archive": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "tour",
+      "reason": "No reader. tour.manage is read by 11 policies, so the archive operation is governed by nothing at the row level while the neighbouring verb is governed thoroughly.",
+      "evidence": "no has_perm site; 20260720020302 reads tour.manage and tour.publish but never tour.archive",
+      "nextAction": "Tour owns the archive path's authorization; until then this is a route-gate-only declaration"
+    },
+    "event.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "event",
+      "reason": "No reader, and 11 open pairs — the joint largest of the catalog alongside ticketing.view. event.MANAGE is read by 60 policy sites, so the read verb has no control while the write verb has the most in the chain. That asymmetry is the finding; it is not a decision I can make.",
+      "evidence": "no has_perm site for event.view; 20250816133000 and 9 later files read event.manage",
+      "nextAction": "HF-WFC-003-MATRIX-PROVISIONING; the read/write asymmetry is the specific question for the event lane"
+    },
+    "event.publish": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "event",
+      "reason": "No reader, while tour.publish IS read (by RPC guards). The event publication path therefore has no capability gate at either layer, and 5 roles pass the catalog gate for it.",
+      "evidence": "no has_perm site for event.publish; the tour analogue is 20260720200000",
+      "nextAction": "Event owns it; the tour.publish shape (an RPC guard) is the obvious candidate implementation"
+    },
+    "event.live_ops": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "event",
+      "reason": "No reader. An on-the-day capability with no row-level control is a different risk from a back-office one, and it is granted by the catalog to 5 roles including production.",
+      "evidence": "no has_perm site",
+      "nextAction": "Event owns whether live operations are RLS-governed or route-governed"
+    },
+    "advance.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "finance",
+      "reason": "No reader, and it sits on the money path: advances are financial objects and no policy reads the capability that governs them. The neighboring logistics.manage IS read, so the family is unevenly governed.",
+      "evidence": "no has_perm site; logistics.manage is read via 20260903120000",
+      "nextAction": "Finance owns whether advance authority is RLS-governed; a money path with no row-level control is a launch question"
+    },
+    "logistics.sensitive": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "logistics",
+      "reason": "No reader, and the name is the sensitive one: logistics.view and logistics.manage are both read, and the capability explicitly marked sensitive is the one nothing reads. Recording that is the whole value of per-capability decisions; a family-level 'logistics is governed' would have hidden it.",
+      "evidence": "no has_perm site; 20260903120000 reads logistics.view and logistics.manage only",
+      "nextAction": "Logistics/work owns the sensitive-tier boundary; this is the clearest single argument for per-capability rather than per-family decisions"
+    },
+    "vendor.sensitive": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "workforce",
+      "reason": "No reader, while vendor.view (3 sites) and vendor.manage (14 sites) are both read. Same shape as logistics.sensitive, and the same reason not to decide at family level.",
+      "evidence": "no has_perm site; 20260720020544 and 20260927100000 read vendor.view / vendor.manage only",
+      "nextAction": "WFC owns the vendor sensitive tier"
+    },
+    "contract.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "No reader. contract.sign is deliberately withheld from the admin role in the CATALOG (lib/auth/admin-capabilities.ts:126), so the contract family has a catalog-level control and no database-level one at all.",
+      "evidence": "no has_perm site; the catalog-side withholding is :126",
+      "nextAction": "Org owns whether contract data is RLS-governed"
+    },
+    "contract.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "No reader, so a 2-pair false denial on top of no enforcement. The pair count is small enough to look harmless and the enforcement gap is not.",
+      "evidence": "no has_perm site",
+      "nextAction": "Org owns it; the matrix projection and the row-level control are the same conversation"
+    },
+    "contract.sign": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "No reader. The single open pair is owner, whose catalog carries every capability, so the owner of an organization cannot sign a contract through any row-level control because there is none. An authority a catalog cannot constrain and a database cannot enforce is the honest description.",
+      "evidence": "no has_perm site; lib/auth/admin-capabilities.ts:126 withholds it from admin, :124 grants it to owner",
+      "nextAction": "Org owns whether signature authority is enforceable at all, or is deliberately a pure application-layer gate"
+    },
+    "finance.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "finance",
+      "reason": "No reader, 9 open pairs, money path. Together with finance.manage, finance.approve, finance.pay and advance.manage this means the chain enforces NO finance capability at the row level, which is a launch-relevant fact rather than a catalog observation.",
+      "evidence": "no has_perm site; the only finance permission in the matrix is finance.manage, which is also unread",
+      "nextAction": "Finance owns the money-path RLS question as a whole; five capabilities with zero readers is one decision, not five"
+    },
+    "finance.approve": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "finance",
+      "reason": "No reader, money path, 4 open pairs. Recorded individually so the money-path decision cannot be taken as a family-level shrug.",
+      "evidence": "no has_perm site",
+      "nextAction": "Finance owns it, with finance.view"
+    },
+    "finance.pay": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "finance",
+      "reason": "No reader, money path, 3 open pairs. The catalog already withholds it from admin (:126), so a capability that spends money has a catalog control and no database control.",
+      "evidence": "no has_perm site; lib/auth/admin-capabilities.ts:126",
+      "nextAction": "Finance owns it. A pay capability that is enforceable only in TypeScript is a single point of failure, and this file's existence is the argument for saying so"
+    },
+    "ticketing.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "ticketing",
+      "reason": "No reader, and 11 open pairs — joint largest in the catalog alongside event.view. The ticketing family is money-adjacent and none of its four capabilities is read by anything.",
+      "evidence": "no has_perm site",
+      "nextAction": "TICKET owns it; four capabilities with zero readers is one decision"
+    },
+    "ticketing.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "ticketing",
+      "reason": "No reader. ticketing.manage is in TICKETING_CAPABILITIES, which also contains no capability the chain has ever read.",
+      "evidence": "no has_perm site; lib/auth/admin-capabilities.ts:103-111",
+      "nextAction": "TICKET owns it, with ticketing.view / scan / refund"
+    },
+    "ticketing.scan": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "ticketing",
+      "reason": "No reader, and this is the door-capability: event entry scanning has no row-level control, while the entity-scoped ASSIGN_EVENT_ROLES vocabulary does exist for event participation. Two authorization vocabularies, and the catalog's one is the unread one.",
+      "evidence": "no has_perm site; the readable vocabulary is has_entity_permission's ASSIGN_EVENT_ROLES, 20250812091000 and later",
+      "nextAction": "TICKET owns whether scan is entity-scoped (and should then use the entity vocabulary) or org-scoped"
+    },
+    "ticketing.refund": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "ticketing",
+      "reason": "No reader. A refund capability enforceable only by the route gate, on the money path. The nearest database control is DB-002's work on the ticket-revenue RPCs, which is an EXECUTE control rather than a row-level one.",
+      "evidence": "no has_perm site",
+      "nextAction": "TICKET/FINANCE own it; the two constraints on a refund are the catalog and the RPC, not the matrix"
+    },
+    "site_map.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "logistics",
+      "reason": "No reader, even though 20260903120000 is the file that adds the site-map helpers and those helpers read logistics.* instead. So the site-map capability family is governed under the logistics vocabulary and the catalog names are unread.",
+      "evidence": "no has_perm site; 20260903120000_site_map_zone_security_and_canonical_bridge.sql reads logistics.view / logistics.manage / workforce.* in its helpers",
+      "nextAction": "Logistics owns the vocabulary mapping, the same shape as org.roles.manage vs org.manage"
+    },
+    "site_map.edit": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "logistics",
+      "reason": "No reader. The same vocabulary mismatch as site_map.view, on the write verb, with 5 open pairs.",
+      "evidence": "no has_perm site",
+      "nextAction": "Logistics owns it, with site_map.view"
+    },
+    "site_map.share": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "logistics",
+      "reason": "No reader, 5 open pairs. A sharing capability with no database control, which for a share link is the capability where that matters most.",
+      "evidence": "no has_perm site",
+      "nextAction": "Logistics owns it, with site_map.view"
+    },
+    "communications.send": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "No reader, 8 open pairs. The chain has a readable communications control — staff.manage is read by 20260414120000 for the communications surfaces — so again the control exists under a name the catalog does not use.",
+      "evidence": "no has_perm site; 20260414120000_security_linter_step3_tighten_rls.sql reads the legacy staff.manage",
+      "nextAction": "Org owns the vocabulary decision, as for org.roles.manage"
+    },
+    "communications.broadcast": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "org",
+      "reason": "No reader, 5 open pairs. A broadcast is a wider action than a send, and only the wider one is named in the catalog while neither is named in the matrix.",
+      "evidence": "no has_perm site",
+      "nextAction": "Org owns it, with communications.send"
+    },
+    "content.view": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "social",
+      "reason": "No reader, 9 open pairs. The social/content domain's authorization is entirely application-side, which is consistent with the platform's public-read content model and is a decision rather than an oversight — recorded so it is not rediscovered as a gap.",
+      "evidence": "no has_perm site",
+      "nextAction": "Social owns it; a public-read content model legitimately has no org-matrix control, and if so this should be recorded as such rather than left as an unread capability"
+    },
+    "content.manage": {
+      "decision": "declared_intent_only",
+      "enforcement": "none",
+      "owner": "social",
+      "reason": "No reader, 5 open pairs. The write verb on the same family, so content.view being legitimately public does not by itself dispose of it.",
+      "evidence": "no has_perm site",
+      "nextAction": "Social owns it; a public read model does not imply a public write"
+    }
+  },
+  "failures": [],
+  "pairs": [
+    {
+      "role": "owner",
+      "capability": "org.roles.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "org.settings.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "tour.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "tour.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "tour.archive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "tour.delete",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "event.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "event.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "event.live_ops",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "routing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "advance.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "logistics.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "logistics.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "workforce.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "workforce.publish",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "hiring.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "vendor.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "owner",
+      "capability": "vendor.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "contract.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "contract.sign",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "finance.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "finance.approve",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "finance.pay",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "ticketing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "ticketing.scan",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "ticketing.refund",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "site_map.edit",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "site_map.share",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "communications.broadcast",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "owner",
+      "capability": "content.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "org.roles.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "org.settings.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "tour.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "tour.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "tour.archive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "tour.delete",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "event.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "event.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "event.live_ops",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "routing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "advance.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "logistics.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "logistics.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "workforce.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "workforce.publish",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "hiring.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "vendor.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "admin",
+      "capability": "vendor.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "contract.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "finance.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "finance.approve",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "ticketing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "ticketing.scan",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "ticketing.refund",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "site_map.edit",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "site_map.share",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "communications.broadcast",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "admin",
+      "capability": "content.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "tour.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "tour.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "tour.archive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "event.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "event.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "event.live_ops",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "routing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "advance.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "logistics.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "logistics.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "workforce.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "workforce.publish",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "hiring.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "vendor.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "site_map.edit",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "site_map.share",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "communications.broadcast",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "tour_manager",
+      "capability": "content.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "tour.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "event.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "event.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "event.live_ops",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "routing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "advance.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "logistics.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "logistics.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "workforce.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "workforce.publish",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "vendor.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "site_map.edit",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "site_map.share",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "communications.broadcast",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production",
+      "capability": "content.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "tour.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "event.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "event.publish",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "event.live_ops",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "routing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "advance.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "logistics.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "logistics.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "workforce.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "workforce.publish",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "vendor.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "production_manager",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "site_map.edit",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "site_map.share",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "communications.broadcast",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "production_manager",
+      "capability": "content.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "workforce.publish",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "department_manager",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "department_manager",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "workforce.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance",
+      "capability": "vendor.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "finance.manage",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "finance.approve",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "finance.pay",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "communications.send",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "audit.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "workforce.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "vendor.sensitive",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "finance.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "finance.approve",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "finance.pay",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "communications.send",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "finance_manager",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "audit.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "logistics.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "workforce.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "workforce.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "vendor.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "contract.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "finance.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "ticketing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "ticketing.scan",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "ticketing.refund",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "site_map.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "content.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "audit.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "logistics.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "workforce.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "workforce.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "vendor.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "contract.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "finance.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "ticketing.manage",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "ticketing.scan",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "ticketing.refund",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "site_map.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "communications.send",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "content.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "ticketing_manager",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "audit.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "tour.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "event.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "logistics.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "workforce.view",
+      "inGate": true,
+      "inMatrix": true,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "workforce.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "vendor.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "open_gap",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "viewer",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "contract.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "finance.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "ticketing.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "site_map.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "communications.send",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "content.view",
+      "inGate": true,
+      "inMatrix": false,
+      "state": "gate_exceeds_matrix",
+      "verdict": "inert",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "viewer",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "org.roles.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "org.settings.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "audit.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "tour.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "tour.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "tour.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "tour.archive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "tour.delete",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "event.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "event.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "event.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "event.live_ops",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "routing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "advance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "logistics.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "logistics.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "logistics.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "workforce.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "workforce.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "matrix_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "workforce.publish",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "hiring.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "vendor.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "vendor.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "catalog_authoritative"
+    },
+    {
+      "role": "worker",
+      "capability": "vendor.sensitive",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "contract.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "contract.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "contract.sign",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "finance.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "finance.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "finance.approve",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "finance.pay",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "ticketing.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "ticketing.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "ticketing.scan",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "ticketing.refund",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "site_map.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "site_map.edit",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "site_map.share",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "communications.send",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "communications.broadcast",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "content.view",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    },
+    {
+      "role": "worker",
+      "capability": "content.manage",
+      "inGate": false,
+      "inMatrix": false,
+      "state": "agree",
+      "verdict": "ok",
+      "decision": "declared_intent_only"
+    }
+  ]
+}

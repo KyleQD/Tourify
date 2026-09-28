@@ -6,23 +6,26 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { 
-  Image, 
-  Video, 
-  MapPin, 
-  Hash, 
-  Send, 
-  Globe, 
-  Users, 
-  Lock, 
+import {
+  Image,
+  Video,
+  MapPin,
+  Hash,
+  Send,
+  Globe,
+  Users,
+  Lock,
   Loader2,
-  Music
+  Music,
+  Palette,
 } from 'lucide-react'
 import { Database } from '@/lib/database.types'
 import { toast } from 'sonner'
 import { useRouteAccountContext } from '@/hooks/use-route-account-context'
 import { useActingContext } from '@/hooks/use-acting-context'
 import { PostingAccountSelector } from '@/components/account/posting-account-selector'
+import { AppearanceEditor } from '@/components/posts/appearance/appearance-editor'
+import type { PostAppearanceInput } from '@/lib/appearance/contracts'
 
 interface CompactPostCreatorProps {
   onPostCreated?: (post: any) => void
@@ -45,11 +48,18 @@ export function CompactPostCreator({
   const [visibility, setVisibility] = useState<'public' | 'followers' | 'private'>('public')
   const [isPosting, setIsPosting] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
+  const [appearanceInput, setAppearanceInput] = useState<PostAppearanceInput | null>(null)
+  const [showStylePanel, setShowStylePanel] = useState(false)
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   // Use route-based account context detection
   const { accountType, routeContext, displayContext } = useRouteAccountContext()
-  const { actingHeaders } = useActingContext()
+  const { actingContextKey, actingHeaders } = useActingContext()
+
+  useEffect(() => {
+    setAppearanceInput(null)
+    setShowStylePanel(false)
+  }, [actingContextKey])
 
   // Auto-resize textarea
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -107,6 +117,7 @@ export function CompactPostCreator({
           visibility,
           location: location || null,
           hashtags: hashtags.length > 0 ? hashtags : null,
+          appearance: appearanceInput ?? { mode: 'standard' },
         }),
       })
 
@@ -198,6 +209,8 @@ export function CompactPostCreator({
       setHashtags([])
       setLocation('')
       setShowOptions(false)
+      setAppearanceInput(null)
+      setShowStylePanel(false)
       
       // Reset textarea height
       if (textareaRef.current) {
@@ -307,20 +320,49 @@ export function CompactPostCreator({
             </motion.div>
           )}
 
-          {/* Action Bar */}
-          <div className="flex items-center justify-between pt-2">
-            {/* Media & Options */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-purple-400 hover:bg-purple-500/20">
-                <Image className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-purple-400 hover:bg-purple-500/20">
-                <Video className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-purple-400 hover:bg-purple-500/20">
-                <Music className="h-4 w-4" />
-              </Button>
+          {/* Style panel */}
+          {showStylePanel && (
+            <div className="mb-3 rounded-xl border border-white/10 bg-black/30 p-4">
+              <AppearanceEditor
+                value={appearanceInput}
+                onChange={setAppearanceInput}
+                onClose={() => setShowStylePanel(false)}
+                preview={{
+                  content,
+                  mediaCount: 0,
+                }}
+              />
             </div>
+          )}
+
+          {/* Action Bar */}
+        <div className="flex items-center justify-between pt-2">
+          {/* Media & Options */}
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-purple-400 hover:bg-purple-500/20">
+              <Image className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-purple-400 hover:bg-purple-500/20">
+              <Video className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-purple-400 hover:bg-purple-500/20">
+              <Music className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowStylePanel((prev) => !prev)}
+              className={`h-9 w-9 hover:bg-purple-500/20 ${
+                showStylePanel || (appearanceInput && appearanceInput.mode !== 'standard')
+                  ? 'text-purple-400 bg-purple-500/15'
+                  : 'text-slate-400 hover:text-purple-400'
+              }`}
+              aria-label="Post style"
+              aria-pressed={showStylePanel}
+            >
+              <Palette className="h-4 w-4" />
+            </Button>
+          </div>
 
             {/* Visibility & Post */}
             <div className="flex items-center gap-3">

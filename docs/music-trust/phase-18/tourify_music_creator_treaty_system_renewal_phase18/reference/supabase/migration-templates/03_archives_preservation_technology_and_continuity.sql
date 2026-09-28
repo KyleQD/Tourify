@@ -1,0 +1,5 @@
+-- Reference outline only.
+-- Suggested additive objects: phase18_archive_packages, phase18_fixity_checks,
+-- phase18_custody_transfers, phase18_format_migrations,
+-- phase18_crypto_migrations, phase18_restore_exercises,
+-- phase18_operator_successions and phase18_dissolution_plans.

@@ -1,0 +1,117 @@
+{
+  "API-001": {
+    "status": "IN_REVIEW",
+    "validation_result": "Public/followers/friends/private/hidden/moderated/missing behavior implemented; blocked-user schema remains UNKNOWN_BLOCKING"
+  },
+  "API-002": {
+    "status": "IN_REVIEW",
+    "validation_result": "Caller-scoped parent helper and focused visibility tests pass"
+  },
+  "API-003": {
+    "status": "IN_REVIEW",
+    "validation_result": "GET and POST authorize the parent before child access; route integration evidence remains open"
+  },
+  "API-004": {
+    "status": "VALIDATING",
+    "validation_result": "Profiles are loaded in one bounded IN query"
+  },
+  "API-005": {
+    "status": "VALIDATING",
+    "validation_result": "Stable error envelope and correlation header implemented; route contract test remains open"
+  },
+  "API-006": {
+    "status": "IN_REVIEW",
+    "migration_version": "20260728162903",
+    "validation_result": "Planned forward migration passes static validation; isolated concurrency and reconciliation evidence remain open",
+    "rollback_instruction": "Disable comments and install a reviewed forward trigger replacement; preserve all comments and counters"
+  },
+  "API-007": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Invisible and moderated parents fail closed; comments-enabled and blocked-user schema decisions remain open"
+  },
+  "API-008": {
+    "status": "IN_REVIEW",
+    "validation_result": "Whitespace normalization, 2,000-character limit, and a 20-per-minute user mutation limit are implemented; abuse integration evidence remains open"
+  },
+  "DB-001": {
+    "status": "IN_REVIEW",
+    "validation_result": "Merged ledger contains all 406 local files and 180 unique remote records across 441 versions"
+  },
+  "DB-002": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Checksums, remote names, collision reasons, static object previews, and risk levels are generated; effect review and accountable owner assignment remain open"
+  },
+  "DB-003": {
+    "status": "IN_REVIEW",
+    "validation_result": "Initial reconciliation yields 141 matched, 259 local-only, 37 remote-only, and four collision versions; manual supersession decisions remain open"
+  },
+  "DB-004": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Two audited local/remote collisions and two new local duplicate-version collisions are isolated; live effect approval remains open"
+  },
+  "OBS-001": {
+    "status": "VALIDATING",
+    "validation_result": "Both ingest paths removed and production scanner passes"
+  },
+  "OBS-002": {
+    "status": "VALIDATING",
+    "validation_result": "Scanner patterns and positive/negative fixtures pass"
+  },
+  "OBS-003": {
+    "status": "IN_REVIEW",
+    "validation_result": "Independent CI job added; real pull-request and branch-protection evidence remains open"
+  },
+  "RUN-001": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Signature categories and ownership roles registered; live rate ranking requires confirmed target telemetry"
+  },
+  "RUN-002": {
+    "status": "IN_REVIEW",
+    "feature_flag": "FEATURE_AUDIT_POLLS_APPROVED; FEATURE_AUDIT_MARKETPLACE_INTEGRATIONS_APPROVED; FEATURE_AUDIT_MUSIC_FINANCE_OFFERINGS_APPROVED",
+    "validation_result": "Polls, marketplace integrations, and music-finance order paths fail closed before schema access"
+  },
+  "RUN-003": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Comments and gated paths use stable errors; remaining active empty-success paths require inventory"
+  },
+  "RUN-004": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Alert categories and owner roles registered; operational alert wiring remains open"
+  },
+  "CI-001": {
+    "status": "VALIDATING",
+    "validation_result": "npm 11.5.2 and Node 20 are declared and the toolchain check passes"
+  },
+  "CI-003": {
+    "status": "VALIDATING",
+    "validation_result": "Peer dependency policy check passes without legacy-peer-deps"
+  },
+  "CI-101": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Independent Vitest and production-debug jobs are defined; full suite and required-check evidence remain open"
+  },
+  "TST-001": {
+    "status": "VALIDATING",
+    "validation_result": "Cron tests now enforce the approved secret-required fail-closed contract"
+  },
+  "TST-002": {
+    "status": "VALIDATING",
+    "validation_result": "Jest runner ownership and server-only mapping are repaired; the canonical suite passes all 82 suites and 480 tests"
+  },
+  "TST-003": {
+    "status": "IN_REVIEW",
+    "validation_result": "All 14 remaining failures are recorded in VITEST_DECISION_SHEET.md with behavior, disagreement, recommendation, and approval blocker"
+  },
+  "QLT-002": {
+    "status": "VALIDATING",
+    "validation_result": "No-growth warning budget passes at 97 current versus 101 baseline"
+  },
+  "REL-001": {
+    "status": "IN_PROGRESS",
+    "validation_result": "Hosted workflows are manual, environment-protected, target-verified, dry-run-first, and pinned; named runbook approval remains open"
+  },
+  "REL-002": {
+    "status": "IN_REVIEW",
+    "validation_result": "Hosted workflows display changed migration SHA-256 values before dry run and push"
+  }
+}

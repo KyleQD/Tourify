@@ -1,0 +1,194 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WFC-004-WORKFORCE-RBAC-PROVISIONING",
+  "task_id": "WFC-003",
+  "from_agent": "organization",
+  "to_agent": "database",
+  "status": "accepted",
+  "created_at": "2026-09-26T16:10:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "for_tasks": [
+    "WFC-004"
+  ],
+  "decision_record": [
+    "CP-102",
+    "CP-094",
+    "CP-051"
+  ],
+  "dirty_state_caveat": "The worktree was already dirty with live work from ADMIN-012, WFC-007, DB-013, DESIGN-033 and others. All of it was preserved untouched. WFC-003's own changes in this pass are: types/vendor-identity-contract.ts (modified), __tests__/admin/workforce-identity-contract.test.ts (rewritten), tsconfig.wfc003-slice.json (modified), this handoff and two sibling handoffs, docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md, an appended section in docs/engineering/agents/organization/STATE.md, and docs/engineering/tasks/active/WFC-003.json. No migration was authored. No table was created. lib/auth/admin-capabilities.ts was READ ONLY and never written; its mtime predates this session. Nothing was committed.",
+  "summary": "The decision DB-013 declined to take from a security fix, taken under CP-102: which roles carry workforce.view and workforce.manage in org_role_permissions, how they are provisioned, and what a department manager receives. The decision is a RULE derived from the live capability catalog, not a transcribed table, so it cannot drift from lib/auth/admin-capabilities.ts. WFC-003 specifies the migration; WFC-004 writes it. WFC-003 authored no SQL.",
+  "the_problem_measured": {
+    "what": "org_role_permissions is the ONLY authority the workforce RLS policies read, via has_perm(uid, org_id, perm) (20260821180438:122-151). It is seeded with five roles across two migrations (20250816132000:44-49 and 20260712005429:219-235) and NONE of them carries any workforce.* permission. Re-derived independently by WFC-003 from the chain, not taken on DB-013's word.",
+    "consequence": "Split-brain authorization, and a silent one. lib/auth/admin-context.ts:222-243 loadCapabilities() passes BOTH org_role_permissions.perms AND the role string into resolveEffectiveAdminCapabilities, which UNIONS them (lib/auth/admin-capabilities.ts:464-480). So an org administrator passes withAdminCapability('workforce.manage') on the TypeScript catalog alone, the route admits the caller, and then staff_members_scoped_read evaluates has_perm(...,'workforce.view') OR has_perm(...,'workforce.manage') against a matrix that grants neither, so the policy denies and the caller receives ZERO ROWS.",
+    "why_rls_really_applies": "Admin API routes use a user-scoped client, not a service client: withAdminCapability -> withAuth -> authenticateApiRequest -> createServerClient (lib/auth/api-auth.ts:143,276-292). createServiceClient exists in that file but is only used inside checkAdminPermissions for a gate check and is never handed to a route.",
+    "blast_radius": "20+ live route handlers gated on workforce.view / workforce.manage (app/api/admin/workforce/people, app/api/admin/staff, app/api/admin/team-members, app/api/admin/tours/teams, app/api/admin/tours/team-members, app/api/admin/users/search, app/api/admin/onboarding/workflows/advance, app/api/admin/staff-operations/*, app/api/tours/[id]/team, app/api/events/[id]/staff, and others) and 20+ live readers of staff_members. The empty result is exactly the CP-098 hazard: a plausible zero reporting no coverage, no absences and no payroll exposure.",
+    "vocabulary_mismatch": "The chain seeds 5 roles; ROLE_DEFAULT_CAPABILITIES (lib/auth/admin-capabilities.ts:123-138) defines 12. department_manager, viewer, worker, ticketing, ticketing_manager, finance_manager and production_manager have NO org_role_permissions row at all, and has_perm returns false for EVERY permission when the row is missing (20260821180438:139, `if member_role is null then return false`). That is a wider availability problem than the workforce one; this handoff decides the workforce slice only."
+  },
+  "the_decision": {
+    "rule_not_table": "deriveWorkforceRoleSeedDecisions in types/vendor-identity-contract.ts computes seed(role) = { c in workforce.* INTERSECT catalog(role) : c is NOT department-scoped }. The subtraction is the whole decision. The test asserts the derived answer against the live catalog, so an ADMIN-012 change to any role's capabilities turns this suite red until WFC-003 re-decides.",
+    "why_has_perm_cannot_carry_a_department_scoped_capability": "has_perm(uid, oid, perm) has no target argument. Any permission present in org_role_permissions is therefore granted across the ENTIRE organization. Putting workforce.manage there for department_manager would hand a department manager organization-wide management authority, which is precisely what CP-094 forbids and precisely what ADMIN-012 removed from the resolver at :481-487. Withholding is the posture, not an oversight.",
+    "per_role": [
+      {
+        "role": "owner",
+        "seed": [
+          "workforce.view",
+          "workforce.manage",
+          "workforce.publish"
+        ],
+        "posture": "seed",
+        "why": "CP-094: organization administrators retain organization-wide workforce authority. Already carries the superseded staff.manage (20250816132000:45), which is retained."
+      },
+      {
+        "role": "admin",
+        "seed": [
+          "workforce.view",
+          "workforce.manage",
+          "workforce.publish"
+        ],
+        "posture": "seed",
+        "why": "Same CP-094 sentence. admin is the seeded organization administrator and already carries staff.manage (20250816132000:46), retained."
+      },
+      {
+        "role": "tour_manager",
+        "seed": [
+          "workforce.view",
+          "workforce.manage",
+          "workforce.publish"
+        ],
+        "posture": "seed",
+        "why": "Catalog grants all three; the role already has a matrix row."
+      },
+      {
+        "role": "production",
+        "seed": [
+          "workforce.view",
+          "workforce.manage",
+          "workforce.publish"
+        ],
+        "posture": "seed",
+        "why": "PRODUCTION_CAPABILITIES is TOUR_MANAGER minus tour.archive/tour.publish/hiring.manage, so workforce.manage survives."
+      },
+      {
+        "role": "production_manager",
+        "seed": [
+          "workforce.view",
+          "workforce.manage",
+          "workforce.publish"
+        ],
+        "posture": "seed",
+        "why": "Same catalog slice as production; currently has NO matrix row, so this is a new row."
+      },
+      {
+        "role": "finance",
+        "seed": [
+          "workforce.view"
+        ],
+        "posture": "seed",
+        "why": "FINANCE_CAPABILITIES is OPERATIONS_VIEW plus finance/contract, and OPERATIONS_VIEW contains workforce.view."
+      },
+      {
+        "role": "finance_manager",
+        "seed": [
+          "workforce.view"
+        ],
+        "posture": "seed",
+        "why": "Same catalog slice as finance; currently NO matrix row."
+      },
+      {
+        "role": "viewer",
+        "seed": [
+          "workforce.view"
+        ],
+        "posture": "seed",
+        "why": "OPERATIONS_VIEW; currently NO matrix row."
+      },
+      {
+        "role": "department_manager",
+        "seed": [
+          "workforce.view",
+          "workforce.publish"
+        ],
+        "posture": "withhold_department_scoped",
+        "withheld": [
+          "workforce.manage"
+        ],
+        "why": "workforce.manage is department-scoped in the resolver and has_perm cannot express that, so seeding it would be an organization-wide grant. workforce.view is org-wide at the RLS layer; that residual belongs to WFC-005/WFC-006, not to this decision."
+      },
+      {
+        "role": "ticketing",
+        "seed": [],
+        "posture": "none",
+        "why": "TICKETING_CAPABILITIES names no workforce permission."
+      },
+      {
+        "role": "ticketing_manager",
+        "seed": [],
+        "posture": "none",
+        "why": "Same."
+      },
+      {
+        "role": "worker",
+        "seed": [],
+        "posture": "none",
+        "why": "Empty capability set by design. Workers read their own row through staff_members_worker_read_own (20260926150000:259-264)."
+      }
+    ],
+    "organization_administrator_default": "org_role_permissions rows for owner and admin carry workforce.view, workforce.manage and workforce.publish, organization-wide. staff.manage is retained, not removed. Additive only.",
+    "department_manager_default": "org_role_permissions row for department_manager carries workforce.view and workforce.publish and DELIBERATELY NOT workforce.manage.",
+    "provisioning_mechanism": {
+      "answer": "MIGRATION, authored by WFC-004, applied under CP-051 manual additive apply. Forward-only, one transaction, no supabase db reset, no blanket replay.",
+      "why_not_configuration": [
+        "roleperms_select ... using (true) (20250816132000:112) makes the matrix WORLD-READABLE, so a tenant-configurable role matrix is a public configuration surface.",
+        "The matrix decides RLS. A per-tenant matrix means the grant set differs per organization, which is the CP-104 hazard at a new site: 'the chain says X' and 'the target has X' stop being the same claim. DB-002 already established that migrations have been applied out of band through the Management API.",
+        "Role defaults are a product contract, not tenant data, so they belong in the chain where a replay reproduces them."
+      ],
+      "what_stays_configuration": "Per-TENANT delegation. The split is deliberate: the DEFAULT role matrix is schema, the DEVIATION from it is tenant data. The existing mechanism is the per-member org_members.permissions array, already constrained to the capability catalog by org_members_permissions_check (20260821180438:81-96) and unioned by has_perm (same file:143-149). Do not invent a second one.",
+      "operational_consequence": "admin_acting_context_sessions.capability_version is encode(digest(concat_ws('|', v_role, array_to_string(v_perms, ',')), 'sha256')) (20260722002848:171) and the same expression is re-checked on every use (:302). Mutating a role's perms therefore INVALIDATES EVERY ACTIVE ACTING-CONTEXT SESSION for members of that role. Land all roles in ONE migration so a single re-activation covers it, and verify the re-activation path BEFORE applying."
+    },
+    "gap_or_posture": {
+      "genuine_gap": "owner, admin, tour_manager, production, production_manager, finance, finance_manager, viewer. The catalog grants the capability, the route admits the caller, the database returns nothing. Closes when WFC-004's migration lands.",
+      "deliberate_posture": "department_manager. The authority is real, resource-scoped, and unsatisfiable until WFC-004 creates the department entity and a department-scoped policy. Recorded so nobody 'fixes' it by widening the matrix, which is the one change that would actually violate CP-094.",
+      "not_changed_here": "isOrganizationCreator / isMasterAccount return ALL_CAPABILITIES in the resolver (lib/auth/admin-capabilities.ts:462) but bypass has_perm entirely, so a creator or master with no org_members row is authorized at the route and still reads nothing. The correct remedy is a membership row, not a new RLS bypass."
+    }
+  },
+  "what_wfc_004_must_write": {
+    "one_migration": "A single forward-only migration under CP-051 that upserts org_role_permissions for all twelve ROLE_DEFAULT_CAPABILITIES roles with the workforce.* slice above, ADDITIVE (no removals; staff.manage stays).",
+    "required_post_condition_inside_the_transaction": "For every role in ROLE_DEFAULT_CAPABILITIES, assert seeded(perms INTERSECT 'workforce.*') equals the workforce slice resolveEffectiveAdminCapabilities returns for that role with NO target and NO departmentAuthority. Raise exception on mismatch. This is the same rule WFC-003's test derives, so it is checkable on both sides of the migration and it is what stops the two vocabularies drifting again. Style reference: 20260926150000:273-361.",
+    "do_not": [
+      "Do not add workforce.manage to department_manager. That is the one change that turns a deliberate posture into a CP-094 violation.",
+      "Do not remove staff.manage or any existing permission. Additive only.",
+      "Do not add a second membership or role table, and do not introduce a new permission vocabulary. has_perm + org_members + org_role_permissions is the whole model.",
+      "Do not create a department table in this migration. WFC-004's department entity is contract section 6 item 5 and is a separate migration; if it lands first, the department-scoped RLS path can be built in the same series, but workforce.manage still must not go in the role matrix.",
+      "Do not treat free-text staff_members.department or employment_assignments.department as a department scope."
+    ],
+    "if_wfc_004_prefers_configuration": "Then the decision above does not hold, because the matrix is world-readable and a per-tenant matrix changes the RLS grant set per organization. In that case the correct move is a new CP, not a local choice, and WFC-003 must be the CP's author."
+  },
+  "residual_gaps_named": [
+    "The non-workforce permissions the seven matrix-less roles lose are a SEPARATE question this contract does not answer. Seeding only the workforce.* slice leaves viewer unable to read tours, events, logistics, finance, ticketing, site_map and content through RLS, exactly as it is today. WFC-004 may widen the seed to the full catalog projection; that is a new decision and belongs in a new CP authored by WFC-003.",
+    "workforce.view is organization-wide at the RLS layer for every role, including department_manager. CP-094's sentence is about management authority; ADMIN-012 deliberately left workforce.view unscoped (lib/auth/admin-capabilities.ts:307-313). Reconciling the RLS read path with CP-094 is WFC-005/WFC-006's.",
+    "workforce.publish is department-unscoped by ADMIN-012's explicit decision, so seeding it for department_manager is org-wide. Same owner, same reason.",
+    "isOrganizationCreator / isMasterAccount bypass has_perm entirely. Unchanged, and deliberately not changed by this decision."
+  ],
+  "verification": [
+    "PASS: npx vitest run __tests__/admin/workforce-identity-contract.test.ts - 65 passed (1 file). Includes deriveWorkforceRoleSeedDecisions asserted against the live ROLE_DEFAULT_CAPABILITIES, the chain re-scan proving no seeded role carries workforce.*, and an assertion that the derived seed equals the live resolver's organization-level projection for every role.",
+    "PASS: npx tsc -p tsconfig.wfc003-slice.json --noEmit - no output.",
+    "PASS: npx eslint types/vendor-identity-contract.ts __tests__/admin/workforce-identity-contract.test.ts - no output, exit 0.",
+    "NEGATIVE CONTROL: with WFC003_CAPABILITIES_SOURCE pointing at a /tmp copy of lib/auth/admin-capabilities.ts with the single line `  'department',` removed, the same suite reported 4 failed / 61 passed, including the primary state assertion flipping to not_expressible. Restored (env unset) and 65/65 green. lib/auth/admin-capabilities.ts was never written.",
+    "NOT CLAIMED: no hosted evidence, no migration-applied evidence, no cross-tenant denial test, because WFC-004 has not written the migration and this lane authored no SQL."
+  ],
+  "actioned_by_DB_016": {
+    "at": "2026-09-27T04:00:00.000Z",
+    "status": "this handoff STAYS PENDING on purpose. Its migration half is done; its department-entity half is not, and this handoff's own `for_tasks` is `WFC-004`, not DB-016.",
+    "rule_verified_against_the_repository_not_transcribed": "ROLE_DEFAULT_CAPABILITIES (lib/auth/admin-capabilities.ts:123-138) defines exactly the twelve roles this handoff's per_role table names, and DEPARTMENT_SCOPED_ROLE_CAPABILITIES (same file :319-323) contains exactly one entry, `department_manager: ['workforce.manage']`. The table and the repository agree: no role was invented and none was dropped. __tests__/admin/db016-capability-matrix-agreement.test.ts re-derives the whole answer from the live catalog with this handoff's own `deriveWorkforceRoleSeedDecisions`, so an ADMIN-012 edit to any role turns the suite red rather than diverging silently.",
+    "migration_half_DONE": "supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql (SHA-256 4ba9994dd24e23257dcca14c0feac763bde4e8558f28101495c4366321ecdb8b). All twelve roles in ONE migration, sorted de-duplicated union, additive, with the required_post_condition_inside_the_transaction this handoff asked for: preconditions, a JSONb snapshot of the target's real pre-state, then six in-transaction assertions including the CP-094 negative by name and a MEASURED no-removal check. Five of the six are proven able to fail by supabase/tests/db016_workforce_role_seed.harness.sh (64 PASS / 0 FAIL). The operator manifest is docs/engineering/handoffs/pending/HF-DB-016-WORKFORCE-ROLE-SEED-APPLY.json and it makes the `operational_consequence` re-activation a PREFLIGHT step, not a follow-up.",
+    "two_things_this_handoff_predicted_that_the_repository_refined": "(1) The subtraction is confirmed load-bearing and the withheld capability is exactly `workforce.manage` for `department_manager` only. (2) `workforce.publish` is seeded for eight roles but NO RLS policy in the chain reads it — a full-text scan for 'workforce.publish' across supabase/migrations returns only the CHECK constraint at 20260821180438:88. It is seeded so the two vocabularies agree, and it currently changes no row-level access. Recorded so nobody reads the seed as a claim that publish is database-enforced.",
+    "residual_gap_1_NOW_A_NUMBER": "The residual this handoff named in prose is measured: after DB-016 the split-brain outside the workforce.* family is 206 (role, capability) pairs the application gate grants and the matrix does not — owner=37 admin=35 tour_manager=26 production=24 production_manager=24 department_manager=11 finance=13 finance_manager=14 ticketing=7 ticketing_manager=7 viewer=9 worker=0. The workforce family's share is exactly 0. Closing the rest is a NEW CP authored by WFC-003, as this handoff said it would be, and DB-016 deliberately did not absorb it.",
+    "still_open_and_NOT_touched": "residual_gap_1's non-workforce authority for the seven matrix-less roles (needs a new CP); residual_gap_2 and _3, the organization-wide `workforce.view` and `workforce.publish` for department_manager (WFC-005/WFC-006); residual_gap_4, isOrganizationCreator / isMasterAccount bypassing has_perm (unchanged by design — the remedy is a membership row, not an RLS bypass); and section 6 item 5, the department entity, which is WFC-004's and which DB-016 did not create."
+  },
+  "evidence_document": "docs/engineering/tasks/active/WFC-003.json",
+  "contract": "docs/engineering/agents/organization/CONTRACTS/WORKFORCE-IDENTITY-CONTRACT.md section 2.5 and section 6 item 10",
+  "next_action": "WFC-004 authors the single additive org_role_permissions migration from section 2.5.2 plus the transaction post-condition, and separately the department entity from section 6 item 5. It does not re-derive either.",
+  "accepting_task_id": "DB-008",
+  "completion_condition": "The accepting task records an evidence-backed disposition and closes or supersedes this handoff.",
+  "completed": []
+}

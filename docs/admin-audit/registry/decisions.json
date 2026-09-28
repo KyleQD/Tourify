@@ -1,0 +1,173 @@
+[
+  {
+    "decisionId": "ADM-DEC-001",
+    "sourceAlias": "ADR-001",
+    "topic": "Canonical event model",
+    "decision": "events_v2 is canonical; legacy events receive a bounded one-way migration bridge and retirement plan.",
+    "rationale": "One event identity must serve provider, tour, calendar, Artist, and discovery consumers.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-002",
+    "sourceAlias": "ADR-004",
+    "topic": "Finance launch scope",
+    "decision": "Organization Admin finance is read-only at launch; mutation APIs are hidden and denied.",
+    "rationale": "The existing ledger is not a provider-backed money-movement system.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-003",
+    "sourceAlias": "ADR-005",
+    "topic": "Contract launch scope",
+    "decision": "Contracts support tracking, obligations, documents, and renewals only; no signing or unverified executed transition.",
+    "rationale": "Electronic execution requires a verified provider and legal/security acceptance.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-004",
+    "sourceAlias": "ADR-007",
+    "topic": "Mobile launch scope",
+    "decision": "Launch scope is responsive web at phone, tablet, and desktop sizes.",
+    "rationale": "Native Admin and Worker applications are deferred.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-005",
+    "sourceAlias": "ADR-008",
+    "topic": "Provider tool scope",
+    "decision": "Provider-administration tools are platform-internal only.",
+    "rationale": "Organization Admin roles must not inherit global provider authority.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-006",
+    "sourceAlias": null,
+    "topic": "Implementation baseline",
+    "decision": "The checkpoint a043d35d on codex/admin-workflow-completion is the immutable baseline.",
+    "rationale": "It preserves the reviewed August 21 workspace without crediting unavailable remediation commits.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-007",
+    "sourceAlias": null,
+    "topic": "Verification environment",
+    "decision": "Database and runtime verification use a dedicated non-production Supabase project or branch.",
+    "rationale": "Production and Tourify Demo must not be mutated for development verification.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-008",
+    "sourceAlias": null,
+    "topic": "Progress authority",
+    "decision": "The repo-native JSON registry is authoritative; Markdown, CSV, dashboard, and workbook are generated views.",
+    "rationale": "This removes contradictory hand-edited ledgers.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-009",
+    "sourceAlias": null,
+    "topic": "Release approval",
+    "decision": "Independent clean-context verification and human product/security sign-off are mandatory.",
+    "rationale": "Implementation-session claims alone cannot close a workflow or launch gate.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-010",
+    "sourceAlias": "ADM-ADR-UX-001",
+    "topic": "Canonical Admin information architecture",
+    "decision": "Use six task-oriented primary domains: Home, Operations, Workforce, Commerce, Network, and Organization & System. Keep Communications available as a persistent utility and contextual operational entry.",
+    "rationale": "The approved UX audit found that feature-inventory navigation obscures common operator tasks and duplicates domain labels.",
+    "status": "accepted",
+    "owner": "Tourify product"
+  },
+  {
+    "decisionId": "ADM-DEC-011",
+    "sourceAlias": "ADM-ADR-UX-002",
+    "topic": "Admin URL, scope, and deep-link contract",
+    "decision": "Use account, orgId, tourId, eventId, legId, employerType, employerId, tab, view, q, status, sort, page, and selected as canonical shareable Admin URL keys. Child scope may never silently change orgId.",
+    "rationale": "A common URL contract is required for reliable refresh, sharing, browser history, and cross-organization isolation.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-012",
+    "sourceAlias": "ADM-ADR-UX-003",
+    "topic": "Canonical workspace ownership",
+    "decision": "Each operational domain has one global source-of-truth workspace; Event and Tour surfaces use scoped modes or launchers instead of parallel editors.",
+    "rationale": "Multiple editable entry points currently make source-of-truth and return-path behavior ambiguous.",
+    "status": "accepted",
+    "owner": "Tourify product"
+  },
+  {
+    "decisionId": "ADM-DEC-013",
+    "sourceAlias": "ADM-ADR-UX-004",
+    "topic": "Shared Admin component system",
+    "decision": "Converge Admin surfaces on components/admin/ui primitives and retire Workforce or scheduling variants only after verified consumer parity.",
+    "rationale": "Parallel primitive families create recurring visual, interaction, and accessibility drift.",
+    "status": "accepted",
+    "owner": "Tourify product and engineering"
+  },
+  {
+    "decisionId": "ADM-DEC-014",
+    "sourceAlias": "ADM-ADR-UX-005",
+    "topic": "Admin data state and freshness",
+    "decision": "Every significant dataset exposes loading, ready, true-empty, filtered-empty, stale, degraded, denied, or unavailable state plus explicit freshness where applicable. Failed data never renders as a legitimate zero or empty collection.",
+    "rationale": "False-zero and false-empty states are operational trust failures across multiple Admin domains.",
+    "status": "accepted",
+    "owner": "Tourify product and data"
+  },
+  {
+    "decisionId": "ADM-DEC-015",
+    "sourceAlias": "ADM-ADR-UX-006",
+    "topic": "Admin collection architecture",
+    "decision": "Major collections use server-backed pagination, search, sort, URL filters, optional saved views, responsive density, selection-scoped bulk actions, and authoritative server exports.",
+    "rationale": "Current caps, recent-row subsets, and client exports do not support organization-scale operational accuracy.",
+    "status": "accepted",
+    "owner": "Tourify product and data"
+  },
+  {
+    "decisionId": "ADM-DEC-016",
+    "sourceAlias": "ADM-ADR-UX-007",
+    "topic": "Large workspace navigation",
+    "decision": "Use primary task groups plus secondary navigation; expose no more than five primary mobile items or seven desktop items without a second level, while retaining legacy tab mappings.",
+    "rationale": "Event, Organization, Ticketing, Tour, Logistics, and Hiring peer-tab walls are the largest cognitive and mobile blockers.",
+    "status": "accepted",
+    "owner": "Tourify product"
+  },
+  {
+    "decisionId": "ADM-DEC-017",
+    "sourceAlias": "ADM-ADR-UX-008",
+    "topic": "Critical action and lifecycle semantics",
+    "decision": "Use risk-tiered action handling: reversible actions prefer feedback and undo, lifecycle transitions confirm scope and consequences, and destructive, financial, or legal actions require consequence previews and explicit confirmation.",
+    "rationale": "High-impact mutations currently use inconsistent controls and confirmation quality.",
+    "status": "accepted",
+    "owner": "Tourify product and security"
+  },
+  {
+    "decisionId": "ADM-DEC-018",
+    "sourceAlias": "ADM-ADR-UX-009",
+    "topic": "Dashboard as global action center",
+    "decision": "The organization Dashboard prioritizes actionable exceptions, today's schedule and next work, authoritative KPIs, then secondary trends and widgets.",
+    "rationale": "Operators need one cross-domain queue rather than a stack of disconnected status blocks.",
+    "status": "accepted",
+    "owner": "Tourify product"
+  },
+  {
+    "decisionId": "ADM-DEC-019",
+    "sourceAlias": "ADM-ADR-UX-010",
+    "topic": "Launch-critical mobile Admin scope",
+    "decision": "Responsive web is premiere-quality for Dashboard, Event day-of operations, Staff scheduling, Communications, Calendar, Logistics, Ticketing admissions and lookup, and essential critical actions. Finance reporting and Organization/System configuration remain desktop-primary but accessible and reviewable.",
+    "rationale": "Show-day field work requires strong mobile support while low-frequency governance work does not require identical mobile density.",
+    "status": "accepted",
+    "owner": "Tourify product"
+  }
+]

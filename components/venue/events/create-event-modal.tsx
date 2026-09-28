@@ -16,8 +16,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { useProfile } from "@/context/venue/profile-context"
 import { useToast } from "@/hooks/use-toast"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { Calendar, Clock, DollarSign, MapPin, Upload, Users } from "lucide-react"
 import type { EventData } from "@/lib/venue/types"
 
@@ -27,8 +27,9 @@ interface CreateEventModalProps {
 }
 
 export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
-  const { createEvent } = useProfile()
+  // VEN-091: creation posts to the canonical typed Venue event API.
   const { toast } = useToast()
+  const { venue } = useCurrentVenue()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<EventData>({
     title: "",
@@ -58,42 +59,61 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.title.trim() || !formData.startDate || !formData.venue) {
+    if (!formData.title.trim() || !formData.startDate || !formData.endDate) {
       toast({
         title: "Missing required fields",
-        description: "Please fill in all required fields.",
+        description: "Title, start and end date/time are required.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (!venue?.id) {
+      toast({
+        title: "No active venue",
+        description: "Switch to a venue account before creating events.",
         variant: "destructive",
       })
       return
     }
 
     setIsSubmitting(true)
-
     try {
-      const success = await createEvent(formData)
-
-      if (success) {
-        toast({
-          title: "Event created",
-          description: `Your event "${formData.title}" has been created successfully.`,
-        })
-        onClose()
-        setFormData({
-          title: "",
-          description: "",
-          startDate: "",
-          endDate: "",
-          location: "",
-          venue: "",
-          isPublic: true,
-          capacity: 0,
-        })
+      const startIso = new Date(formData.startDate).toISOString()
+      const endIso = new Date(formData.endDate).toISOString()
+      const response = await fetch("/api/venue/events", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venue_id: venue.id,
+          title: formData.title.trim(),
+          description: formData.description || null,
+          start_at: startIso,
+          end_at: endIso,
+          capacity: formData.capacity > 0 ? formData.capacity : null,
+          status: "confirmed",
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Event creation failed")
       }
+      toast({ title: "Event created", description: `"${formData.title}" is live on your events list.` })
+      setFormData({
+        title: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        location: "",
+        venue: "",
+        isPublic: true,
+        capacity: 0,
+      })
+      onClose()
     } catch (error) {
-      console.error("Error creating event:", error)
       toast({
-        title: "Error creating event",
-        description: "There was an error creating your event. Please try again.",
+        title: "Could not create event",
+        description: error instanceof Error ? error.message : "Unexpected error — try again.",
         variant: "destructive",
       })
     } finally {
@@ -173,16 +193,16 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="venue">Venue*</Label>
+              {/* VEN-091: the acting venue comes from the server-validated
+                  account context — never client-selected. */}
               <div className="relative">
                 <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="venue"
-                  name="venue"
-                  value={formData.venue}
-                  onChange={handleChange}
-                  placeholder="Venue name"
-                  className="bg-gray-800 border-gray-700 pl-10"
-                  required
+                  value={venue?.venue_name || "Loading venue…"}
+                  readOnly
+                  aria-readonly="true"
+                  className="bg-gray-800/60 border-gray-700 pl-10 text-gray-300"
                 />
               </div>
             </div>
@@ -265,7 +285,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Event"}
+              {isSubmitting ? "Creating…" : "Create Event"}
             </Button>
           </DialogFooter>
         </form>

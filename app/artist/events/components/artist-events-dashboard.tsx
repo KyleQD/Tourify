@@ -29,7 +29,7 @@ interface Event {
   capacity: number
   tickets_sold: number
   revenue: number
-  cover_image_url?: string
+  poster_url?: string
   created_at: string
   updated_at: string
 }
@@ -44,7 +44,7 @@ async function fetchEvents(userId: string): Promise<Event[]> {
     .select('*')
     .eq('created_by', userId)
     .order('date', { ascending: true })
-  
+
   if (error) {
     console.error('Error fetching events:', error)
     return []
@@ -55,18 +55,18 @@ async function fetchEvents(userId: string): Promise<Event[]> {
 function EventCard({ event, onEdit, onDelete }: { event: Event; onEdit: (event: Event) => void; onDelete: () => void }) {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const progress = Math.round((event.tickets_sold / event.capacity) * 100)
-  
+
   function handleDelete() {
     setIsDialogOpen(false)
     onDelete()
   }
-  
+
   return (
     <div className="bg-[#13151c] border border-gray-800 rounded-lg p-4 flex flex-col gap-2">
-      {event.cover_image_url && (
-        <img 
-          src={event.cover_image_url} 
-          alt={event.name} 
+      {event.poster_url && (
+        <img
+          src={event.poster_url}
+          alt={event.name}
           className="w-full h-32 object-cover rounded-lg mb-2"
         />
       )}
@@ -145,26 +145,26 @@ export default function ArtistEventsDashboard({ userId }: ArtistEventsDashboardP
         setIsLoading(false)
       }
     }
-    
+
     loadEvents()
   }, [userId])
 
   React.useEffect(() => {
     let filtered = [...events]
-    
+
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter(event => 
+      filtered = filtered.filter(event =>
         event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase())
       )
     }
-    
+
     // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(event => event.status === statusFilter)
     }
-    
+
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -180,7 +180,7 @@ export default function ArtistEventsDashboard({ userId }: ArtistEventsDashboardP
           return 0
       }
     })
-    
+
     setFilteredEvents(filtered)
   }, [events, searchQuery, statusFilter, sortBy])
 
@@ -308,4 +308,4 @@ export default function ArtistEventsDashboard({ userId }: ArtistEventsDashboardP
       />
     </div>
   )
-} 
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DESIGN-034-VENUE-DEFERRED",
+  "task_id": "DESIGN-034",
+  "from_agent": "design-system",
+  "to_agent": "venue",
+  "status": "accepted",
+  "created_at": "2026-09-25T15:38:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "dirty_state_caveat": "The venue lane is running in parallel in this same wave. lib/services/** is its own designated region for this wave, but deleting a venue-domain module while the venue lane is mid-flight is an avoidable collision for zero diagnostic gain, so both were deferred rather than taken.",
+  "summary": "Two zero-importer modules under lib/services/** are venue-domain surfaces with ZERO type diagnostics. They were deliberately NOT deleted by the design-system lane: they carry no diagnostic value, they are named in the venue lane's own task and handoff records, and one has a documented contract in app/venue/components/staff/shift-templates.tsx. Also: one entry in the venue lane's own lib/supabase/service-role-legacy-imports.json now names a file this lane deleted.",
+  "working_set": [
+    "lib/services/venue-scheduling.service.ts",
+    "lib/services/venue-roles-permissions.service.ts",
+    "app/venue/components/staff/shift-templates.tsx:37",
+    "lib/supabase/service-role-legacy-imports.json:190,197,198"
+  ],
+  "completed": [
+    "Verified both are zero-importer: no file in the repository imports them in any spelling (alias, relative, sibling, dynamic import, require, or string path).",
+    "Verified both are type-clean: scoped tsc over the pair as roots returned 0 primary diagnostics. Neither is in the database lane's library or shared-ui cluster. Deleting them would reduce the 1,384-diagnostic baseline by nothing.",
+    "Recorded the contract reference that argues for keeping venue-scheduling.service.ts: app/venue/components/staff/shift-templates.tsx:37 documents `lib/services/venue-scheduling.service.ts#getShiftTemplates` as the backing contract for the shift-template UI, so the module is a documented dependency of a file the venue lane owns even though no import statement connects them."
+  ],
+  "next_steps": [
+    "Venue: decide whether getShiftTemplates should be a real import (app/venue/components/staff/shift-templates.tsx:37 currently only cites it in a comment) or whether the two services are dead. Both are the venue lane's domain call; the design-system lane will delete them on request, since it owns the path.",
+    "Venue: prune 'lib/services/event-page.service.ts' from lib/supabase/service-role-legacy-imports.json:190. That module was deleted by the design-system lane this wave as a zero-importer, so the flat array now names a path that does not exist. The SEC-109 check stays green without this (scripts/ci/check-service-role-allowlist.mjs rejects only unclassified NEW imports, never stale array entries), and it stayed green through the deletion, but the entry is now stale debt."
+  ],
+  "blockers": [
+    "None blocking: both deferrals are zero-cost, and the stale SEC-109 entry does not fail any check."
+  ],
+  "verification": [
+    "PASS: scoped tsc over both modules as roots: 0 primary diagnostics, exit 0, 902 files parsed.",
+    "PASS: npm run check:service-role-allowlist exit 0 after the sibling event-page.service.ts deletion, with the historical count correctly falling 182 -> 181.",
+    "PASS: exhaustive rg -F sweep over every file in the repository for both filenames and stems found no importer; the only code-adjacent hits are the shift-templates.tsx comment and the SEC-109 array entries."
+  ],
+  "evidence_document": "docs/engineering/agents/design-system/lib-services-inventory-2026-09-25.json",
+  "accepting_task_id": "VENUE-006",
+  "completion_condition": "Venue: decide whether getShiftTemplates should be a real import (app/venue/components/staff/shift-templates.tsx:37 currently only cites it in a comment) or whether the two services are dead. Both are the venue lane's domain call; the design-system lane will delete them on request, since it owns the path."
+}

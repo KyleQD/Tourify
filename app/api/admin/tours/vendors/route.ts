@@ -3,7 +3,19 @@ import { z } from "zod"
 
 import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/admin-tour-event-access"
 import { buildTourVendorWrite, presentTourVendor, tourVendorInputSchema } from "@/lib/admin/tour-collaboration"
+import { projectTourVendorRow } from "@/lib/admin/vendor-field-projection"
 import { withAdminCapability } from "@/lib/auth/api-auth"
+import type { AdminCapability } from "@/lib/auth/admin-capabilities"
+
+function presentProjectedTourVendor(
+  row: Record<string, unknown>,
+  capabilities: readonly AdminCapability[],
+) {
+  return projectTourVendorRow({
+    row: presentTourVendor(row) as Record<string, unknown>,
+    capabilities,
+  })
+}
 
 const idSchema = z.string().uuid()
 
@@ -32,7 +44,11 @@ export const GET = withAdminCapability("vendor.view", async (request: NextReques
       .eq("tour_id", tourId)
       .order("created_at", { ascending: true })
     if (error) throw new Error(error.message)
-    return NextResponse.json({ data: (data ?? []).map((row: Record<string, unknown>) => presentTourVendor(row)) })
+    return NextResponse.json({
+      data: (data ?? []).map((row: Record<string, unknown>) =>
+        presentProjectedTourVendor(row, admin.capabilities),
+      ),
+    })
   } catch (error) {
     return errorResponse(error, "Failed to load tour vendors")
   }
@@ -49,7 +65,10 @@ export const POST = withAdminCapability("vendor.manage", async (request: NextReq
       .select("*")
       .single()
     if (error) throw new Error(error.message)
-    return NextResponse.json({ data: presentTourVendor(data) }, { status: 201 })
+    return NextResponse.json(
+      { data: presentProjectedTourVendor(data as Record<string, unknown>, admin.capabilities) },
+      { status: 201 },
+    )
   } catch (error) {
     return errorResponse(error, "Failed to add tour vendor")
   }
@@ -75,7 +94,9 @@ export const PATCH = withAdminCapability("vendor.manage", async (request: NextRe
       .select("*")
       .single()
     if (error) throw new Error(error.message)
-    return NextResponse.json({ data: presentTourVendor(data) })
+    return NextResponse.json({
+      data: presentProjectedTourVendor(data as Record<string, unknown>, admin.capabilities),
+    })
   } catch (error) {
     return errorResponse(error, "Failed to update tour vendor")
   }

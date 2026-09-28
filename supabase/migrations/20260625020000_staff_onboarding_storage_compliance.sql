@@ -90,6 +90,7 @@ create table if not exists public.staff_documents (
 
 alter table public.staff_documents
   add column if not exists user_id uuid references auth.users(id) on delete cascade,
+  add column if not exists venue_id uuid,
   add column if not exists employer_entity_type text check (employer_entity_type in ('venue', 'organization', 'artist')),
   add column if not exists employer_entity_id uuid,
   add column if not exists candidate_id uuid,
@@ -271,17 +272,26 @@ end $$;
 -- validating token/session scope. This policy allows authenticated writes only to
 -- the private staff buckets. Tighten path-specific rules if the app later supports
 -- direct browser-to-storage uploads.
+-- [CP-059 replay guard] The previous guard here compared
+-- pg_get_userbyid(relowner) = current_user and then reported with `raise notice`.
+-- `relowner = current_user` is a strict SUBSET of the server's
+-- pg_class_ownercheck predicate (which also admits a superuser and any member of
+-- the owning role), and `raise notice` is suppressed by
+-- `set client_min_messages = warning`, so a fresh replay silently skipped this
+-- policy and reported nothing. The server is now asked directly.
 do $$
 begin
-  if not exists (
-    select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'staff_onboarding_storage_authenticated_write'
-  ) then
+  begin
     create policy "staff_onboarding_storage_authenticated_write"
-    on storage.objects
-    for insert
-    to authenticated
-    with check (bucket_id in ('staff-documents', 'staff-certifications', 'staff-id-documents', 'staff-waivers'));
-  end if;
+      on storage.objects
+      for insert
+      to authenticated
+      with check (bucket_id in ('staff-documents', 'staff-certifications', 'staff-id-documents', 'staff-waivers'));
+  exception when others then
+    raise warning
+      'Skipping policy staff_onboarding_storage_authenticated_write on %.%: % %',
+      'storage', 'objects', sqlstate, sqlerrm;
+  end;
 end $$;
 
 commit;

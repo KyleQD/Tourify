@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
 import {
   applyOrgLogisticsTaskFilter,
   resolveAuthorizedOrgLogisticsScope,
@@ -55,13 +55,14 @@ const substitutionSchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  return withAdminAuth(async (_req, { user }) => {
+  return withAdminCapability('logistics.view', async (_req, { user, admin }) => {
     try {
       const { searchParams } = new URL(request.url)
       const eventId = searchParams.get('eventId') || searchParams.get('event_id')
       const tourId = searchParams.get('tourId') || searchParams.get('tour_id')
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId,
         tourId,
       })
@@ -110,14 +111,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAdminAuth(async (req, { user }) => {
+  return withAdminCapability('logistics.manage', async (req, { user, admin }) => {
     try {
       const body = await req.json()
 
       if (body.action === 'fulfill') {
         const parsed = fulfillmentSchema.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-        const scope = await resolveAuthorizedOrgLogisticsScope({ userId: user.id })
+        const scope = await resolveAuthorizedOrgLogisticsScope({ userId: user.id, requestedOrgId: admin.orgId })
         const input = parsed.data
         const { data, error } = await scope.service
           .from('backline_fulfillments')
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
       if (body.action === 'substitute') {
         const parsed = substitutionSchema.safeParse(body)
         if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-        const scope = await resolveAuthorizedOrgLogisticsScope({ userId: user.id })
+        const scope = await resolveAuthorizedOrgLogisticsScope({ userId: user.id, requestedOrgId: admin.orgId })
         const input = parsed.data
         const decision = input.decision || 'pending'
         const { data, error } = await scope.service
@@ -176,6 +177,7 @@ export async function POST(request: NextRequest) {
       const input = parsed.data
       const scope = await resolveAuthorizedOrgLogisticsScope({
         userId: user.id,
+        requestedOrgId: admin.orgId,
         eventId: input.event_id,
         tourId: input.tour_id,
       })

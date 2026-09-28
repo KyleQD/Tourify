@@ -1,0 +1,6 @@
+-- Reference outline only.
+-- Suggested additive objects: phase18_horizon_risks, phase18_impact_assessments,
+-- phase18_sunset_decisions, phase18_authority_revalidations,
+-- phase18_participant_successions, phase18_service_decommissions.
+-- Every object requires entity scope, jurisdiction, policy/schema version,
+-- source manifest, authority, idempotency and append-only audit linkage.

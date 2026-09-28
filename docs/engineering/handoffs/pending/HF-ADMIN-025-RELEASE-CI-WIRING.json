@@ -1,0 +1,27 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ADMIN-025-RELEASE-CI-WIRING",
+  "task_id": "ADMIN-025",
+  "from_agent": "admin-governance",
+  "to_agent": "release",
+  "status": "pending",
+  "accepting_task_id": "RELEASE-013",
+  "completion_condition": "The release-owned package and CI workflow run the Admin guard proof, and exact-SHA evidence is returned to ADMIN-025 without widening the Admin Governance working set.",
+  "created_at": "2026-09-28T00:30:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "summary": "Transfer package.json and .github/workflows/ci.yml wiring to Release while Admin Governance owns the route-registry checker implementation.",
+  "working_set": [
+    "package.json",
+    ".github/workflows/ci.yml"
+  ],
+  "completed": [
+    "ADMIN-025 working set was narrowed to scripts/ci/check-admin-route-registry.mjs."
+  ],
+  "next_steps": [
+    "After RELEASE-013 resolves its existing edits, wire the Admin guard proof into the release-owned CI command and return the exact command/evidence to ADMIN-025."
+  ],
+  "blockers": [
+    "RELEASE-013 currently owns and edits both transferred paths."
+  ],
+  "verification": []
+}

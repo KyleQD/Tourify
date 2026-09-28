@@ -1,0 +1,94 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-ORG-003-DB016-AGREEMENT-TEST-VALUE-PINS",
+  "task_id": "WFC-003",
+  "from_agent": "organization",
+  "to_agent": "database",
+  "cc_agents": [
+    "qa",
+    "orchestrator",
+    "admin"
+  ],
+  "status": "accepted",
+  "created_at": "2026-09-27T00:00:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a (dirty working tree, shared with WFC-004, DB-013, DB-014, DB-015, DB-016, ADMIN-012, DESIGN-033 and others. NO file owned by DB-016 was modified, added, staged, or removed. __tests__/admin/db016-capability-matrix-agreement.test.ts was READ ONLY. No commit, add, checkout, restore, stash, reset, clean, rebase, merge or cherry-pick was issued.)",
+  "summary": "REPORTED, NOT EDITED. CP-119's ruling on WFC-003's own suite generalised: three assertions in __tests__/admin/db016-capability-matrix-agreement.test.ts pin TODAY'S derived value over a measurement the file itself already derives from the live capability catalog, and one test's title describes a body it does not have. None of them is wrong today. All four will go red on a legitimate ADMIN-012 catalog change while the migration and CP-102's rule continue to agree perfectly - which is the stale-red cost CP-119 named, and the reason a lane under pressure records 'just update the fixture' over a real regression. The fix is the same one applied in WFC-003's own suite: assert the mechanism, not the answer.",
+  "why_this_is_reported_and_not_fixed": "CP-102 makes WFC-003 the sole author of the identity CONTRACT; the file is DB-016's, inside DB-016's working set, and DB-016 is not a consumer of this handoff's author. Editing another lane's test to make it agree with a review would be exactly the joint-edit class CP-102 exists to prevent. The evidence is below, reproducible in one command.",
+  "findings": [
+    {
+      "id": "F1",
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:233-249",
+      "test": "it('the eight organization-wide roles carry manage, and the three read-only roles do not')",
+      "what_it_pins": "Five literal role names asserted to contain workforce.manage, and three literal role names asserted to equal exactly ['workforce.view'].",
+      "why_it_is_the_anti_pattern": "The test immediately above it (:205-212) already asserts the whole thing as a MECHANISM: for every CATALOG_ROLES role, MIGRATION_SEED[role] equals deriveWorkforceRoleSeedDecisions(...) re-derived from live ROLE_DEFAULT_CAPABILITIES and DEPARTMENT_SCOPED_ROLE_CAPABILITIES. That test survives any catalog change. This one does not: if ADMIN-012 gives viewer workforce.publish, or gives worker workforce.view, this goes RED while the migration literal and the derived rule still agree byte for byte - i.e. it goes red precisely when the file is most demonstrably correct.",
+      "the_mechanism_form": "Assert the POSTURE invariant rather than the roster: for every role in CATALOG_ROLES, workforce.manage is in the derived seed if and only if the role is NOT in DEPARTMENT_SCOPED_ROLE_CAPABILITIES with a non-empty list - i.e. derive it from DEPARTMENT_SCOPED_ROLE_CAPABILITIES, which is already imported, instead of listing role names. And assert the negative that the migration's own post-condition asserts by name (:366-375 of the migration): workforce.manage is absent from department_manager on BOTH sides.",
+      "severity": "medium - it will mislead the next lane, and it is the kind of red that gets waved through"
+    },
+    {
+      "id": "F2",
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:227-231",
+      "test": "it('the no-authority roles are seeded with nothing')",
+      "what_it_pins": "ticketing, ticketing_manager and worker each toEqual([]).",
+      "why_it_is_the_anti_pattern": "Same shape as F1 and the same failure: a role gaining any workforce capability in the catalog turns this red with the migration and the rule still in agreement. Note the interaction with :233-249, which names 'the three read-only roles' as finance, finance_manager and viewer - so the file asserts two different three-role sets in adjacent tests, and only one of them is a rule.",
+      "the_mechanism_form": "Derive the no-authority roles from the rule: roles whose (catalog(role) INTERSECT workforce.*) MINUS department-scoped is empty. Empty seed then follows from the derivation rather than from a list.",
+      "severity": "medium"
+    },
+    {
+      "id": "F3",
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:224",
+      "test": "it('NEGATIVE, stated on its own: department_manager is not seeded with workforce.manage')",
+      "what_it_pins": "expect(MIGRATION_SEED.department_manager).toEqual(['workforce.view', 'workforce.publish'])",
+      "why_it_is_partly_the_anti_pattern": "The CP-094 invariant is already asserted twice on the preceding two lines (:219 not.toContain('workforce.manage') on the literal and on the derivation, plus :221 that the resolver does classify it as department-scoped). The toEqual adds a current-value pin on top of a correct invariant, so it can only ever add false reds, never catch anything the two lines above did not.",
+      "the_mechanism_form": "Keep :219-221 (they are the rule) and drop the toEqual, or replace it with an assertion that the seed contains no permission outside WORKFORCE_RBAC_PERMISSIONS that the role is not derived to hold. The file's own header argues for exactly this - the seed must be a rule, not a copy.",
+      "severity": "low - harmless today, and the invariant beside it is correct"
+    },
+    {
+      "id": "F4",
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:233",
+      "test": "the TITLE, not the body",
+      "what_it_pins": "it('the eight organization-wide roles carry manage, and the three read-only roles do not')",
+      "why_it_is_the_anti_pattern": "The title says eight roles carry manage; the body asserts five carry manage and three carry view only. Eight is the count of roles carrying workforce.view. A title that misdescribes its body is the same failure WFC-003 found in its own suite this pass - a test named 'still has no vendor entity table' whose body never checked for one, which kept passing for a day after the entity was created. A reader who trusts the title concludes the migration seeds manage for finance, which is the one thing CP-094 and the migration's own in-transaction assertion forbid for department_manager and a near-miss for the read-only roles.",
+      "the_mechanism_form": "Rename to what the body does: 'the derived roles carry manage and the read-only ones do not', with the counts left to the assertion output rather than the name.",
+      "severity": "low - but it is the cheapest of the four to fix and the most likely to be read wrong"
+    }
+  ],
+  "checked_and_deliberately_NOT_reported": [
+    {
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:296-302",
+      "assertion": "expect(Object.keys(db.matrix_before).sort()).toEqual(['admin','finance','owner','production','tour_manager'])",
+      "why_it_is_fine": "This looks like the same class and is not. It asserts a property of the MEASUREMENT POINT rather than of the repository: the harness replays the chain in version order and captures the matrix at DB-016's own version position, so the set of roles holding a row there is a fact about that version and cannot change without a migration being inserted BEFORE 20260926200000 - which would be a change to the chain, not to a derived rule. The file's own comment already says so ('Recorded as a property of the measurement, not asserted as a claim about the chain'). No action."
+    },
+    {
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:457-458",
+      "assertion": "expect(residual.length).toBeGreaterThan(0); expect(residual.length).toBeLessThan(CATALOG_ROLES.length * ADMIN_CAPABILITIES.length)",
+      "why_it_is_fine": "This is the OPPOSITE of the anti-pattern and is worth copying: it bounds the instrument rather than pinning its answer, so the measurement cannot be satisfied by a fixture that measured nothing and cannot be falsified by the residual legitimately reaching zero. It is the same shape WFC-003 adopted this pass for its classifier-purity control. No action - recorded here so the next reader does not 'fix' it."
+    },
+    {
+      "location": "__tests__/admin/db016-capability-matrix-agreement.test.ts:79-84 and :116",
+      "assertion": "MIGRATION_PATH from DB016_MIGRATION_PATH; MIGRATION_VERSION = path.basename(MIGRATION_PATH).slice(0, 14)",
+      "why_it_is_fine": "The version string is DERIVED from the path rather than transcribed, so a rename does not break it, and the override exists so the harness can point the test at a tampered copy and prove it can fail. This is the correct shape and it is why this file found nothing on 2026-09-27: the four findings above are value pins in a file whose measurement machinery is sound. No action."
+    }
+  ],
+  "the_general_rule_this_reports": "CP-119's second lesson, which WFC-003 found in three separate shapes in one pass and is therefore reporting as a class rather than as four findings: (1) a SENTENCE asserting current state - the original MANAGER_SCOPE_GAP literal; (2) a MEASUREMENT too weak to see one spelling of the thing it measures - WFC-003's own scanSeededWorkforcePermissions read only ('role', array[...]) tuples, so DB-016's $json$ seed literal produced roles: [] and three assertions stayed GREEN while asserting things that had stopped being true; (3) a DERIVED SET transcribed instead of derived - WFC-003's own DIRECTLY_READABLE_KEYS and CANONICAL_KEYS were hand-written Sets restating WORKFORCE_ORGANIZATION_KEY_ALIASES, so WFC-004's five new org-bound entity columns were classified as cross-tenant and a provable tenant key was quarantined as a tenant violation. A test name that asserts something its body does not check is a fourth, and it is the cheapest to introduce and the hardest to notice. Generalised: a check that has only ever returned the answer it expected is an untested check, and a rule restated in two places is a rule that will be true in one of them.",
+  "what_wfc_003_already_did_to_its_own_suite_so_there_is_a_template": "WFC-003 applied the same four-part fix to __tests__/admin/workforce-identity-contract.test.ts on 2026-09-27 and can be read as the worked example: three value expectations updated with the date and the two task IDs that moved them; the negative control's trailing hardcoded verdict replaced by five mechanism assertions; a name that asserted a falsehood renamed to what the body measures; a test named 'the classifier is a pure function' that was ALSO pinning today's verdict rewritten to compare four explicit synthetic measurements differing in one bit. Each expectation update carries what moved it, in the assertion's own comment, so a later reader can tell an updated expectation from a laundered one.",
+  "working_set_read_only": [
+    "__tests__/admin/db016-capability-matrix-agreement.test.ts",
+    "supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql",
+    "supabase/tests/db016_workforce_role_seed.harness.sh"
+  ],
+  "commands_run_by_the_reporting_lane": [
+    "npx vitest run __tests__/admin/workforce-identity-contract.test.ts __tests__/admin/db016-capability-matrix-agreement.test.ts __tests__/admin/admin-capability-department-scope.test.ts lib/auth/__tests__/admin-capability-target-exhaustiveness.test.ts — 4 files, 161 passed / 10 skipped, 0 failed. Run to prove this pass did not weaken or contradict the lane that owns the resolver and the matrix."
+  ],
+  "next_steps": [
+    "DB-016 (or whichever lane owns __tests__/admin/db016-capability-matrix-agreement.test.ts): apply F1-F4. F1 and F2 are the two that matter; both are derivations of role names that already exist in the file, so the change is to read the role list from DEPARTMENT_SCOPED_ROLE_CAPABILITIES and the derived decisions instead of listing literals.",
+    "DB-016 / ORCHESTRATOR: consider whether any OTHER derived-measurement suite in the program pins a current value over a measurement it derives. CP-119 makes the orchestrator own noticing this, because no single lane can see the whole graph. The two suites named in CP-119's consequences are this one and __tests__/admin/workforce-identity-contract.test.ts, and the second is now swept.",
+    "ORCHESTRATOR: the standing procedural rule from CP-119 is that any lane landing a migration, a resolver change, or a capability change MUST re-run the derived-measurement suites that read those artifacts. This handoff is one instance of what that rule is protecting against and one more reason to wire the suites into CI rather than relying on a lane to remember (the same ask DB-016 already recorded as ORCHESTRATOR/RELEASE next-step 'WIRE THE TWO INSTRUMENTS')."
+  ],
+  "blockers": [
+    "None. Every finding above is reproducible by reading the file at the cited lines and needs no database, no hosted environment and no credential.",
+    "This handoff reports findings in another lane's test file and deliberately makes no change to it. If the finding is disputed, the dispute is about WFC-003's reading of CP-119 and belongs in the task record, not in a silent edit."
+  ],
+  "accepting_task_id": "DB-008",
+  "completion_condition": "DB-016 (or whichever lane owns __tests__/admin/db016-capability-matrix-agreement.test.ts): apply F1-F4. F1 and F2 are the two that matter; both are derivations of role names that already exist in the file, so the change is to read the role list from DEPARTMENT_SCOPED_ROLE_CAPABILITIES and the derived decisions instead of listing literals.",
+  "completed": []
+}

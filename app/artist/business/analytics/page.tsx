@@ -129,7 +129,14 @@ export default function BusinessAnalytics() {
           .eq('user_id', user.id)
           .gte('occurred_at', start)
           .lte('occurred_at', end),
-        supabase.from('artist_merchandise').select('name, price, inventory_count, is_active, id').eq('user_id', user.id),
+        // DB-008: `artist_merchandise` is not created by the active migration
+        // chain. The canonical merch surface is `marketplace_listings`; the
+        // marketplace analytics branch below already replaces these numbers
+        // with real revenue when it is available.
+        supabase
+          .from('marketplace_listings')
+          .select('id, title, base_price, currency, inventory_count, status')
+          .eq('seller_user_id', user.id),
         supabase.from('artist_events').select('id, title, ticket_price_min, expected_attendance').eq('user_id', user.id),
         supabase.from('artist_marketing_campaigns').select('id, name, budget, spent, status').eq('user_id', user.id),
         supabase.from('profiles').select('followers_count').eq('id', user.id).maybeSingle(),
@@ -192,10 +199,11 @@ export default function BusinessAnalytics() {
         other: sumByType(tx, ['income'])
       }
 
-      // Top products heuristic: active merch sorted by price desc (legacy default)
+      // Top listings heuristic from the canonical marketplace surface. The
+      // marketplace analytics branch below replaces this with real revenue.
       let topProducts = (merchRes.data || []).slice(0, 5).map((item: any) => ({
-        name: item.name || 'Product',
-        revenue: Number(item.price) || 0,
+        name: item.title || 'Product',
+        revenue: Number(item.base_price) || 0,
         units: item.inventory_count || 0,
         growth: 0
       }))

@@ -1,0 +1,709 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-09-27T21:00:00.000Z",
+  "source_task": "DB-008",
+  "owner_agent": "database",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "purpose": "DB-008's primary artifact. Reconciles four things that were recorded as mutually incompatible: the active migration chain, the committed generated contract lib/database.types.ts, the hosted staging/production migration history, and the launch migration ledger. Every cell carries a command or a file reference. A cell with no evidence behind it is marked unverified and is not counted as a finding.",
+  "howToRead": [
+    "regenerationTargetVerdict is the answer to the one question the task was blocked on: WHICH target is the generated contract produced FROM, and therefore which target may it be regenerated from.",
+    "relationCounts states the before and projected-after numbers, the two independent instruments they came from, and the one known over-count in the chain-side instrument.",
+    "ledgerReconciliation is the hosted-history ledger state. It is a RECORD OF UNVERIFIED TRUTH, not a claim of parity.",
+    "columnDrift is the scoped tsc measurement. It is a scoped run, not the prohibited full-repo typecheck, and it is labelled with its exact scope so nobody reads it as a typecheck pass.",
+    "entries is the refreshed handoff routing. The previous revision of this file recorded accepting task ids that no longer match the live handoff records; see routingRefresh."
+  ],
+  "regenerationTargetVerdict": {
+    "question": "The recorded counts are mutually incompatible - active chain 429 public relations, committed contract 402, linked Supabase project 609. Nothing in the repository records which target the contract is generated FROM, and the prior wave deliberately shipped the regeneration capability unused on the reasoning that a working command aimed at a wrong target invites the deletion CP-016 exists to prevent. Which target is it?",
+    "verdict": "CHAIN-BUILT. lib/database.types.ts was generated from a database onto which the active numbered migration chain had been applied in version order, at a watermark that stops at 20260910000001_get_active_organizer_account_for_org.sql. It was NOT generated from the linked Supabase project, and it was NOT generated from a hosted staging or production target.",
+    "confidence": "measured, not inferred. The claim rests on a strict-subset result that is reproduced by two independent instruments plus an independent re-derivation of the contract side, and on a contiguous staleness watermark with no exception.",
+    "decision": "The admissible regeneration source is a CHAIN-BUILT target, and only a chain-built one. Concretely: a database created by the Supabase CLI from THIS repository's supabase/migrations/ (a fresh local stack, or an isolated staging project onto which the chain has been applied one migration at a time under CP-051 with each apply recorded). --linked is PERMANENTLY DISQUALIFIED as a generation source. --project-id is admissible only for a project whose applied history is itself the chain.",
+    "admissibleSources": [
+      {
+        "source": "local (SUPABASE_TYPE_SOURCE=local, npm run generate:database-types)",
+        "verdict": "admissible",
+        "condition": "The stack must be built by the CLI from this repository's supabase/migrations/ with no hand-applied psql and no local-only drift. A developer stack that has had migrations pasted into it by hand is NOT a chain-built target and is not admissible, because its provenance is unknown and DB-002 has already recorded that some versions on hosted targets were applied by raw Management API SQL.",
+        "statusOnThisMachine": "UNREACHABLE. Executed, not reasoned about. See gate.generateDatabaseTypes."
+      },
+      {
+        "source": "project-id (SUPABASE_TYPE_SOURCE=project-id)",
+        "verdict": "conditionally admissible",
+        "condition": "Only for a project whose migration history IS the chain. Requires SUPABASE_TYPE_PROJECT_ID and a real access token; Wave 35 measured that with no token Node throws before the CLI and with an invalid but correctly-shaped token the CLI answers 'Invalid access token format'.",
+        "statusOnThisMachine": "not attempted in this wave. No token was requested, used or fabricated."
+      },
+      {
+        "source": "db-url (supabase gen types typescript --db-url ...)",
+        "verdict": "mechanism exists, NOT usable for this task on this machine",
+        "statusOnThisMachine": "Executed and measured. The CLI runs its catalog metadata server inside a container, so a database bound to 127.0.0.1 on the host is unreachable from it: the probe returned ECONNREFUSED 127.0.0.1:PORT, then getaddrinfo ENOTFOUND for host.docker.internal (which resolves in a container to an IPv6 alias only), then an SSL probe timeout against the Docker bridge gateway 172.17.0.1. Recorded so the next person does not spend the same hour. It also would not have helped: a chain-built target here still requires a full-chain apply, which CP-051 forbids."
+      }
+    ],
+    "disqualifiedSources": [
+      {
+        "source": "linked (SUPABASE_TYPE_SOURCE=linked, the linked Supabase project - Tourify Demo)",
+        "verdict": "PERMANENTLY DISQUALIFIED as a generation source",
+        "why": "It is a DIFFERENT DATABASE, not a stale copy of this one. Measured in Wave 35: 609 relations / 8,020 columns / 151 callables, against a 429-relation chain and a 402-relation contract. Regenerating from it would DELETE 78 relations, 112 columns and 27 callables that the committed contract declares, and ADD 285 relations of which 276 are created by no active migration. The 78 deletions span 26 migrations from 20250115000000 to 20260908130000 with no contiguous cutoff. A source that deletes coverage is not a stale source, and CP-016 exists precisely to stop a regeneration from doing that silently.",
+        "corroboration": "The disqualification does not depend on the Wave 35 measurement alone. The committed contract has ZERO out-of-band relations, columns and callables against the active chain (regenerationTargetVerdict.evidence). A target with 78 relations and 112 columns the chain never creates is by definition NOT the contract's source, whatever its size. A single independent property of the contract decides this.",
+        "linkProvenanceCaveat": "The 609/8,020/151 figures are carried forward from the Wave 35 read-only probe recorded in the DB-008 task record and in HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE. DB-008 did NOT re-contact the linked project in this wave. The verdict above does not rest on those figures."
+      }
+    ],
+    "evidence": [
+      {
+        "claim": "The contract is a STRICT SUBSET of the active chain: it declares nothing the chain does not create.",
+        "measurement": "outOfBandColumns 0, outOfBandRelations 0, contractOnlyRelations 0, contractOnlyRoutines 0, viewColumnsWithoutProvenance 0, contractReproducibleFromChain true.",
+        "command": "node supabase/tests/db008_chain_contract_replay.mjs . /tmp/db008/replay-full.json",
+        "also_gated_by": "bash supabase/tests/db008_contract_reproducibility.harness.sh -> ALL CHECKS PASSED, measured out-of-band columns 0 (executed inside bash supabase/tests/db008_run_all.sh). The harness also carries 13 instrument self-assertions and 5 negative controls, so a gate that cannot fail is not what reported this."
+      },
+      {
+        "claim": "Every one of the contract's columns is attributed to a named active migration.",
+        "measurement": "5,170 attributions, 0 without provenance, 0 unsupported.",
+        "command": "node supabase/tests/db008_contract_attribution_audit.mjs . (executed inside bash supabase/tests/db008_run_all.sh as the `attribution` scenario)"
+      },
+      {
+        "claim": "The contract side of the count, re-derived by a parser that shares no code with the replay instrument.",
+        "measurement": "Tables 389, Views 13, total 402 relations; 5,170 table Row columns + 105 view Row columns = 5,275 columns; 100 Functions. This matches the replay instrument exactly (402 / 5,275 / 100), so the two are not one instrument counted twice.",
+        "command": "inline python3 parse of lib/database.types.ts over the Tables/Views/Functions/Enums block boundaries at lines 11, 23918, 24250, 25518",
+        "note": "The 5,170 figure is the same integer the attribution audit independently reports, which is a third agreement on the same number from a different direction."
+      },
+      {
+        "claim": "The staleness watermark is CONTIGUOUS, with one exception, and the exception is an instrument artefact.",
+        "measurement": "All 27 relations the chain creates and the contract lacks are created by migrations at version 20260910230339 or later. The version immediately after the watermark 20260910000001 is 20260910230339, so the contract stops exactly one migration before the first missing surface. There is no gap: no earlier public relation is missing.",
+        "single_examined_exception": {
+          "relation": "ticketing_migration_issues",
+          "appears_to_be_created_by": "20260821025543_unified_guest_list_admissions.sql",
+          "resolution": "INSTRUMENT ARTEFACT, not watermark breakage. That file sets `set search_path = private, public;` at line 9 and then creates the table unqualified at line 11, so it lands in the private schema, not public. The replay is a text instrument with no search_path model, so it counts the relation as public. `supabase gen types --schema public` would never emit it. Effect: the chain-side public relation count is 428, not 429, and the true public relation delta is 26, not 27.",
+          "howVerified": "20260821025543_unified_guest_list_admissions.sql:9 `set search_path = private, public;` and :11 `create table if not exists ticketing_migration_issues (`. It is the ONLY file in the chain whose leading search_path entry is a non-public schema; every other non-public `set search_path` in the chain is pg_catalog, which holds no tables."
+        }
+      },
+      {
+        "claim": "A regeneration against a chain-built target cannot delete coverage.",
+        "measurement": "chainOnlyRelations 27 (26 after the private-schema correction), staleColumns 58, chainOnlyCallables 43, contractOnlyRoutines 0. The deletion direction is empty in all three surfaces.",
+        "command": "node supabase/tests/db008_chain_contract_replay.mjs . /tmp/db008/replay-full.json"
+      },
+      {
+        "claim": "The one surface where the previous waves' claim was weaker is now measured, not asserted.",
+        "measurement": "The 13 view relations in the contract are resolved by letting PostgreSQL evaluate each view's real SELECT list on a throwaway 16.15 cluster, sliced byte-verbatim from the chain by offset: 13/13 resolved, 0 contract columns uncovered, 0 view-only columns, 3 negative controls fired.",
+        "command": "bash supabase/tests/db008_view_column_replay.harness.sh (executed inside bash supabase/tests/db008_run_all.sh as the `view-replay` scenario)"
+      }
+    ],
+    "whatWouldFalsifyThis": "Any ONE of: (a) a public relation or column or callable in the contract that no active migration creates, which would mean the contract came from a target with out-of-band DDL; (b) a public relation created by a migration at or before 20260910000001 that the contract does NOT declare, which would mean the watermark is not a clean chain prefix; (c) an out-of-order dependency that makes the chain's own order non-deterministic. None of the three was observed at this SHA. The claim is a property of one SHA and one file set, and it is re-checkable in one command.",
+    "consequence": "The regeneration capability shipped unused under CP-092 may now be aimed, and the aim is at a chain-built target only. This resolves the choice the task record listed as jointly owned by DB-008 and release/ops: DB-008 owns the identity of the source and has now determined it from evidence; release/ops owns whether a chain-built target exists to run it against, and on this machine it does not."
+  },
+  "relationCounts": {
+    "before_committedContract": {
+      "relations": 402,
+      "tables": 389,
+      "views": 13,
+      "columns": 5275,
+      "tableColumns": 5170,
+      "viewColumns": 105,
+      "callableFunctions": 100,
+      "sha256": "168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7",
+      "state": "BYTE-UNCHANGED. Not regenerated, not hand-edited, verified by sha256 before and after every command in this wave.",
+      "instruments": [
+        "node supabase/tests/db008_chain_contract_replay.mjs . -> contractRelations 402, contractColumns 5275, contractRoutines 100",
+        "independent inline python3 block parse -> 402 / 5275 / 100"
+      ]
+    },
+    "activeChain": {
+      "activeMigrationFiles": 316,
+      "firstMigration": "20240410000000_migration_replay_suppress_notices.sql",
+      "lastMigration": "20260927110000_events_v2_delete_rls.sql",
+      "relationsAsInstrumented": 429,
+      "tables": 411,
+      "views": 18,
+      "publicRelationsAfterPrivateSchemaCorrection": 428,
+      "columns": 5474,
+      "routines": 230,
+      "callableAfterTriggerSubtraction": 143,
+      "triggerFunctions": 87,
+      "corrections": [
+        "429 -> 428 relations: ticketing_migration_issues is created under `set search_path = private, public` and is not a public relation. See regenerationTargetVerdict.evidence[3].single_examined_exception.",
+        "230 -> 143 callable: 87 routines are RETURNS trigger, which `supabase gen types` never emits. They are not drift in either direction and are excluded from the delta."
+      ],
+      "instrument": "node supabase/tests/db008_chain_contract_replay.mjs . /tmp/db008/replay-full.json"
+    },
+    "projectedAfterChainBuiltRegeneration": {
+      "relations": 428,
+      "columns": 5333,
+      "callableFunctions": 143,
+      "add": {
+        "relations": 26,
+        "columns": 58,
+        "callables": 43
+      },
+      "delete": {
+        "relations": 0,
+        "columns": 0,
+        "callables": 0
+      },
+      "basis": "ARITHMETIC ON MEASURED COUNTS, NOT AN EXECUTED REGENERATION. 402+26, 5275+58, 100+43. See gate.generateDatabaseTypes for why no regeneration was executed and regenerationDeltaIsProjectedNotMeasured for what that does and does not license.",
+      "the26Relations": [
+        "ticket_shares",
+        "ticket_referrals",
+        "ticket_analytics",
+        "social_media_performance",
+        "mfa_verification_codes",
+        "webhook_delivery_receipts",
+        "work_mode_check_in_events",
+        "work_mode_publication_acknowledgements",
+        "marketplace_checkout_attempts",
+        "marketplace_external_listings",
+        "marketplace_external_listings_public",
+        "marketplace_external_clicks",
+        "marketplace_payment_events",
+        "marketplace_fee_rules",
+        "vendor_entities",
+        "vendor_entity_aliases",
+        "workforce_departments",
+        "workforce_department_managers",
+        "workforce_department_memberships",
+        "workforce_department_directory",
+        "workforce_membership_health",
+        "workforce_quarantine",
+        "workforce_legacy_links",
+        "workforce_operational_status_current",
+        "workforce_operational_status_events",
+        "workforce_reconciliation_audit"
+      ]
+    },
+    "regenerationDeltaIsProjectedNotMeasured": "STATED PLAINLY SO IT CANNOT BE MISREAD. The after-numbers above are arithmetic on the two measured sides. They are NOT the output of a regeneration, because no chain-built target is reachable on this machine. They are a projection with a measured basis, and the projection has one known unmodelled component: 6 ALTERs are skipped by a fresh chain replay because version order is not calendar order, covering 7 columns (staff_invitations tour_id/role/origin/created_at, scheduled_posts platform_status/platform_errors/account_specific_content). Spot-checked: all four staff_invitations columns ARE in the contract, so they are credited elsewhere in the chain and nothing is lost; scheduled_posts.platform_status and platform_errors are NOT in the contract and are restored by 20260926140200, so regeneration correctly ADDS them and the live consumer at app/api/artist/content/overview/route.ts:137 keeps working."
+  },
+  "ledgerReconciliation": {
+    "artifact": "docs/engineering/migration-validation/hosted-history-ledger.json",
+    "state": "RECONCILED TO THE LOCAL CHAIN. NOT RECONCILED TO ANY ENVIRONMENT.",
+    "reconciled_this_wave": [
+      "sourceSnapshot re-derived to 316 active migrations, lastMigration 20260927110000_events_v2_delete_rls.sql, digestSha256 7fd2af66daa2fae3688e4f2da3cb3f0934934d3ba6d7c6ffa8299a5117b3adb8, using the checker's own exported activeMigrationSnapshot() rather than a hand computation.",
+      "launch.unclassified.count set to 295 = 316 minus the 21 genuinely classified. It was 294 against a 315-file chain. The new 316th file is a concurrent-lane migration (20260927110000_events_v2_delete_rls.sql) that DB-008 did NOT classify, so it went into the unclassified bucket where the truth puts it. The count was not chosen to make a gate green.",
+      "The snapshot now also records the generated contract's own sha256 and staleness watermark, so the ledger and the contract reference each other instead of drifting independently."
+    ],
+    "stillUnreconciled": {
+      "staging": "capturedAt null, target null, evidence null, defaultHistoryStatus unverified, 0 entries. There is no staging history snapshot in this repository and DB-008 did not create one.",
+      "production": "5 entries, all absent_schema_observed, from DB-002's 2026-09-13 read-only probe. defaultHistoryStatus unverified for everything else. 311 of 316 active migrations have no production history disposition.",
+      "launchRequired": "21 classified, 0 deferred, 295 unclassified."
+    },
+    "whyThisIsNotParity": "AC-4 asks for zero UNEXPLAINED drift between staging schema, generated types, ledger and launch manifest. Staging is unreconciled, and 295 of 316 migrations are explicitly unclassified rather than quietly counted as fine. The honest statement is that the four surfaces AGREE on the local chain and DISAGREE about every environment, and that the disagreement is recorded rather than resolved.",
+    "howItWasReconciledWithoutDestructiveMeans": "By re-deriving a digest and a count from files on disk. No environment was contacted, no migration was applied, no reset, replay, push or rollback was run at any point in this wave. The digest is a rolling sha256 over (migration name, sha256 of contents) for every active file, so any future edit to any migration turns this gate red rather than passing stale.",
+    "knownFragility": "This ledger is true at one SHA and one file-set. Concurrent lanes keep adding migrations, so check:migration-ledger will go red the next time one does, and the correct response is to re-derive, never to relax the digest or widen the count to match."
+  },
+  "hfDb009": {
+    "handoff": "HF-DB-009-MARKETPLACE-TYPE-AND-RPC-SURFACE",
+    "requestedBy": "marketplace lane (MKT-004)",
+    "outcome": "PARTIAL - the RPC half is complete and was already shipped; the types half could not be executed on this machine.",
+    "rpc": {
+      "requirement": "a single-statement, buyer-scoped marketplace_entitlements download-increment RPC",
+      "status": "ALREADY PRESENT IN THE ACTIVE CHAIN, authored by this same agent in Wave 34 under DB-011.",
+      "migration": "supabase/migrations/20260926120200_marketplace_entitlement_download_increment_rpc.sql",
+      "signature": "public.record_marketplace_entitlement_download(p_order_item_id uuid, p_signed_url text default null, p_signed_url_expires_at timestamptz default null) returns public.marketplace_entitlements",
+      "buyerScoped": "Yes, in the UPDATE's WHERE clause, not by a read-modify-write: buyer_user_id = auth.uid(), status = 'active', download_count < max_downloads. One statement, one row, no lost update, and the caller's JWT is the only thing that can select a row.",
+      "authorization": "SECURITY DEFINER, search_path pinned to public, EXECUTE revoked from PUBLIC and anon and granted to authenticated only, and it raises errcode 42501 when auth.uid() is null. This is the DB-002 pattern applied at author time - the four functions DB-002 flagged as an authorization release blocker had PUBLIC/anon EXECUTE retained.",
+      "replaces": "the service-role compare-and-swap at app/api/marketplace/delivery/[orderItemId]/route.ts:89-120, which needed the service role to write a row the buyer is entitled to write, and made two simultaneous legitimate downloads return 409 to one of them.",
+      "executed_evidence": "bash supabase/tests/db011_marketplace_surface.harness.sh -> ALL CHECKS PASSED, 33 PASS / 0 FAIL (re-executed in this wave), including a real two-session concurrent race at the last remaining download credit and the quota sequence 1 -> 2 -> refused at max_downloads = 2.",
+      "thisWaveAddsNothingToIt": "Stated so the record is not read as new work. The RPC was not re-authored, not edited and not touched. DB-008 re-verified its presence in the chain and its behavioural evidence, and left it alone."
+    },
+    "types": {
+      "requirement": "regenerate lib/database.types.ts so the marketplace surface and the new RPC are in the contract",
+      "status": "NOT DONE. The regeneration is blocked on target reachability, not on anything in the contract.",
+      "measuredProofThatTheRpcIsMissingFromTheContract": "grep -c record_marketplace_entitlement_download lib/database.types.ts -> 0. The replay lists it among the 43 chain-only callables. So the function exists in the chain, is absent from the contract, and the only thing that closes that is a regeneration from a chain-built target.",
+      "explicitlyNotDone": "The contract was NOT hand-edited to add the RPC, and no partial or merged generation was written to the file. A hand-edit would make the drift invisible to every gate that reads the contract, which is the failure mode the whole task exists to prevent.",
+      "whatUnblocksIt": "One reachable chain-built target. See regenerationTargetVerdict.admissibleSources[0]. Owner: release/ops."
+    }
+  },
+  "columnDrift": {
+    "status": "MEASURED. The gap is closed: all 9 previously-unrecoverable (table, column) pairs are enumerated.",
+    "method": {
+      "kind": "SCOPED tsc, NOT the full-repo typecheck. No full-program pass is claimed and none was run: 68m18s on a 16GB CI runner, OOMs on this 8GB box, and 6+ concurrent lanes share it.",
+      "scope": "Every file under app/, lib/, components/ and types/ containing `.select(` - 1,113 files - supplied as tsconfig `files[]` against the repository's own compilerOptions, with `baseUrl` set so the `@/*` path mapping resolves. Transitive imports are pulled in by the compiler, so the program is larger than 1,113 roots.",
+      "flags": "--noEmit --noErrorTruncation",
+      "whyNoErrorTruncation": "THE WHOLE GAP WAS A DISPLAY SETTING. tsc abbreviates a long union as `... 380 more ...`, which is what truncated 29 of the 173 SelectQueryError lines. With the flag, every relation name is printed in full. 0 lines are truncated in this run.",
+      "alsoChecked": "The wave-33 inventory cites a preserved GitHub Actions log of the failing `Lint And Build` job on d2176904. No file in the repository contains 173 SelectQueryError lines; .agents/tmp/scope-results/*.raw.txt are unrelated scope-scan baselines with 0 to 5 each. Re-reading the log was never available, so a fresh run was the only route.",
+      "command": "NODE_OPTIONS='--max-old-space-size=6144' npx tsc --noEmit --noErrorTruncation -p <scoped tsconfig>",
+      "result": "COMPLETED on this machine. 899 primary diagnostics across 135 files. Ran ~31 minutes."
+    },
+    "headlineNumbers": {
+      "primaryDiagnostics": 899,
+      "filesWithDiagnostics": 135,
+      "columnDriftDiagnostics": 87,
+      "distinctColumnPairs": 9,
+      "relationOrRpcLiteralDiagnostics": 320,
+      "distinctRelationOrRpcLiterals": 76,
+      "closableByRegeneration": 76,
+      "notClosableByAnyRegeneration": 331,
+      "closableNote": "76 = 60 column-drift diagnostics (3 pairs) + 16 relation-literal diagnostics (4 literals). 331 = 27 column-drift diagnostics (6 pairs) + 304 relation-literal diagnostics (72 literals). 76 + 331 = 407, plus 492 diagnostics that name no Supabase object (TS2339 property-missing, TS2322 assignability, TS2589 excessive depth, TS7006 implicit any and the rest), which can only be re-measured against a full-program baseline."
+    },
+    "columnDriftPairs": {
+      "note": "table-scoped attribution via the replay's own chain-columns output. A bare column-name grep was deliberately NOT used: the same false-positive class was already recorded once in this repository, where `marketplace_storefronts.status` was reported with 2,158 consumers citing files that read no marketplace table.",
+      "chainOnly_regenerationFixes_these": [
+        {
+          "table": "marketplace_listings",
+          "column": "listing_kind",
+          "diagnostics": 28,
+          "createdBy": "20260926120100_marketplace_external_listing_surface.sql",
+          "owner": "database (Wave 34 migration, applied under CP-051 by the operator)"
+        },
+        {
+          "table": "venue_profiles",
+          "column": "social_links",
+          "diagnostics": 17,
+          "createdBy": "20260925210000_venue_profile_presentation_columns.sql",
+          "owner": "database (Wave 33 migration)"
+        },
+        {
+          "table": "venue_profiles",
+          "column": "cover_image_url",
+          "diagnostics": 15,
+          "createdBy": "20260925210000_venue_profile_presentation_columns.sql",
+          "owner": "database (Wave 33 migration)"
+        }
+      ],
+      "absentFromChainAndContract_noRegenerationCanFix_these": [
+        {
+          "table": "artist_profiles",
+          "column": "stage_name",
+          "diagnostics": 9
+        },
+        {
+          "table": "profiles",
+          "column": "display_name",
+          "diagnostics": 8
+        },
+        {
+          "table": "venue_profiles",
+          "column": "name",
+          "diagnostics": 7
+        },
+        {
+          "table": "job_posting_templates",
+          "column": "application_form_template",
+          "diagnostics": 1
+        },
+        {
+          "table": "music_comments",
+          "column": "likes_count",
+          "diagnostics": 1
+        },
+        {
+          "table": "events",
+          "column": "start_date",
+          "diagnostics": 1
+        }
+      ],
+      "interpretationOfTheAbsentSix": "These are the code-drift class: the product code selects a column that no active migration creates and that the contract does not declare. **No regeneration can ever satisfy them.** Each needs an owner decision - supply a real column contract, or delete the code that selects it - and a database lane that invents a column to make tsc quiet is producing the failure this task exists to prevent. `events.start_date` is the legacy-events identifier surface DB-009 already carries; the other five belong to artist, venue, work and admin by consumer. They are already routed by the HF-DB008-TYPECHECK-* handoffs and are NOT re-filed here."
+    },
+    "relationLiteralsRejected": {
+      "chainOnly_regenerationFixes_these": [
+        {
+          "literal": "ticket_shares",
+          "diagnostics": 8,
+          "source": "20260910230339_ticketing_admin_overview_contract.sql (DB-005)"
+        },
+        {
+          "literal": "marketplace_external_listings",
+          "diagnostics": 4,
+          "source": "20260926120100_marketplace_external_listing_surface.sql (DB-011)"
+        },
+        {
+          "literal": "marketplace_external_clicks",
+          "diagnostics": 2,
+          "source": "20260926120100_marketplace_external_listing_surface.sql (DB-011)"
+        },
+        {
+          "literal": "ticket_referrals",
+          "diagnostics": 2,
+          "source": "20260910230339_ticketing_admin_overview_contract.sql (DB-005)"
+        }
+      ],
+      "absentFromBoth_chainAnd_contract": {
+        "count": 72,
+        "diagnostics": 304,
+        "note": "Verified by spot check rather than by a substring test, because a substring test is what produced a false positive earlier in this task. `projects` is a literal `.from('projects')` at app/projects/page.tsx:24, app/projects/[id]/page.tsx:34 and app/projects/[id]/settings/page.tsx:70, and it is in neither the contract nor any active migration. The set is dominated by four clusters: the retired user_mfa_* credential surface (user_mfa_methods, user_mfa_setup_temp, user_mfa_backup_codes, 36 diagnostics), the admin onboarding surface (admin_onboarding, admin_onboarding_steps, start_admin_onboarding, complete_onboarding_step), the artist content/licensing surface (artist_licensing_deals, artist_license_templates, artist_merchandise, artist_photos, artist_videos, artist_works, artist_fan_interactions), and the marketplace external-fulfilment surface (marketplace_integration_products, marketplace_integration_sync_runs, marketplace_fulfillment_requests, marketplace_post_attachments, the 44-item remainder of HF-DB-011-MARKETPLACE-CHAIN-SURFACE-AUTHORED). exec_sql and create_post_with_context remain recorded as NEVER-CREATE and as CP-123's code-drift finding respectively."
+      }
+    },
+    "whatChangedVersusTheWave33Baseline": "The 1,384-diagnostic / 407-file CI baseline is not comparable file-for-file: this is a different program on a different worktree with 6+ lanes of concurrent change. What IS comparable is the shape, and the shape moved in the right direction - 8 relation literals and 3 column pairs that were open are now regeneration-closable, because the migrations that create them landed after the contract was generated. That is the entire argument for CP-127's verdict in one number: the drift runs chain -> contract, and a chain-built regeneration is a net addition.",
+    "notClaimed": "No typecheck PASS is claimed, in either direction. This is a scoped measurement over 1,113 roots, it is red, and the 492 diagnostics naming no Supabase object are untouched by it."
+  },
+  "gatesRun": [
+    {
+      "command": "npm run check:migration-chain",
+      "result": "pass",
+      "detail": "316 files scanned, no duplicate policy creations. exit 0."
+    },
+    {
+      "command": "npm run check:migration-validation",
+      "result": "pass",
+      "detail": "Repository-wide, exit 0. Was RED on entry at this SHA: `20260927110000_events_v2_delete_rls.sql: required manifest is missing`, a red gate for every lane. DB-008 authored docs/engineering/migration-validation/20260927110000_events_v2_delete_rls.json at status `planned`, transcribed from the migration's own header. No evidence was invented; `planned` is the lowest stage and is what an unapplied migration can honestly assert. EVENTS-001 owns completing it."
+    },
+    {
+      "command": "npm run check:migration-ledger",
+      "result": "pass",
+      "detail": "Was RED on entry on 4 items (activeCount, lastMigration, digestSha256, unclassified.count). Now: 316 active migrations, 21 classified, 295 explicitly unreconciled. exit 0."
+    },
+    {
+      "command": "bash supabase/tests/db008_run_all.sh",
+      "result": "pass (with a caveat recorded in wiringRequest)",
+      "detail": "Exit 0. 8 harness scripts executed and passed; 1 skipped. Per-scenario: storage-guard 10/10; view-replay ALL CHECKS PASSED, 13 views; reproducibility ALL CHECKS PASSED, out-of-band columns 0; marketplace ALL CHECKS PASSED 33 checks; money-path ALL CHECKS PASSED; interaction-scope ALL CHECKS PASSED; scheduled-posts ALL CHECKS PASSED; attribution exit 0, 0 without provenance, 0 unsupported; view-delta SKIPPED because DB_LINKED_TYPES was unset. CAUTION: the runner's own summary line reads 'ran 9' and it counted the skipped one. See wiringRequest."
+    },
+    {
+      "command": "npm run generate:database-types",
+      "result": "fail - target unreachable",
+      "detail": "Executed at the repository default source (local). Output: `supabase start is not running.` Contract verified byte-unchanged afterwards: sha256 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7. The underlying cause was measured, not assumed: Docker Desktop was started, `supabase start` was run, and it failed extracting the postgres image layer with `input/output error` on /var/lib/desktop-containerd and then lost the Docker daemon. `df -h /System/Volumes/Data` shows 5.7-6.7 GiB free on a 228 GiB volume that is 97-98% full, against a Supabase local stack that needs roughly 10 GB of images. The stack cannot be built on this machine without freeing disk. This is a local capacity fact, not a defect in the chain or the contract."
+    },
+    {
+      "command": "SUPABASE_TYPE_SOURCE=linked (regeneration form)",
+      "result": "NOT RUN IN THIS WAVE",
+      "detail": "Deliberately not run. It would overwrite lib/database.types.ts with the contract of a different database, deleting 78 relations and 112 columns. RegenerationTargetVerdict.disqualifiedSources is the reason, and the decision is recorded rather than left to the next person who tries it."
+    },
+    {
+      "command": "npm run check:database-types",
+      "result": "not-run",
+      "detail": "Same target reachability blocker as generate:database-types. Not claimed."
+    },
+    {
+      "command": "npm run typecheck (full repo)",
+      "result": "not-run",
+      "detail": "NOT CLAIMED. Prohibited in a shared multi-lane wave: 68m18s on a 16 GB CI runner, OOMs on this 8 GB box, and 6+ concurrent lanes. A scoped run was used instead - see columnDrift."
+    },
+    {
+      "command": "supabase db lint --local",
+      "result": "not-run",
+      "detail": "Needs a running local stack. Not claimed."
+    },
+    {
+      "command": "npm run agents:validate",
+      "result": "8 errors, none introduced by DB-008",
+      "detail": "18 agents, 212 tasks, 101 pending handoffs, 0 warnings, 8 errors. 7 of the 8 are the same defect: HF-DB008-SCHEMA-MISSING-ADMIN, HF-DB008-TYPECHECK-ADMIN, HF-DB008-TYPECHECK-ANALYTICS, HF-DB008-UNRESOLVED-ADMIN, HF-DESIGN-031-ADMIN, HF-INTG-033-CODEQL-OAUTH-STATE-HASH and HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY all name accepting_task_id ADMIN-013, and ADMIN-013 is completed. The 8th is ADMIN-014 `waiting_dependency has no unfinished dependency`. Cause: the pending handoff records were re-pointed to a completed task. Handoffs are not in DB-008's working set, so these are recorded, not fixed. Owner: orchestrator (re-route) with admin."
+    },
+    {
+      "command": "npm run agents:generate",
+      "result": "not-run",
+      "detail": "Deliberately not run. It rewrites shared generated maps and 6+ concurrent lanes would race it. The orchestrator should run it once the worktree settles."
+    }
+  ],
+  "notRunAndNotClaimed": [
+    "lib/database.types.ts was NOT regenerated, NOT hand-edited and NOT merged with a partial payload. sha256 168daaff01fb7ef285fb7bc69cfb5876cb092491953cdbbb2cea3fa7cb7558ab7, unchanged.",
+    "No hosted environment was contacted in this wave. Not read, not probed, not applied to. In particular the linked Supabase project was not queried again; the disqualification rests on the contract's own zero-out-of-band property, not on re-measuring it.",
+    "No migration was applied anywhere. No supabase db reset, no db push --include-all, no full-chain replay, no rollback, no data edit of any kind. CP-051 honoured.",
+    "No full-repo npm run typecheck pass is claimed.",
+    "The 26 relations / 58 columns / 43 callables regeneration delta is a PROJECTION on measured sides, not the output of a regeneration.",
+    "The EVENTS-001 manifest DB-008 authored carries NO executed evidence. It is a transcription that clears a red repository gate for an unapplied migration and nothing more."
+  ],
+  "wiringRequest": {
+    "owner": "orchestrator / release lane. package.json and .github/workflows/ci.yml are the release lane's working set and were not edited by DB-008.",
+    "whatToWire": "bash supabase/tests/db008_run_all.sh",
+    "proposed": [
+      "\"check:db008-harness\": \"bash supabase/tests/db008_run_all.sh\"",
+      "and a CI step that runs `npm run check:db008-harness` as a required check on the PRs that touch supabase/migrations/**, lib/database.types.ts or supabase/tests/db008*"
+    ],
+    "theAssertionMustBeThatScenariosRan": "Do NOT assert on the exit code alone. The runner's summary counter is wrong: it prints `ran 9, skipped 1, failed 0` after executing EIGHT harnesses. `ran` is incremented before the per-harness skip check, so a harness that printed `SKIP view-delta` and did nothing is still counted as ran. This is the same class of defect this repository has now hit three waves running - a gate that reports success while having exercised nothing (the Wave 33 storage harness exited 0 having run zero scenarios). The wiring should assert on the per-harness PASS lines, not on `ran`.",
+    "suggestedAssertion": "grep -c '^PASS ' for one line per executed scenario, and require the count to equal 8 when DB_LINKED_TYPES is unset - 7 is a regression and 9 is impossible. If the view-delta payload is available, require 9 and treat a missing DB_LINKED_TYPES as an explicit SKIP that the job records rather than hides.",
+    "viewDelta": "view-delta is skipped unless DB_LINKED_TYPES points at a `supabase gen types typescript --schema public` payload. It compares that payload against the committed contract. It is the only scenario that exercises the linked-target disqualification, and it is the one that skips by default. The orchestrator should decide whether CI is allowed to fetch a read-only payload to enable it, or whether the skip should be recorded as a permanent, visible gap.",
+    "db008RunAllIsNotInCi": "Confirmed: nothing in .github/workflows/ci.yml or package.json invokes it today, so the nine database-lane harnesses are currently committed and run on nobody's behalf."
+  },
+  "routingRefresh": {
+    "why": "The previous revision of this matrix recorded accepting task ids that no longer match the live handoff records, and was missing four handoffs that exist. A reconciliation matrix that is itself stale is worse than no matrix, so the entries below were re-read from the handoff files rather than carried forward.",
+    "method": "Every file under docs/engineering/handoffs/ matching HF-DB008-* or HF-DB-008-* was read and its to_agent, accepting_task_id and status recorded, then the accepting task's live folder and status were resolved from disk.",
+    "correctionsFound": [
+      "4 handoffs pointed at ADMIN-017 in the old matrix; the live records name ADMIN-013, which is COMPLETED. That is the direct cause of 7 of the 8 `npm run agents:validate` errors.",
+      "HF-DB008-TYPECHECK-MARKETPLACE pointed at MKT-009; the live record names MKT-004.",
+      "HF-DB008-TYPECHECK-WORK pointed at WORK-010; the live record names WFC-005.",
+      "HF-DB008-TYPECHECK-SEARCH and -SEO pointed at DISC-006; the live records name DISC-003.",
+      "HF-DB008-TYPECHECK-TICKETING pointed at TICKET-007; the live record names TICKET-006.",
+      "HF-DB008-TYPECHECK-INTEGRATIONS pointed at INTG-008; the live record names INTG-009.",
+      "HF-DB008-TYPECHECK-SHARED-UI pointed at DESIGN-038; the live record names DESIGN-033.",
+      "Two handoffs present in the live set were absent from the old matrix entirely: HF-DB008-TYPECHECK-VENUE-PUBLIC-PROFILE-VIEWS and HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE, both routed to ORCH-004 / DESIGN-033.",
+      "HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT has been consumed and moved to handoffs/completed/."
+    ],
+    "notDoneAndNotClaimed": "DB-008 did not re-route any handoff and did not touch docs/engineering/handoffs/**, which is outside its working set. The routing below is a READ of the live records plus the validator's own verdict, so the orchestrator can act on it without re-deriving it."
+  },
+  "openQuestions": [
+    {
+      "question": "Where is the chain-built target that the regeneration will run against?",
+      "owner": "release/ops",
+      "whyNotDB008": "CP-001: applying migrations to an environment is the operator's explicit manual action. DB-008 owns the identity of the source, which is now determined, and not the provisioning of a target."
+    },
+    {
+      "question": "The machine cannot build the local Supabase stack: 6.7 GiB free against roughly 10 GB of images. Who frees disk, or is a hosted isolated staging project the intended target?",
+      "owner": "orchestrator / release/ops",
+      "blocks": "every live-target gate in this task"
+    },
+    {
+      "question": "7 pending handoffs name ADMIN-013, which is completed, producing 7 validator errors on every lane.",
+      "owner": "orchestrator, with admin",
+      "note": "Re-route to an open admin task or move the handoffs to completed with a record of what was actioned."
+    },
+    {
+      "question": "20260927110000_events_v2_delete_rls.sql: its create block is an IDEMPOTENCY guard, not a permission guard, so a replay role without CREATE-policy rights aborts the chain. That is the CP-104 guard-ordering class, three occurrences now.",
+      "owner": "events (EVENTS-001), reviewer security-admin",
+      "note": "Recorded in the manifest's assumptions. DB-008 did not rewrite another lane's migration."
+    },
+    {
+      "question": "scheduled_posts.platform_status and platform_errors are restored by 20260926140200, so regeneration will add them. The Wave 34 question of whether a live target has them is still open, and DB-008 could not answer it without contacting a hosted target.",
+      "owner": "social / release-ops"
+    },
+    {
+      "question": "295 of 316 active migrations have no staging or production history disposition.",
+      "owner": "release/ops with database",
+      "whyNotDB008": "Requires an authorized read-only history export from a named environment. None exists in the repository and none was created."
+    }
+  ],
+  "entries": [
+    {
+      "handoff_id": "HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE",
+      "consumer_agent": "orchestrator",
+      "accepting_task_id": "ORCH-004",
+      "accepting_task_folder": "active",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "db008Outcome": "half-answered: DB-008 determined the SOURCE identity (chain-built) and disqualified --linked with independent evidence. The reachability half stays with ORCH-004."
+    },
+    {
+      "handoff_id": "HF-DB-008-STORAGE-GUARD-HARNESS-WIRED",
+      "consumer_agent": "orchestrator",
+      "accepting_task_id": "ORCH-004",
+      "accepting_task_folder": "active",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "db008Outcome": "confirmed still unwired, and the wiring request now states the assertion that must be made. See wiringRequest."
+    },
+    {
+      "handoff_id": "HF-DB008-SCHEMA-MISSING-ADMIN",
+      "consumer_agent": "admin",
+      "accepting_task_id": "ADMIN-013",
+      "accepting_task_folder": "completed",
+      "handoff_status": "accepted",
+      "disposition": "stale-routing",
+      "validatorState": "ERROR accepting task is already completed",
+      "correctedFrom": "ADMIN-017"
+    },
+    {
+      "handoff_id": "HF-DB008-SCHEMA-MISSING-ARTIST",
+      "consumer_agent": "artist",
+      "accepting_task_id": "ARTIST-007",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-SCHEMA-MISSING-ARTIST-CONTRACT",
+      "consumer_agent": "database",
+      "accepting_task_id": "DB-008",
+      "accepting_task_folder": "active",
+      "handoff_status": "completed",
+      "disposition": "consumed",
+      "db008Outcome": "actioned in Wave 34 and recorded: the four artist objects still have no derivable column contract, and were NOT migrated. Inventing one to make tsc pass is the failure mode this whole artifact exists to prevent."
+    },
+    {
+      "handoff_id": "HF-DB008-SCHEMA-MISSING-QA",
+      "consumer_agent": "qa",
+      "accepting_task_id": "QA-003",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "QA-008"
+    },
+    {
+      "handoff_id": "HF-DB008-SCHEMA-MISSING-WORK",
+      "consumer_agent": "work",
+      "accepting_task_id": "WORK-006",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "WORK-010"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-ADMIN",
+      "consumer_agent": "admin",
+      "accepting_task_id": "ADMIN-013",
+      "accepting_task_folder": "completed",
+      "handoff_status": "accepted",
+      "disposition": "stale-routing",
+      "validatorState": "ERROR accepting task is already completed",
+      "correctedFrom": "ADMIN-017"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-ANALYTICS",
+      "consumer_agent": "admin",
+      "accepting_task_id": "ADMIN-013",
+      "accepting_task_folder": "completed",
+      "handoff_status": "accepted",
+      "disposition": "stale-routing",
+      "validatorState": "ERROR accepting task is already completed",
+      "correctedFrom": "ADMIN-017"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-APP-SURFACE",
+      "consumer_agent": "orchestrator",
+      "accepting_task_id": "ORCH-004",
+      "accepting_task_folder": "active",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-ARTIST",
+      "consumer_agent": "artist",
+      "accepting_task_id": "ARTIST-007",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-AUTH-IDENTITY",
+      "consumer_agent": "qa",
+      "accepting_task_id": "QA-003",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "QA-008"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-EVENTS",
+      "consumer_agent": "artist",
+      "accepting_task_id": "ARTIST-007",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-INTEGRATIONS",
+      "consumer_agent": "integrations",
+      "accepting_task_id": "INTG-009",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "INTG-008"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-LIBRARY",
+      "consumer_agent": "orchestrator",
+      "accepting_task_id": "ORCH-004",
+      "accepting_task_folder": "active",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-LOGISTICS",
+      "consumer_agent": "work",
+      "accepting_task_id": "WORK-006",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "WORK-010"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-MARKETPLACE",
+      "consumer_agent": "marketplace",
+      "accepting_task_id": "MKT-004",
+      "accepting_task_folder": "active",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "MKT-009"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-SEARCH",
+      "consumer_agent": "discover",
+      "accepting_task_id": "DISC-003",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "DISC-006"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-SEO",
+      "consumer_agent": "discover",
+      "accepting_task_id": "DISC-003",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "DISC-006"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-SHARED-UI",
+      "consumer_agent": "design-system",
+      "accepting_task_id": "DESIGN-033",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "DESIGN-038"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-TICKETING",
+      "consumer_agent": "ticketing",
+      "accepting_task_id": "TICKET-006",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "TICKET-007"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-VENUE",
+      "consumer_agent": "venue",
+      "accepting_task_id": "VENUE-006",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-VENUE-PUBLIC-PROFILE-VIEWS",
+      "consumer_agent": "orchestrator",
+      "accepting_task_id": "ORCH-004",
+      "accepting_task_folder": "active",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "addedThisRevision": true,
+      "correctedFrom": "absent from the previous revision of this matrix"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-VENUE-SHARED-LIB-SURFACE",
+      "consumer_agent": "design-system",
+      "accepting_task_id": "DESIGN-033",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "addedThisRevision": true,
+      "correctedFrom": "absent from the previous revision of this matrix"
+    },
+    {
+      "handoff_id": "HF-DB008-TYPECHECK-WORK",
+      "consumer_agent": "work",
+      "accepting_task_id": "WFC-005",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "WORK-010"
+    },
+    {
+      "handoff_id": "HF-DB008-UNRESOLVED-ADMIN",
+      "consumer_agent": "admin",
+      "accepting_task_id": "ADMIN-013",
+      "accepting_task_folder": "completed",
+      "handoff_status": "accepted",
+      "disposition": "stale-routing",
+      "validatorState": "ERROR accepting task is already completed",
+      "correctedFrom": "ADMIN-017"
+    },
+    {
+      "handoff_id": "HF-DB008-UNRESOLVED-GENERAL-USER",
+      "consumer_agent": "general-user",
+      "accepting_task_id": "USER-007",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task"
+    },
+    {
+      "handoff_id": "HF-DB008-UNRESOLVED-QA",
+      "consumer_agent": "qa",
+      "accepting_task_id": "QA-003",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "accepted",
+      "disposition": "converted-to-bounded-consumer-task",
+      "correctedFrom": "QA-008"
+    },
+    {
+      "handoff_id": "HF-DB-008-VENUE-CREW-CONTRACTOR-SURFACE",
+      "consumer_agent": "venue",
+      "accepting_task_id": "VENUE-006",
+      "accepting_task_folder": "blocked",
+      "handoff_status": "completed",
+      "disposition": "consumed",
+      "db008Outcome": "closed in Wave 33 with a full-chain reconstruction: venue_crew_members, venue_team_contractors and get_staff_dashboard_stats are RETIRED, not missing. Re-creating them would resurrect the duplicate-risk surface the identity maps exist to eliminate. exec_sql is recorded as never-create."
+    }
+  ]
+}

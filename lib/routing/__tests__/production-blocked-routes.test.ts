@@ -17,11 +17,14 @@ describe('production blocked routes', () => {
     '/api/migrations/create-tables',
     '/api/setup-storage',
     '/api/marketplace/migrations/backfill-artist-music',
+    '/api/admin/test',
+    '/api/notifications/test',
+    '/api/test-db',
   ])('blocks %s in production', pathname => {
     expect(isProductionBlockedPathname(pathname)).toBe(true)
   })
 
-  it.each(['/api/health', '/marketplace', '/jobs', '/admin/dashboard'])(
+  it.each(['/api/health', '/marketplace', '/jobs', '/admin/dashboard', '/debugging'])(
     'does not block normal route %s',
     pathname => {
       expect(isProductionBlockedPathname(pathname)).toBe(false)

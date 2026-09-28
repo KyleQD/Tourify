@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { buildEventProducerPayload, initialEventProducerForm } from "@/lib/admin/event-producer-builder"
-import { mapAdvancingStatusToTourAdvanceStatus, buildAdminRosterHref, buildAdminLogisticsHref } from "@/lib/admin/admin-ops-context"
+import {
+  mapAdvancingStatusToTourAdvanceStatus,
+  buildAdminRosterHref,
+  buildAdminLogisticsHref,
+  buildAdminSiteMapHref,
+} from "@/lib/admin/admin-ops-context"
 
 describe("production hardening contracts", () => {
   it("producer payload includes relational seed fields for artists/crew/vendors/tickets", () => {
@@ -35,6 +40,6 @@ describe("production hardening contracts", () => {
   it("builds ops-context hrefs for roster and logistics", () => {
     expect(buildAdminRosterHref({ eventId: "evt-1" })).toBe("/admin/dashboard/roster?eventId=evt-1")
     expect(buildAdminLogisticsHref({ tourId: "tour-1", tab: "site-maps" })).toContain("tourId=tour-1")
-    expect(buildAdminLogisticsHref({ tourId: "tour-1", tab: "site-maps" })).toContain("tab=site-maps")
+    expect(buildAdminSiteMapHref({ tourId: "tour-1" })).toContain("tab=maps")
   })
 })

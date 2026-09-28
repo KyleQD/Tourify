@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260821000000_reconcile_ticketing_foundation.sql",
+  "taskId": "ADM-B01-TICKETING-FOUNDATION",
+  "status": "planned",
+  "owner": "ticketing-platform",
+  "reviewer": "database-platform",
+  "domains": ["ticketing", "events", "finance", "security"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "fresh local Supabase schema plus production-schema review before promotion",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count ticket_types, ticket_sales, financial_transactions, events_v2, and existing ticketing foundation tables",
+      "Count ticket_types and financial_transactions rows that would violate the new NOT VALID checks",
+      "Confirm no active migration already creates the ticketing foundation tables"
+    ],
+    "expectedAffectedRows": "New foundation tables are empty on a fresh database; persistent rows are preserved and constraint violations remain visible for reviewed forward validation",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 60000,
+    "batchSize": 0,
+    "resumeStrategy": "All tables, columns, indexes, policies, functions, and extensions are additive or replace guarded; existing-table checks and the allocation FK are created NOT VALID for forward validation",
+    "resumeCursor": "Supabase migration version 20260821000000",
+    "idempotency": "CREATE IF NOT EXISTS, ADD COLUMN IF NOT EXISTS, named policies/functions, and deterministic indexes permit safe reruns through reviewed forward migrations"
+  },
+  "quarantine": {
+    "required": true,
+    "table": "private.ticketing_migration_issues",
+    "strategy": "Do not infer or delete existing ticketing identities; record unresolved scope or constraint violations for a reviewed forward validation"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "ticket_types visibility check is created NOT VALID and requires a later reviewed VALIDATE CONSTRAINT",
+      "tickets allocation foreign key is created NOT VALID and requires a later reviewed VALIDATE CONSTRAINT",
+      "financial_transactions ticketing category check is replaced with a NOT VALID check and requires a later reviewed VALIDATE CONSTRAINT"
+    ],
+    "indexes": [
+      "ticket inventory, tickets, credentials, transfers, check-ins, allocations, revenue, grants, webhook, and analytics indexes",
+      "ticket sales order/session/webhook uniqueness indexes",
+      "financial transaction idempotency index"
+    ],
+    "validationPlan": "After fresh application and a production-schema review, validate each NOT VALID constraint, run security/performance advisors, and capture Org A/Org B, owner, delegated manager, recipient, service-role, and unrelated-user evidence"
+  },
+  "recovery": {
+    "rollback": "Disable ticketing-dependent feature flags and use a reviewed forward migration; do not delete ticketing records or reset the database",
+    "forwardFix": "Resolve quarantined rows or constraint violations with additive corrections, validate the named constraints, and rerun the ADM-B01 fresh/upgrade/RLS matrix"
+  },
+  "postflight": {
+    "queries": [
+      "Verify all ticketing foundation tables, columns, indexes, functions, policies, and RLS flags exist",
+      "Verify NOT VALID constraint state and quarantined violations",
+      "Reconcile ticket inventory, allocations, reservations, tickets, financial transactions, and idempotency keys",
+      "Run Supabase security and performance advisors for the affected tables and functions"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

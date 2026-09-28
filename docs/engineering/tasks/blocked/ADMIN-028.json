@@ -1,0 +1,105 @@
+{
+  "schema_version": "2.0",
+  "id": "ADMIN-028",
+  "title": "Resolve the admin.id reference in the event-claims review route",
+  "status": "blocked",
+  "execution_state": "waiting_dependency",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "admin",
+  "created_at": "2026-09-28T02:25:26.639Z",
+  "updated_at": "2026-09-28T02:25:26.639Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (732 entries)",
+  "goal": "app/api/admin/event-claims/route.ts:53 resolves admin.id to the platform administrator's user id, so the reviewed_by audit record for an event_claims status transition is written by an actor rather than left null.",
+  "scope": {
+    "in": [
+      "app/api/admin/event-claims/route.ts:53 -- resolve admin.id to the value withPlatformAdmin actually binds, which is auth.user.id, the second handler argument",
+      "The recorded audit pair reviewed_by and reviewed_at for a status transition, as named by EVENTS-005-D2",
+      "A recorded decision on whether EVENT_PROVIDER_ADMIN_TOOLS and EVENT_EXTERNAL_CLAIMS are opened together; both sit behind external_event_providers, which is disabled with exposure none"
+    ],
+    "out": [
+      "Any change to public.event_claims grants, policies or schema. EVENTS-005-D2 ratifies authenticated holding SELECT and nothing else, and that is not revisited here",
+      "app/api/events/**, which is the events lane's"
+    ]
+  },
+  "working_set": [
+    "app/api/admin/event-claims/route.ts",
+    "lib/auth/api-auth.ts (READ ONLY)",
+    "lib/config/launch-capabilities.ts (READ ONLY)",
+    "lib/events/providers/flags.ts (READ ONLY)"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/handoffs/pending/HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF.json",
+    "docs/engineering/tasks/completed/EVENTS-005.json"
+  ],
+  "depends_on": [
+    "ADMIN-018"
+  ],
+  "resume_condition": "The admin lane accepts HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF and ADMIN-018's disposition work is complete. Task record created by EVENTS-005 so that handoff has a recipient-owned accepting task, as the handoff schema requires; acceptance is the admin lane's call, not the events lane's.",
+  "blocked_on": [
+    {
+      "type": "dependency",
+      "owner": "admin",
+      "condition": "The admin lane accepts HF-EVENTS-005-CLAIMS-ADMIN-REVIEW-REF and ADMIN-018's disposition work is complete. Task record created by EVENTS-005 so that handoff has a recipient-owned accepting task, as the handoff schema requires; acceptance is the admin lane's call, not the events lane's.",
+      "dependency_task_ids": [
+        "ADMIN-018"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "app/api/admin/event-claims/route.ts compiles: a scoped tsc over that file reports no error at line 53, and the resolved value is the platform administrator's user id rather than a third positional handler argument, which would silently be undefined and write reviewed_by as null on every transition with no error at any layer.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "The reviewed_by and reviewed_at pair the route writes is the audit record named by EVENTS-005-D2, and the route cannot write a caller-supplied status.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "EVENT_PROVIDER_ADMIN_TOOLS and EVENT_EXTERNAL_CLAIMS are decided together or explicitly deferred together, with the reason recorded. They are not opened independently: opening review while filing stays closed yields a queue that can never be filled, and opening filing while review stays closed yields claims that can never be approved except by the auto-verification arm.",
+      "owner": "admin",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "admin",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Created; implementation not started.",
+    "completed": [],
+    "next_steps": [
+      "app/api/admin/event-claims/route.ts:53 resolves admin.id to the platform administrator's user id, so the reviewed_by audit record for an event_claims status transition is written by an actor rather than left null."
+    ],
+    "blockers": [
+      "Waiting for ADMIN-018."
+    ],
+    "checkpoints": []
+  },
+  "handoffs": []
+}

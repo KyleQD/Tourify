@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "id": "DB-003",
+ "title": "Reconcile migration tree into one authoritative baseline",
+  "status": "completed",
+ "priority": "P1",
+ "owner_agent": "database",
+ "created_at": "2026-09-09T09:35:06.849Z",
+  "updated_at": "2026-09-10T06:00:00.000Z",
+ "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+ "working_tree_status": "dirty (386 entries)",
+ "goal": "Reconcile active + archive + migration-archive + migrations_backup + ad-hoc root .sql into one authoritative baseline chain",
+ "scope": {
+  "in": [],
+  "out": []
+ },
+ "working_set": [
+  "supabase/migrations/",
+  "docs/engineering/migration-validation/"
+ ],
+ "references": [
+  "docs/DEVELOPMENT_WORKFLOW.md",
+  "docs/engineering/agents/database/QUESTIONS.md",
+  "docs/engineering/DECISIONS.md"
+ ],
+ "acceptance_criteria": [
+  "One authoritative migration chain; live table count reconciles"
+ ],
+ "verification": {
+  "tier": "fast",
+  "commands": [
+   "supabase migration list --local -> all 281 versions applied (no failed/pending)",
+   "npx vitest run __tests__/feed/post-engagement-persistence.test.ts __tests__/post-styles/premiere-styles-v3.test.ts -> 2 files / 13 tests pass",
+   "npm run check:migration-chain -> pass (281 files, no duplicate policy creations)",
+   "npm run check:migration-validation -> pass",
+   "MIGRATION_CHECKSUM_BASE_SHA=7cf660ad8422dbd3adbdb77369d94638cdc2231b npm run check:migration-checksums -> 'No changed migration SQL files'"
+  ],
+  "evidence": [
+   "/var/folders/yp/t205v9_d51gcsnjj2zf499_r0000gn/T/opencode/db003-chain-{2,final,final2,final3,final4,-resume}.log (per-file apply records: 47 applied + 234 skipped, 0 failed)",
+   "/var/folders/yp/t205v9_d51gcsnjj2zf499_r0000gn/T/opencode/platform-schema-dump.sql + tail segments — CLI-embedded PG15 baseline (s76) applied as supabase_admin",
+   "supabase_db_tourify-beta (PG 15.14.1.063): 281 migrations recorded; tables public=385, auth=15, storage=3, _realtime=3, supabase_functions=2, vault=1, extensions=1; orgs/venues/profiles/users=0",
+   "docs/engineering/agents/database/STATE.md (root causes + reconciliation detail)"
+  ],
+  "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "last_run_at": "2026-09-09T20:45:00.000Z",
+  "result": "pass"
+ },
+ "progress": {
+      "summary": "Completed. Chain reconciled and manual Docker-backed bring-up verified. CLI-embedded baseline (s76 dump) was applied as supabase_admin; all 281 chain migrations were applied and recorded explicitly with zero failures. Forced-apply deviations and the empty-organization disposition are documented; optional post-styles successor and world-pilot decisions remain non-blocking.",
+  "completed": [
+   "Migration chain reconciled: one authoritative baseline of 281 files in supabase/migrations/",
+   "Local Docker-backed DB fully replayed manually (explicit psql only; no reset, no replay, no file edits)",
+   "Live table count reconciled: 418 user tables across 8 schemas; app tables empty by design (no seed)",
+   "Empty organization migration disposition: none exists at apply time; RPC-only; zero orphans"
+  ],
+  "next_steps": [
+   "Optional: reconcile successor migration restoring post_appearances schema_version check on the real post-styles entity",
+   "Decide disposition of world pilot draft rehearsal rows (detroit/kingston/lagos/london/tokyo) before demo QA"
+  ],
+  "blockers": [],
+  "checkpoints": [
+   {
+    "at": "2026-09-09T19:59:58.190Z",
+    "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "summary": "Documented the numbered active root as the only migration source and replaced the stale manual apply list with history-aware Supabase DB push; chain checker tests pass.",
+    "completed": [],
+    "next_steps": [
+     "Run a fresh Docker-backed Supabase replay, reconcile live table count, and resolve the concurrent empty organization migration before full validation."
+    ],
+    "blockers": []
+   },
+   {
+    "at": "2026-09-09T20:45:00.000Z",
+    "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "summary": "Full manual bring-up: baseline as supabase_admin, 281/281 chain applied + recorded, all gates pass, live table count reconciled, empty-org disposition recorded. Root causes + deviations in STATE.md.",
+    "completed": [
+     "Migration chain reconciled: one authoritative baseline of 281 files in supabase/migrations/",
+     "Local Docker-backed DB fully replayed manually (explicit psql only; no reset, no replay, no file edits)",
+     "Live table count reconciled: 418 user tables across 8 schemas; app tables empty by design (no seed)",
+     "Empty organization migration disposition: none exists at apply time; RPC-only; zero orphans"
+    ],
+    "next_steps": [
+     "Optional: reconcile successor migration restoring post_appearances schema_version check on the real post-styles entity",
+     "Decide disposition of world pilot draft rehearsal rows (detroit/kingston/lagos/london/tokyo) before demo QA"
+    ],
+    "blockers": []
+   }
+  ]
+ },
+ "handoffs": []
+}

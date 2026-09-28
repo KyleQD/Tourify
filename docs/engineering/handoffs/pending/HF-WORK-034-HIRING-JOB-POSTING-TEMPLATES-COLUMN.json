@@ -1,0 +1,50 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-WORK-034-HIRING-JOB-POSTING-TEMPLATES-COLUMN",
+  "task_id": "WORK-009",
+  "from_agent": "work",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-25T22:05:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The `job_posting_templates.application_form_template` column-drift object from the DB-008 work cluster has exactly ONE remaining code reference in the working tree, and it is a one-line repoint the work lane cannot apply because Wave 34's lane grant for the work agent does not include `app/api/hiring/**`. The events-lane half of the object is already resolved: `app/api/events/[id]/posts/route.ts` no longer references `job_posting_templates` at all. Routing to the orchestrator because the owning path (`app/api/hiring/**`) is in the work domain's `WORKING_SET.json` but was withheld from this round's file grant, so it must be assigned explicitly.",
+  "working_set": [
+    "app/api/hiring/apply/profile-preview/route.ts",
+    "app/api/job-postings/[id]/route.ts",
+    "app/api/venue/hiring/job-postings/route.ts",
+    "lib/database.types.ts (READ ONLY - reference evidence only)",
+    "docs/engineering/database-type-inventory-2026-09-25.json (READ ONLY)"
+  ],
+  "evidence": {
+    "remaining_reference": "app/api/hiring/apply/profile-preview/route.ts:31 selects the column; :44 casts it to { fields?: ApplicationFormField[] }",
+    "object_verdict": "Absent from the active migration chain and from lib/database.types.ts. Neither chain nor types has the column, so no regeneration can create it.",
+    "canonical_replacement": "job_posting_templates.application_form_template_id (nullable uuid FK application_form_template_id -> application_form_templates.id) is the real contract; the form document lives in application_form_templates.fields (jsonb).",
+    "canonical_replacement_evidence": [
+      "lib/database.types.ts:9136 declares application_form_template_id: string | null on job_posting_templates",
+      "lib/database.types.ts:9285-9288 declares the FK job_posting_templates_application_form_template_id_fkey -> application_form_templates",
+      "lib/database.types.ts:1824 application_form_templates Row has fields: Json, id, name, created_at, created_by",
+      "app/api/job-postings/[id]/route.ts:16 already uses the embed `application_form_template:application_form_templates(*)`",
+      "app/api/venue/hiring/job-postings/route.ts:60 already uses `*, application_form_template:application_form_templates(*)`"
+    ],
+    "suggested_change": "In app/api/hiring/apply/profile-preview/route.ts change the select to `id, title, status, application_form_template_id, application_form_template:application_form_templates(fields)`. The PostgREST embed alias keeps the response property name `application_form_template`, so line 44 needs no change and the route's response contract is unchanged.",
+    "authorization_note": "Unchanged by the repoint: the read stays on the request-scoped createClient() and keeps the existing 401/404 handling. No RLS or scope behaviour moves.",
+    "why_not_done_here": "Wave 34 granted the work agent `app/jobs/**`, `app/api/jobs/**`, `app/work/**`, `app/worker/**`, `app/api/work/**`, `app/api/worker/**`, `components/work-mode/**`, `components/work/**`, `lib/work/**`, `lib/worker/**`, `lib/jobs/**` and `lib/organizations/job-postings-identity.ts`. `app/api/hiring/**` is not in that grant, and the work agent does not expand its own grant to resolve a cross-lane defect."
+  },
+  "next_steps": [
+    "Assign `app/api/hiring/apply/profile-preview/route.ts` to whoever owns `app/api/hiring/**` and apply the one-line embed repoint above.",
+    "Re-run `npx vitest run __tests__/hiring/` after the repoint; no hiring test asserts the raw select string, but the quick-apply preview flow should be re-checked.",
+    "Re-measure the work cluster's diagnostic contribution once a scoped or full tsc run is possible (see knownGaps in the inventory: no tsc was run by any lane this wave)."
+  ],
+  "blockers": [
+    "No regeneration can satisfy this object: it is in neither the active chain nor the generated types, so the consumer must be repointed or an additive migration authored by the database lane.",
+    "The Wave 34 lane grant for `work` is narrower than docs/engineering/agents/work/WORKING_SET.json (which lists app/api/hiring/**, lib/hiring/**, lib/work-mode/**, app/staffing/**, components/hiring/**). The grant governs this round; the discrepancy is recorded in the work domain decision log."
+  ],
+  "verification": [
+    "PASS: rg over the working tree (excluding docs/ and supabase/) shows `application_form_template` on a job_posting_templates SELECT in exactly one code file, app/api/hiring/apply/profile-preview/route.ts.",
+    "PASS: the canonical replacement is proven by four independent in-repo references listed above.",
+    "NOT RUN: no typecheck, no migration, no hosted action. No change was applied to this file by the work lane."
+  ],
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "Assign `app/api/hiring/apply/profile-preview/route.ts` to whoever owns `app/api/hiring/**` and apply the one-line embed repoint above.",
+  "completed": []
+}

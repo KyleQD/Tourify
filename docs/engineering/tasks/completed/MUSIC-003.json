@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "id": "MUSIC-003",
+  "title": "Music commerce split by concern",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "music",
+  "created_at": "2026-09-09T09:35:14.545Z",
+  "updated_at": "2026-09-10T13:02:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Implement CP-013/CP-026: music owns catalog/rights/royalties; marketplace owns orders/checkout; verify auth on shared financial routes",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "lib/music/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/music/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Music vs marketplace ownership split; financial route auth verified"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run lib/music/__tests__/music-commerce-boundary.test.ts",
+      "npx vitest run lib/music/__tests__",
+      "npx eslint lib/music/music-commerce-boundary.ts lib/music/music-commerce-auth.ts lib/music/__tests__/music-commerce-boundary.test.ts",
+      "npx tsc --noEmit --pretty false --incremental false"
+    ],
+    "evidence": [
+      "Music commerce boundary suite: 1 file, 9 tests passed",
+      "All lib/music unit suites: 5 files, 35 tests passed",
+      "Changed-file ESLint: clean",
+      "Project TypeScript check attempted but pre-existing repository-wide OOMed before diagnostics; no diagnostics referenced MUSIC-003 files"
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T12:45:00.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Implemented the typed Music↔Marketplace commerce boundary and Music auth handoff. Task remains active because existing API route handlers need adoption in their owning app/api lanes, which is outside this task's explicit lib/music-only write boundary.",
+    "completed": [
+      "Added lib/music/music-commerce-boundary.ts with explicit Music ownership for catalog/rights/royalties and Marketplace ownership for checkout/orders/transfers/portfolios/music-marketplace operations.",
+      "Added safe catalog and marketplace-fulfillment reference builders that exclude prices, storage paths, and order mutation behavior from the Music contract.",
+      "Added lib/music/music-commerce-auth.ts, re-exporting ARTIST-002's canonical requireArtistMusicUser profile gate.",
+      "Added focused ownership, route resolution, projection, and auth-handoff tests.",
+      "Recorded the domain decision, state facts, interface handoff, and work packet evidence."
+    ],
+    "next_steps": [
+      "Route adoption completed by ARTIST-004 and MUSIC-005; keep the generated permissions inventory refreshed after future route changes."
+    ],
+    "blockers": [
+      "Owning route adoption was completed by ARTIST-004 and MUSIC-005; no remaining handler adoption is open for this task.",
+      "Project-wide TypeScript verification is resource-blocked: tsc OOMs before producing diagnostics."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T12:24:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Strengthened the Music commerce boundary evidence. The contract now covers all 13 music-marketplace routes and rejects lookalike paths; the Music interface handoff documents ownership, auth expectations, and projection rules. Boundary tests (8/8), all lib/music unit tests (34/34), and changed-file ESLint pass. Project tsc remains resource-blocked by OOM before diagnostics.",
+        "completed": [
+          "lib/music/music-commerce-boundary.ts",
+          "lib/music/music-commerce-auth.ts",
+          "lib/music/__tests__/music-commerce-boundary.test.ts",
+          "docs/engineering/agents/music/INTERFACES.md",
+          "docs/engineering/agents/music/DECISIONS.md",
+          "docs/engineering/agents/music/STATE.md",
+          "docs/work-packets/MUSIC-003.md"
+        ],
+        "next": "Coordinate route-handler adoption with Artist and Marketplace lanes; keep MUSIC-003 active until financial-route auth is verified in the owning route files."
+      },
+      {
+        "at": "2026-09-10T12:19:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Follow-up documentation/testing pass completed without API-route edits. Added all 13 music-marketplace route paths and lookalike-path rejection to the boundary suite, and documented the interface handoff/auth expectations in the Music interfaces record. Boundary suite 8/8, all lib/music suites 34/34, ESLint clean, agents:validate 0 errors. Task remains active pending owning API adoption.",
+        "completed": [
+          "lib/music/__tests__/music-commerce-boundary.test.ts",
+          "docs/engineering/agents/music/INTERFACES.md",
+          "docs/work-packets/MUSIC-003.md"
+        ],
+        "next": "Coordinate route-handler adoption with Artist and Marketplace lanes; do not close MUSIC-003 until financial-route auth is verified in the owning route files."
+      },
+      {
+        "at": "2026-09-10T12:45:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Added a registry-integrity contract test that rejects duplicate route prefixes and detects any concern whose owner/auth contract drifts from the Music↔Marketplace split. Boundary suite 9/9, all lib/music suites 35/35, and changed-file ESLint pass. No API routes changed; task remains active pending owning-lane adoption.",
+        "completed": [
+          "lib/music/__tests__/music-commerce-boundary.test.ts"
+        ],
+        "next": "Coordinate route-handler adoption with Artist and Marketplace lanes; do not close MUSIC-003 until financial-route auth is verified in the owning route files."
+      },
+      {
+        "at": "2026-09-10T13:02:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Finalized the owning-lane coordination note without API-route edits. Documented the exact 33 artist/music route-file dependency for the Music + Artist batch, all 13 music-marketplace route files plus general checkout/orders for Marketplace MKT-003, required auth adoption, preserved ownership rules, and completion evidence. Prior focused test evidence remains valid: boundary 9/9, all lib/music 35/35, ESLint clean; no new tests required for documentation-only change.",
+        "completed": [
+          "docs/engineering/agents/music/INTERFACES.md",
+          "docs/engineering/tasks/active/MUSIC-003.json"
+        ],
+        "next": "Music + Artist and Marketplace owning API batches adopt the documented contracts; keep MUSIC-003 active until route-level financial auth verification and permissions refresh are complete."
+      }
+    ]
+  },
+  "handoffs": []
+}

@@ -1,0 +1,14 @@
+{
+  "manifestId": "uuid",
+  "designatedCommunity": "public researchers",
+  "checksums": [
+    {
+      "algorithm": "sha256",
+      "value": "..."
+    }
+  ],
+  "representationInformation": [
+    "schema-1.0.json"
+  ],
+  "accessClass": "restricted"
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-TICKET-008-SETTLEMENTS-VENUE-FALSE-ZERO",
+  "task_id": "TICKET-008",
+  "from_agent": "ticketing",
+  "to_agent": "venue",
+  "status": "pending",
+  "created_at": "2026-09-27T22:36:00.000Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "dirty_state_caveat": "Shared dirty worktree: 539 entries at TICKET-008 start, 8+ lanes. The ticketing lane read lib/venue/finance-snapshot.ts and changed nothing outside its own grant; the one product file it did touch during this task was mutated and restored to a byte-identical SHA as a fence proof (a69c253f74b04a21c3b7a9e5cef7b36756ac2bbf).",
+  "summary": "NEW finding, not previously recorded by TICKET-005: lib/venue/finance-snapshot.ts:112 reads the `settlements` relation, which the active migration chain creates in no schema, and line 117 folds the failure into a FALSE ZERO. `settlementsRes.data || []` turns an unreadable PostgREST error into an empty settlement set, and line 123 then reports every share as settlement_status 'unsettled' with settled_amount null. On any chain-built target a venue is therefore told its event revenue is UNPAID when the truth is UNAVAILABLE. That is the exact shape the ticketing settlements route was repaired for in TICKET-005: there the same dead read had its error fused into the availability gate and returned 503 ticketing_unavailable to every caller, and the fix was to narrow the gate to the authoritative tables and state absence explicitly as settlement: null + settlement_available: false. The admin consumer of the same relation (app/api/admin/finances/settlements/route.ts:111) already fails closed with 503 finance_unavailable and is not a correctness defect, so this handoff is venue-only. The ticketing lane cannot fix it: lib/venue/** is outside its grant.",
+  "working_set": [
+    "lib/venue/finance-snapshot.ts:101-133 — the `Venue settlement share per event (VEN-167/168)` block; line 112 is the dead .from('settlements'), line 117 is the `|| []` that becomes the false zero, line 123 is the 'unsettled' default",
+    "Read-only shape reference: app/api/ticketing/settlements/route.ts:65-94 and 132-146 — the ticketing route after TICKET-005, showing the gate narrowed to the two authoritative tables and absence reported explicitly",
+    "Read-only shape reference: app/api/admin/finances/settlements/route.ts:111-116 — the same read failing closed with 503 finance_unavailable",
+    "Read-only disposition record: docs/engineering/database-type-inventory-2026-09-25.json, items[settlements] — disposition 'accepted-debt', with this handoff and HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET as the two decision paths"
+  ],
+  "completed": [
+    "Located the consumer and read the degradation path end to end rather than stopping at the type error: the failure is not a crash, it is a wrong value, which is why it is more dangerous than the admin read that 503s.",
+    "Classified it precisely: an absent settlement record and an unreadable settlement relation both render as settlement_status 'unsettled'. A venue cannot distinguish 'not settled yet' from 'we cannot tell you', and the second is the true state on every chain-built deployment.",
+    "Established the relation is created in no schema of the active chain, resolved through each file's own search_path rather than by name match, so the read cannot succeed as written.",
+    "Compared against the three outcomes already recorded for this object in this repository and chose the precedent: the ticketing route fails closed and the admin route fails closed; only the venue read is silent.",
+    "Confirmed no ticketing-side alternative exists to point it at. `ticket_revenue_allocations` IS already read two lines above and is the in-chain allocation waterfall, but it carries no settlement status, so 'unsettled' cannot be derived from it without inventing a state.",
+    "Recorded the disposition as accepted debt with venue named as a decision owner, and raised the paired database handoff for the question that gates the fix (does the table exist on any live target? — the chain admits an out-of-band apply in 20260720021441)."
+  ],
+  "next_steps": [
+    "venue (VENUE-006): replace the false zero with an explicit unavailable state — carry the settlements read's error through to the response the same way TICKET-005 did for the ticketing route, and distinguish 'no settlement record' (settled_amount null, status known) from 'settlement state unavailable' (a separate field, never the string 'unsettled'). A share whose status cannot be read must not be reported with a status at all.",
+    "venue (VENUE-006): treat HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET (database, DB-019) as a dependency, not a blocker of the reporting fix. The false zero is wrong under BOTH answers to the existence question, so the reporting fix is safe to land now; only the decision to delete the read or keep it depends on that answer.",
+    "venue (VENUE-006): if DB-019 records that no target carries the table, delete the read rather than repointing it — the active chain has no settlement relation or settlement RPC to point at, and an rpc()/from() to an object no migration creates is not a capability the surface has.",
+    "venue (VENUE-006): a negative assertion in the venue suite that a failed settlements read cannot produce settlement_status 'unsettled' would fence this permanently. The ticketing fence for the same object is __tests__/ticketing/db008-drift-cluster-disposition.test.ts, which pins the current shape from the ticketing side."
+  ],
+  "blockers": [
+    "File-scope boundary: lib/venue/** is the venue grant and is explicitly outside the ticketing working set, so this lane reported the defect and did not edit it. The fix is small and local; it is a grant decision, not an analysis problem.",
+    "The disposition of the OBJECT (keep the read or delete it) depends on HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET: the chain admits an out-of-band apply of the settlements tables, so whether the read is correct on a live target is undecidable from the repository. The REPORTING fix is not blocked by that, only the delete-vs-keep choice is.",
+    "No tsc reduction is claimed from this lane. lib/venue/** was read, not typechecked, and the full-repo typecheck was not run (68m18s on CI, OOMs on this 8GB box, four lanes share one machine)."
+  ],
+  "verification": [
+    "PASS: lib/venue/finance-snapshot.ts matches /settlementsRes\\.data\\s*\\|\\|\\s*\\[\\]/ (line 117) and /settlement\\?\\.status\\s*\\|\\|\\s*'unsettled'/ (line 123), read directly from the file.",
+    "PASS: public.settlements is created in no schema of the active chain (320 top-level files, each CREATE resolved through its file's effective search_path).",
+    "PASS: the admin consumer of the same relation fails closed — app/api/admin/finances/settlements/route.ts matches /code:\\s*'finance_unavailable'/ — which is why this handoff is venue-only and not split to admin.",
+    "PASS: the ticketing route, read as the comparison shape, no longer queries the relation, gates on `allocationsResult.error || txnsResult.error` over ticket_revenue_allocations and financial_transactions, and reports `settlement: null` with `settlement_available: false`.",
+    "FENCE (live, not synthetic): restoring the dead `.from('settlements')` read into app/api/ticketing/settlements/route.ts fails 3 tests, and deleting `settlement_available: false` fails 1, in __tests__/ticketing/db008-drift-cluster-disposition.test.ts. The mutated file was restored to a byte-identical SHA afterwards.",
+    "NOT RUN, and not claimed: no tsc run, no migration apply, no catalog read, no edit to any lib/venue/** or app/api/admin/** file."
+  ],
+  "accepting_task_id": "VENUE-006",
+  "completion_condition": "venue (VENUE-006): a failed `settlements` read in lib/venue/finance-snapshot.ts can no longer render as settlement_status 'unsettled' — the unavailable state is reported distinctly from an unsettled record, with a test that fails if the 'unsettled' default is restored. Deleting the read entirely is the expected end state if HF-TICKET-008-SETTLEMENTS-EXISTENCE-ON-LIVE-TARGET records that no target carries the table."
+}

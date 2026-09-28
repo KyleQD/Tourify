@@ -128,7 +128,7 @@ export default function LoginPage() {
               className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
             >
               <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topic}</span>
-              {item.sourceName} // {item.title}
+              {item.sourceName} {"//"} {item.title}
             </a>
           ))}
         </div>
@@ -145,7 +145,7 @@ export default function LoginPage() {
               className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
             >
               <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topic}</span>
-              {item.sourceName} // {item.title}
+              {item.sourceName} {"//"} {item.title}
             </a>
           ))}
         </div>
@@ -226,7 +226,7 @@ export default function LoginPage() {
                       className="login-ticker-chip shrink-0 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/20 hover:text-white"
                     >
                       <span className="mr-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] text-cyan-100">{item.topic}</span>
-                      {item.sourceName} // {item.title}
+                      {item.sourceName} {"//"} {item.title}
                     </a>
                   ))}
                 </div>

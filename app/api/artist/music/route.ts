@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { jsonError } from "@/lib/api/route-helpers"
+import { requireArtistMusicUser } from "@/lib/artist/artist-music-auth"
 import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
 import { getTrackFullStoragePath, getTrackPreviewStoragePath, getTrackStorageBucket, getTrustedMusicWriteClient } from "@/lib/music/music-access"
 import { enqueueMusicPreviewJob, previewStatusForTrack } from "@/lib/music/preview-jobs"
@@ -22,7 +23,7 @@ const mutationLimiter = createRateLimiter({ namespace: "music:track:mutation", l
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
 
@@ -143,7 +144,7 @@ const createTrackSchema = updateTrackSchema.omit({ id: true }).extend({
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
 
@@ -353,7 +354,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
 
@@ -726,7 +727,7 @@ const deleteTrackSchema = z.object({
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
+    const authResult = await requireArtistMusicUser(request)
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
 

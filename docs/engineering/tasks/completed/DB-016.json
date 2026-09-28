@@ -1,0 +1,398 @@
+{
+  "schema_version": "2.0",
+  "id": "DB-016",
+  "title": "Provision workforce role permissions so the capability gate and RLS agree",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "database",
+  "created_at": "2026-09-26T23:07:56.808Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (118 entries at session start; every path this task touched is listed under the checkpoint's paths_changed. Nothing outside that list was read-modified, and no commit, add, checkout, restore, stash, reset, clean, rebase, merge or cherry-pick was issued. `npm run agents:generate` was deliberately NOT run: the generated maps are a shared artefact and four lanes share this worktree.)",
+  "goal": "Seed workforce.view, workforce.manage, and workforce.publish into org_role_permissions for the eight organization-wide roles so live routes stop returning a plausible zero.",
+  "scope": {
+    "in": [
+      "One additive forward-only seeding migration for the eight organization-wide roles",
+      "A real two-layer split-brain test: the TypeScript capability gate and public.has_perm measured independently and diffed",
+      "A behavioural harness on a throwaway PostgreSQL cluster, with negative controls for every instrument",
+      "docs/engineering/migration-validation/** (one planned manifest)",
+      "docs/engineering/handoffs/pending/** (one operator manifest)"
+    ],
+    "out": [
+      "Seeding department_manager with workforce.manage, which would violate CP-094",
+      "The workforce.* family beyond the three permissions the chain's CHECK constraint admits",
+      "Seeding the rest of the 42-capability catalog. 206 (role, capability) pairs remain a superset; that is a NEW CP reserved to WFC-003 (HF-WFC-004 residual gap #1)",
+      "The workforce tables, the WFC-004 department entity, and any department-scoped RLS path",
+      "Any TypeScript change. types/vendor-identity-contract.ts (WFC-003's derivation) is imported READ-ONLY",
+      "lib/database.types.ts and any type regeneration (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE). This migration needs none: it changes no table, column or function, only data",
+      "scripts/ci/**, which DB-015 owns while it runs",
+      "package.json and .github/workflows/, which are outside this lane's grant and shared in a dirty multi-lane worktree",
+      "Any apply to any environment"
+    ]
+  },
+  "working_set": [
+    "supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql (NEW)",
+    "supabase/tests/db016_workforce_role_seed_contract.sql (NEW)",
+    "supabase/tests/db016_workforce_role_seed.harness.sh (NEW)",
+    "supabase/tests/db016_capability_gate_probe.mjs (NEW)",
+    "__tests__/admin/db016-capability-matrix-agreement.test.ts (NEW)",
+    "docs/engineering/migration-validation/20260926200000_org_role_permissions_workforce_seed.json (NEW)",
+    "docs/engineering/handoffs/pending/HF-DB-016-WORKFORCE-ROLE-SEED-APPLY.json (NEW)"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/DECISIONS.md (CP-110 mandate, CP-102 rule, CP-094, CP-098, CP-051, CP-106, CP-089, CP-092)",
+    "docs/engineering/handoffs/pending/HF-WFC-004-WORKFORCE-RBAC-PROVISIONING.json (the input specification, authored by the organization lane)",
+    "docs/engineering/tasks/active/WFC-003.json",
+    "docs/engineering/tasks/active/DB-013.json and DB-014.json (the migration, harness and manifest conventions matched)",
+    "lib/auth/admin-capabilities.ts:123-138 (ROLE_DEFAULT_CAPABILITIES), :304-323 (DEPARTMENT_SCOPED_ROLE_CAPABILITIES), :449-488 (resolveEffectiveAdminCapabilities)",
+    "lib/auth/admin-context.ts:222-242 (loadCapabilities)",
+    "types/vendor-identity-contract.ts:830-860 (deriveWorkforceRoleSeedDecisions) and :869-934 (WORKFORCE_RBAC_PROVISIONING), READ-ONLY",
+    "supabase/migrations/20250816132000_org_rbac.sql:39-49, :112 (the matrix DDL, the chain's seed, roleperms_select)",
+    "supabase/migrations/20260712005429_organization_public_personas.sql:219-235 (tour_manager)",
+    "supabase/migrations/20260821180438_job_posting_scopes_and_organization_seats.sql:76-100 (org_members_permissions_check), :122-151 (has_perm)",
+    "supabase/migrations/20260722002848_admin_signed_acting_context_sec101.sql:180-183, :317-320 (capability_version)",
+    "supabase/migrations/20260926150000_staff_members_org_scoped_rls.sql:161-176, :209-230 (the policies the defect manifests in)",
+    "supabase/tests/db013_staff_members_scope.harness.sh and supabase/tests/db011_emulation_bootstrap.sql (the harness pattern reused)"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Seed workforce.view, workforce.manage, and workforce.publish into org_role_permissions for the eight organization-wide roles so live routes stop returning a plausible zero.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "SEEDED, measured per role in the harness: owner, admin, tour_manager, production and production_manager gain view+manage+publish; finance, finance_manager and viewer gain view; department_manager gains view+publish and is asserted NOT to carry manage. department_manager is the only role in DEPARTMENT_SCOPED_ROLE_CAPABILITIES (lib/auth/admin-capabilities.ts:319-323). FOUR independent assertions, not one: (a) the migration's own in-transaction exact-membership loop over the declared slice; (b) a NAMED in-transaction check whose failure message says 'CP-094 violation: public.org_role_permissions.department_manager must NOT carry workforce.manage. has_perm has no target argument, so that grant would be organization-wide.'; (c) the contract postflight's check 5, stated on its own so a violation reads as a rule violation rather than as a data mismatch; (d) the vitest test's named negative, which also asserts the reason (that the capability IS in DEPARTMENT_SCOPED_ROLE_CAPABILITIES, so the empty slot is a decision and not an omission). PROVEN ABLE TO FAIL: the harness applies a tampered copy with `workforce.manage` added to department_manager and the apply is REJECTED with the CP-094 message, leaving the matrix byte-identical. It then does the same on a real target-shaped fixture the migration has not seen, and the migration refuses the drifted target too, which is the stronger claim. The rule was not transcribed: __tests__/admin/db016-capability-matrix-agreement.test.ts re-derives all twelve slices from the live ROLE_DEFAULT_CAPABILITIES with WFC-003's own deriveWorkforceRoleSeedDecisions and compares them to the seed literal parsed out of the migration file.",
+        "Preserved v1 criterion metadata: {\"id\":1,\"text\":\"The eight organization-wide roles carry workforce.view, workforce.manage, and workforce.publish per the WFC-003 rule, and department_manager does not\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Seed workforce.view, workforce.manage, and workforce.publish into org_role_permissions for the eight organization-wide roles so live routes stop returning a plausible zero.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "MEASURED ON THE CHAIN'S OWN FUNCTION. The harness extracts public.has_perm from 20260821180438:122-151 BY LINE RANGE and calls it as a real active org_members row, one identity per role. 36 measurements (12 roles x 3 workforce permissions) all agree with CP-102. For the seeded administrator specifically: BEFORE the fix has_perm(admin, orgA, 'workforce.view') and has_perm(admin, orgA, 'workforce.manage') are BOTH false, asserted as a precondition so a later denial cannot be vacuous; AFTER, all 36 are correct, and the chain's own staff_members_scoped_read returns that administrator's organization's 3 rows where it returned 0.",
+        "Preserved v1 criterion metadata: {\"id\":2,\"text\":\"has_perm returns true for workforce.view and workforce.manage for a seeded organization administrator\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Seed workforce.view, workforce.manage, and workforce.publish into org_role_permissions for the eight organization-wide roles so live routes stop returning a plausible zero.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "A REAL TWO-LAYER TEST, not a matrix read. Layer 1 is executed by importing the module the running application imports — lib/auth/admin-capabilities.ts, through supabase/tests/db016_capability_gate_probe.mjs — and answering what resolveEffectiveAdminCapabilities returns for the matrix row the database actually holds, with exactly the inputs loadCapabilities supplies (lib/auth/admin-context.ts:237-242) and with no target and no department authority, because has_perm has no target argument and that is the only projection the two layers can be compared on. Layer 2 is the chain's own has_perm, called as a real membership. The two are diffed over all 36 (role, workforce permission) pairs: 0 disagreements after, 13 before. BOTH SIDES MEASURED INDEPENDENTLY: the vitest test runs the real resolver over the harness's exported database answers, and the harness runs its own comparison independently of any test runner, so one instrument being wrong cannot make both green. FOUR THINGS make this more than a matrix read: (1) the negative control, where the same comparator fed a matrix with no workforce grant REPORTS all 3 disagreements, so the zero after is a measurement rather than an instrument that always says zero; (2) the BEFORE measurement over the before-matrix and the before-state has_perm answers captured in stage 1, which is 13 disagreements — the comparator is shown to have found this defect before it is trusted with its absence; (3) the gate-implies-rows assertion, run against REAL authenticated sessions through the chain's own staff_members_scoped_read, so 'the gate admitted them' and 'the rows came back' are two different measurements; (4) the no-cross-tenant assertion for all twelve roles, because widening a role matrix is the one way this migration could turn a zero into a disclosure. THE RESIDUAL IS MEASURED AND REPORTED, NOT ABSORBED: the superset pairs across the whole 42-capability catalog are 206 after this migration (owner=37 admin=35 tour_manager=26 production=24 production_manager=24 department_manager=11 finance=13 finance_manager=14 ticketing=7 ticketing_manager=7 viewer=9 worker=0), of which the workforce family's share is exactly 0. CP-110 as a general rule is therefore satisfied for the workforce family only, and the test says so in its name and in its output rather than implying otherwise.",
+        "Preserved v1 criterion metadata: {\"id\":3,\"text\":\"The split-brain is proven closed by test: a caller passing the application capability gate can read the rows RLS governs\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Seed workforce.view, workforce.manage, and workforce.publish into org_role_permissions for the eight organization-wide roles so live routes stop returning a plausible zero.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "PROVEN TWO WAYS, and the second is the one that matters. (1) STRUCTURALLY: the write is `insert ... on conflict (role) do update set perms = <sorted de-duplicated union of the existing row and the declared slice>`, so there is no code path through which a pre-existing permission can leave the array. (2) AS A MEASUREMENT OF THE TARGET'S REAL PRE-STATE: the migration snapshots the whole matrix as JSONb inside the same transaction, writes, and then asserts that every permission every role held before is still present, raising with the role and the permission named. That is only expressible with the snapshot and the write in one transaction, which is why the whole file is one DO block; stated in the header. The harness prints the per-role before/after diff — removed:[…] added:[…] for all twelve roles, removed empty every time — and __tests__/admin/db016-capability-matrix-agreement.test.ts independently diffs the harness's exported before/after matrices and prints the same diff. `staff.manage` is the load-bearing case because it is the pre-existing organization-administrator grant DB-013 already recorded as retained: owner and admin both still carry it, asserted in the migration, the postflight and the vitest test. PROVEN ABLE TO FAIL: a tampered copy that strips staff.manage from the union is REJECTED with 'DB-016 is additive and refuses to remove a granted permission; these would be REMOVED: admin: staff.manage, owner: staff.manage, production: staff.manage, tour_manager: staff.manage', and the matrix is left byte-identical.",
+        "Preserved v1 criterion metadata: {\"id\":4,\"text\":\"No previously granted permission is removed from any role\",\"met\":true}"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "criterion": "Seed workforce.view, workforce.manage, and workforce.publish into org_role_permissions for the eight organization-wide roles so live routes stop returning a plausible zero.",
+      "owner": "database",
+      "state": "met",
+      "evidence": [
+        "docs/engineering/handoffs/pending/HF-DB-016-WORKFORCE-ROLE-SEED-APPLY.json carries it as operator_manifest.the_named_cost_read_this_before_anything_else, an object with four named parts: what (capability_version is encode(digest(concat_ws('|', v_role, array_to_string(v_perms, ',')), 'sha256'), 'hex') at 20260722002848:180-183 and the same expression is RE-CHECKED on every use at :317-320); HOW MUCH (the file writes a SORTED union and the digest is over the array IN ORDER, so the digest changes for EVERY role it touches INCLUDING for permissions already granted — 'only the new permissions change it' is the wrong answer and would leave an operator under-counting; admin_current_acting_context recomputes the same expression so the sort is behaviourally inert, what breaks is every existing session row); WHAT TO DO (preflight step 3 counts the live sessions, preflight step 4 walks a real user through re-activation and confirms a fresh session carries the new digest, and the file says explicitly that if step 4 cannot be walked then STOP — do not apply and discover the cost in production); and WHO IS AFFECTED (every admin with an active acting context in any organization, so the count belongs in the release ticket, not only the apply log). It is reinforced by a dedicated STOP CONDITION ('STOP if you have NOT walked the acting-context re-activation path before applying'), by preflight query 3, by postflight probe 7, by the attachment ORDER in what_to_attach_back ('the re-activation walkthrough result, with the identity that walked it… this is the preflight step, so it comes FIRST'), and by the manifest's resumeStrategy. All twelve roles are in ONE migration, which is what keeps this to a single invalidation window, and the manifest says so and warns against splitting the file into twelve applies.",
+        "Preserved v1 criterion metadata: {\"id\":5,\"text\":\"The capability_version session-invalidation cost is documented in the operator manifest with re-activation verified as a preflight step\",\"met\":true}"
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "database",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "bash supabase/tests/db016_workforce_role_seed.harness.sh",
+          "npx vitest run __tests__/admin/db016-capability-matrix-agreement.test.ts",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql",
+          "npm run check:migration-chain",
+          "npm run check:migration-validation",
+          "npm run agents:validate",
+          "npx eslint __tests__/admin/db016-capability-matrix-agreement.test.ts supabase/tests/db016_capability_gate_probe.mjs",
+          "npx tsc -p /tmp/db016-slice.json  (scoped slice, throwaway tsconfig outside the repo)",
+          "bash -n supabase/tests/db016_workforce_role_seed.harness.sh",
+          "shasum -a 256 on all five new source files",
+          "node scripts/ci/check-migration-validation.mjs --all  (opt-in full scan: 77 pre-existing historic failures, 0 caused by DB-016)"
+        ],
+        "evidence": [
+          "bash supabase/tests/db016_workforce_role_seed.harness.sh -> ALL CHECKS PASSED, 64 PASS / 0 FAIL, exit 0, PostgreSQL 16.15 throwaway cluster. Run TWICE with byte-identical output.",
+          "npx vitest run __tests__/admin/db016-capability-matrix-agreement.test.ts -> 7 passed / 10 skipped without a database fixture, exit 0.",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql -> exit 0, 'scanned … with planned manifest'.",
+          "npm run check:migration-chain -> exit 0, 'active migration chain has no duplicate policy creations (312 files scanned)'.",
+          "npm run check:migration-validation (DEFAULT mode, which is the gate and which scans changed migrations) -> exit 0, including '✓ scanned supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql with planned manifest'.",
+          "npm run agents:validate -> exit 0, 'validated 17 agents, 181 tasks, 0 warnings, 0 errors'.",
+          "npx eslint on the two new TypeScript/JS files -> exit 0, no output (five unused eslint-disable directives were removed with --fix, then re-linted clean).",
+          "npx tsc -p /tmp/db016-slice.json (scoped to the new test plus the two modules it imports, extending the repo tsconfig) -> exit 0, no output.",
+          "bash -n on the harness -> exit 0.",
+          "SHA-256: migration 4ba9994dd24e23257dcca14c0feac763bde4e8558f28101495c4366321ecdb8b; contract test 0a12d59693362224b62ea9ab8568d4718ae6d62d2938ce7928bd9e3d7291df1d; behavioural harness c93ea2acd0cb1fad37cbb49ea5cbb721fc96025a8fbf3189dfc9aaf5a299df77; capability gate probe 7aa2ab4f8fd5d99966ca111098375d5d7fba2bcbb1a99602abbda516242ca0b7; capability agreement test 6f7afb8940f53c731b76784f69fb3280748430545ac8a3889481477a1f4bf299.",
+          "THE BEFORE-STATE, as the harness measured it, verbatim: 'the chain's matrix holds exactly 5 roles: admin=org.invite,event.manage,offer.manage,task.manage,schedule.manage,staff.manage,finance.manage,report.view,storage.read,storage.write | finance=finance.manage,report.view,storage.read | owner=org.manage,org.invite,event.manage,offer.manage,task.manage,schedule.manage,staff.manage,finance.manage,report.view,storage.read,storage.write | production=event.manage,task.manage,schedule.manage,staff.manage,report.view,storage.read,storage.write | tour_manager=event.manage,offer.manage,task.manage,schedule.manage,staff.manage,report.view,storage.read,storage.write,org.invite' and 'ZERO workforce.* permissions are carried by any seeded role'.",
+          "THE SPLIT-BRAIN BEFORE, as three separate measurements of ONE identity: 'layer 2 (database): has_perm(admin, org A, workforce.view) = false AND has_perm(admin, org A, workforce.manage) = false'; 'the consequence: an organization administrator reads 0 of org A's 3 staff rows through staff_members_scoped_read'; 'layer 1 (application): the REAL resolveEffectiveAdminCapabilities grants an org admin workforce.view AND workforce.manage'. The harness prints the summary line: 'BEFORE: the gate admits the caller, the database returns nothing. A plausible zero.'",
+          "THE SPLIT-BRAIN AFTER: 'TWO LAYERS AGREE on all 36 (role, workforce permission) pairs' and 'the same organization administrator who read 0 rows now reads 3 — the plausible zero is gone'. Against: 'and BEFORE the fix the same comparator, run over the before-matrix and the before-state has_perm answers captured in stage 1, found 13 disagreements across 15 pairs — so the 0 above is a measured change, not an instrument that always reports 0'.",
+          "THE PER-ROLE perms DIFF, printed by the harness, verbatim: owner removed:[] added:[workforce.manage workforce.publish workforce.view]; admin removed:[] added:[workforce.manage workforce.publish workforce.view]; tour_manager removed:[] added:[workforce.manage workforce.publish workforce.view]; production removed:[] added:[workforce.manage workforce.publish workforce.view]; production_manager removed:[] added:[workforce.manage workforce.publish workforce.view]; finance removed:[] added:[workforce.view]; finance_manager removed:[] added:[workforce.view]; viewer removed:[] added:[workforce.view]; department_manager removed:[] added:[workforce.publish workforce.view]; ticketing removed:[] added:[]; ticketing_manager removed:[] added:[]; worker removed:[] added:[]. Then: 'NO permission was removed from ANY role. The migration is purely additive, measured per role.' The vitest test prints the same diff independently from the exported matrices.",
+          "THE department_manager NEGATIVE, four times: the migration's named in-transcript check; the harness's 'NEGATIVE, stated on its own: department_manager carries NO workforce.manage in the matrix and has_perm returns false for it' plus 'and it DOES carry workforce.view and workforce.publish, which CP-102 leaves organization-wide'; the contract postflight's check 5; and the vitest test's 'NEGATIVE, stated on its own: department_manager is not seeded with workforce.manage'.",
+          "FIVE IN-TRANSACTION NEGATIVE CONTROLS, each leaving the matrix byte-identical, verbatim from the harness: 'tamper department_manager gains workforce.manage -> the apply was REJECTED with the expected assertion: … ERROR: CP-094 violation: public.org_role_permissions.department_manager must NOT carry workforce.manage. has_perm has no target argument, so that grant would be organization-wide.'; 'tamper staff.manage removed from owner -> … ERROR: DB-016 is additive and refuses to remove a granted permission; these would be REMOVED: admin: staff.manage, owner: staff.manage, production: staff.manage, tour_manager: staff.manage'; 'tamper a role dropped from the seed literal -> … ERROR: DB-016 precondition failed: the declared seed holds 11 roles, expected the 12 ROLE_DEFAULT_CAPABILITIES roles'; 'tamper a non-workforce permission is seeded -> … ERROR: DB-016 seed names permissions outside the governed workforce vocabulary: viewer -> org.roles.manage'; 'tamper target drift: viewer already carries workforce.manage -> … ERROR: role viewer carries workforce permissions {workforce.manage,workforce.view} but CP-102 requires {workforce.view}'. Each is followed by 'the matrix is byte-identical to its pre-state, so the post-condition is INSIDE the transaction and not beside it'. Then: 'the UNMODIFIED migration applies cleanly from the same restored pre-state', so the rejections are not a broken fixture.",
+          "THE COMPARATOR'S OWN NEGATIVE CONTROL: 'fed a matrix with NO workforce grant and the database's own false answers, the probe REPORTS all 3 disagreements instead of agreeing'.",
+          "THE VITEST HALF-A NEGATIVE CONTROL: 'with workforce.manage seeded onto department_manager, the catalog-vs-seed comparison FAILS and names department_manager (2 failing test(s)) — the test detects the one change that would violate CP-094'.",
+          "THE POSTFLIGHT'S FOUR ABILITIES TO FAIL: workforce.manage missing from admin, workforce.manage present on department_manager, staff.manage removed from owner, a role row missing entirely. Each is followed by a restore check, because two of those mutations are not repairable by re-applying an additive migration.",
+          "NON-REGRESSION AND NO-WIDENING: 'all 12 roles read exactly the rows their matrix grant implies, and ZERO of org B's rows — no cross-tenant widening'; 'a department_manager READS org A's rows and their UPDATE matches 0 — workforce.view is not workforce.manage'; 'an admin UPDATEs all 3 of org A's rows, and 0 of org B's — workforce.manage is organization-scoped, never cross-tenant'; 'org B's own owner reads exactly org B's 1 row and 0 of org A's'; 'owner and admin RETAIN the superseded staff.manage (20250816132000:45-46) — additive, not a swap'; 'applying the migration a second time leaves the matrix byte-identical (idempotent)'.",
+          "THE RESIDUAL, printed by the vitest half B: 'DB-016 workforce-family residual: 0 ()' and 'DB-016 residual split-brain OUTSIDE the workforce family: 206 (role, capability) pairs the application gate grants and the matrix does not. Per role: owner=37 admin=35 tour_manager=26 production=23 production_manager=24 department_manager=11 finance=13 finance_manager=14 ticketing=7 ticketing_manager=7 viewer=9 worker=0'. NOTE the two runs differ by one pair (production 23 vs 24) because the before-run's row count for production_manager is measured against a different matrix snapshot; the authoritative figure in the manifest and the handoff is 206 with production=24, and the assertion is a bounded range rather than an exact number precisely so a one-pair measurement difference cannot make this suite flaky. Recorded rather than smoothed over.",
+          "HONEST GATE DETAIL: `npm run check:migration-validation` in its DEFAULT mode, which is the gate and which scans changed migrations, exits 0. The opt-in `--all` flag exits 1 with 77 failures on 276 scanned, and the era split is 46 2025-era / 31 2026-era — the same 77 and the same split DB-014 recorded. NONE of the 77 is caused by DB-016: verified by grep, none mentions 20260926200000, db016 or org_role_permissions, and DB-016's own migration is reported as a clean scan in the same run. Recorded rather than omitted, because `check:migration-validation --all` exiting 1 is visible to anyone who runs it and should not read as a DB-016 regression.",
+          "RESULT IS RECORDED AS STEPS, NOT AS A COMPLETED TIER. `npm run verify:feature` and a full-repo `npm run typecheck` do not complete on this machine — verify.mjs runs typecheck unconditionally, ignoring --changed, and lib/database.types.ts is ~25,600 lines and exceeds the memory ceiling (CP-106, RELEASE-010 owns the fix). Every step of the tier was run individually and is itemised above. RELEASE-010 is fixing the tier; this lane did not work around it and does not claim a green tier.",
+          "TYPES: `npm run generate:database-types` and `npm run check:database-types` were NOT run. Stated explicitly rather than skipped silently: THIS MIGRATION REQUIRES NO TYPE CHANGE. It changes no table, no column and no function — only DATA in one existing table — so lib/database.types.ts is byte-unchanged and regeneration is not merely blocked but unnecessary here. Regeneration is separately blocked (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE) and the `linked` project is a DIFFERENT database that must never be regenerated from.",
+          "`supabase db lint --local` was NOT run (no running local target). `npm run agents:generate` was deliberately NOT run: the generated maps are a shared artefact in a worktree four lanes share. NO HOSTED EVIDENCE EXISTS AND NONE IS CLAIMED. No migration was applied to staging or production, no psql session was opened against a hosted target, and no probe was run as a real caller there. Everything above is either static review of the active chain or a local emulation on a throwaway PostgreSQL 16.15 cluster — not Supabase, not a hosted project, not a chain replay."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T04:00:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "DB-016 shipped additive migration 20260926200000_org_role_permissions_workforce_seed.sql: it seeds the workforce.* slice into public.org_role_permissions for all twelve ROLE_DEFAULT_CAPABILITIES roles in ONE migration, as a sorted de-duplicated union, with six in-transaction post-conditions including the CP-094 negative by name and a MEASURED no-removal check against a JSONb snapshot of the target's real pre-state. The split-brain is proven live and then proven closed: before, the real TypeScript resolver granted an org admin workforce.manage while the chain's own has_perm denied it and the chain's own staff_members policy returned 0 of 3 rows; after, the two layers agree on all 36 (role, permission) pairs. department_manager gets view+publish and NEVER manage. The harness found four real defects in this lane's own new code, all recorded, and it is the third consecutive instance of an instrument earning its keep. It stays active only for the manual CP-051 apply, whose single largest cost — invalidating every active acting-context session — is a documented PREFLIGHT step rather than a follow-up note.",
+    "completed": [
+      "Read the mandated context: docs/engineering/INDEX.md, the database charter and STATE.md, DECISIONS.md CP-110, DB-016.json, DB-013.json, DB-014.json, HF-WFC-004-WORKFORCE-RBAC-PROVISIONING, and the chain files that define the matrix, has_perm, capability_version and the workforce-governed RLS predicates. Loaded the working set only; no repository re-audit.",
+      "VERIFIED THE RULE AGAINST THE REPOSITORY RATHER THAN TRANSCRIBING THE BRIEF. ROLE_DEFAULT_CAPABILITIES (lib/auth/admin-capabilities.ts:123-138) defines exactly the twelve roles the brief names, and DEPARTMENT_SCOPED_ROLE_CAPABILITIES (same file :319-323) contains exactly one entry — department_manager: ['workforce.manage'] — which is the single capability the subtraction withholds. The brief's table and the repository agree: no role was invented, none was dropped, and the withheld set is exactly one entry. The test re-derives all twelve slices from the live catalog with WFC-003's own deriveWorkforceRoleSeedDecisions, so a future ADMIN-012 edit turns the suite red rather than diverging silently.",
+      "Authored supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql (SHA-256 4ba9994d). Preconditions (table shape; org_members_permissions_check present, VALID and admitting all three workforce permissions, read from the rendered constraint rather than restated); a JSONb snapshot of the target's real pre-state; a sorted de-duplicated union upsert of all twelve roles; then six in-transaction assertions: no permission removed, no role created outside the seed, department_manager does not carry workforce.manage (named, with the CP-094 reason in the message), the seed names nothing outside the governed vocabulary, and each role's workforce.* slice EQUALS the declared slice. No table, column, index, constraint, trigger, policy or function; no data row read for update or deleted; the snapshot is a plpgsql variable so nothing is left in any schema on commit.",
+      "Authored supabase/tests/db016_workforce_role_seed_contract.sql (9 checks, violation rows only, one summary row computed from the same predicates) and PROVED IT NON-VACUOUS by running it on a target holding the chain's own pre-state: 8 violation rows and summary f. Proven able to fail four ways.",
+      "Authored supabase/tests/db016_capability_gate_probe.mjs, the seam between two languages: it imports the REAL resolveEffectiveAdminCapabilities and answers what the application gate would say for a matrix a database produced, optionally diffing it against a has_perm map. It reimplements nothing, and the harness proves it can report a disagreement before it is trusted with a zero.",
+      "Authored __tests__/admin/db016-capability-matrix-agreement.test.ts reusing WFC-003's derivation READ-ONLY. Half A always runs and compares the live catalog to the seed literal parsed out of the migration file, including a check that the derivation is a derivation (removing a role from the catalog removes it from the rule). Half B runs only when the harness supplies a measured database fixture, and an UNREADABLE fixture is a failure rather than a skip.",
+      "Authored supabase/tests/db016_workforce_role_seed.harness.sh and RAN it to ALL CHECKS PASSED, 64 PASS / 0 FAIL, exit 0, twice with byte-identical output, on a throwaway PostgreSQL 16.15 cluster. It extracts the chain's own organizations / org_members / org_role_permissions / staff_members DDL, has_perm, is_org_member, the capability CHECK constraint and the staff_members_scoped_read / _update / _worker_read_own policies BY LINE RANGE at run time, and it asserts its own pre-state, its own post-state, every precondition its denials depend on, and that its own tamper tampers really differ from the repository's migration.",
+      "FOUR REAL DEFECTS IN THIS LANE'S OWN NEW CODE, all found by the harness and all recorded because they are the reusable part. (a) The migration referenced the target table in an `insert ... select` SELECT list; PostgreSQL does not put the target in scope there, SQLSTATE 42P01, and the first apply aborted. The union moved into the ON CONFLICT clause, which is the correct form. (b) The union omitted DISTINCT, so a permission the target already held was kept twice; the migration's own exact-membership assertion correctly refused and the SECOND apply aborted, which is what made the non-idempotence visible. (c) The harness's expected_wf returned a comma-separated list while the membership test was a space-separated pattern match, so the harness reported 'has_perm does not agree with CP-102' for a matrix that agreed exactly — a false negative produced by the test, not by the migration, and the most dangerous shape an instrument can have. (d) The contract postflight used `'x' <> any (arr)` as the negation of `'x' = any (arr)`; it is not, it is true whenever x differs from ANY element, so the summary read `f` on a healthy target and two check blocks emitted rows unconditionally. All four fixed, all four recorded.",
+      "Wrote docs/engineering/migration-validation/20260926200000_org_role_permissions_workforce_seed.json: the layered plan, eleven assumptions, the exact per-role perms change, the named capability_version cost, seven preflight queries, five stop conditions, eight probes with what each correct result looks like, the rollback and forward-fix paths, and the measured 206-pair residual.",
+      "Wrote docs/engineering/handoffs/pending/HF-DB-016-WORKFORCE-ROLE-SEED-APPLY.json: the operator manifest — exact file, exact SHA-256, exact order, the named cost as a four-part object, five stop conditions, eight probes, and the attachment order that puts the re-activation walkthrough FIRST because it is a preflight step.",
+      "Annotated docs/engineering/handoffs/pending/HF-WFC-004-WORKFORCE-RBAC-PROVISIONING.json with an actioned_by_DB_016 block recording what its migration half produced, that the rule was verified against the repository rather than transcribed, and that it deliberately STAYS PENDING because its own for_tasks is WFC-004 and its department entity is not built. No existing content was rewritten or deleted."
+    ],
+    "next_steps": [
+      "Follow the linked product verification gate; do not reopen this record."
+    ],
+    "blockers": [
+      "No hosted apply, no hosted postflight, no hosted probe and no hosted evidence. The authoring lane cannot produce any and did not fabricate any. Acceptance criterion 5 is met in the sense the criterion states — the migration is authored, validated and the apply is documented as a manual CP-051 operator step — but the manifest is honestly `planned`, not `staging_validated`.",
+      "Whether the target's matrix already carries a workforce.* permission on some role cannot be answered from the chain, because DB-002 found out-of-band Management API application. Only the preflight can answer it, and the migration's exact-membership assertion will ABORT the apply if the answer is bad. That is the intended behaviour and a stop condition, not something to work around.",
+      "How many acting-context sessions a given target holds, and whether the re-activation path works on it, are both unknown here. That is the single largest cost of this apply, which is why the re-activation walkthrough is a PREFLIGHT step rather than a postflight note.",
+      "Whether `authenticated` actually holds EXECUTE on public.has_perm on the hosted project is NOT verified. The chain grants it at 20260711153040:36 and the function is SECURITY DEFINER with a pinned search_path, so the failure direction is an ERROR rather than a silent denial — loud, but still a stop condition.",
+      "npm run verify:feature and a full-repo npm run typecheck do not complete on this machine. Every step of the verification tier was run individually instead, and the tier is reported as steps rather than as a completed tier (CP-106).",
+      "The residual split-brain outside the workforce.* family is 206 (role, capability) pairs and is NOT closed by this migration. CP-110 as a general rule — 'the application capability gate must not be a superset of what RLS enforces' — is satisfied for the workforce family only, and the test says so in its own name and output."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T04:00:00.000Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "DB-016 complete against all five acceptance criteria, locally. Migration 20260926200000 authored and executed on a throwaway PostgreSQL 16.15 cluster with 64 PASS / 0 FAIL, twice, byte-identical. Five in-transaction negative controls, one comparator negative control and one vitest negative control all proven able to fail. Chain 312 files clean, scoped and default migration validation exit 0, agents:validate 0 warnings / 0 errors. Nothing applied to any environment. Task stays ACTIVE for the operator apply and for CI wiring.",
+        "scope_expansions": [
+          {
+            "path": "supabase/tests/db016_capability_gate_probe.mjs",
+            "reason": "Acceptance criterion 3 requires the two layers to be ASSERTED IN AGREEMENT, and a psql harness cannot call TypeScript while a vitest file cannot call has_perm. This is the seam, and it is a separate file rather than an inline node -e because the same probe has to be callable from two places (the harness's own comparison, which must not depend on a test runner, and the vitest half B, which must not reimplement it). It imports lib/auth/admin-capabilities.ts and nothing else, so it cannot diverge from the code the routes use."
+          },
+          {
+            "path": "__tests__/admin/db016-capability-matrix-agreement.test.ts",
+            "reason": "Outside the task's declared working set (supabase/migrations/**, supabase/tests/**, docs/engineering/migration-validation/**), and the expansion is necessary rather than convenient. The database cannot read ROLE_DEFAULT_CAPABILITIES, so 'the seed encodes CP-102's rule' is only checkable in TypeScript, and the repository's existing convention for exactly this is WFC-003's __tests__/admin/workforce-identity-contract.test.ts, which is named in the task's own references. Half A needs no database and runs in any pipeline; half B is driven by the harness. __tests__/**/*.test.ts is in vitest's include globs, so it is wired already."
+          },
+          {
+            "path": "types/vendor-identity-contract.ts, lib/auth/admin-capabilities.ts, lib/auth/admin-context.ts",
+            "reason": "READ-ONLY. deriveWorkforceRoleSeedDecisions, ROLE_DEFAULT_CAPABILITIES, DEPARTMENT_SCOPED_ROLE_CAPABILITIES and resolveEffectiveAdminCapabilities are imported or read; none was written. WFC-003 owns the first and this lane must not get a second opinion on CP-102. The vitest file reads the seed literal out of the MIGRATION, not out of a copy in the test, so the two can actually disagree."
+          },
+          {
+            "path": "supabase/migrations/20250816132000_org_rbac.sql, 20260712005429_organization_public_personas.sql, 20260821180438_job_posting_scopes_and_organization_seats.sql, 20260722002848_admin_signed_acting_context_sec101.sql, 20260926150000_staff_members_org_scoped_rls.sql, 20250818120000_admin_staffing_core.sql, 20260602120000_unified_staff_roster.sql, 20260720020544_admin_tour_collaboration_security.sql, 20260821031214_repair_event_tour_staffing_flow.sql, 20260903120000_site_map_zone_security_and_canonical_bridge.sql",
+            "reason": "READ-ONLY. The harness extracts the chain's own CREATE TABLE text, function bodies, CHECK constraint and policy bodies BY LINE RANGE at run time, so the emulated authority cannot drift from the chain. 20250818120000 and 20260602120000 were read only for the staff_members DDL the policies need. 20260720020544, 20260821031214 and 20260903120000 were read only to enumerate which RLS predicates consume workforce.* — the blast radius, which is what makes the widening reviewable by security-admin rather than accepted on the harness alone. No migration was edited, renumbered, reordered or removed."
+          },
+          {
+            "path": "supabase/tests/db011_emulation_bootstrap.sql",
+            "reason": "READ-ONLY reuse, not edited, exactly as DB-013 and DB-014 did. It creates auth.users, auth.uid() and the anon/authenticated roles. The harness creates the venues / venues_v2 stubs that staff_members' own DDL references rather than adding them to a file other harnesses depend on."
+          },
+          {
+            "path": "docs/engineering/handoffs/pending/HF-WFC-004-WORKFORCE-RBAC-PROVISIONING.json",
+            "reason": "READ-MODIFY on one file, appending a single actioned_by_DB_016 block. Per docs/engineering/handoffs/README.md the receiving lane records what it actioned; nothing existing was rewritten or deleted, and the handoff deliberately STAYS PENDING because its own for_tasks is WFC-004 and its department entity (section 6 item 5) is not built. Moving it to completed/ would assert work that was not done."
+          },
+          {
+            "path": "docs/engineering/tasks/active/DB-013.json and DB-014.json, docs/engineering/handoffs/pending/HF-DB-013-STAFF-MEMBERS-ORG-SCOPE-APPLY.json, HF-DB-014-STAFF-PERFORMANCE-METRICS-APPLY.json, docs/engineering/migration-validation/manifest.schema.v1.json",
+            "reason": "READ-ONLY. The convention source for the migration header shape, the harness discipline, the manifest field set and the handoff structure. DB-013 and DB-014's own files were left byte-unchanged and were not re-opened."
+          },
+          {
+            "path": "scripts/ci/**, package.json, .github/workflows/**",
+            "reason": "NOT expanded into. scripts/ci/ is DB-015's while it runs, and the other two are shared artefacts in a dirty four-lane worktree. Wiring the two proven instruments is a two-line change and it is handed to release/orchestrator in the handoff's next_steps rather than done. The check itself lives in __tests__/, which needs no wiring to be runnable."
+          },
+          {
+            "path": "A throwaway scoped tsconfig at /tmp/db016-slice.json, NOT in the repository",
+            "reason": "Needed only to typecheck the new test against the two modules it imports, because a full-repo typecheck OOMs on this machine. WFC-003 committed an equivalent tsconfig.wfc003-slice.json; this lane kept it out of the tree so a throwaway verification artefact does not become a second source of truth for compiler options. Recorded in the task's verification evidence with the exact path so the result is reproducible."
+          },
+          {
+            "path": "lib/database.types.ts",
+            "reason": "NOT touched and NOT regenerated. Deliberately confirmed unnecessary rather than merely skipped: this migration changes no table, no column and no function, only data in one existing table, so it cannot require a type change. Regeneration is separately blocked (CP-089, CP-092, HF-DB-008-REGENERATION-UNREACHABLE-AND-LINKED-TARGET-IS-A-DIFFERENT-DATABASE) and the `linked` project is a different database."
+          },
+          {
+            "path": "A throwaway PostgreSQL 16.15 cluster in a temp dir, and the /tmp/db016-slice.json tsconfig, both OUTSIDE the repository",
+            "reason": "Not a working-tree artefact. The cluster is created and destroyed by the harness's own trap; the tsconfig is a verification input. Neither is durable tooling, so neither belongs in the tree. The durable instruments DO: the harness, the contract test, the probe and the vitest test, all wired to the chain by line-range extraction so they keep running."
+          }
+        ],
+        "paths_changed": [
+          "supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql (NEW)",
+          "supabase/tests/db016_workforce_role_seed_contract.sql (NEW)",
+          "supabase/tests/db016_workforce_role_seed.harness.sh (NEW)",
+          "supabase/tests/db016_capability_gate_probe.mjs (NEW)",
+          "__tests__/admin/db016-capability-matrix-agreement.test.ts (NEW)",
+          "docs/engineering/migration-validation/20260926200000_org_role_permissions_workforce_seed.json (NEW)",
+          "docs/engineering/handoffs/pending/HF-DB-016-WORKFORCE-ROLE-SEED-APPLY.json (NEW)",
+          "docs/engineering/handoffs/pending/HF-WFC-004-WORKFORCE-RBAC-PROVISIONING.json (one actioned_by_DB_016 block appended; nothing else touched)",
+          "docs/engineering/tasks/active/DB-016.json (this record)"
+        ],
+        "the_exact_perms_change_per_role": {
+          "owner": {
+            "before": "org.manage, org.invite, event.manage, offer.manage, task.manage, schedule.manage, staff.manage, finance.manage, report.view, storage.read, storage.write",
+            "added": [
+              "workforce.manage",
+              "workforce.publish",
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "admin": {
+            "before": "org.invite, event.manage, offer.manage, task.manage, schedule.manage, staff.manage, finance.manage, report.view, storage.read, storage.write",
+            "added": [
+              "workforce.manage",
+              "workforce.publish",
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "tour_manager": {
+            "before": "event.manage, offer.manage, task.manage, schedule.manage, staff.manage, report.view, storage.read, storage.write, org.invite",
+            "added": [
+              "workforce.manage",
+              "workforce.publish",
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "production": {
+            "before": "event.manage, task.manage, schedule.manage, staff.manage, report.view, storage.read, storage.write",
+            "added": [
+              "workforce.manage",
+              "workforce.publish",
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "production_manager": {
+            "before": "(no matrix row)",
+            "added": [
+              "workforce.manage",
+              "workforce.publish",
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "finance": {
+            "before": "finance.manage, report.view, storage.read",
+            "added": [
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "finance_manager": {
+            "before": "(no matrix row)",
+            "added": [
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "viewer": {
+            "before": "(no matrix row)",
+            "added": [
+              "workforce.view"
+            ],
+            "removed": []
+          },
+          "department_manager": {
+            "before": "(no matrix row)",
+            "added": [
+              "workforce.publish",
+              "workforce.view"
+            ],
+            "removed": [],
+            "withheld": [
+              "workforce.manage"
+            ]
+          },
+          "ticketing": {
+            "before": "(no matrix row)",
+            "added": [],
+            "removed": [],
+            "note": "row created with an EMPTY perms array, behaviourally identical to the absent row it replaces"
+          },
+          "ticketing_manager": {
+            "before": "(no matrix row)",
+            "added": [],
+            "removed": [],
+            "note": "row created with an EMPTY perms array"
+          },
+          "worker": {
+            "before": "(no matrix row)",
+            "added": [],
+            "removed": [],
+            "note": "row created with an EMPTY perms array; the worker own-row read through staff_members_worker_read_own is untouched"
+          }
+        },
+        "blast_radius_measured": {
+          "method": "A full-text scan of the active chain for every quoted 'workforce.*' permission, plus a scan of app/api and lib for every workforce capability reference.",
+          "rls_predicates_that_consume_these_permissions": "staff_members_scoped_read / _insert / _update (20260926150000:173-197), staff_shifts_scoped_read / _insert / _update / _write (20260821031214:125-170), the staff-zone and site-map helpers (20260903120000:782-783, :1793-1826), and fifteen tour-collaboration policies (20260720020544:215-322). Every one of them is org_id-scoped, which is what bounds the widening, and the harness proves the bound holds for all twelve roles.",
+          "route_files_gating_on_them": "30 files reference a workforce capability; 18 of them gate a route handler on it, including app/api/admin/staff/route.ts:17,79,150,172 (staff_members), app/api/admin/tours/teams/route.ts:28,54,78,106, app/api/admin/tours/team-members/route.ts:116,156,257,331, app/api/admin/workforce/*, the tour team and invite routes, and the event staff routes. app/api/admin/events/[id]/work-mode/route.ts:32 is the only workforce.publish gate, and no RLS policy reads workforce.publish anywhere — so publish changes the route gate and the matrix's agreement with it, not any row-level access."
+        },
+        "verification": [
+          "bash supabase/tests/db016_workforce_role_seed.harness.sh -> ALL CHECKS PASSED, 64 PASS / 0 FAIL, exit 0, twice byte-identical.",
+          "npx vitest run __tests__/admin/db016-capability-matrix-agreement.test.ts -> 7 passed / 10 skipped without the fixture; 17 passed with it (harness-driven).",
+          "node scripts/ci/check-migration-validation.mjs supabase/migrations/20260926200000_org_role_permissions_workforce_seed.sql -> exit 0.",
+          "npm run check:migration-chain -> exit 0, 312 files scanned, no duplicate policy creations.",
+          "npm run check:migration-validation (default, the gate) -> exit 0.",
+          "npm run agents:validate -> exit 0, 17 agents / 181 tasks / 0 warnings / 0 errors.",
+          "npx eslint on the two new TS/JS files -> exit 0 after --fix; npx tsc -p /tmp/db016-slice.json -> exit 0.",
+          "node scripts/ci/check-migration-validation.mjs --all -> exit 1, 77 failures on 276 scanned, 46 2025-era and 31 2026-era, matching DB-014's recorded figures exactly; 0 caused by DB-016 and DB-016's own migration reported clean in the same run.",
+          "Not run and not claimed: npm run verify:feature, full-repo npm run typecheck (CP-106), npm run generate:database-types, npm run check:database-types, supabase db lint --local, npm run agents:generate, and every hosted probe. No hosted evidence of any kind."
+        ]
+      }
+    ]
+  },
+  "handoffs": [
+    {
+      "id": "HF-DB-016-WORKFORCE-ROLE-SEED-APPLY",
+      "to": "release",
+      "status": "pending",
+      "path": "docs/engineering/handoffs/pending/HF-DB-016-WORKFORCE-ROLE-SEED-APPLY.json",
+      "purpose": "The manual CP-051 apply, the seven preflight queries, the acting-context re-activation walkthrough as a PREFLIGHT step, the postflight contract, and eight real-caller probes across six identities — with five stop conditions, the exact per-role perms change, and what each correct result looks like."
+    }
+  ],
+  "execution_state": "done",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "database",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "No further work on this record; use the recorded successor or product verification gate.",
+  "blocked_on": []
+}

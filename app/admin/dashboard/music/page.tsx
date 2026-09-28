@@ -20,6 +20,8 @@ import { MusicCreatorInteropConventionOpsPanel } from "@/components/admin/music-
 import { MusicCreatorInteropOrganizationOpsPanel } from "@/components/admin/music-creator-interop-organization-ops-panel"
 import { MusicCreatorInteropInstitutionOpsPanel } from "@/components/admin/music-creator-interop-institution-ops-panel"
 import { MusicCreatorTreatyOpsPanel } from "@/components/admin/music-creator-treaty-ops-panel"
+import { MusicCreatorTreatyRenewalOpsPanel } from "@/components/admin/music-creator-treaty-renewal-ops-panel"
+import { MusicCreatorTreatyLegacyOpsPanel } from "@/components/admin/music-creator-treaty-legacy-ops-panel"
 
 interface AdminTrack {
   id: string
@@ -121,6 +123,8 @@ export default async function MusicPage() {
       <MusicCreatorInteropOrganizationOpsPanel />
       <MusicCreatorInteropInstitutionOpsPanel />
       <MusicCreatorTreatyOpsPanel />
+      <MusicCreatorTreatyRenewalOpsPanel />
+      <MusicCreatorTreatyLegacyOpsPanel />
     </div>
   )
 }

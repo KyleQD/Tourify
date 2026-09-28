@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tourify.local/schemas/engineering-task.v2.json",
+  "title": "Tourify engineering task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "title",
+    "status",
+    "execution_state",
+    "priority",
+    "owner_agent",
+    "outcome_id",
+    "deliverable_class",
+    "decision_owner",
+    "created_at",
+    "updated_at",
+    "base_sha",
+    "goal",
+    "scope",
+    "working_set",
+    "shared_working_set",
+    "references",
+    "depends_on",
+    "resume_condition",
+    "blocked_on",
+    "acceptance_criteria",
+    "verification",
+    "progress",
+    "handoffs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9-]{2,63}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
+    "status": {
+      "enum": [
+        "active",
+        "blocked",
+        "completed"
+      ]
+    },
+    "execution_state": {
+      "enum": [
+        "ready",
+        "in_progress",
+        "verifying",
+        "waiting_dependency",
+        "waiting_external",
+        "waiting_decision",
+        "queued_postlaunch",
+        "done",
+        "superseded",
+        "cancelled"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    "owner_agent": {
+      "type": "string"
+    },
+    "outcome_id": {
+      "enum": [
+        "CORE-WEB-LAUNCH",
+        "POSTLAUNCH-LOGISTICS",
+        "POSTLAUNCH-WORKFORCE",
+        "DEFERRED-MOBILE",
+        "DEFERRED-MUSIC-ADVANCED",
+        "MAINTENANCE-DEBT"
+      ]
+    },
+    "deliverable_class": {
+      "enum": [
+        "implementation",
+        "contract",
+        "verification",
+        "release",
+        "orchestration",
+        "maintenance"
+      ]
+    },
+    "decision_owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "base_sha": {
+      "type": "string"
+    },
+    "working_tree_status": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 3
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "in",
+        "out"
+      ],
+      "properties": {
+        "in": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "out": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "working_set": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "shared_working_set": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "resume_condition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "blocked_on": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "owner",
+          "condition",
+          "dependency_task_ids"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "dependency",
+              "external",
+              "decision",
+              "postlaunch"
+            ]
+          },
+          "owner": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "string"
+          },
+          "dependency_task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "criterion",
+          "owner",
+          "state",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "criterion": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "met",
+              "failed",
+              "transferred"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "transferred_to": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier",
+        "gates"
+      ],
+      "properties": {
+        "tier": {
+          "enum": [
+            "fast",
+            "feature",
+            "release"
+          ]
+        },
+        "gates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "level",
+              "owner",
+              "required_for",
+              "result",
+              "commands",
+              "evidence",
+              "last_run_sha",
+              "last_run_at"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "level": {
+                "enum": [
+                  "local",
+                  "hosted",
+                  "release"
+                ]
+              },
+              "owner": {
+                "type": "string"
+              },
+              "required_for": {
+                "enum": [
+                  "task",
+                  "product"
+                ]
+              },
+              "result": {
+                "enum": [
+                  "not_run",
+                  "pass",
+                  "fail",
+                  "not_applicable"
+                ]
+              },
+              "commands": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "last_run_sha": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "last_run_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "completed",
+        "next_steps",
+        "blockers",
+        "checkpoints"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "completed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "next_steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "checkpoints": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "handoffs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

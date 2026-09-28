@@ -39,6 +39,7 @@ const context = {
   candidateIdByDocumentId,
   rosterMembersById,
   jobsById,
+  employerQueryString: "entity_type=organization&entity_id=11111111-1111-4111-8111-111111111111",
 }
 
 describe("presentHiringAuditActivity", () => {
@@ -76,6 +77,7 @@ describe("presentHiringAuditActivity", () => {
 
     expect(activity.action).toBe("Application approved")
     expect(activity.description).toBe("Kyle Daley was approved for Bartender.")
+    expect(activity.target).toMatchObject({ type: "application", id: applicationId })
   })
 
   it("describes onboarding review decisions in plain English", () => {
@@ -92,6 +94,7 @@ describe("presentHiringAuditActivity", () => {
     expect(activity.action).toBe("Onboarding changes requested")
     expect(activity.description).toBe("Kyle Daley was asked to update their onboarding information.")
     expect(activity.subjectName).toBe("Kyle Daley")
+    expect(activity.target?.href).toContain(`candidateId=${candidateId}`)
   })
 
   it("describes document events through the linked candidate", () => {
@@ -125,6 +128,34 @@ describe("presentHiringAuditActivity", () => {
 
     expect(activity.action).toBe("Team assignment updated")
     expect(activity.description).toBe("Kyle Daley's team assignment was updated.")
+    expect(activity.target?.href).toContain(`memberId=${rosterMemberId}`)
+  })
+
+  it("routes completed onboarding to the candidate even when an application is linked", () => {
+    const activity = presentHiringAuditActivity({
+      id: "evt_7",
+      event_type: "onboarding_candidate_submitted",
+      application_id: applicationId,
+      job_id: jobId,
+      subject_type: "staff_onboarding_candidate",
+      subject_id: candidateId,
+      created_at: "2026-07-09T00:00:00.000Z",
+    }, context)
+
+    expect(activity.action).toBe("Onboarding ready for review")
+    expect(activity.target).toMatchObject({ type: "candidate", id: candidateId, actionLabel: "Review onboarding" })
+  })
+
+  it("routes job lifecycle activity to the posting", () => {
+    const activity = presentHiringAuditActivity({
+      id: "evt_8",
+      event_type: "job_archived",
+      job_id: jobId,
+      created_at: "2026-07-09T00:00:00.000Z",
+    }, context)
+
+    expect(activity.action).toBe("Job posting archived")
+    expect(activity.target).toMatchObject({ type: "job", id: jobId, actionLabel: "Manage job" })
   })
 
   it("cleans unknown event labels and hides technical descriptions", () => {

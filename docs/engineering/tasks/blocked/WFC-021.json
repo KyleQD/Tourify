@@ -1,0 +1,133 @@
+{
+  "schema_version": "2.0",
+  "id": "WFC-021",
+  "title": "Certify the integrated Workforce Command Center",
+  "status": "blocked",
+  "priority": "P1",
+  "owner_agent": "qa",
+  "created_at": "2026-09-26T00:45:18.000Z",
+  "updated_at": "2026-09-27T19:59:08.554Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "clean before WFC control-plane update",
+  "goal": "Provide exact-SHA security, full-story E2E, visual/accessibility, parity, resilience, and performance certification for WFC rollout.",
+  "scope": {
+    "in": [
+      "Complete persona authorization matrix",
+      "Browser-to-API-to-database journeys",
+      "Responsive visual and accessibility regression",
+      "Partial-source and legacy parity",
+      "25-department/2000-worker/10000-shift-action scale"
+    ],
+    "out": [
+      "Passing skipped tests",
+      "Replacing hosted evidence with local assumptions"
+    ]
+  },
+  "working_set": [
+    "tests/e2e/**",
+    "__tests__/workforce/**",
+    "__tests__/admin/workforce/**",
+    "docs/engineering/qa/**"
+  ],
+  "references": [
+    "docs/engineering/exec-plans/active/WFC-COMMAND-CENTER-20260926.md",
+    "docs/engineering/tasks/blocked/WFC-002.json",
+    "docs/engineering/tasks/blocked/WFC-009.json"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "All admin, department manager, finance, worker, vendor, revoked, unauthenticated, cross-department, and cross-org cases pass without skips",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Full create-to-payroll workflow survives reload and records audit evidence",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "criterion": "No serious/critical accessibility or core responsive defect remains",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Exact-field and monetary parity mismatches are zero and failures never become false zeroes",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "criterion": "API p95 is at most 1.2 seconds and critical mutations succeed at least 99.5 percent at representative scale",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "criterion": "At least 90 percent first-pass completion and 25 percent faster workforce triage versus WFC-002",
+      "owner": "qa",
+      "state": "not_started",
+      "evidence": []
+    }
+  ],
+  "verification": {
+    "tier": "release",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "qa",
+        "required_for": "task",
+        "result": "not_run",
+        "commands": [
+          "npm run test:rls-matrix",
+          "npx playwright test --workers=1",
+          "npm run verify:release",
+          "npm run agents:validate"
+        ],
+        "evidence": [],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Blocked until WFC-009 through WFC-020 are integrated on an exact-SHA target.",
+    "completed": [],
+    "next_steps": [
+      "Consume all implementation handoffs and WFC-002 baseline",
+      "Run certification and publish a signed pass/fail recommendation"
+    ],
+    "blockers": [
+      "WFC-009 through WFC-020 must complete",
+      "An isolated exact-SHA environment and protected actors are required"
+    ],
+    "checkpoints": []
+  },
+  "handoffs": [
+    "QA → Release: exact-SHA certification, defects, performance measurements, and rollout recommendation for WFC-022"
+  ],
+  "execution_state": "queued_postlaunch",
+  "outcome_id": "POSTLAUNCH-WORKFORCE",
+  "deliverable_class": "verification",
+  "decision_owner": "qa",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Consume all implementation handoffs and WFC-002 baseline",
+  "blocked_on": [
+    {
+      "type": "postlaunch",
+      "owner": "qa",
+      "condition": "WFC-009 through WFC-020 must complete",
+      "dependency_task_ids": []
+    }
+  ]
+}

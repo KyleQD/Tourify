@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-019",
+  "title": "Retire venue resizable primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:46.103Z",
+  "updated_at": "2026-09-11T20:07:24.267Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/resizable.tsx to components/ui/resizable.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/resizable.tsx",
+      "components/ui/resizable.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/resizable.tsx",
+    "components/ui/resizable.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/resizable|@/components/venue/ui/resizable\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/resizable.tsx components/ui/resizable.tsx",
+      "git diff --check -- components/venue/ui/resizable.tsx components/ui/resizable.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "rg venue twin zero-use audit: 0 matches across app, components, hooks, lib, apps, __tests__, scripts (glob *.{ts,tsx,js,jsx,mjs,cjs}); exit 1 (no matches). No live consumer imports @/components/venue/ui/resizable or components/venue/ui/resizable.",
+      "Canonical import inventory: 0 matches for components/ui/resizable across the same search roots; 0 venue-surface consumers under app/venue/** and components/venue/**.",
+      "Twin parity: shasum 3fee2768ba56dc432625c1e0ab9e207927a6fce3 for both files; diff output empty (byte-identical, 1723 bytes each). Public exports match exactly: ResizablePanelGroup, ResizablePanel, ResizableHandle (line 45 of both files).",
+      "Register (CANONICAL_COMPONENT_REGISTER.csv, DUP-079): components/venue/ui/resizable.tsx = 'Venue shared' / 'retire later' -> canonical components/ui/resizable.tsx ('keep'), note 'Exact duplicate; preserve until imports move and zero-use evidence is recorded.' A third route-local twin app/venue/components/ui/resizable.tsx is also registered 'retire later' (informational; 0 consumers; out of this task's scope).",
+      "Disposition: canonical keep; consumers already-migrated (zero live imports of both paths); venue twin retire-later compatibility debt now backed by zero-use evidence. Deletion NOT authorized in this audit-only pass."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:07:24.267Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded resizable audit complete. The venue resizable twin has zero consumers on either path; files are byte-identical with 3-export parity and remain registered retire-later (DUP-079). Twin retained.",
+    "completed": [
+      "Zero-use consumer audit of components/venue/ui/resizable (0 matches).",
+      "Canonical import inventory (0 imports; 0 venue-surface consumers under app/venue/** and components/venue/**).",
+      "Twin characterization: byte-identical copies with full public export parity (shasum 3fee2768ba56dc432625c1e0ab9e207927a6fce3).",
+      "Register-consistent disposition recorded (canonical keep, venue twin retire-later under DUP-079).",
+      "Verification: rg (0 matches), eslint (clean, exit 0), git diff --check (clean, exit 0), agents:validate (17 agents / 93 tasks / 0 warnings / 0 errors)."
+    ],
+    "next_steps": [
+      "Orchestrator reconciles: deletion of components/venue/ui/resizable.tsx remains NOT authorized in this pass; future migration/deletion task may ride on this zero-use evidence.",
+      "Route-local third twin app/venue/components/ui/resizable.tsx (also registered retire-later, 0 consumers) is out of scope for DESIGN-019; consider a follow-up task if desired."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:05:30.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Audit-only pass complete: twin byte-identical to canonical (matching shasum, full export parity), 0 live imports of either path repo-wide, register DUP-079 disposition confirmed. All 4 verification commands pass. Task stays active with result pass; no files deleted or edited."
+      },
+      {
+        "at": "2026-09-11T20:07:24.267Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded resizable audit complete. The venue resizable twin has zero consumers on either path; files are byte-identical with 3-export parity and remain registered retire-later (DUP-079). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

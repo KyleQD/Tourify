@@ -1,0 +1,311 @@
+{
+  "schema_version": "2.0",
+  "id": "MKT-004",
+  "title": "Marketplace transaction launch readiness",
+  "status": "active",
+  "priority": "P0",
+  "owner_agent": "marketplace",
+  "created_at": "2026-09-16T19:20:39.600Z",
+  "updated_at": "2026-09-27T21:47:55.312Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty (758 entries)",
+  "goal": "Complete and certify the marketplace buyer, seller, order, payout, cancellation, refund, and webhook lifecycle",
+  "scope": {
+    "in": [
+      "Listings, storefronts, carts, checkout, orders, seller onboarding, payouts, cancellation, refunds, webhooks, audit trails, and authorization"
+    ],
+    "out": [
+      "Advanced music rights and institutional commerce integrations"
+    ]
+  },
+  "working_set": [
+    "app/api/marketplace/**",
+    "lib/marketplace/**",
+    "__tests__/marketplace/**",
+    "tests/e2e/marketplace/**"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "The deployed staging listing-to-payout lifecycle passes in Stripe test mode",
+      "owner": "marketplace",
+      "state": "not_started",
+      "evidence": [
+        "STATE not_started means the criterion as written is NOT met: it is a deployed-staging claim with no hosted evidence. It does NOT mean no work was done. The application paths the criterion certifies are locally covered; the hosted run has not happened.",
+        "BLOCKED. No staging deployment, no Stripe test-mode credentials, no hosted webhook evidence in this environment. No payment-provider call was made and no Stripe result is claimed.",
+        "Local preconditions now in place for whoever runs it: checkout idempotency and no-double-charge, webhook replay takeover, monotonic paid/failed/refunded transitions, cancellation, refund, and buyer-scoped entitlement download are covered by 21 files / 205 vitest tests and 11 jest suites / 52 tests."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Buyer, seller, and tenant authorization denials pass at the server boundary",
+      "owner": "marketplace",
+      "state": "not_started",
+      "evidence": [
+        "STATE not_started means the criterion as written is NOT met, because the tenant third is blocked. It does NOT mean buyer and seller denials are absent; the sub-part breakdown follows.",
+        "MET and locally tested \u2014 buyer denial. app/api/marketplace/delivery/[orderItemId]/route.ts returns 403 to a non-buyer and its increment is filtered on buyer_user_id; the guest claim route refuses unsettled payments and refuses a claim that loses the buyer_user_id race.",
+        "MET and locally tested \u2014 seller denial. orders/[id]/refund resolves the actor server-side and returns 403 to a buyer and to a non-participant before any Stripe call; orders/[id]/cancel does the same and then routes a seller to the buyer-only cancellation rule.",
+        "MET and locally tested \u2014 persona/tenant denial. A verified venue, artist, service, or organization acting persona that owns seller_user_id is denied 403 persona_storefront_schema_not_ready at both money routes, using the same canonical identity contract the listing and storefront launch gates already apply. Previously the persona gate covered the create path but not the money paths.",
+        "NOT MET \u2014 real tenant-scoped authorization. The order lifecycle is scoped by seller_user_id alone; seller_entity_id and seller_entity_type appear in no active migration, so the persona columns are still MKT-002 schema. Asserted denial is not tenant scoping. This is a blocker, not a claim."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "criterion": "Money mutations and webhooks are idempotent, replay-safe, auditable, and produce safe error states",
+      "owner": "marketplace",
+      "state": "not_started",
+      "evidence": [
+        "STATE not_started means the criterion as written is NOT met, because replay safety is unproven against a real database. It does NOT mean the invariants are unverified locally; the sub-part breakdown follows.",
+        "MET locally \u2014 checkout idempotency. Keyed on the durable marketplace_checkout_attempts row plus the partial unique index on marketplace_orders.idempotency_key, never on an in-memory or pre-check flag. 8 route tests drive the real path, including the concurrent-first-request 23505 case, which creates zero Stripe sessions.",
+        "MET locally \u2014 webhook replay safety, fixed this wave. A previously failed event is now taken over and re-processed instead of being answered 200 as a duplicate, so a captured payment can no longer be left permanently unfulfilled. Previously a delivered retry was silently dropped.",
+        "MET locally \u2014 monotonic transitions. A redelivered paid session cannot resurrect a refunded order; payment_failure cannot downgrade a captured order; a partial refund holds the payout without marking the order refunded; a live attempt with an order still resumes after its window closes.",
+        "MET locally \u2014 auditable and safe error states. The refund route fails closed with refund_audit_failed when its idempotency ledger write matches no row; the event row persists only last_error='internal_error' with no raw provider payload and no database message; a lost CAS returns 409 rather than a signed URL.",
+        "NOT MET \u2014 replay safety against a real database. Every assertion runs against an in-memory stand-in for the service-role client. The unique constraints, the RLS posture, and genuine 23505 behaviour are SQL contracts proven by the database lane's DB-011 harness, not by these tests.",
+        "RESIDUAL RISK recorded, not fixed. A delivery killed mid-processing leaves a row in processing_status='processing', which the claim does not take over. Reclaiming it safely needs a liveness signal such as processing_started_at, which is a database-lane schema change and outside this working set."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "criterion": "Deferred marketplace variants are gated and cannot bypass the canonical launch flow",
+      "owner": "marketplace",
+      "state": "not_started",
+      "evidence": [
+        "STATE not_started means the criterion as written is NOT met: it is a deployed-flow claim. It does NOT mean the gates are absent; the code-level gating is met and tested.",
+        "MET at code level, NOT certified deployed. lib/marketplace/__tests__/launch-gates.test.ts asserts physical, service, and external variants each stay 503 unless their own flag is set, and that enabling one does not enable another. The external-listing feed tests assert an unavailable listing publishes no redirectHref.",
+        "OPEN on hosted evidence. A deferred variant could only be proven unbypassable by running the flow on a deployment; no such run exists. No hosted result is claimed."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "release",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "marketplace",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run lib/marketplace/__tests__ __tests__/marketplace",
+          "npx jest --runTestsByPath <11 marketplace route suites> lib/marketplace/__tests__/checkout-p6.test.ts",
+          "npm run check:service-role-allowlist",
+          "npm run check:production-debug",
+          "npx eslint (12 focused marketplace files)",
+          "git diff --check (marketplace working set)",
+          "npm run agents:validate",
+          "npx tsc -p <scoped config: lib/marketplace/** + app/api/marketplace/**> --noEmit",
+          "Marketplace Vitest: 21 files, 205 tests passed",
+          "Marketplace route Jest: 11 suites, 52 tests passed",
+          "npm run check:service-role-allowlist: exit 0, 194 production files classified",
+          "npm run check:production-debug: passed, 40 unsafe routes in the production deny registry",
+          "npx eslint on 12 focused marketplace files: exit 0; git diff --check: exit 0",
+          "Scoped tsc over lib/marketplace/** + app/api/marketplace/**: 89 errors, all pre-existing",
+          "npm run agents:validate: 18 agents, 212 tasks, 99 pending handoffs, 0 warnings, 8 errors (all pre-existing, none in marketplace handoffs)",
+          "npm run agents:validate -- --strict: exits 1 with the same 8 pre-existing handoff errors in ADMIN-014/DB-008/INTG-033; not this lane's to fix",
+          "npm run test:e2e: NOT RUN \u2014 no deployment, no Supabase, no Stripe credentials"
+        ],
+        "evidence": [
+          "SCOPE OF THIS GATE RESULT. `pass` covers exactly the local commands listed below that are runnable in this environment, and all of them passed. `npm run test:e2e` and `npm run verify:release` were NOT run and are not claimed, and no tests/e2e/marketplace spec exists. This gate result says nothing about the deployed Stripe lifecycle (AC-1) or deployed variant gating (AC-4), which remain open.",
+          "Wave 35 (2026-09-27, base 16fb834f, dirty shared worktree). No hosted, Stripe, or payment-provider result is claimed by any gate in this record.",
+          "npx vitest run lib/marketplace/__tests__ __tests__/marketplace: 21 files, 205 tests passed. Baseline for this task was 19 files / 186 tests; the 19 new tests are the webhook money path, the order actor authorization, and the checkout idempotency units.",
+          "npx jest --runTestsByPath over 11 marketplace suites (checkout route, order-access, success-url, checkout idempotency, delivery, cancel, refund, storefront, discover, backfill guards, checkout-p6): 11 suites, 52 tests passed.",
+          "Four assertions in this wave failed against the pre-fix code and pass now: a previously-failed webhook event was dropped as duplicate; a failed Stripe session left the idempotency key claimed; retrying that key returned 409 instead of succeeding; an expired orderless attempt returned 409 checkout_in_progress instead of being reclaimable.",
+          "npm run check:service-role-allowlist: exit 0, 'service-role imports classified (194 production files: 181 historical, 31 reviewed remediation debt, 1 low-level factories)'. The recorded failure on app/api/venue/availability/route.ts and app/api/venue/reservations/route.ts no longer reproduces and that blocker is removed.",
+          "npm run check:production-debug: passed; 40 unsafe routes covered by the production deny registry.",
+          "npx eslint on the 12 focused marketplace files: exit 0. git diff --check on the marketplace working set: exit 0.",
+          "Scoped typecheck (tsc over lib/marketplace/** and app/api/marketplace/** only): 89 errors. Every one is pre-existing: the large majority are the stale lib/database.types.ts rejecting marketplace tables that ARE in the active chain, and one is a pre-existing Stripe.Checkout.SessionCreateParams typing at app/api/marketplace/checkout/route.ts:508. Zero errors in any file created or edited this wave. Full-repo typecheck was not run (control plane measured 68m18s / 1,384 errors) and no full-repo typecheck result is claimed.",
+          "npm run agents:validate (final run): 18 agents, 212 tasks, 99 pending handoffs, 0 warnings, 8 errors, and zero MKT-004 errors. The count moved between 8 and 18 across the session purely because concurrent lanes were writing and resolving handoffs in the shared worktree; every run reported zero MKT-004 errors. The errors that persist are ADMIN-014, HF-DB008 x4, HF-DESIGN-031, HF-INTG-033 x2 \u2014 all other-domain handoff bookkeeping. npm run agents:validate -- --strict exits 1 for the same set.",
+          "npm run test:e2e was NOT run and no tests/e2e/marketplace spec exists. Playwright's webServer requires a live app on localhost:3000 backed by a running Supabase and Stripe; supabase start is broken and disk is at 6.7 GiB free, so no marketplace e2e can be executed here. tests/e2e/launch-certification/ requires the protected QA_CERT fixture and a deployed URL.",
+          "DB-011 harnesses were not re-run by this lane. The database lane reported 33/33 on its own harness; this record repeats that number only as attributed evidence, not as a result produced here."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T21:45:00.000Z"
+      },
+      {
+        "id": "hosted-product",
+        "level": "hosted",
+        "owner": "qa",
+        "required_for": "product",
+        "result": "not_run",
+        "commands": [],
+        "evidence": [
+          "Transferred from the v1 task; this gate does not keep a locally complete domain implementation active."
+        ],
+        "last_run_sha": null,
+        "last_run_at": null
+      }
+    ]
+  },
+  "progress": {
+    "summary": "Record correction: acceptance states normalised to the control-plane enum (not_started for all four, with per-criterion evidence stating exactly which sub-parts are met locally and which are not), the check:service-role-allowlist blocker removed after re-running it to exit 0, and the two local_only_unapplied schema blockers corrected now that marketplace_checkout_attempts and marketplace_external_listings are in the active chain. Removed a now-unreachable seller_required branch from the refund route since the explicit role check above it is authoritative.",
+    "completed": [
+      "lib/marketplace/webhook-processor.ts: a claimWebhookEvent step replaces the bare insert guard. A unique-violation event row previously returned duplicate unconditionally, so when a handler had failed and recorded the row as failed, Stripe's own retry was answered 200 and the captured payment was never fulfilled. A row already recorded as failed is now taken over under a conditional update on processing_status, with attempts incremented, and re-processed; only a processed row is a duplicate. Every downstream handler is already idempotent, so the takeover cannot double-charge or double-fulfil.",
+      "app/api/marketplace/checkout/route.ts: the Stripe-init rollback now deletes the claimed marketplace_checkout_attempts row. Previously the row survived with a null order_id, and every retry of that key returned 409 checkout_in_progress for the full 30-minute window even though no money was ever taken and the order had been deleted.",
+      "lib/marketplace/checkout-idempotency.ts: resolveCheckoutAttempt is expiry-aware and returns a new reclaim action for a pending attempt that has no order and has passed expires_at. Reclaiming is safe because no order exists to duplicate, the partial unique index on marketplace_orders.idempotency_key still serialises a concurrent winner, and the Stripe session call is keyed by the same client key. A pending attempt that still has an order keeps resuming after its window closes, because resume reuses the same order and the same session and therefore cannot double-charge.",
+      "lib/marketplace/order-authorization.ts plus wiring in app/api/marketplace/orders/[id]/cancel/route.ts and app/api/marketplace/orders/[id]/refund/route.ts: a verified venue, artist, service, or organization acting persona that owns seller_user_id is now denied 403 persona_storefront_schema_not_ready at the server boundary, using the same canonical identity contract the listing and storefront launch gates already apply. Before this the persona gate was applied on the create path but not on the money paths, so a persona actor could mutate money on an order whose seller identity the active schema cannot represent.",
+      "Verified the recorded check:service-role-allowlist blocker is stale and removed it: the gate exits 0 with 194 production files classified and no marketplace file in the failure list.",
+      "Verified and corrected the recorded schema blockers: marketplace_checkout_attempts and marketplace_external_listings are no longer local_only_unapplied. They landed in the active chain as 20260926120000_marketplace_checkout_idempotency_and_guest_checkout.sql and 20260926120100_marketplace_external_listing_surface.sql, and marketplace_payment_events and marketplace_fee_rules landed as 20260926140100_marketplace_money_path_tables.sql. Checkout no longer fails closed with 503 schema_not_ready on an environment built from the active chain.",
+      "Removed the stale SEC-109 style assumptions and confirmed the recorded service-role debt that genuinely remains: app/marketplace/order/order-access.ts and app/api/marketplace/delivery/[orderItemId]/route.ts are the only marketplace replace_with_rpc entries, and both are unaffected by this wave.",
+      "New regression coverage: lib/marketplace/__tests__/webhook-money-path.test.ts (9 tests) for replay takeover, duplicate suppression, monotonic paid/failed/refunded transitions, and non-persistence of provider payloads and database messages; lib/marketplace/__tests__/order-authorization.test.ts (7 tests) for buyer, seller, stranger, venue-persona, and organization-persona actor resolution; app/api/marketplace/checkout/__tests__/idempotency.test.ts (8 tests) driving the route against an in-memory ledger that reproduces both the checkout_attempts unique key and the marketplace_orders idempotency unique index; plus 4 new units in lib/marketplace/__tests__/checkout-idempotency.test.ts.",
+      "Updated two existing route suites whose fixtures encoded the old behaviour: the seller fixtures in the refund and cancel suites used accountType 'artist', which under the canonical identity contract is a persona that must fail closed. They now use a general account for the allowed-seller case and carry explicit persona-denial tests, so the original 'a seller cannot use the buyer cancellation flow' and 'only the seller refunds' intents stay covered.",
+      "Corrected two mock shapes in lib/marketplace/__tests__/checkout-p6.test.ts that the processor's new duplicate-path read exposed: the duplicate test now models a processed prior row, and the two connectKind literals were corrected to the real 'v1_express' type."
+    ],
+    "next_steps": [
+      "Task stays active. AC-1 and AC-4 need a staging deployment and Stripe test-mode credentials; AC-2's tenant half and AC-3's real-database replay half need MKT-002 schema and a hosted run respectively."
+    ],
+    "blockers": [
+      "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence is available to this lane, so AC-1 and AC-4 cannot be certified here. No payment-provider or hosted result is claimed anywhere in this record.",
+      "Tenant (organization/venue) authorization is only half met. Persona denials now fail closed at the server boundary, but the order lifecycle is still scoped by seller_user_id only: seller_entity_id and seller_entity_type appear in no active migration, so real tenant-scoped authorization depends on the MKT-002 schema reconciliation.",
+      "lib/database.types.ts does not contain record_marketplace_entitlement_download or the marketplace tables that the active chain now creates, so the delivery route cannot adopt the single-statement buyer-scoped increment RPC and scoped typecheck reports 89 pre-existing errors across the working set. The types file belongs to the database lane and was not hand-edited here.",
+      "Webhook replay safety is locally proven only against an in-memory stand-in for the service-role client. The unique constraints, the RLS posture, and real 23505 behaviour are SQL contracts covered by the database lane's DB-011 harness, not by these tests, and no hosted replay certification exists.",
+      "A webhook delivery killed mid-processing leaves marketplace_payment_events in processing_status='processing', which the claim does not take over. Reclaiming it safely needs a liveness signal that does not exist in the schema; recorded as a residual risk rather than fixed.",
+      "Full repository npm run typecheck was not run: the control plane measured it at 68m18s with 1,384 errors across 407 files. No full-repo typecheck result is claimed from this lane.",
+      "npm run agents:validate -- --strict exits 1 with 8 errors at the final run, none of them MKT-004 and none of them marketplace: ADMIN-014, HF-DB008 x4, HF-DESIGN-031, HF-INTG-033 x2. The count oscillated between 8 and 18 during this task because concurrent lanes were writing and resolving handoffs in the shared worktree; every run reported zero MKT-004 errors. Not this lane's to fix.",
+      "Supabase is unusable in this environment: supabase start is broken and disk has 6.7 GiB free, so no migration was applied, no chain replay was attempted, and no database-level verification was performed by this lane. No additive migration was authored this wave."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-17T04:41:34.835Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Implemented marketplace checkout idempotency and launch gates, Stripe refund/payout safety, pending-order cancellation, seller refund request authorization, and audit transitions. Marketplace Vitest passed (15 files, 147 tests); route Jest passed (4 suites, 10 tests); hosted Stripe lifecycle remains unverified.",
+        "completed": [
+          "Fail-closed checkout idempotency with payload conflict protection",
+          "Canonical per-account and per-variant launch gates",
+          "Refund, payout hold, cancellation, and seller authorization hardening"
+        ],
+        "next_steps": [
+          "Run deployed Stripe test-mode listing-to-payout lifecycle and replay certification",
+          "Reconcile canonical storefront with MKT-002 and hosted schema truth"
+        ],
+        "blockers": [
+          "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence",
+          "Distributed database uniqueness and canonical refund replay semantics still require staging verification"
+        ]
+      },
+      {
+        "at": "2026-09-18T04:52:32.433Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Focused shared-worktree verification passed: marketplace Vitest 16 files/157 tests and marketplace route Jest 3 suites/8 tests. Full typecheck was bounded and interrupted after no diagnostics; hosted Stripe lifecycle remains unverified. QA-004 2026-09-23 launch round routed SIM-20260922-MKT-004 (checkout idempotency burns keys/strands orders on session expiry) to this task and MKT-005.",
+        "completed": [],
+        "next_steps": [
+          "Run deployed Stripe test-mode listing-to-payout lifecycle and replay certification",
+          "Reconcile canonical storefront with MKT-002 and hosted schema truth"
+        ],
+        "blockers": [
+          "Full repository typecheck did not complete within bounded window",
+          "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence"
+        ]
+      },
+      {
+        "at": "2026-09-22T15:56:34Z",
+        "sha": "623b576b7963d4a2eccb2fbf83f24f2011842a83 (dirty working tree)",
+        "summary": "QA-004 product repair validation rerun (2026-09-22): Marketplace lifecycle Vitest: 15 files, 147 tests passed; local only. Hosted Stripe listing-to-payout and replay certification remains open.",
+        "completed": [
+          "Focused local regression verification passed; no new product code changes in this lane."
+        ],
+        "next": "Rerun on one isolated staging deployment and exact SHA after environment, schema, authorization, actor, and payment gates are proven."
+      },
+      {
+        "at": "2026-09-25T18:00:52Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f (dirty working tree)",
+        "summary": "Hardened feed commerce external-listing CTA projection so unavailable listings and unapproved provider safety records no longer expose redirect URLs. This is local launch-hardening only; hosted Stripe listing-to-payout certification remains open.",
+        "completed": [
+          "Dead external listing feed attachments now publish no redirectHref unless the listing is published, moderation-approved, external, and its provider safety record is approved.",
+          "Added focused regression coverage for unavailable listings, blocked/missing provider safety records, and the approved external listing redirect path."
+        ],
+        "verification": [
+          "npx vitest run lib/marketplace/__tests__/feed-attachment.test.ts: 1 file, 17 tests passed",
+          "npx vitest run lib/marketplace/__tests__: 15 files, 153 tests passed"
+        ],
+        "next": "Hosted staging Stripe lifecycle and replay certification still need environment credentials and an isolated deployment."
+      },
+      {
+        "at": "2026-09-25T20:33:08.706Z",
+        "sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+        "summary": "Wave 33: cleared the SEC-109 stale reviewed-debt entry that was failing the governance gate, hardened two money paths, and produced a criterion-by-criterion launch assessment. Guest order claim now refuses unsettled payments and refuses a claim that loses the buyer_user_id race instead of reporting success; seller refund now fails closed when its idempotency audit write matches no row. Checkout idempotency, buyer/seller authorization, webhook replay handling and variant gating are enforced and locally tested, but the deployed Stripe lifecycle and tenant-scope authorization remain unproven.",
+        "completed": [
+          "Removed the stale SEC-109 entry for app/marketplace/order/[token]/page.tsx and re-registered the debt that actually remains on app/marketplace/order/order-access.ts and app/api/marketplace/delivery/[orderItemId]/route.ts, so no marketplace path fails the service-role gate any more.",
+          "app/api/marketplace/order/[token]/claim/route.ts now requires payment_status paid or refunded before linking an order to an account or resolving its digital entitlements, closing a fail-open path where an unpaid guest order could be claimed.",
+          "app/api/marketplace/order/[token]/claim/route.ts verifies the guarded claim write with select/maybeSingle and returns 409 when a concurrent request won the race, so the losing caller is never told it claimed the order and never backfills entitlements under its own user id.",
+          "app/api/marketplace/orders/[id]/refund/route.ts verifies its lifecycle-audit write with select/maybeSingle and returns refund_audit_failed on an empty result, so a refund can no longer be reported as recorded when the idempotency ledger row was never written.",
+          "Established that marketplace_checkout_attempts and marketplace_external_listings are absent from the active migration chain and from lib/database.types.ts, which makes checkout fail closed with schema_not_ready on any environment built from that chain; routed to database as HF-DB-009."
+        ],
+        "next_steps": [
+          "Land the additive schema reconciliation for marketplace_checkout_attempts (archive 20260728000011) and marketplace_external_listings (archive 20260728000003) before any checkout certification attempt; checkout currently cannot reach Stripe without the former.",
+          "Accept HF-DB-009-MARKETPLACE-TYPE-AND-RPC-SURFACE in the database lane to regenerate lib/database.types.ts and add a single-statement buyer-scoped marketplace_entitlements download-increment RPC.",
+          "Run the deployed Stripe test-mode listing-to-payout lifecycle and replay certification on one isolated staging deployment at an exact SHA, with campaign actors, once the schema reconciliation has landed and HF-DB-009 is accepted.",
+          "Decide whether to add tenant (organization/venue) scope to the marketplace order lifecycle; marketplace is seller_user_id-scoped only, so the tenant-authorization half of this criterion cannot be met while seller_entity_id/seller_entity_type stay archive-only."
+        ],
+        "blockers": [
+          "No staging deployment, Stripe test-mode credentials, or hosted webhook evidence is available to this lane, so the deployed listing-to-payout lifecycle criterion cannot be certified here. No payment-provider or hosted result is claimed.",
+          "marketplace_checkout_attempts is local_only_unapplied (archive MANIFEST.csv:257) and absent from the active chain, so the checkout idempotency ledger does not exist on any environment built from supabase/migrations/; the route fails closed with 503 schema_not_ready. The 23505 unique-violation race handling at app/api/marketplace/checkout/route.ts:408 is therefore untested against a real constraint.",
+          "marketplace_external_listings is local_only_unapplied (archive MANIFEST.csv:249) and absent from the active chain and from lib/database.types.ts, so the external-listing import and dead-CTA redirect paths cannot be certified. Routed to database as HF-DB-009.",
+          "npm run check:service-role-allowlist exits 1 solely on app/api/venue/availability/route.ts:4 and app/api/venue/reservations/route.ts:3, two untracked files created by a concurrent venue lane and not in HEAD. No marketplace path fails the gate. Routed to venue as HF-VENUE-SERVICE-ROLE-IMPORTS.",
+          "Tenant (organization/venue) authorization denials are not implemented: the marketplace order lifecycle is scoped by seller_user_id only, and the canonical seller_entity_id/seller_entity_type persona columns remain archive-only under MKT-002.",
+          "Full repository npm run typecheck was not run: the control plane measured it at 68m18s with 1,384 errors across 407 files. No typecheck result is claimed from this lane."
+        ]
+      },
+      {
+        "at": "2026-09-27T21:39:09.219Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Wave 35: closed two money-path defects and the stale service-role gate. The Stripe webhook no longer swallows a retry of a previously failed event, so a captured payment can no longer be left unfulfilled; a failed checkout session now releases its idempotency key instead of stranding the buyer for 30 minutes, and an expired orderless attempt is reclaimable. Seller-scoped order money routes now deny a venue/organization persona with persona_storefront_schema_not_ready instead of silently collapsing into seller_user_id. Blocker on check:service-role-allowlist cleared: the gate now exits 0 with 194 production files classified.",
+        "completed": [
+          "lib/marketplace/webhook-processor.ts claimWebhookEvent: an event row already recorded as failed is taken over under a conditional update on processing_status and re-processed with an incremented attempts; only a processed row returns duplicate. Previously every 23505 short-circuited to duplicate, so Stripe's own retry after a handler failure was answered 200 and the captured payment was never fulfilled.",
+          "app/api/marketplace/checkout/route.ts releases the claimed idempotency key in the Stripe-init rollback, and resolveCheckoutAttempt gained an expiry-aware reclaim decision so a pending attempt with no order past its window no longer reports checkout_in_progress.",
+          "lib/marketplace/order-authorization.ts plus wiring in orders/[id]/cancel and orders/[id]/refund: a verified venue/organization acting persona that owns seller_user_id is denied 403 persona_storefront_schema_not_ready rather than treated as the seller.",
+          "New coverage: lib/marketplace/__tests__/webhook-money-path.test.ts (9), lib/marketplace/__tests__/order-authorization.test.ts (7), app/api/marketplace/checkout/__tests__/idempotency.test.ts (8), plus 4 new checkout-idempotency unit tests. The replay-takeover, key-release, same-key-retry, and expired-reclaim tests all failed before these fixes."
+        ],
+        "next_steps": [
+          "Hosted AC-1/AC-4 certification stays open: it needs one isolated staging deployment at an exact SHA plus Stripe test-mode credentials, neither of which exists in this environment. No payment-provider or hosted result is claimed.",
+          "Accept the remaining HF-DB-009 half so lib/database.types.ts carries the landed marketplace tables and record_marketplace_entitlement_download, which is what unblocks the delivery-route RPC swap and the stale-type errors.",
+          "Tenant authorization beyond persona denial still depends on MKT-002: seller_entity_id/seller_entity_type are absent from every active migration, so the order lifecycle remains seller_user_id-scoped."
+        ],
+        "blockers": [],
+        "added_paths": [
+          {
+            "path": "lib/marketplace/order-authorization.ts",
+            "reason": "New file inside the declared working set. The persona-denial rule had to be shared by the cancel and refund money routes so both fail closed identically; duplicating the check per route would let the two drift."
+          },
+          {
+            "path": "lib/marketplace/__tests__/webhook-money-path.test.ts",
+            "reason": "New file inside the declared working set. lib/marketplace/webhook-processor.ts had no coverage at all, and the replay-takeover defect could not be demonstrated without one. Picked up by the existing vitest include for lib/**/__tests__/**."
+          },
+          {
+            "path": "lib/marketplace/__tests__/order-authorization.test.ts",
+            "reason": "New file inside the declared working set, paired with the new module."
+          },
+          {
+            "path": "app/api/marketplace/checkout/__tests__/idempotency.test.ts",
+            "reason": "New file inside the declared working set. The existing checkout route suite covered only validation, self-purchase, payout readiness, and inventory; it never drove the success path, so no assertion existed for the durable ledger or the 23505 race. Runs under jest like its sibling route suites because the route needs module mocking."
+          }
+        ],
+        "working_set_note": "No path outside app/api/marketplace/**, lib/marketplace/**, __tests__/marketplace/**, or tests/e2e/marketplace/** was edited. lib/database.types.ts, supabase/migrations/**, package.json, and the other domains' route trees were left untouched; the concurrent lanes' changes were preserved. No additive migration was authored this wave, so nothing needs manual apply."
+      },
+      {
+        "at": "2026-09-27T21:47:55.312Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Record correction: acceptance states normalised to the control-plane enum (not_started for all four, with per-criterion evidence stating exactly which sub-parts are met locally and which are not), the check:service-role-allowlist blocker removed after re-running it to exit 0, and the two local_only_unapplied schema blockers corrected now that marketplace_checkout_attempts and marketplace_external_listings are in the active chain. Removed a now-unreachable seller_required branch from the refund route since the explicit role check above it is authoritative.",
+        "completed": [],
+        "next_steps": [
+          "Task stays active. AC-1 and AC-4 need a staging deployment and Stripe test-mode credentials; AC-2's tenant half and AC-3's real-database replay half need MKT-002 schema and a hosted run respectively."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": [
+    "Consume MKT-002, DB-008, and INTG-006 contracts; provide the deployed Stripe test-mode transaction certification to QA-003 and RELEASE-005."
+  ],
+  "execution_state": "in_progress",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "marketplace",
+  "shared_working_set": [],
+  "depends_on": [],
+  "resume_condition": "Provision one isolated staging deployment at an exact SHA plus Stripe test-mode credentials, and accept the remaining HF-DB-009 half in the database lane, then run the Stripe test-mode listing-to-payout lifecycle and replay certification with campaign actors. The application-side money path is locally verified and the checkout schema blockers recorded in earlier waves are resolved; nothing else stands between this task and a hosted result except environment and credentials.",
+  "blocked_on": []
+}

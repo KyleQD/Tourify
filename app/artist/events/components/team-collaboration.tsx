@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { formatDate } from "@/utils"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 import { Plus, Users, MessageSquare, FileText, Send, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
@@ -609,30 +611,31 @@ export function TeamCollaboration({
                     Add Member
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-slate-700">
+                <DialogContent className={detailSurfacePattern.dialogContent}>
+                  <div className={detailSurfacePattern.topAccent} />
                   <DialogHeader>
-                    <DialogTitle className="text-slate-300">Add Team Member</DialogTitle>
+                    <DialogTitle className={detailSurfacePattern.title}>Add Team Member</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-slate-300">Name</Label>
+                      <Label htmlFor="name" className={detailSurfacePattern.label}>Name</Label>
                       <Input
                         id="name"
                         value={newMember.name}
                         onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.input}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="role" className="text-slate-300">Role</Label>
+                      <Label htmlFor="role" className={detailSurfacePattern.label}>Role</Label>
                       <Select
                         value={newMember.role}
                         onValueChange={(value) => setNewMember({ ...newMember, role: value })}
                       >
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectContent className="bg-slate-900 border-white/10">
                           <SelectItem value="manager" className="text-white">Manager</SelectItem>
                           <SelectItem value="staff" className="text-white">Staff</SelectItem>
                           <SelectItem value="volunteer" className="text-white">Volunteer</SelectItem>
@@ -641,22 +644,22 @@ export function TeamCollaboration({
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="permissions" className="text-slate-300">Permissions</Label>
+                      <Label htmlFor="permissions" className={detailSurfacePattern.label}>Permissions</Label>
                       <Select
                         value={newMember.permissions[0]}
                         onValueChange={(value) => setNewMember({ ...newMember, permissions: [value] })}
                       >
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                           <SelectValue placeholder="Select permissions" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectContent className="bg-slate-900 border-white/10">
                           <SelectItem value="admin" className="text-white">Admin</SelectItem>
                           <SelectItem value="editor" className="text-white">Editor</SelectItem>
                           <SelectItem value="viewer" className="text-white">Viewer</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={handleAddMember} className="w-full bg-purple-600 hover:bg-purple-700">
+                    <Button onClick={handleAddMember} className={cn("w-full", detailSurfacePattern.btnPrimary)}>
                       Add Member
                     </Button>
                   </div>
@@ -832,39 +835,40 @@ export function TeamCollaboration({
                     Add Task
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-slate-700">
+                <DialogContent className={detailSurfacePattern.dialogContent}>
+                  <div className={detailSurfacePattern.topAccent} />
                   <DialogHeader>
-                    <DialogTitle className="text-slate-300">Add New Task</DialogTitle>
+                    <DialogTitle className={detailSurfacePattern.title}>Add New Task</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="title" className="text-slate-300">Task Title</Label>
+                      <Label htmlFor="title" className={detailSurfacePattern.label}>Task Title</Label>
                       <Input
                         id="title"
                         value={newTask.title}
                         onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.input}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="description" className="text-slate-300">Description</Label>
+                      <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
                       <Textarea
                         id="description"
                         value={newTask.description}
                         onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.textarea}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="assigned_to" className="text-slate-300">Assign To</Label>
+                      <Label htmlFor="assigned_to" className={detailSurfacePattern.label}>Assign To</Label>
                       <Select
                         value={newTask.assigned_to}
                         onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}
                       >
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                           <SelectValue placeholder="Select team member" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectContent className="bg-slate-900 border-white/10">
                           {teamMembers.map((member) => (
                             <SelectItem key={member.id} value={member.id} className="text-white">
                               {member.name}
@@ -874,32 +878,32 @@ export function TeamCollaboration({
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="due_date" className="text-slate-300">Due Date</Label>
+                      <Label htmlFor="due_date" className={detailSurfacePattern.label}>Due Date</Label>
                       <Input
                         id="due_date"
                         type="date"
                         value={newTask.due_date.split("T")[0]}
                         onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.input}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="priority" className="text-slate-300">Priority</Label>
+                      <Label htmlFor="priority" className={detailSurfacePattern.label}>Priority</Label>
                       <Select
                         value={newTask.priority}
                         onValueChange={(value) => setNewTask({ ...newTask, priority: value as any })}
                       >
-                        <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                        <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                           <SelectValue placeholder="Select priority" />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectContent className="bg-slate-900 border-white/10">
                           <SelectItem value="low" className="text-white">Low</SelectItem>
                           <SelectItem value="medium" className="text-white">Medium</SelectItem>
                           <SelectItem value="high" className="text-white">High</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={handleAddTask} className="w-full bg-purple-600 hover:bg-purple-700">
+                    <Button onClick={handleAddTask} className={cn("w-full", detailSurfacePattern.btnPrimary)}>
                       Add Task
                     </Button>
                   </div>
@@ -1071,49 +1075,50 @@ export function TeamCollaboration({
                     Upload Document
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-slate-900 border-slate-700">
+                <DialogContent className={detailSurfacePattern.dialogContent}>
+                  <div className={detailSurfacePattern.topAccent} />
                   <DialogHeader>
-                    <DialogTitle className="text-slate-300">Upload Document</DialogTitle>
+                    <DialogTitle className={detailSurfacePattern.title}>Upload Document</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-slate-300">Document Name</Label>
+                      <Label htmlFor="name" className={detailSurfacePattern.label}>Document Name</Label>
                       <Input
                         id="name"
                         value={newDocument.name}
                         onChange={(e) => setNewDocument({ ...newDocument, name: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.input}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="description" className="text-slate-300">Description</Label>
+                      <Label htmlFor="description" className={detailSurfacePattern.label}>Description</Label>
                       <Textarea
                         id="description"
                         value={newDocument.description}
                         onChange={(e) => setNewDocument({ ...newDocument, description: e.target.value })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.textarea}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="file" className="text-slate-300">File</Label>
+                      <Label htmlFor="file" className={detailSurfacePattern.label}>File</Label>
                       <Input
                         id="file"
                         type="file"
                         onChange={(e) => setNewDocument({ ...newDocument, file: e.target.files?.[0] || null })}
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.input}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="tags" className="text-slate-300">Tags</Label>
+                      <Label htmlFor="tags" className={detailSurfacePattern.label}>Tags</Label>
                       <Input
                         id="tags"
                         value={newDocument.tags.join(", ")}
                         onChange={(e) => setNewDocument({ ...newDocument, tags: e.target.value.split(",").map(tag => tag.trim()) })}
                         placeholder="Enter tags separated by commas"
-                        className="bg-slate-800 border-slate-700 text-white"
+                        className={detailSurfacePattern.input}
                       />
                     </div>
-                    <Button onClick={handleUploadDocument} className="w-full bg-purple-600 hover:bg-purple-700">
+                    <Button onClick={handleUploadDocument} className={cn("w-full", detailSurfacePattern.btnPrimary)}>
                       Upload Document
                     </Button>
                   </div>

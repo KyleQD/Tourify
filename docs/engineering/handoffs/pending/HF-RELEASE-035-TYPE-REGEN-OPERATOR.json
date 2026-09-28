@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-RELEASE-035-TYPE-REGEN-OPERATOR",
+  "task_id": "RELEASE-006",
+  "from_agent": "release",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-25T23:45:00.000Z",
+  "source_sha": "ca3bb0b0",
+  "summary": "BLOCKING, OPERATOR-GATED. `lib/database.types.ts` cannot be regenerated from this workspace because regeneration is credential-gated, not permission-gated. `supabase/.temp/linked-project.json` exists, but `supabase/.temp/pooler-url` is 92 bytes and carries NO embedded password, and Docker is unavailable on this 8 GB machine, so all three modes in scripts/ci/database-types-source.mjs are blocked. The database lane withdrew its own blocker: the active chain is now a proven SUPERSET of the generated contract (13 relations, 54 columns, 42 callables added, ZERO contract-only entries), so regeneration would add coverage and delete nothing. lib/database.types.ts is byte-unchanged. No credential was read, fabricated, or copied, and under CP-051 no migration was applied.",
+  "working_set": [
+    "lib/database.types.ts",
+    "supabase/.temp/",
+    "scripts/ci/database-types-source.mjs",
+    "scripts/ci/generate-database-types.mjs",
+    "scripts/ci/check-database-types.mjs"
+  ],
+  "completed": [
+    "Established that all three generation modes are blocked, and recorded which input blocks each: `local` (the default) needs Docker; `linked` needs a database password; `project-id` needs a valid SUPABASE_TYPE_PROJECT_ID AND still needs a database password for that project.",
+    "Recorded the exact state without reading any value: supabase/.temp/linked-project.json exists with keys ref, name, organization_id, organization_slug; supabase/.temp/pooler-url exists at 92 bytes with no embedded password.",
+    "Recorded that regeneration is now SAFE and not merely desirable: the database lane's withdrawal evidence is that the active chain is a strict superset of the generated contract, so the regeneration adds coverage and deletes no existing entry. This is a change from the Wave 32 position, where forward drift and backward drift were both present and regeneration could have been destructive.",
+    "Established that this machine cannot measure the type surface at all: a full `tsc --noEmit` OOMs locally regardless of the heap flag, so CI's 16 GB runner is the only place the 1,384-diagnostic count can be re-measured. No local typecheck figure is claimed."
+  ],
+  "next_steps": [
+    "OPTION A, local stack (requires Docker): docker compose -f docker/local/docker-compose.yml up -d, then SUPABASE_TYPE_SOURCE=local npm run generate:database-types, then npm run check:database-types.",
+    "OPTION B, an approved hosted target (requires a Supabase database password that an agent lane must never hold, copy, or fabricate): SUPABASE_TYPE_SOURCE=linked npm run generate:database-types, then npm run check:database-types.",
+    "Treat the confirming evidence as CI, not as the local command. The claim that the type surface is regenerated and the 1,384 diagnostics are reduced is proved by a green `Lint And Build` job AND a green `Database Types` job on the 16 GB CI runner. A successful local `generate:database-types` is necessary but not sufficient.",
+    "Do not tune heap ceilings or the Vercel 45-minute build duration before this lands. Three separate declared heap ceilings cover one workload (vercel.json build.env 4096, package.json build:vercel 6144, package.json typecheck 8192) on a 4-core/8 GB Vercel build machine, but the deployment API reports a wall-clock timeout, not an OOM, and raising an unproven cap on an 8 GB box can convert a clean timeout into a hard OOM kill. Collapse the three to one documented value per environment only after a GREEN duration is measured."
+  ],
+  "blockers": [
+    "Credential-gated. Docker is unavailable here and no Supabase database password is present or permitted. This lane will not fabricate, copy, or infer one.",
+    "THREE CLAIMS REMAIN UNPROVABLE without a live target, and are recorded so they are not mistaken for covered: (1) PostgREST schema-cache behaviour after a migration is applied - a stale cache returns zero rows with NO error, the same failure shape as the search drift Wave 34 found in app/api/search/enhanced/route.ts; (2) real RLS against real rows, because `Migrations And RLS Matrix` proves the matrix against a freshly built EPHEMERAL stack and not against a long-lived hosted database; (3) the 13 view relations whose columns are proven by NAME OCCURRENCE in the chain rather than by replaying the SELECT list - a view can name a column that exists and still select a different type, an aliased expression, or a subquery. Only a live information_schema / pg_get_viewdef read on the approved target resolves that.",
+    "CP-051 stands: no migration was applied, proposed for automatic application, or reset by this lane. Regenerating a type file is not a migration and does not touch the database."
+  ],
+  "verification": [
+    "scripts/ci/database-types-source.mjs read -> three modes: local (`--local`, default), linked (`--linked`), project-id (`--project-id`, requires SUPABASE_TYPE_PROJECT_ID matching /^[a-z0-9]{8,64}$/); any other value throws.",
+    "supabase/.temp/ contains cli-latest, gotrue-version, linked-project.json, pooler-url, postgres-version, project-ref, rest-version, storage-migration, storage-version. linked-project.json keys: ref, name, organization_id, organization_slug. pooler-url is 92 bytes with no embedded password.",
+    "git status --porcelain -- lib/database.types.ts -> empty. The generated file is byte-unchanged, consistent with the database lane's withdrawal.",
+    "CP-051: `supabase/.temp/` was inspected read-only; no migration was applied, no reset was run, and no database connection was opened."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "OPTION A, local stack (requires Docker): docker compose -f docker/local/docker-compose.yml up -d, then SUPABASE_TYPE_SOURCE=local npm run generate:database-types, then npm run check:database-types."
+}

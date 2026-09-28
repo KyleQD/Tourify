@@ -863,7 +863,6 @@ function PreviewPane({
 
       {featuredImageUrl && (
         <div className="overflow-hidden rounded-2xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={featuredImageUrl} alt="" className="h-64 w-full object-cover" />
         </div>
       )}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "migration": "20260909195618_atomic_org_invites.sql",
+  "taskId": "ORG-003",
+  "status": "planned",
+  "owner": "organization",
+  "reviewer": "security-data",
+  "domains": ["organization", "auth", "rls"],
+  "riskLevel": "high",
+  "representativeSnapshot": {
+    "kind": "local Supabase target with an active organization member, intended invite recipient, and revoked/expired invite fixtures",
+    "evidenceArtifact": null
+  },
+  "preflight": {
+    "rowCountQueries": [
+      "Count pending, accepted, expired, and revoked public.org_invites by organization",
+      "Verify no public.org_invites.token values remain after the token_hash backfill",
+      "Inventory org_invites and org_members RLS policies before and after apply"
+    ],
+    "expectedAffectedRows": "One hash backfill per legacy invite token; no organization membership rows are changed during migration apply",
+    "artifact": null
+  },
+  "execution": {
+    "lockBudgetMs": 5000,
+    "statementTimeoutMs": 120000,
+    "batchSize": 0,
+    "resumeStrategy": "Reapply the idempotent migration in a local Supabase target; use a later additive migration for any production correction",
+    "resumeCursor": "Supabase migration version 20260909195618",
+    "idempotency": "Columns, schema, trigger, policies, and index use IF NOT EXISTS or explicit replacement; token hashing only updates rows missing token_hash"
+  },
+  "quarantine": {
+    "required": false,
+    "table": null,
+    "strategy": "Invites without a legacy token remain invalid instead of being guessed or backfilled from other identity data"
+  },
+  "constraintsAndIndexes": {
+    "constraints": [
+      "Token hash uniqueness applies only to non-null hashes",
+      "Acceptance trigger keeps invite identity immutable and prevents acceptance after revocation or expiry"
+    ],
+    "indexes": [
+      "Partial unique index on org_invites.token_hash"
+    ],
+    "validationPlan": "Verify invite acceptance is atomic under concurrent replay, revoked/expired tokens fail, recipient email mismatch fails, and authenticated org owners/admins alone can revoke"
+  },
+  "recovery": {
+    "rollback": "Disable invite creation and acceptance routes; retain hashed tokens and use a corrective additive migration rather than restoring plaintext tokens",
+    "forwardFix": "Add an additive policy or function correction and replay the local RLS fixture matrix before promotion"
+  },
+  "postflight": {
+    "queries": [
+      "Verify token is null and token_hash is populated for all migrated invites",
+      "Verify RLS is enabled and policy inventory includes recipient acceptance and invite-member insertion policies",
+      "Verify accept_org_invite and revoke_org_invite execute only for authenticated users"
+    ],
+    "artifact": null,
+    "securityAdvisorArtifact": null,
+    "performanceAdvisorArtifact": null
+  },
+  "verificationOwner": "release-engineering",
+  "evidence": {
+    "isolated": null,
+    "staging": null,
+    "production": null
+  },
+  "exceptions": []
+}

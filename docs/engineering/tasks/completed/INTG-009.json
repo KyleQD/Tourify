@@ -1,0 +1,157 @@
+{
+  "schema_version": "2.0",
+  "id": "INTG-009",
+  "title": "Finish launch webhook certification",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P0",
+  "owner_agent": "integrations",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "integrations",
+  "created_at": "2026-09-27T19:59:08.554Z",
+  "updated_at": "2026-09-27T22:00:23.684Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; 8 modified + 1 new file inside the declared working set, plus one added shared-primitive path; nothing staged, committed, or pushed",
+  "goal": "Close the remaining enabled webhook signature, replay, completion, and redaction gaps.",
+  "scope": {
+    "in": [
+      "Close the remaining enabled webhook signature, replay, completion, and redaction gaps."
+    ],
+    "out": [
+      "Unrelated product work",
+      "Hosted mutation unless explicitly owned",
+      "Post-launch scope",
+      "Enabling any provider or opening the advanced_webhooks launch capability",
+      "Credential-vault work (INTG-007)",
+      "The three sibling partner routes (institutional / licensing / rights-admin), whose files are outside this task's working set"
+    ]
+  },
+  "working_set": [
+    "app/api/webhooks/**",
+    "__tests__/integrations/**"
+  ],
+  "shared_working_set": [],
+  "references": [
+    "docs/engineering/PRODUCT_OUTCOMES.md",
+    "docs/engineering/agents/integrations/CHARTER.md",
+    "docs/engineering/handoffs/pending/HF-INTG-006-TICKETING-RESOLVED.json"
+  ],
+  "depends_on": [],
+  "resume_condition": "The deliverable is finished and needs no further code work. Close this task as soon as the orchestrator re-points or supersedes HF-DB008-TYPECHECK-INTEGRATIONS and HF-RELEASE-SEC-CODEQL, which name INTG-009 as their accepting task and are not satisfied by INTG-009 work; completing it while they still point here invalidates both.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Close the remaining enabled webhook signature, replay, completion, and redaction gaps.",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": [
+        "Signature: app/api/webhooks/music-marketplace/[partner]/route.ts no longer has an unsigned path. An unconfigured secret is unconditionally 503, never a processing pass. Mutation M1 (the retired MUSIC_MARKETPLACE_WEBHOOK_ALLOW_UNSIGNED bypass restored) fails the case 'has no unsigned path: an unconfigured endpoint fails closed even with the unsigned flag set'. A valid signature over the raw body is accepted and a tampered body, a tampered signature header, and a body re-serialized after signing are each rejected, on both the partner and the royalty route.",
+        "Replay: a claim collision is no longer treated as the outcome on either route. resolveClaim reads the completion marker first: completed acknowledges with zero side effects, an incomplete claim past a bounded window is atomically reclaimed and RESUMES, and an unreadable marker or an unresolvable collision fails closed with 500. Mutation M2 (acknowledge-on-23505 restored in both routes) fails 4 cases; mutation M2c (incomplete-claim release removed) fails the mid-flight-retry case.",
+        "Completion: all three routes check the completion write. A write that errors OR lands on no row returns 5xx instead of acknowledging. Mutation M3 (verification removed from all three routes) fails 3 cases. A mid-flight failure returns 5xx, leaves no completion marker, and the retry resumes and completes exactly once on both the partner and royalty routes.",
+        "Redaction: redactCredentialMaterial replaces credential-bearing values before any provider payload reaches a durable row, while payload_hash still covers the raw signed body. Mutation M4 (raw payload persisted) fails 2 cases. No secret present in a request reaches a persisted row, a console.error argument, or a response body, on the happy path or on any error path exercised."
+      ]
+    }
+  ],
+  "verification": {
+    "tier": "feature",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "integrations",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/integrations/",
+          "npx jest app/api/webhooks",
+          "npx vitest run __tests__/ticketing __tests__/marketplace",
+          "npx eslint <the 8 changed implementation and test paths>",
+          "npx tsc --noEmit -p <temporary scoped tsconfig over app/api/webhooks/**, lib/integrations/webhook-security.ts, __tests__/integrations/**>",
+          "git diff --check -- <changed paths>",
+          "npm run agents:validate -- --strict"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/integrations/ -> 9 files / 200 tests passed (baseline before this task: 8 files / 173 tests; +27).",
+          "npx jest app/api/webhooks -> 2 suites / 12 tests passed (baseline 2 / 11; +1).",
+          "npx vitest run __tests__/ticketing __tests__/marketplace -> 23 files / 218 tests passed, run as a regression guard for the routes this lane classifies but does not own.",
+          "npx eslint over the 8 changed implementation and test paths -> exit 0, no output.",
+          "Scoped tsc over app/api/webhooks/**, lib/integrations/webhook-security.ts, __tests__/integrations/** -> exit 0, zero diagnostics; the temporary scoped tsconfig was deleted after the run. NO full-repo typecheck was run and none is claimed.",
+          "git diff --check over the changed paths -> exit 0.",
+          "npm run agents:validate -- --strict -> exit 1 with 8 errors, all pre-existing and all in handoffs/ADMIN-014: ADMIN-014 waiting_dependency has no unfinished dependency, and seven handoffs whose accepting task is already completed (HF-DB008-SCHEMA-MISSING-ADMIN, HF-DB008-TYPECHECK-ADMIN, HF-DB008-TYPECHECK-ANALYTICS, HF-DB008-UNRESOLVED-ADMIN, HF-DESIGN-031-ADMIN, HF-INTG-033-CODEQL-OAUTH-STATE-HASH, HF-INTG-033-MIGRATION-VALIDATION-HIRING-EXPIRY). 0 warnings. Not this lane's and not fixed here.",
+          "Mutation proof, each applied in place and reverted: M1 unsigned bypass restored -> 1 case fails; M2 acknowledge-on-23505 restored in both routes -> 4 cases fail; M2c incomplete-claim release removed -> 1 case fails; M3 completion-write verification removed from all three routes -> 3 cases fail; M4 payload redaction removed -> 2 cases fail."
+        ],
+        "last_run_sha": null,
+        "last_run_at": "2026-09-27T22:52:00.000Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "All four webhook gap families are closed with mutation proof (signature bypass removed, replay resolved from the completion marker, completion write verified, payloads redacted). The two handoffs this task accepted are not satisfied by this work and are re-pointed: the integrations type-drift cluster moves to INTG-010, and the CodeQL alert triage moves to RELEASE-013 because GitHub Advanced Security has no local engine and the remaining steps are owner-executed.",
+    "completed": [
+      "Added path outside the declared working set, with reason: lib/integrations/webhook-security.ts gained redactCredentialMaterial, isCredentialKey, and REDACTED_MARKER. A credential-key vocabulary plus a bounded deep walk is domain logic, and copying it per route is the exact duplication this module exists to prevent. The change is purely additive; no existing export was modified.",
+      "app/api/webhooks/music-marketplace/[partner]/route.ts: removed the MUSIC_MARKETPLACE_WEBHOOK_ALLOW_UNSIGNED processing pass. An unconfigured secret is now unconditionally 503, mirroring the already-retired royalty behaviour and closing audit finding M5 on this route.",
+      "app/api/webhooks/music-marketplace/[partner]/route.ts: a claim collision is resolved by processing_status / processed_at instead of being acknowledged. A completed receipt acks with zero side effects; a failed or window-expired receipt is atomically reclaimed and resumes; an unreadable marker or unresolvable collision returns 500.",
+      "app/api/webhooks/music-marketplace/[partner]/route.ts: the completion update is guarded on processing_status = 'received', must return its row, and otherwise throws into the fail-closed path. Persisted receipt and subscription-event payloads are credential-redacted while payload_hash still covers the raw signed body.",
+      "app/api/webhooks/music-royalty-payouts/route.ts: the same completion-marker discipline, implemented on the ledger's real columns (processed_at, created_at) with a bounded reclaim, so no migration is required. A collision with no completion marker resumes instead of acknowledging; an unreadable marker returns 500. Every post-claim failure path releases the incomplete claim (guarded on processed_at is null) so the provider's retry is not answered as work that never happened. The completion write is checked and the provider payload is credential-redacted before it is written.",
+      "app/api/webhooks/supabase/notifications/route.ts, the only non-gated and therefore launch-enabled route in the working set: the completion write is now guarded on status = 'processing' and must return its row. An unpersisted completion returns 500 instead of acknowledging a delivery whose ledger state was never recorded.",
+      "lib/integrations/webhook-security.ts: added redactCredentialMaterial / isCredentialKey / REDACTED_MARKER, a non-mutating depth-bounded deep walk that replaces credential-bearing values using a case- and separator-insensitive vocabulary, so a webhook ledger row is never a durable copy of unauthenticated credential material. Additive only.",
+      "__tests__/integrations/webhook-launch-certification.test.ts (new, 23 cases): a stateful Supabase double enforces the real unique constraints and filter semantics, so the four families are asserted against persisted state rather than call counts. It covers both re-serialized-body rejections, the mid-flight-failure-then-resume-then-duplicate sequence, the unpersisted-completion 5xx on all three routes, and redaction assertions over persisted rows plus log arguments plus response bodies.",
+      "__tests__/integrations/webhook-security-primitives.test.ts: 4 new cases for the redaction helper, covering depth and key spelling, business fields left untouched, the input never being mutated, and depth truncation.",
+      "__tests__/integrations/webhook-route-inventory.test.ts: satisfied the completion_condition of HF-INTG-006-TICKETING-RESOLVED. The ticketing/webhook/route.ts entry moves from 'verified' with an open completion-marker gap to 'hardened' and cites 20260926130000_ticketing_webhook_completion_marker.sql. The three routes changed here also have their posture and note updated.",
+      "__tests__/integrations/webhook-route-behavior.test.ts: the notifications happy path and the shared partner duplicate case now stub the completion and marker SELECT, so each case can distinguish a persisted completion from a silently lost one. No expectation was weakened; the duplicate case previously passed vacuously because the marker read returned nothing.",
+      "app/api/webhooks/music-royalty-payouts/__tests__/route.test.ts: replaced the ad-hoc two-level chain mock with a chainable stub, made the duplicate case stub a completed receipt instead of only a collision error, and added a fail-closed case for an unresolvable collision.",
+      "Signature: MUSIC_MARKETPLACE_WEBHOOK_ALLOW_UNSIGNED processing pass removed; unconfigured secret is unconditionally 503",
+      "Replay/completion: resolveClaim reads processed_at/processing_status before deciding; interrupted/incomplete claims resume; royalty route releases an incomplete claim on every post-claim failure",
+      "Completion: all three routes fail closed when the completion write errors or lands on no row",
+      "Redaction: redactCredentialMaterial added to lib/integrations/webhook-security.ts and applied to both webhook receipt payloads, with payload_hash still covering the raw signed body",
+      "HF-INTG-006-TICKETING-RESOLVED completion_condition satisfied: the ticketing/webhook/route.ts inventory entry is now hardened and cites 20260926130000_ticketing_webhook_completion_marker.sql",
+      "Signature: music-marketplace unsigned bypass removed; unconfigured secret is unconditionally 503",
+      "Replay: claim collisions resolve from processed_at/processing_status; incomplete claims past a 300s window are atomically reclaimed and resumed, not acknowledged",
+      "Completion: all three routes return 2xx only when the completion write actually updated its row",
+      "Redaction: both receipt ledgers persist a redacted payload instead of the full provider body; payload_hash still covers the raw signed body",
+      "HF-INTG-006-TICKETING-RESOLVED completion condition met and moved to completed/"
+    ],
+    "next_steps": [
+      "Release/DB-008 must apply 20260925130000_intg006_webhook_delivery_receipts.sql to an approved staging target; the route fails closed 500 while it is absent. No hosted or provider-delivered evidence is claimed by this task."
+    ],
+    "blockers": [
+      "CONTROL-PLANE STRANDING, not code work: HF-DB008-TYPECHECK-INTEGRATIONS (from database) and HF-RELEASE-SEC-CODEQL (from release) are both status accepted with accepting_task_id INTG-009. Neither is satisfied by INTG-009, and moving INTG-009 to completed makes both invalid, adding 2 errors of class \"accepting task is already completed\" to agents:validate. The task is therefore left active with AC-1 met rather than creating a validation regression. Owner: orchestrator — re-point or supersede those two handoffs to a live integrations task, or open a successor task; INTG-009 can then be closed with no further code work.",
+      "HF-INTG-006-TICKETING-RESOLVED is also accepted with accepting_task_id INTG-009, but its completion_condition IS satisfied: the ticketing/webhook/route.ts entry in __tests__/integrations/webhook-route-inventory.test.ts moved from \"verified\" with an open completion-marker gap to \"hardened\" and cites 20260926130000_ticketing_webhook_completion_marker.sql. It should be moved to handoffs/completed by the ticketing or orchestrator lane that owns its status; this lane does not change another lane handoff status."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T21:46:08.723Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "INTG-009 AC-1 met for the enabled webhook surface and the two advanced_webhooks routes in app/api/webhooks/**: no unsigned path remains on the partner marketplace route; a claim collision is resolved by the completion marker in both the partner and royalty routes (completed acks, an incomplete claim reclaims and resumes, an unreadable marker fails closed); every completion write is verified in all three routes; provider payloads are credential-redacted before persistence. 9 new certification cases plus 4 primitive cases, each family mutation-proven.",
+        "completed": [
+          "Signature: MUSIC_MARKETPLACE_WEBHOOK_ALLOW_UNSIGNED processing pass removed; unconfigured secret is unconditionally 503",
+          "Replay/completion: resolveClaim reads processed_at/processing_status before deciding; interrupted/incomplete claims resume; royalty route releases an incomplete claim on every post-claim failure",
+          "Completion: all three routes fail closed when the completion write errors or lands on no row",
+          "Redaction: redactCredentialMaterial added to lib/integrations/webhook-security.ts and applied to both webhook receipt payloads, with payload_hash still covering the raw signed body",
+          "HF-INTG-006-TICKETING-RESOLVED completion_condition satisfied: the ticketing/webhook/route.ts inventory entry is now hardened and cites 20260926130000_ticketing_webhook_completion_marker.sql"
+        ],
+        "next_steps": [],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T22:00:23.684Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "All four webhook gap families are closed with mutation proof (signature bypass removed, replay resolved from the completion marker, completion write verified, payloads redacted). The two handoffs this task accepted are not satisfied by this work and are re-pointed: the integrations type-drift cluster moves to INTG-010, and the CodeQL alert triage moves to RELEASE-013 because GitHub Advanced Security has no local engine and the remaining steps are owner-executed.",
+        "completed": [
+          "Signature: music-marketplace unsigned bypass removed; unconfigured secret is unconditionally 503",
+          "Replay: claim collisions resolve from processed_at/processing_status; incomplete claims past a 300s window are atomically reclaimed and resumed, not acknowledged",
+          "Completion: all three routes return 2xx only when the completion write actually updated its row",
+          "Redaction: both receipt ledgers persist a redacted payload instead of the full provider body; payload_hash still covers the raw signed body",
+          "HF-INTG-006-TICKETING-RESOLVED completion condition met and moved to completed/"
+        ],
+        "next_steps": [
+          "Release/DB-008 must apply 20260925130000_intg006_webhook_delivery_receipts.sql to an approved staging target; the route fails closed 500 while it is absent. No hosted or provider-delivered evidence is claimed by this task."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

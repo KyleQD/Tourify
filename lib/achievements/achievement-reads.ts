@@ -139,26 +139,36 @@ async function getUserBadges(userId: string): Promise<BadgesResponse> {
 
     if (badgesError) throw badgesError
 
-    const { data: userBadges, error: userBadgesError } = await supabase
+    // Avoid fragile FK embeds (PGRST200 when granted_by FK name differs).
+    const { data: userBadgeRows, error: userBadgesError } = await supabase
       .from('user_badges')
       .select(`
         *,
-        badge:badges(*),
-        granted_by_user:profiles!user_badges_granted_by_fkey(id, username, full_name, avatar_url)
+        badge:badges(*)
       `)
       .eq('user_id', userId)
       .eq('is_active', true)
 
     if (userBadgesError) throw userBadgesError
 
-    const verificationBadges = userBadges?.filter(ub => ub.badge?.is_verification_badge) || []
-    const expertiseBadges = userBadges?.filter(ub => ub.badge?.category === 'expertise') || []
-    const recognitionBadges = userBadges?.filter(ub => ub.badge?.category === 'recognition') || []
+    const granterIds = (userBadgeRows || [])
+      .map((ub: { granted_by?: string | null }) => ub.granted_by)
+      .filter((id): id is string => Boolean(id))
+    const profilesMap = await fetchProfilesMap(granterIds)
+
+    const userBadges = (userBadgeRows || []).map((ub: any) => ({
+      ...ub,
+      granted_by_user: ub.granted_by ? profilesMap[ub.granted_by] : undefined,
+    }))
+
+    const verificationBadges = userBadges.filter((ub: any) => ub.badge?.is_verification_badge) || []
+    const expertiseBadges = userBadges.filter((ub: any) => ub.badge?.category === 'expertise') || []
+    const recognitionBadges = userBadges.filter((ub: any) => ub.badge?.category === 'recognition') || []
 
     return {
       badges: badges || [],
-      user_badges: userBadges || [],
-      total_badges: userBadges?.length || 0,
+      user_badges: userBadges,
+      total_badges: userBadges.length,
       verification_badges: verificationBadges,
       expertise_badges: expertiseBadges,
       recognition_badges: recognitionBadges

@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0",
+  "id": "ADMIN-002",
+  "title": "Admin gate split: platform is_admin + capability",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "admin",
+  "created_at": "2026-09-09T09:35:09.312Z",
+  "updated_at": "2026-09-11T17:47:55.671Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (386 entries)",
+  "goal": "Implement WS-0.8 admin gate split: platform admin = profiles.is_admin OR numeric capability; org/tour roles grant org surfaces only",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "app/api/admin/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/admin/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Platform vs org admin surfaces correctly gated"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run __tests__/auth/admin-surface-access.test.ts",
+      "npx eslint lib/auth/admin-profile-gates.ts lib/auth/admin.ts lib/auth/platform-admin.ts lib/auth/api-auth.ts app/api/admin/audit/route.ts",
+      "npx tsc --noEmit --pretty false --incremental false"
+    ],
+    "evidence": [
+      "Platform profile grants now require profiles.is_admin or an active-chain admin_level value; organization roles remain capability-context grants.",
+      "Full TypeScript check completed with no output.",
+      "2026-09-09T20:22: npx vitest run lib/auth/__tests__/admin-profile-gates.test.ts __tests__/auth/admin-surface-access.test.ts -> 2 files, 16/16 passed; eslint (2 files) clean; full-repo tsc OOMs as documented, scoped file-level tsc blocked by @/ path alias resolution.",
+      "Stale 'role admin' test case corrected to expect false per CP-043: bare role:'admin' (self-serviceable profile shape) is not a platform grant.",
+      "2026-09-10T17:16: focused auth tests passed 16/16; app/api/admin/tasks/route.ts ESLint clean; agents:validate passed with one pre-existing RELEASE-001 warning; current full-repo tsc attempt OOMed at the default heap and the larger-heap retry was stopped after extended no-output runtime.",
+      "2026-09-10T17:24: app/api/admin/logistics/site-maps/[id]/publish-work-mode/route.ts migrated to site_map.edit with requiredOrgId: admin.orgId; existing requireSiteMapAccess(..., 'edit') retained. Route ESLint and focused site-map/auth tests passed 23/23.",
+      "2026-09-10T17:27: app/api/admin/logistics/items/[id]/equipment/route.ts migrated POST and DELETE to logistics.manage; existing withLogisticsParentOrgId parent resolution and unresolved-parent rejection retained. Route ESLint and focused logistics/site-map/auth tests passed 22/22.",
+      "2026-09-10T17:36: app/api/admin/staff/route.ts migrated GET to workforce.view and POST/PATCH/DELETE to workforce.manage; existing resolveAdminWorkspaceScope, requireOpsOrgId, event membership checks, and entity filters retained. Route ESLint and focused workforce/auth tests passed 22/22.",
+      "2026-09-10T17:38: app/api/admin/analytics/export/route.ts migrated to audit.view per the method-level route contract; existing financial org_id and events_v2 org_id filters retained while scope now uses admin.orgId. Route ESLint and focused route/auth/finance tests passed 18/18.",
+      "2026-09-10T18:15: app/api/admin/tours/[id]/grant-admins/route.ts migrated to tour.manage per the route registry; existing assertTourAuthority resource check and tour/org membership behavior retained. Route ESLint and focused grant/auth tests passed 18/18.",
+      "2026-09-10T18:27: app/api/admin/organization/communications-settings/route.ts GET migrated to org.settings.manage per the route registry; existing org settings query and unavailable-state handling retained while scope now uses admin.orgId. Route ESLint and focused route/auth tests passed 23/23.",
+      "2026-09-10T18:53: app/api/admin/effective-capabilities/route.ts GET migrated to tour.view per the route registry; capability projection response unchanged. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+      "2026-09-10T19:06: app/api/admin/notifications/route.ts GET and PATCH migrated to communications.send per the route registry; existing resolveAdminWorkspaceScope, requireOpsOrgId, and events_v2 org_id/event membership checks retained, while POST remains on its existing guard. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+      "2026-09-10T19:19: RBAC entity routes app/api/admin/rbac/assign-role/route.ts, entity/[entityType]/[entityId]/assignments, and entity/[entityType]/[entityId]/audit migrated to org.roles.manage per the route registry; existing has_entity_permission(..., 'MANAGE_MEMBERS') resource checks retained. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+      "2026-09-10T19:20: app/api/admin/organization/settings/route.ts GET migrated to org.settings.manage per the route registry; existing acting-organization profile/settings queries and canEdit projection retained. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+      "2026-09-10T19:57: reviewed the remaining legacy admin routes; no additional safe migration was available because candidates lack explicit organization/resource scope or require mixed participant/multi-capability handling. Focused route/auth tests passed 23/23; ESLint and git diff --check clean.",
+      "Focused route/auth tests passed 23/23 for the final review; changed admin routes remained lint-clean and diff-clean; no additional safe migration was claimed for mixed-purpose or insufficiently scoped routes."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T17:47:55.671Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Completed the bounded admin capability convergence review: all remaining legacy candidates were reviewed and deferred where method-level capability or data-boundary scope was ambiguous.",
+    "completed": [
+      "Platform profile gate ignores role-only elevation and recognizes is_admin/admin_level grants.",
+      "Added withPlatformAdmin and migrated the audit reader to withAdminCapability with an explicit acting-org scope.",
+      "Migrated event analytics and event export to the event.view capability while retaining event ownership checks.",
+      "Migrated event tour-assignment reads to event.view and mutations to event.manage while retaining service-level event organization resolution.",
+      "Migrated event vendor-request reads to vendor.view and day-sheet distribution to event.live_ops while retaining existing event and entity checks.",
+      "Migrated event advancing export to advance.manage while retaining event ownership checks.",
+      "Migrated work-mode publication reads to event.view and writes to workforce.publish while retaining event ownership checks.",
+      "Migrated /api/admin/tasks GET to logistics.view and PATCH to logistics.manage while retaining resolveAdminWorkspaceScope and org_id query/update predicates.",
+      "Migrated /api/admin/logistics/site-maps/[id]/publish-work-mode POST to site_map.edit while retaining site-map edit access and adding requiredOrgId: admin.orgId.",
+      "Migrated /api/admin/logistics/items/[id]/equipment POST and DELETE to logistics.manage while retaining parent organization resolution and rejection of unresolved parents.",
+      "Migrated /api/admin/staff GET to workforce.view and POST/PATCH/DELETE to workforce.manage while retaining organization/event scope checks.",
+      "Migrated /api/admin/analytics/export GET to audit.view while retaining org-scoped financial and event queries.",
+      "Migrated /api/admin/tours/[id]/grant-admins POST to tour.manage while retaining assertTourAuthority and tour/org scope checks.",
+      "Migrated /api/admin/organization/communications-settings GET to org.settings.manage while retaining acting-organization settings scope.",
+      "Migrated /api/admin/effective-capabilities GET to tour.view while retaining the capability projection response.",
+      "Migrated /api/admin/notifications GET and PATCH to communications.send while retaining organization/event scope checks; POST intentionally remains unchanged due to distinct user-targeting semantics.",
+      "Migrated RBAC role assignment, entity assignment listing, and entity audit GET to org.roles.manage while retaining existing MANAGE_MEMBERS entity resource checks.",
+      "Migrated organization settings GET to org.settings.manage while retaining acting-organization settings scope and canEdit capability projection."
+    ],
+    "next_steps": [
+      "No further implementation in this bounded task; reopen only for a verified regression."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T20:02:49Z",
+        "summary": "Focused auth tests, lint, and full TypeScript check passed.",
+        "next": "Continue the separate legacy admin-route sweep."
+      },
+      {
+        "at": "2026-09-09T20:22:00Z",
+        "summary": "Fixed stale test: 'role admin' case now expects false per CP-043/ADM-M-003 (bare role:'admin' is self-serviceable, not a platform grant). Implementation was already correct. Vitest 16/16, eslint clean.",
+        "next": "Continue the separate legacy admin-route sweep."
+      },
+      {
+        "at": "2026-09-10T08:25:00.000Z",
+        "summary": "Migrated app/api/admin/events/[id]/analytics and app/api/admin/events/[id]/export from withAdminAuth to withAdminCapability('event.view'); existing assertAdminEventAccess ownership checks remain in place. ESLint and admin capability/auth tests pass (13/13).",
+        "next": "Continue with the next event-scoped read batch; do not migrate routes whose capability or ownership contract is ambiguous."
+      },
+      {
+        "at": "2026-09-10T08:27:00.000Z",
+        "summary": "Migrated event tour-assignment GET to event.view and PUT/POST/DELETE to event.manage; service-level event organization resolution remains intact. ESLint and focused event/capability tests pass (20/20).",
+        "next": "Continue with capability-reviewed event-scoped routes."
+      },
+      {
+        "at": "2026-09-10T08:29:00.000Z",
+        "summary": "Migrated event vendor-request GET to vendor.view and day-sheet distribution POST to event.live_ops; existing event ownership and entity-permission checks remain in place. ESLint and focused admin/event/logistics tests pass (23/23).",
+        "next": "Review remaining event routes with mixed participant or publication semantics before further migration."
+      },
+      {
+        "at": "2026-09-10T08:31:00.000Z",
+        "summary": "Migrated event advancing export GET to advance.manage; existing assertAdminEventAccess ownership check remains in place. ESLint and focused admin/event/logistics tests pass (23/23).",
+        "next": "Review remaining event routes with mixed participant or publication semantics before further migration."
+      },
+      {
+        "at": "2026-09-10T08:33:00.000Z",
+        "summary": "Migrated event work-mode GET to event.view and POST to workforce.publish; existing assertAdminEventAccess ownership check remains in place. ESLint and focused admin/event/logistics tests pass (23/23).",
+        "next": "Review remaining event routes with mixed participant or publication semantics before further migration."
+      },
+      {
+        "at": "2026-09-10T17:16:05Z",
+        "summary": "Migrated app/api/admin/tasks GET to logistics.view and PATCH to logistics.manage. Existing resolveAdminWorkspaceScope, requireOpsOrgId, and org_id predicates remain in place; focused auth tests passed 16/16 and route ESLint passed. The current full-repo tsc attempt hit the known heap limit; the larger-heap retry produced no diagnostics and was stopped after extended runtime.",
+        "next": "Continue only with routes whose capability mapping and entity/org ownership checks are explicit; event communications remains intentionally unmigrated because it serves authenticated event participants as well as admins."
+      },
+      {
+        "at": "2026-09-10T17:24:41Z",
+        "summary": "Migrated app/api/admin/logistics/site-maps/[id]/publish-work-mode POST to withAdminCapability('site_map.edit'); existing requireSiteMapAccess(..., 'edit') remains in place and getSiteMapAccess now requires admin.orgId. Route ESLint and focused site-map/auth tests passed 23/23.",
+        "next": "Continue only with routes whose capability mapping and entity/org ownership checks are explicit; event communications and other mixed participant/venue routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T17:27:46Z",
+        "summary": "Migrated app/api/admin/logistics/items/[id]/equipment POST and DELETE to withAdminCapability('logistics.manage'); existing withLogisticsParentOrgId parent resolution and unresolved-parent rejection remain in place. Route ESLint and focused logistics/site-map/auth tests passed 22/22.",
+        "next": "Continue only with routes whose capability mapping and entity/org ownership checks are explicit; mixed onboarding, venue, and participant routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T17:36:22Z",
+        "summary": "Migrated app/api/admin/staff GET to withAdminCapability('workforce.view') and POST/PATCH/DELETE to withAdminCapability('workforce.manage'); existing resolveAdminWorkspaceScope, requireOpsOrgId, event membership checks, and entity filters remain in place. Route ESLint and focused workforce/auth tests passed 22/22.",
+        "next": "Continue only with routes whose capability mapping and entity/org ownership checks are explicit; mixed onboarding, venue, and participant routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T17:38:53Z",
+        "summary": "Migrated app/api/admin/analytics/export GET to withAdminCapability('audit.view') per the method-level route contract; existing org_id filters on financial_transactions and events_v2 remain, now bound to admin.orgId. Route ESLint and focused route/auth/finance tests passed 18/18.",
+        "next": "Continue only with routes whose capability mapping and organization/resource scope are explicit; mixed dashboard, onboarding, venue, and participant routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T18:15:32Z",
+        "summary": "Migrated app/api/admin/tours/[id]/grant-admins POST to withAdminCapability('tour.manage') per the route registry; existing assertTourAuthority resource check and tour/org membership behavior remain in place. Route ESLint and focused grant/auth tests passed 18/18.",
+        "next": "Continue only with routes whose capability mapping and resource scope are explicit; mixed dashboard, onboarding, venue, participant, and command-dispatch routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T18:27:05Z",
+        "summary": "Migrated app/api/admin/organization/communications-settings GET to withAdminCapability('org.settings.manage') per the route registry; existing organization settings query and unavailable-state handling remain in place while scope now uses admin.orgId. Route ESLint and focused route/auth tests passed 23/23.",
+        "next": "Continue only with routes whose capability mapping and organization/resource scope are explicit; mixed dashboard, onboarding, venue, participant, and command-dispatch routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T18:53:05Z",
+        "summary": "Migrated app/api/admin/effective-capabilities/route.ts GET to withAdminCapability('tour.view') per the route registry; capability projection response unchanged. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+        "next": "Continue only with routes whose capability mapping and organization/resource scope are explicit; mixed dashboard, onboarding, venue, participant, and command-dispatch routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T19:06:37Z",
+        "summary": "Migrated app/api/admin/notifications/route.ts GET and PATCH to withAdminCapability('communications.send') per the route registry; existing organization/event scope checks remain, while POST remains on withAdminAuth. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+        "next": "Continue only with routes whose capability mapping and organization/resource scope are explicit; mixed dashboard, onboarding, venue, participant, and command-dispatch routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T19:19:01Z",
+        "summary": "Migrated RBAC role assignment POST and entity assignments/audit GET routes to withAdminCapability('org.roles.manage') per the route registry; existing has_entity_permission(..., 'MANAGE_MEMBERS') resource checks remain in place. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+        "next": "Continue only with routes whose capability mapping and organization/resource scope are explicit; mixed dashboard, onboarding, venue, participant, and command-dispatch routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T19:20:24Z",
+        "summary": "Migrated app/api/admin/organization/settings/route.ts GET to withAdminCapability('org.settings.manage') per the route registry; existing acting-organization profile/settings queries and canEdit projection remain unchanged. Route ESLint and focused route/auth tests passed 23/23; git diff --check clean.",
+        "next": "Continue only with routes whose capability mapping and organization/resource scope are explicit; mixed dashboard, onboarding, venue, participant, and command-dispatch routes remain intentionally unmigrated."
+      },
+      {
+        "at": "2026-09-10T19:57:01Z",
+        "summary": "Reviewed the remaining legacy admin routes and made no code changes: remaining candidates lack explicit organization/resource scope or require mixed participant/multi-capability handling. Focused route/auth tests passed 23/23; ESLint and git diff --check clean.",
+        "next": "Resume only when an explicit capability and organization/resource contract is available; do not migrate remaining mixed dashboard, onboarding, venue, participant, or command-dispatch routes by inference."
+      },
+      {
+        "at": "2026-09-11T17:47:55.671Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Completed the bounded admin capability convergence review: all remaining legacy candidates were reviewed and deferred where method-level capability or data-boundary scope was ambiguous.",
+        "completed": [],
+        "next_steps": [
+          "No further implementation in this bounded task; reopen only for a verified regression."
+        ],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

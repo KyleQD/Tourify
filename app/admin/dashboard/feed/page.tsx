@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import supabaseClient from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { AdminPageHeader } from "../components/admin-page-header"
@@ -167,6 +168,9 @@ export default function FeedPage() {
         icon={Rss}
         actions={
           <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+              <Link href="/admin/dashboard/content">Content moderation</Link>
+            </Button>
             <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={load} disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh

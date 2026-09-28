@@ -160,7 +160,7 @@ export function SuggestedConnections() {
       try {
         setPendingRequests((prev) => [...prev, userId])
         // Mock sendConnectionRequest for now
-        console.log("Sending connection request to:", userId)
+        
       } catch (error) {
         console.error("Error sending connection request:", error)
         // Remove from pending if there was an error

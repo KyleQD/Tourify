@@ -10,6 +10,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { StaffMember } from "./event-operations"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 const staffSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -44,19 +46,20 @@ export function StaffModal({ isOpen, onClose, onSubmit, initialData }: StaffModa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-700">
+      <DialogContent className={cn("sm:max-w-[425px]", detailSurfacePattern.dialogContent)}>
+        <div className={detailSurfacePattern.topAccent} />
         <DialogHeader>
-          <DialogTitle className="text-slate-100">
+          <DialogTitle className={detailSurfacePattern.title}>
             {initialData ? "Edit Staff Member" : "Add Staff Member"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-slate-300">Name</Label>
+            <Label htmlFor="name" className={detailSurfacePattern.label}>Name</Label>
             <Input
               id="name"
               {...form.register("name")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.name && (
               <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
@@ -64,11 +67,11 @@ export function StaffModal({ isOpen, onClose, onSubmit, initialData }: StaffModa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role" className="text-slate-300">Role</Label>
+            <Label htmlFor="role" className={detailSurfacePattern.label}>Role</Label>
             <Input
               id="role"
               {...form.register("role")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.role && (
               <p className="text-sm text-red-500">{form.formState.errors.role.message}</p>
@@ -76,15 +79,15 @@ export function StaffModal({ isOpen, onClose, onSubmit, initialData }: StaffModa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="status" className="text-slate-300">Status</Label>
+            <Label htmlFor="status" className={detailSurfacePattern.label}>Status</Label>
             <Select
               value={form.watch("status")}
               onValueChange={(value) => form.setValue("status", value as any)}
             >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectContent className="bg-slate-900 border-white/10">
                 <SelectItem value="confirmed" className="text-white">Confirmed</SelectItem>
                 <SelectItem value="pending" className="text-white">Pending</SelectItem>
                 <SelectItem value="declined" className="text-white">Declined</SelectItem>
@@ -96,11 +99,11 @@ export function StaffModal({ isOpen, onClose, onSubmit, initialData }: StaffModa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contact" className="text-slate-300">Contact Information</Label>
+            <Label htmlFor="contact" className={detailSurfacePattern.label}>Contact Information</Label>
             <Input
               id="contact"
               {...form.register("contact")}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={detailSurfacePattern.input}
             />
             {form.formState.errors.contact && (
               <p className="text-sm text-red-500">{form.formState.errors.contact.message}</p>
@@ -108,10 +111,10 @@ export function StaffModal({ isOpen, onClose, onSubmit, initialData }: StaffModa
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose} className="border-slate-700">
+            <Button type="button" variant="outline" onClick={onClose} className={detailSurfacePattern.btnOutline}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+            <Button type="submit" className={detailSurfacePattern.btnPrimary}>
               {initialData ? "Save Changes" : "Add Staff Member"}
             </Button>
           </div>
@@ -119,4 +122,4 @@ export function StaffModal({ isOpen, onClose, onSubmit, initialData }: StaffModa
       </DialogContent>
     </Dialog>
   )
-} 
+}

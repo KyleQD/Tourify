@@ -80,7 +80,6 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await buildNewsFeed({
-      requestOrigin: request.nextUrl.origin,
       supabase,
       userId,
       limit,

@@ -11,7 +11,20 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url)
     const accountType = url.searchParams.get('account_type') || 'general'
-    const profileId = url.searchParams.get('profile_id') || user.id
+    const requestedProfileId = url.searchParams.get('profile_id')
+    const profileId = requestedProfileId || user.id
+
+    // `profiles_select` is `USING (true)` in the active chain, so a caller-supplied
+    // `profile_id` made this route return another user's ENTIRE profile row —
+    // including the `metadata` and `profile_data` jsonb blobs that carry contact
+    // fields — to any authenticated caller. Scope the read to the authenticated
+    // account and fail closed. (DB-008 / Wave 35.)
+    if (profileId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden: settings can only be read for the authenticated user' },
+        { status: 403 }
+      )
+    }
 
     let profileData = null
 
@@ -112,29 +125,38 @@ export async function PUT(request: NextRequest) {
           .eq('user_id', user.id)
 
         if (venueError) throw venueError
-        
-        // Recalculate profile completion after update
-        const { data: updatedVenue } = await supabase
-          .from('venue_profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .single()
 
-        if (updatedVenue) {
-          await supabase
-            .rpc('calculate_venue_profile_completion', { 
-              venue_id: updatedVenue.id 
-            })
-        }
-        
+        // DB-008 / Wave 35: the `calculate_venue_profile_completion` RPC call was
+        // removed. It exists in no active migration and in no generated contract
+        // (only supabase/migrations_backup/20250120300000_enhance_venue_profiles_comprehensive.sql),
+        // so the call always returned an error that this route never inspected —
+        // a silent no-op. Its only intended effect was to recompute
+        // `venue_profiles.profile_completion`, which IS a real column
+        // (20260728000000_venue_kit_settings.sql) and which the canonical venue
+        // settings form already writes directly in the same request
+        // (components/settings/enhanced-venue-settings.tsx, `profile_completion:
+        // completionScore`). Recreating the RPC was rejected: inventing a scoring
+        // contract that no live consumer reads back would be a new product
+        // decision, not a drift repair.
         updateResult = { success: true, account_type: 'venue' }
         break
 
       case 'admin':
       case 'general':
       default:
-        // Update general profile
+        // Update general profile.
+        // Authorization is enforced at the application boundary, not only by the
+        // `profiles_update` RLS policy. `profile_id` is caller-supplied; accepting
+        // it unchecked meant the route reported `success: true` for a cross-user
+        // write that RLS silently reduced to zero affected rows. Fail closed.
         const targetProfileId = profile_id || user.id
+        if (targetProfileId !== user.id) {
+          return NextResponse.json(
+            { error: 'Forbidden: settings can only be updated for the authenticated user' },
+            { status: 403 }
+          )
+        }
+
         const { error: generalError } = await supabase
           .from('profiles')
           .update({

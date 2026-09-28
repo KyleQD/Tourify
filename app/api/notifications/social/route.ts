@@ -1,7 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { SocialNotificationHelpers } from '@/lib/services/optimized-notification-service'
-import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
+import { checkAuth } from '@/lib/auth/api-auth'
+import { resolvePostCommentAccess } from '@/lib/feed/post-comment-access'
+import { POST as canonicalFollowPost } from '@/app/api/social/follow/route'
+
+// =============================================================================
+// AUTH / SCOPE MODEL (SOCIAL-007, SIM-20260922-SOC-003)
+//
+// This route never uses a service-role client. Every read runs on the
+// caller-scoped client returned by `checkAuth`, so PostgREST applies the
+// caller's RLS (for example `post_shares` is `auth.uid() = user_id`).
+//
+// `post_likes` and `post_comments` still carry a permissive `USING (true)`
+// SELECT policy in the migration chain, so RLS alone is not a sufficient
+// boundary for those two tables. The mandatory, fail-closed authorization
+// decision is therefore the application-level post-visibility gate
+// (`resolvePostCommentAccess`), which runs BEFORE any interaction read and
+// returns the same 404 for a missing post and a non-entitled post so it
+// cannot be used as an existence oracle.
+//
+// Per-user aggregate stats are self-only: `?userId=` is rejected unless it
+// equals the authenticated user, so counters cannot be used to enumerate
+// another user's activity.
+// =============================================================================
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const DEFAULT_INTERACTION_PAGE_SIZE = 50
+const MAX_INTERACTION_PAGE_SIZE = 100
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -11,7 +37,7 @@ const socialInteractionSchema = z.object({
   type: z.enum(['like', 'comment', 'share']),
   postId: z.string().uuid(),
   content: z.string().optional(), // For comments
-  sharedTo: z.string().optional() // For shares
+  sharedTo: z.enum(['clipboard', 'native', 'feed']).optional() // For shares
 })
 
 const followActionSchema = z.object({
@@ -23,48 +49,60 @@ const followActionSchema = z.object({
 // HELPER FUNCTIONS
 // =============================================================================
 
-async function getAuthenticatedUser(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null
-  }
-
-  const token = authHeader.substring(7)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  
-  if (error || !user) {
-    return null
-  }
-
-  return user
+function boundedInteger(value: string | null, fallback: number, min: number, max: number) {
+  const parsed = Number.parseInt(value || '', 10)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(max, Math.max(min, parsed))
 }
 
-async function getPostInfo(postId: string) {
-  const { data: post, error } = await supabase
-    .from('posts')
-    .select('user_id, content')
-    .eq('id', postId)
-    .single()
-
-  if (error || !post) {
-    throw new Error('Post not found')
-  }
-
-  return post
+function isUuid(value: string | null): value is string {
+  return typeof value === 'string' && UUID_PATTERN.test(value)
 }
 
-async function getUserInfo(userId: string) {
-  const { data: user, error } = await supabase
+/**
+ * Public display projection for an interaction actor. Only fields that are
+ * already exposed by the public comment list are returned; no account or
+ * privacy columns are read.
+ */
+function publicUser(profile: any, userId: string) {
+  return {
+    id: userId,
+    username: profile?.username || 'user',
+    full_name: profile?.full_name || 'Anonymous User',
+    avatar_url: profile?.avatar_url || '',
+    is_verified: Boolean(profile?.is_verified),
+  }
+}
+
+async function hydrateActors(supabase: any, userIds: string[]) {
+  const ids = Array.from(new Set(userIds.filter(Boolean)))
+  if (ids.length === 0) return new Map<string, any>()
+
+  const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, username')
-    .eq('id', userId)
-    .single()
+    .select('id, username, full_name, avatar_url, is_verified')
+    .in('id', ids)
 
-  if (error || !user) {
-    return { full_name: null, username: null }
+  if (error) {
+    console.warn('[Notifications Social] actor hydration failed', { code: error.code })
+    return new Map<string, any>()
   }
 
-  return user
+  return new Map<string, any>((data || []).map((profile: any) => [profile.id, profile]))
+}
+
+/**
+ * Mandatory, fail-closed post authorization for interaction reads and writes.
+ * Returns null when the caller is entitled; the caller must answer 404.
+ */
+async function authorizePost(supabase: any, postId: string, viewerUserId: string | null) {
+  try {
+    const access = await resolvePostCommentAccess({ supabase, postId, viewerUserId })
+    return access.allowed ? access : null
+  } catch (error) {
+    console.error('[Notifications Social] post authorization failed', { error })
+    return null
+  }
 }
 
 // =============================================================================
@@ -74,10 +112,11 @@ async function getUserInfo(userId: string) {
 // POST /api/notifications/social - Handle social interactions
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    const auth = await checkAuth(request)
+    if (!auth?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const { user } = auth
 
     const body = await request.json()
     const { action, type, postId, content, sharedTo, targetUserId } = body
@@ -91,26 +130,17 @@ export async function POST(request: NextRequest) {
         sharedTo
       })
 
-      const post = await getPostInfo(validatedData.postId)
-      
-      // Don't notify if interacting with own post
-      if (post.user_id === user.id) {
-        return NextResponse.json({
-          success: true,
-          message: 'Interaction recorded (no notification sent to self)'
-        })
+      // Same visibility gate as the canonical interaction routes so an outsider
+      // cannot like, comment on, or share a followers-only or private post.
+      const access = await authorizePost(auth.supabase, validatedData.postId, user.id)
+      if (!access) {
+        return NextResponse.json({ error: 'Post not found' }, { status: 404 })
       }
 
-      const postContentPreview = post.content.substring(0, 100)
-      const userInfo = await getUserInfo(user.id)
-      const userName = userInfo.full_name || userInfo.username || 'Someone'
-
-      let notification
-      
       switch (validatedData.type) {
         case 'like':
           // Create like record (this will trigger the database trigger)
-          const { error: likeError } = await supabase
+          const { error: likeError } = await auth.supabase
             .from('post_likes')
             .insert({
               post_id: validatedData.postId,
@@ -139,7 +169,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Content is required for comments' }, { status: 400 })
           }
 
-          const { error: commentError } = await supabase
+          const { error: commentError } = await auth.supabase
             .from('post_comments')
             .insert({
               post_id: validatedData.postId,
@@ -156,7 +186,7 @@ export async function POST(request: NextRequest) {
 
         case 'share':
           // Create share record (this will trigger the database trigger)
-          const { error: shareError } = await supabase
+          const { error: shareError } = await auth.supabase
             .from('post_shares')
             .insert({
               post_id: validatedData.postId,
@@ -185,62 +215,22 @@ export async function POST(request: NextRequest) {
       }
 
     } else if (action === 'follow') {
-      // Handle follow/unfollow
+      // Legacy envelope: keep old callers working, but make the user-scoped
+      // canonical route the only writer and side-effect owner for follows.
       const validatedData = followActionSchema.parse({
         action: type,
         targetUserId
       })
-
-      if (validatedData.targetUserId === user.id) {
-        return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
-      }
-
-      if (validatedData.action === 'follow') {
-        // Check if already following
-        const { data: existingFollow } = await supabase
-          .from('follows')
-          .select('id')
-          .eq('follower_id', user.id)
-          .eq('following_id', validatedData.targetUserId)
-          .single()
-
-        if (existingFollow) {
-          return NextResponse.json({
-            success: true,
-            message: 'Already following this user'
-          })
-        }
-
-        // Create follow relationship (this will trigger notification)
-        const { error: followError } = await supabase
-          .from('follows')
-          .insert({
-            follower_id: user.id,
-            following_id: validatedData.targetUserId
-          })
-
-        if (followError) throw followError
-
-        return NextResponse.json({
-          success: true,
-          message: 'Followed user and notification sent'
-        })
-
-      } else if (validatedData.action === 'unfollow') {
-        // Remove follow relationship
-        const { error: unfollowError } = await supabase
-          .from('follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', validatedData.targetUserId)
-
-        if (unfollowError) throw unfollowError
-
-        return NextResponse.json({
-          success: true,
-          message: 'Unfollowed user'
-        })
-      }
+      const headers = new Headers(request.headers)
+      headers.delete('content-length')
+      return canonicalFollowPost(new NextRequest(request.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          followingId: validatedData.targetUserId,
+          action: validatedData.action,
+        }),
+      }))
 
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -266,112 +256,218 @@ export async function POST(request: NextRequest) {
 // GET /api/notifications/social - Get social interaction stats
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
+    // Bearer or cookie session; the returned client is caller-scoped so RLS
+    // applies. No service-role read is available on this path.
+    const auth = await checkAuth(request)
+    if (!auth?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const { user, supabase } = auth
 
     const { searchParams } = new URL(request.url)
     const postId = searchParams.get('postId')
-    const userId = searchParams.get('userId') || user.id
+    const requestedUserId = searchParams.get('userId')
 
     if (postId) {
-      // Get post interaction stats
+      if (!isUuid(postId)) {
+        return NextResponse.json({ error: 'Invalid post id' }, { status: 400 })
+      }
+
+      // Fail-closed authorization before any interaction read. Identical 404
+      // for missing and non-entitled posts: no existence oracle.
+      const access = await authorizePost(supabase, postId, user.id)
+      if (!access) {
+        return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+      }
+
+      const limit = boundedInteger(
+        searchParams.get('limit'),
+        DEFAULT_INTERACTION_PAGE_SIZE,
+        1,
+        MAX_INTERACTION_PAGE_SIZE,
+      )
+      const offset = boundedInteger(searchParams.get('offset'), 0, 0, Number.MAX_SAFE_INTEGER)
+
       const [likesResult, commentsResult, sharesResult] = await Promise.all([
         supabase
           .from('post_likes')
-          .select('id, user_id, created_at, profiles!post_likes_user_id_fkey(full_name, username)')
-          .eq('post_id', postId)
-          .order('created_at', { ascending: false }),
-        
-        supabase
-          .from('post_comments')
-          .select('id, user_id, content, created_at, profiles!post_comments_user_id_fkey(full_name, username)')
-          .eq('post_id', postId)
-          .order('created_at', { ascending: false }),
-        
-        supabase
-          .from('post_shares')
-          .select('id, user_id, created_at, shared_to, profiles!post_shares_user_id_fkey(full_name, username)')
+          .select('id, user_id, created_at', { count: 'exact' })
           .eq('post_id', postId)
           .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1),
+
+        supabase
+          .from('post_comments')
+          .select('id, user_id, content, created_at', { count: 'exact' })
+          .eq('post_id', postId)
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1),
+
+        // `post_shares` SELECT policy is `auth.uid() = user_id`, so this
+        // returns at most the caller's own share. `posts.shares_count`
+        // remains the aggregate surface.
+        supabase
+          .from('post_shares')
+          .select('id, user_id, created_at, shared_to', { count: 'exact' })
+          .eq('post_id', postId)
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1),
+      ])
+
+      const readError = likesResult.error || commentsResult.error || sharesResult.error
+      if (readError) {
+        console.error('[Notifications Social] interaction read failed', {
+          code: readError.code,
+        })
+        return NextResponse.json(
+          { error: 'Failed to fetch social interaction stats' },
+          { status: 500 }
+        )
+      }
+
+      const likes = likesResult.data || []
+      const comments = commentsResult.data || []
+      const shares = sharesResult.data || []
+
+      const actors = await hydrateActors(supabase, [
+        ...likes.map((row: any) => row.user_id),
+        ...comments.map((row: any) => row.user_id),
+        ...shares.map((row: any) => row.user_id),
       ])
 
       return NextResponse.json({
         postId,
         interactions: {
           likes: {
-            count: likesResult.data?.length || 0,
-            users: likesResult.data || []
+            count: likesResult.count ?? likes.length,
+            users: likes.map((row: any) => ({
+              id: row.id,
+              user_id: row.user_id,
+              created_at: row.created_at,
+              user: publicUser(actors.get(row.user_id), row.user_id),
+            })),
           },
           comments: {
-            count: commentsResult.data?.length || 0,
-            users: commentsResult.data || []
+            count: commentsResult.count ?? comments.length,
+            users: comments.map((row: any) => ({
+              id: row.id,
+              user_id: row.user_id,
+              content: row.content,
+              created_at: row.created_at,
+              user: publicUser(actors.get(row.user_id), row.user_id),
+            })),
           },
           shares: {
-            count: sharesResult.data?.length || 0,
-            users: sharesResult.data || []
-          }
-        }
-      })
-    } else {
-      // Get user's social stats
-      const [likesGiven, likesReceived, commentsGiven, commentsReceived, sharesGiven, sharesReceived] = await Promise.all([
-        supabase
-          .from('post_likes')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId),
-        
-        supabase
-          .from('post_likes')
-          .select('id', { count: 'exact', head: true })
-          .eq('posts.user_id', userId)
-          .select(`
-            id,
-            posts!inner(user_id)
-          `),
-        
-        supabase
-          .from('post_comments')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId),
-        
-        supabase
-          .from('post_comments')
-          .select('id', { count: 'exact', head: true })
-          .eq('posts.user_id', userId)
-          .select(`
-            id,
-            posts!inner(user_id)
-          `),
-        
-        supabase
-          .from('post_shares')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId),
-        
-        supabase
-          .from('post_shares')
-          .select('id', { count: 'exact', head: true })
-          .eq('posts.user_id', userId)
-          .select(`
-            id,
-            posts!inner(user_id)
-          `)
-      ])
-
-      return NextResponse.json({
-        userId,
-        stats: {
-          likesGiven: likesGiven.count || 0,
-          likesReceived: likesReceived.count || 0,
-          commentsGiven: commentsGiven.count || 0,
-          commentsReceived: commentsReceived.count || 0,
-          sharesGiven: sharesGiven.count || 0,
-          sharesReceived: sharesReceived.count || 0
-        }
+            count: sharesResult.count ?? shares.length,
+            users: shares.map((row: any) => ({
+              id: row.id,
+              user_id: row.user_id,
+              created_at: row.created_at,
+              shared_to: row.shared_to,
+              user: publicUser(actors.get(row.user_id), row.user_id),
+            })),
+          },
+        },
+        limit,
+        offset,
       })
     }
+
+    // Per-user aggregate stats are self-only. A caller-supplied `userId` that
+    // is not the authenticated user is refused so counters cannot be used to
+    // enumerate another user's activity.
+    //
+    // RESPONSE CONTRACT for the self-stats branch (no `postId`, optional
+    // `?userId=` equal to the caller):
+    //
+    //   likesGiven        post_likes rows the caller authored. Authoritative.
+    //   likesReceived     post_likes rows on posts the caller authored.
+    //   commentsGiven     post_comments rows the caller authored. Authoritative.
+    //   commentsReceived  post_comments rows on posts the caller authored.
+    //   sharesGiven       post_shares rows the caller authored. Authoritative.
+    //   sharesReceived    post_shares rows ON THE CALLER'S OWN POSTS THAT THE
+    //                     CALLER IS PERMITTED TO READ. `post_shares` SELECT is
+    //                     `auth.uid() = user_id`
+    //                     (20241220000010_enhance_feed_system.sql:208-212), so
+    //                     this counter cannot include another actor's share and
+    //                     is therefore NOT a share total. The share total for
+    //                     a post is `posts.shares_count`; the share total for a
+    //                     profile is the sum of `posts.shares_count` over that
+    //                     profile's posts. A consumer that needs a share total
+    //                     must use those columns, and a caller that needs its
+    //                     own shares must use `sharesGiven`.
+    //
+    // The permissive service-role value that `sharesReceived` used to return was
+    // a disclosure primitive, not a metric, so the behaviour change is
+    // deliberate and permanent (CP-058, DOMAIN-002).
+    if (requestedUserId && !isUuid(requestedUserId)) {
+      return NextResponse.json({ error: 'Invalid user id' }, { status: 400 })
+    }
+    if (requestedUserId && requestedUserId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden', code: 'not_own_interaction_stats' },
+        { status: 403 }
+      )
+    }
+
+    const [likesGiven, likesReceived, commentsGiven, commentsReceived, sharesGiven, sharesReceived] = await Promise.all([
+      supabase
+        .from('post_likes')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+
+      supabase
+        .from('post_likes')
+        .select('id, posts!inner(user_id)', { count: 'exact', head: true })
+        .eq('posts.user_id', user.id),
+
+      supabase
+        .from('post_comments')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+
+      supabase
+        .from('post_comments')
+        .select('id, posts!inner(user_id)', { count: 'exact', head: true })
+        .eq('posts.user_id', user.id),
+
+      supabase
+        .from('post_shares')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+
+      // `post_shares` SELECT is `auth.uid() = user_id`, so this counts only
+      // share rows the caller is permitted to read — never another actor's.
+      // It is therefore not a share total; see the response contract above.
+      // `posts.shares_count` remains the aggregate surface.
+      supabase
+        .from('post_shares')
+        .select('id, posts!inner(user_id)', { count: 'exact', head: true })
+        .eq('posts.user_id', user.id),
+    ])
+
+    const countError =
+      likesGiven.error || likesReceived.error || commentsGiven.error
+      || commentsReceived.error || sharesGiven.error || sharesReceived.error
+    if (countError) {
+      console.error('[Notifications Social] self stats read failed', { code: countError.code })
+      return NextResponse.json(
+        { error: 'Failed to fetch social interaction stats' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      userId: user.id,
+      stats: {
+        likesGiven: likesGiven.count || 0,
+        likesReceived: likesReceived.count || 0,
+        commentsGiven: commentsGiven.count || 0,
+        commentsReceived: commentsReceived.count || 0,
+        sharesGiven: sharesGiven.count || 0,
+        sharesReceived: sharesReceived.count || 0
+      }
+    })
 
   } catch (error) {
     console.error('Error fetching social interaction stats:', error)

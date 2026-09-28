@@ -1,0 +1,16 @@
+{
+  "request": {
+    "mutualAidRequestId": "uuid",
+    "custodyInstrumentId": "uuid",
+    "returnOrDeletionDueAt": "2026-09-01T00:00:00Z",
+    "approvals": [
+      "source",
+      "receiver",
+      "community"
+    ]
+  },
+  "response": {
+    "custodyId": "uuid",
+    "state": "approved"
+  }
+}

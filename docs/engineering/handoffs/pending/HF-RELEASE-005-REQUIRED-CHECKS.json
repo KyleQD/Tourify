@@ -1,0 +1,56 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-RELEASE-005-REQUIRED-CHECKS",
+  "task_id": "RELEASE-005",
+  "from_agent": "release",
+  "to_agent": "orchestrator",
+  "status": "accepted",
+  "created_at": "2026-09-25T20:19:07Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "DECIDED in Wave 35, NOT APPLIED. The stale blocker is retired: `main` IS branch-protected (GET returns 200, not 404). The seven enforcement questions this handoff asked are now answered with a written decision and rationale in REL-003 and CP-077, and the exact owner procedure is in docs/audits/flow-notes/release-wave35-governance-2026-09-25.md section 2.3. The structural gap is closed in the repository: ci.yml was restructured from one composite job into eleven independent jobs so the production build, migration gates and service-role audit are no longer steps masked behind a typecheck failure. NO branch-protection setting was changed and NO PUT was issued by this lane.",
+  "working_set": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/security-scans.yml",
+    "docs/DEPLOYMENT_ROUTINE.md"
+  ],
+  "completed": [
+    "Retired the recorded `404 Branch not protected` baseline for `main`. Both STATE.md and RELEASE-005 still carry it; the live configuration is now: strict required_status_checks (10 contexts), required_approving_review_count 1, dismiss_stale_reviews true, require_last_push_approval true, enforce_admins true, required_linear_history true, allow_force_pushes false, allow_deletions false, required_conversation_resolution true.",
+    "Captured the exact required-check set and mapped each against RELEASE-005 acceptance criterion 3 (clean install, lint, typecheck, unit/integration tests, production build, migration checks, service-role audit, security scan, critical E2E).",
+    "Established that three required checks are the actual merge blockers on PR #14: `Database Types` (FAILURE), `Lint And Build` (FAILURE), `E2E Tests (Playwright)` (CANCELLED). mergeStateStatus is BLOCKED, and nothing else contributes.",
+    "Established that the `Vercel` failure and the Advanced Security `CodeQL` failure do NOT block the merge, because neither is a required check.",
+    "WAVE 35 ANSWER 1 - required-check posture decided (REL-003, CP-077). Require: Dependency review, Production Build, Migration Gates, Service-Role Audit, Jest Unit Tests, Route And Registry Gates, Regression Safeguards. Do NOT require as configured: Migrations And RLS Matrix, mobile-checks, redirect-safety, Mobile Typecheck And Lint (all four are PATH-FILTERED, and a required context that does not report for a head SHA BLOCKS the merge - requiring any of them would brick main on the first unrelated pull request). Defer: the Advanced Security CodeQL gate, until a refs/heads/main baseline exists and the alert backlog is dispositioned. Leave required_signatures false; recommend the owner enable it.",
+    "WAVE 35 ANSWER 2 - the structural gap is closed in-repo, not just reported. .github/workflows/ci.yml now has 11 independent jobs with no needs: edges. The production build (step 27), check:migration-validation (step 12), check:service-role-allowlist (step 15) and check:admin-audit (step 16) were all skipped on run 35761777731 behind the step 11 typecheck failure; they now report their own conclusions. A mechanical before/after set difference of every npm invocation returns 0 removed and 0 added, and npm audit --audit-level=critical moved AHEAD of typecheck so it is no longer maskable.",
+    "WAVE 35 ANSWER 3 - the procedure is a single atomic PUT, not a sequence. GitHub REPLACES required_status_checks.contexts wholesale rather than appending, so current-10 plus 6 new is one operation with no interim window in which enforcement is weaker than today. Executing it as partial edits is what would create such a window. Timing constraint recorded: the six new contexts only start reporting once a pull request runs the restructured ci.yml, so the PUT must land in the same window as the merge that carries the restructure, or immediately after it.",
+    "WAVE 35 CONSTRAINT DISCOVERED - four of the ten required contexts (Security exception governance, Secret scan, CodeQL (JavaScript/TypeScript), Generate SBOM) are emitted ONLY by .github/workflows/security-scans.yml, WHICH IS NOT ON main. git ls-tree --name-only origin/main .github/workflows/ returns 13 files and security-scans.yml is not among them; it was introduced in commit be313ca2 (2026-08-04) on an unmerged feature branch. They are currently satisfiable only because a pull request carries that file. There is zero evidence their push:main path has ever run, and removing the file from main would make four required contexts unproducible and block every future merge."
+  ],
+  "next_steps": [
+    "EXECUTE the single atomic PUT in section 2.3 of docs/audits/flow-notes/release-wave35-governance-2026-09-25.md, in the same window as the merge that carries the ci.yml restructure. Read the current set programmatically, build current+6, PUT once, read back. Do not hand-type the context list.",
+    "Merge a branch carrying .github/workflows/security-scans.yml to main, then confirm GET /repos/KyleQD/Tourify/code-scanning/analyses?ref=refs/heads/main is non-empty. That single check is what proves the baseline defect is closed. Until then the Advanced Security CodeQL gate is not a valid regression gate. Full five-step procedure in REL-004 / evidence record section 3.4.",
+    "Then re-read the platform gate. Expect its absolute open-alert count on main - not 96 - to be the real pre-existing backlog for HF-RELEASE-SEC-CODEQL, and expect the reported NEW-alert count on the next pull request to drop sharply. That number is the triage list; it must not be reduced by dismissal (CP-060).",
+    "Decide whether to widen or remove the path filters on admin-rls-ci.yml, mobile-ci.yml and mobile-redirect-safety.yml. Until one of those happens, the migration and mobile gates cannot be required at all. Widening is release-owned but was not done: it puts a ~3-minute Supabase stack boot and a second mobile dependency install on every pull request, and that cost/benefit call is the owner's.",
+    "Decide whether to enable required_signatures. Left false and recorded as false."
+  ],
+  "blockers": [
+    "NO branch-protection mutation was made. Every item above is a hosted change to main and needs owner authorization and owner execution. This lane issued no PUT and changed no protection state.",
+    "The six new required contexts do not exist on any pull request until a pull request runs the restructured ci.yml. Adding them to the required set before that first run blocks the next merge with six non-reporting contexts. This is the one hard sequencing constraint in this handoff.",
+    "Hosted exact-SHA QA-003 certification, deployment evidence, approver, and rollback point remain outstanding and are unaffected by the protection posture.",
+    "E2E Tests (Playwright) was CANCELLED on d2176904. That remains a required check and therefore a merge blocker, and it is not a branch-protection question: it fails because next build runs an inline full-repo tsc while typecheck is red. Owner-side budget headroom is raised separately in HF-QA-035-E2E-BUILD-HEADROOM."
+  ],
+  "verification": [
+    "gh api repos/KyleQD/Tourify/branches/main/protection -> 200; required_status_checks.strict true; contexts = Production Debug Scan, Vitest, Database Types, Lint And Build, Unit Tests (Vitest), E2E Tests (Playwright), Security exception governance, Secret scan, CodeQL (JavaScript/TypeScript), Generate SBOM.",
+    "gh pr view 14 --json statusCheckRollup,mergeStateStatus -> 20 checks; mergeStateStatus BLOCKED; blocking = Database Types FAILURE, Lint And Build FAILURE, E2E Tests (Playwright) CANCELLED.",
+    "gh api repos/KyleQD/Tourify/actions/jobs/106861310047 -> steps 12-27 (15 release-gate steps plus Build) all conclusion `skipped` after step 11 `Typecheck` failed.",
+    "gh api repos/KyleQD/Tourify/branches/main/protection -> required_signatures.enabled false, enforce_admins.enabled true, required_linear_history.enabled true, allow_force_pushes.enabled false, allow_deletions.enabled false.",
+    "gh api repos/KyleQD/Tourify/branches/main/protection (2026-09-25) -> 200; strict true; 10 contexts; required_approving_review_count 1; dismiss_stale_reviews, require_last_push_approval, enforce_admins, required_linear_history, required_conversation_resolution all true; allow_force_pushes and allow_deletions false; required_signatures.enabled FALSE.",
+    "gh api repos/KyleQD/Tourify/branches/main -> sha 76d8389ebf939cee70f7070abf74a6bacc46f5de, protected true, committed 2026-07-19.",
+    "git ls-tree --name-only origin/main .github/workflows/ -> 13 workflow files; security-scans.yml ABSENT. git log --follow -- .github/workflows/security-scans.yml -> single commit be313ca2, 2026-08-04.",
+    "gh run list --workflow security-scans.yml -> 19 runs, ALL event=pull_request; zero push events, zero schedule events.",
+    "gh api repos/KyleQD/Tourify/actions/jobs/106861310047 -> step 11 Typecheck 17:38:34Z->18:46:52Z FAILURE (68m18s); steps 12-27 all skipped, so d2176904 has no production-build evidence.",
+    "js-yaml parse of all 16 workflows -> 0 failures; ci.yml 11 jobs, every job with runs-on and a job-level timeout-minutes; every referenced npm run script exists in package.json (23/23); old-vs-new npm invocation set difference 0 removed / 0 added; continue-on-error, if: always(), || true, || echo, ignoreDuringBuilds all 0 occurrences.",
+    "node --test scripts/ci/release-workflow-contract.test.mjs -> 2/2 pass.",
+    "git status --porcelain -- .github/workflows/e2e.yml -> empty. The QA-owned E2E file is untouched; git diff --stat -- .github/workflows/ci.yml -> 396 insertions, 40 deletions, 1 file."
+  ],
+  "evidence_document": "docs/audits/flow-notes/release-wave35-governance-2026-09-25.md",
+  "accepting_task_id": "ORCH-004",
+  "completion_condition": "EXECUTE the single atomic PUT in section 2.3 of docs/audits/flow-notes/release-wave35-governance-2026-09-25.md, in the same window as the merge that carries the ci.yml restructure. Read the current set programmatically, build current+6, PUT once, read back. Do not hand-type the context list."
+}

@@ -1,0 +1,7 @@
+{
+  "packageId": "uuid",
+  "requesterAuthorityId": "uuid",
+  "requestedRemedy": "shared_custody",
+  "evidenceManifestId": "uuid",
+  "idempotencyKey": "uuid"
+}

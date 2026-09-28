@@ -1,0 +1,84 @@
+{
+  "audit_date": "2026-08-26",
+  "repository": "KyleQD/Tourify",
+  "branch": "integration/tourify-reconcile-2026-08",
+  "commit": "14842ad3dc65b5c9a70e8abff9d12475a1782d63",
+  "finding_count": 158,
+  "severity_counts": {
+    "P1": 54,
+    "P2": 94,
+    "P3": 10
+  },
+  "confidence_counts": {
+    "Confirmed in code": 156,
+    "Needs runtime verification": 2
+  },
+  "phases": [
+    {
+      "name": "Phase 01 \u2014 Shell, Acting Context & Information Architecture",
+      "file": "02_PHASE_01_SHELL_CONTEXT_INFORMATION_ARCHITECTURE.md",
+      "findings": 10
+    },
+    {
+      "name": "Phase 02 \u2014 Shared Components, Visual System & State Primitives",
+      "file": "03_PHASE_02_SHARED_COMPONENTS_VISUAL_SYSTEM_STATES.md",
+      "findings": 10
+    },
+    {
+      "name": "Phase 03 \u2014 Admin Dashboard Command Center",
+      "file": "04_PHASE_03_ADMIN_DASHBOARD_COMMAND_CENTER.md",
+      "findings": 12
+    },
+    {
+      "name": "Phase 04 \u2014 Tours, Events & Calendar Workflows",
+      "file": "05_PHASE_04_TOURS_EVENTS_CALENDAR.md",
+      "findings": 37
+    },
+    {
+      "name": "Phase 05 \u2014 Workforce, Hiring & Organization Governance",
+      "file": "06_PHASE_05_WORKFORCE_HIRING_ORG_GOVERNANCE.md",
+      "findings": 15
+    },
+    {
+      "name": "Phase 06 \u2014 Logistics, Travel & Day-of Operations",
+      "file": "07_PHASE_06_LOGISTICS_TRAVEL_DAY_OF_OPS.md",
+      "findings": 12
+    },
+    {
+      "name": "Phase 07 \u2014 Ticketing, Finance, Vendors & Contracts",
+      "file": "08_PHASE_07_TICKETING_FINANCE_VENDORS_CONTRACTS.md",
+      "findings": 24
+    },
+    {
+      "name": "Phase 08 \u2014 Communications, Analytics & System-facing Surfaces",
+      "file": "09_PHASE_08_COMMUNICATIONS_ANALYTICS_SYSTEM.md",
+      "findings": 16
+    },
+    {
+      "name": "Phase 09 \u2014 Mobile, Accessibility, Responsiveness & Interaction States",
+      "file": "10_PHASE_09_MOBILE_ACCESSIBILITY_INTERACTION_STATES.md",
+      "findings": 12
+    },
+    {
+      "name": "Phase 10 \u2014 Cross-surface User Flows & Premiere-quality Product Coherence",
+      "file": "11_PHASE_10_CROSS_SURFACE_USER_FLOWS.md",
+      "findings": 10
+    }
+  ],
+  "next_pass": "Development + implementation documentation, preserving audit finding IDs.",
+  "implementation_pass": {
+    "task_count": 54,
+    "pr_wave_count": 18,
+    "adr_count": 10,
+    "primary_traceability": {
+      "findings": 158,
+      "mapped": 158,
+      "duplicates": 0,
+      "unmapped": 0
+    },
+    "implementation_root": "IMPLEMENTATION",
+    "status": "Planning complete; implementation not started",
+    "implementation_file_count": 59,
+    "next_action": "W00 \u2014 Architecture + fixtures"
+  }
+}

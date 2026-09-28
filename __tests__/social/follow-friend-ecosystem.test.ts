@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { readMigrationSql } from '../helpers/migration-source'
 
 describe('follow vs friend ecosystem wiring', () => {
   it('exposes account_follows migration', () => {
     const sql = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260712003357_account_follows.sql'),
+      readMigrationSql('20260712003357_account_follows.sql'),
       'utf8'
     )
     expect(sql).toContain('create table if not exists public.account_follows')
@@ -33,9 +34,15 @@ describe('follow vs friend ecosystem wiring', () => {
     expect(source).toContain('followedAccountIds')
   })
 
-  it('discover uses FollowFriendButton instead of raw /api/follow', () => {
-    const source = readFileSync(join(process.cwd(), 'app/discover/page.tsx'), 'utf8')
-    expect(source).toContain('FollowFriendButton')
-    expect(source).not.toContain('"/api/follow"')
+  it('discover renders follows through FollowFriendButton, never raw /api/follow', () => {
+    // Discover page delegates to the shared search-results renderer, which
+    // owns follow interactions via FollowFriendButton.
+    const results = readFileSync(join(process.cwd(), 'components/search/global-search-results.tsx'), 'utf8')
+    expect(results).toContain('FollowFriendButton')
+
+    const page = readFileSync(join(process.cwd(), 'app/discover/page.tsx'), 'utf8')
+    expect(page).not.toContain('"/api/follow"')
+    const client = readFileSync(join(process.cwd(), 'components/discover/discover-page-client.tsx'), 'utf8')
+    expect(client).not.toContain('"/api/follow"')
   })
 })

@@ -1,0 +1,17 @@
+geo_places=12
+geo_place_aliases=8
+geo_external_references=9
+world_sources=53
+staging_candidates=176
+detroit_entities=25
+detroit_entity_places=25
+world_claims=66
+claim_evidence=145
+rbac_world_permissions=6
+rbac_world_roles=5
+rbac_world_user_assignments=0
+detroit_relationship_edges=15
+claims_with_evidence=66
+detroit_distinct_sources=16
+published_world_rows=0
+published_claims=0

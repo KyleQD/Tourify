@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/auth-context'
+import { useAdminLogisticsRequest } from '@/hooks/use-admin-logistics-request'
 
 // =============================================================================
 // TYPES
@@ -212,6 +213,7 @@ interface UseRentalsReturn {
 
 export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
   const { user } = useAuth()
+  const { adminFetch, actingContextKey, isAdminReady } = useAdminLogisticsRequest()
   const [clients, setClients] = useState<RentalClient[]>([])
   const [agreements, setAgreements] = useState<RentalAgreement[]>([])
   const [analytics, setAnalytics] = useState<RentalAnalytics[]>([])
@@ -249,7 +251,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
   // =============================================================================
 
   const fetchClients = useCallback(async () => {
-    if (!user) return
+    if (!user || !isAdminReady) return
 
     try {
       setClientsLoading(true)
@@ -263,7 +265,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
 
       if (status) params.append('status', status)
 
-      const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
+      const response = await adminFetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -283,10 +285,10 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setClientsLoading(false)
     }
-  }, [user, status, limit, offset])
+  }, [adminFetch, isAdminReady, user, status, limit, offset])
 
   const fetchAgreements = useCallback(async () => {
-    if (!user) return
+    if (!user || !isAdminReady) return
 
     try {
       setAgreementsLoading(true)
@@ -303,7 +305,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       if (event_id) params.append('event_id', event_id)
       if (tour_id) params.append('tour_id', tour_id)
 
-      const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
+      const response = await adminFetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -323,10 +325,10 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setAgreementsLoading(false)
     }
-  }, [user, status, client_id, event_id, tour_id, limit, offset])
+  }, [adminFetch, isAdminReady, user, status, client_id, event_id, tour_id, limit, offset])
 
   const fetchAnalytics = useCallback(async () => {
-    if (!user) return
+    if (!user || !isAdminReady) return
 
     try {
       setAnalyticsLoading(true)
@@ -336,7 +338,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       if (event_id) params.append('event_id', event_id)
       if (tour_id) params.append('tour_id', tour_id)
 
-      const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
+      const response = await adminFetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -355,10 +357,10 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setAnalyticsLoading(false)
     }
-  }, [user, event_id, tour_id])
+  }, [adminFetch, isAdminReady, user, event_id, tour_id])
 
   const fetchUtilization = useCallback(async () => {
-    if (!user) return
+    if (!user || !isAdminReady) return
 
     try {
       setUtilizationLoading(true)
@@ -368,7 +370,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       if (event_id) params.append('event_id', event_id)
       if (tour_id) params.append('tour_id', tour_id)
 
-      const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
+      const response = await adminFetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -387,7 +389,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setUtilizationLoading(false)
     }
-  }, [user, event_id, tour_id])
+  }, [adminFetch, isAdminReady, user, event_id, tour_id])
 
   const fetchData = useCallback(async () => {
     if (!user) return
@@ -421,7 +423,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/rentals', {
+      const response = await adminFetch('/api/admin/rentals', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -444,13 +446,13 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       console.error('[useRentals] Error creating client:', err)
       throw err
     }
-  }, [user, fetchClients])
+  }, [adminFetch, user, fetchClients])
 
   const updateClient = useCallback(async (id: string, data: Partial<RentalClient>): Promise<RentalClient> => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/rentals', {
+      const response = await adminFetch('/api/admin/rentals', {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -474,13 +476,13 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       console.error('[useRentals] Error updating client:', err)
       throw err
     }
-  }, [user, fetchClients])
+  }, [adminFetch, user, fetchClients])
 
   const deleteClient = useCallback(async (id: string): Promise<void> => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(`/api/admin/rentals?id=${id}&type=client`, {
+      const response = await adminFetch(`/api/admin/rentals?id=${id}&type=client`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -497,7 +499,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       console.error('[useRentals] Error deleting client:', err)
       throw err
     }
-  }, [user, fetchClients])
+  }, [adminFetch, user, fetchClients])
 
   const createAgreement = useCallback(async (data: {
     client_id: string
@@ -516,7 +518,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/rentals', {
+      const response = await adminFetch('/api/admin/rentals', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -539,13 +541,13 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       console.error('[useRentals] Error creating agreement:', err)
       throw err
     }
-  }, [user, fetchAgreements])
+  }, [adminFetch, user, fetchAgreements])
 
   const updateAgreement = useCallback(async (id: string, data: Partial<RentalAgreement>): Promise<RentalAgreement> => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/rentals', {
+      const response = await adminFetch('/api/admin/rentals', {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -569,13 +571,13 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       console.error('[useRentals] Error updating agreement:', err)
       throw err
     }
-  }, [user, fetchAgreements])
+  }, [adminFetch, user, fetchAgreements])
 
   const deleteAgreement = useCallback(async (id: string): Promise<void> => {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(`/api/admin/rentals?id=${id}&type=agreement`, {
+      const response = await adminFetch(`/api/admin/rentals?id=${id}&type=agreement`, {
         method: 'DELETE',
         credentials: 'include',
         headers: {
@@ -592,27 +594,42 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       console.error('[useRentals] Error deleting agreement:', err)
       throw err
     }
-  }, [user, fetchAgreements])
+  }, [adminFetch, user, fetchAgreements])
 
   // =============================================================================
   // LIFECYCLE
   // =============================================================================
 
+  useEffect(() => {
+    setClients([])
+    setAgreements([])
+    setAnalytics([])
+    setUtilization([])
+    setTotal(0)
+  }, [actingContextKey])
+
   // Initial fetch
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    if (!isAdminReady) {
+      setClients([])
+      setAgreements([])
+      setAnalytics([])
+      setUtilization([])
+      return
+    }
+    void fetchData()
+  }, [actingContextKey, fetchData, isAdminReady])
 
   // Auto-refresh
   useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh || !isAdminReady) return
 
     const interval = setInterval(() => {
       fetchData()
     }, refreshInterval)
 
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, fetchData])
+  }, [actingContextKey, autoRefresh, refreshInterval, fetchData, isAdminReady])
 
   return {
     // Data
@@ -675,4 +692,4 @@ export function useRentalAnalytics(options: Omit<UseRentalsOptions, 'type'> = {}
 
 export function useEquipmentUtilization(options: Omit<UseRentalsOptions, 'type'> = {}) {
   return useRentals({ ...options, type: 'utilization' })
-} 
+}

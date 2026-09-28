@@ -264,10 +264,11 @@ export async function GET(request: NextRequest) {
 
     const groupItems: UnifiedItem[] = (groupThreadsResult.data || []).map((item: any) => {
       const lastMessage = Array.isArray(item.last_message) ? item.last_message[0] : item.last_message
+      const badge = item.thread_type === 'logistics' ? 'Logistics' : 'Group'
       return {
         id: item.id,
         source: 'group',
-        badge: 'Group',
+        badge,
         last_message: lastMessage?.content || null,
         last_activity: lastMessage?.created_at || item.updated_at,
         name: item.name,

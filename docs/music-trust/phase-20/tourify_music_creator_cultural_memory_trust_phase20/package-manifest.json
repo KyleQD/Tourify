@@ -1,0 +1,512 @@
+{
+  "package": "tourify_music_creator_cultural_memory_trust_phase20",
+  "generatedAt": "2026-07-20T21:26:57.401906+00:00",
+  "fileCountExcludingManifest": 101,
+  "files": [
+    {
+      "path": "00_PHASE_20_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 8447,
+      "sha256": "bddf5ad0f1acc40ec100d17e4d3b2c89f7c28e5c1fd0770067b732b4f9ed35f4"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_PARTICIPANT_JOURNEYS.md",
+      "bytes": 8323,
+      "sha256": "33e4c795261a2a47765ac5467d5e1ddc5fedad2a423737528d1db2f4da7431d7"
+    },
+    {
+      "path": "02_PHASE_19_EVIDENCE_AND_DEEP_TIME_READINESS.md",
+      "bytes": 8306,
+      "sha256": "1cde7fb2f76463b26b3a4073184af6aa93b8b212db91b6db21ee8636d2470987"
+    },
+    {
+      "path": "03_LEGAL_STRUCTURE_TRUST_FIDUCIARY_AND_TOURIFY_BOUNDARY.md",
+      "bytes": 8357,
+      "sha256": "7cbcd09dc715874eced2ea85de315a88f97a20a496e5490aa5dd1dbe0972f8c5"
+    },
+    {
+      "path": "04_PUBLIC_CHARTER_PURPOSES_RIGHTS_AND_LIMITATIONS.md",
+      "bytes": 8350,
+      "sha256": "024b31355cad8a5475e23761a39f5f60eb135cddc3d32936f79163eb0fb9cb0e"
+    },
+    {
+      "path": "05_PLURAL_GOVERNANCE_RESERVED_POWERS_AND_SUBSIDIARITY.md",
+      "bytes": 8224,
+      "sha256": "1e9143f82506d3d30fc2f37eedc8531fd92218ab9909861e91a7cd647e6a877b"
+    },
+    {
+      "path": "06_CULTURAL_AUTHORITY_MAP_RECOGNITION_AND_EXACT_SCOPE.md",
+      "bytes": 8276,
+      "sha256": "54b0e76973aec07916f8624e2e81cb831141bcc5c279aea65bcd55992d69c2f8"
+    },
+    {
+      "path": "07_COMMUNITY_COUNCILS_CREATOR_VOICE_AND_DECISION_RIGHTS.md",
+      "bytes": 8266,
+      "sha256": "5120687c5a8ce7ae6e02fcc6c52f705a8591691655bb67f1255226fff91e6383"
+    },
+    {
+      "path": "08_INDIGENOUS_PEOPLES_LOCAL_COMMUNITIES_AND_SUSTAINED_CONSENT.md",
+      "bytes": 8288,
+      "sha256": "1f0f85ffa53ead0a24c70d0d7a9f54096fe3527fbf212716b416918939a7cf97"
+    },
+    {
+      "path": "09_PARTICIPATION_DEPOSIT_WITHDRAWAL_AND_NO_COMPULSORY_COLLECTION.md",
+      "bytes": 8335,
+      "sha256": "354bc55b5fe7e7be60ede4039da99026db79f4ed1d020ca512197d118090b00f"
+    },
+    {
+      "path": "10_APPRAISAL_SELECTION_ACQUISITION_AND_DEACCESSION.md",
+      "bytes": 8256,
+      "sha256": "08683177b8a44862c09ed1eedd1828b2db1595ad648519d32e105c21350128ba"
+    },
+    {
+      "path": "11_CUSTODIAN_MEMORY_INSTITUTION_ACCREDITATION_AND_DUTIES.md",
+      "bytes": 8242,
+      "sha256": "5a13c4a1405e6a864aa159e1373f7b2b76aa21d341bf2c4996673015572c68a1"
+    },
+    {
+      "path": "12_DISTRIBUTED_CUSTODIAN_NETWORK_MULTI_ROOT_AND_INDEPENDENCE.md",
+      "bytes": 8143,
+      "sha256": "618a8aafb0ff6c53511a17a05b11f6acd0b32538db314d8d211c79587e38ec1b"
+    },
+    {
+      "path": "13_CUSTODY_ALLOCATION_ESCROW_TRANSFER_AND_ACCEPTANCE.md",
+      "bytes": 8273,
+      "sha256": "3702b5806f252325e1888c2fe361ee982edcea89546c8f8ab628875af15442db"
+    },
+    {
+      "path": "14_OPEN_SPECIFICATIONS_PRESERVATION_PROFILES_AND_CHANGE_CONTROL.md",
+      "bytes": 8298,
+      "sha256": "53287f5b77e2274b53b6dd5f9088c576ba4e1a612ed078dffc53bfd3f8bc7e73"
+    },
+    {
+      "path": "15_DEEP_TIME_INFORMATION_PACKAGES_AND_TRANSFER_BUNDLES.md",
+      "bytes": 8229,
+      "sha256": "ac1db9baa7b20ce3a7182152ce84a08f09f6a3c7bf22c935eb34291d97403fca"
+    },
+    {
+      "path": "16_PROVENANCE_AUTHENTICITY_FIXITY_AND_CHAIN_OF_CUSTODY.md",
+      "bytes": 8188,
+      "sha256": "8cb2ed9eb40ef4089ce23bade25ead4a97b20cdd79e4af677dad05c7cb894af2"
+    },
+    {
+      "path": "17_FORMAT_POLICY_EMULATION_AND_TECHNOLOGY_RECONSTRUCTION.md",
+      "bytes": 8165,
+      "sha256": "bb0f1a8b7f0aae2f1ea6016043758955f6e68eb27116624e147503f61f8a98f1"
+    },
+    {
+      "path": "18_IDENTIFIERS_SCHEMAS_FINDING_AIDS_ALIASES_AND_TOMBSTONES.md",
+      "bytes": 8089,
+      "sha256": "3d8b5f623174bdca95e4fc6940ac84e801aaa641c729f9d7ecb1dae271a722eb"
+    },
+    {
+      "path": "19_CRYPTOGRAPHIC_AGILITY_TRUST_ROOTS_AND_EVIDENCE_RESEALING.md",
+      "bytes": 8190,
+      "sha256": "481d21ef73ec452eb78767ec36c22931e287388d37a9beee63821dafdb818bdf"
+    },
+    {
+      "path": "20_LINGUISTIC_GOVERNANCE_SCRIPTS_ENCODINGS_AND_TRANSLATION.md",
+      "bytes": 8294,
+      "sha256": "b2081d8dfbbffe3d9a1111af7bd63b1b8b648965af4b2cb6c2280d27ba23c57e"
+    },
+    {
+      "path": "21_ORAL_TRADITION_PERFORMANCE_CONTEXT_AND_NON_TEXTUAL_MEMORY.md",
+      "bytes": 8218,
+      "sha256": "750fa47337a4b7fe6bfcf4e47a97155cb3ec85d0ad324f0b0ce86426c07d1140"
+    },
+    {
+      "path": "22_SENSITIVE_SACRED_SECRET_AND_CULTURALLY_RESTRICTED_MATERIALS.md",
+      "bytes": 8185,
+      "sha256": "2933dc90f4461234f82b5b02192a20b07b62493a033dda34311f55170f79521c"
+    },
+    {
+      "path": "23_PRIVACY_POSTHUMOUS_DESCENDANT_AND_AFFECTED_PERSON_INTERESTS.md",
+      "bytes": 8301,
+      "sha256": "5064fdea9cc2e9c65de96941e1c9c614cb178d568e7deb9525582bb1423d8e14"
+    },
+    {
+      "path": "24_ACCESS_CLASSES_EMBARGO_REVIEW_APPEALS_AND_MEDIATED_ACCESS.md",
+      "bytes": 8188,
+      "sha256": "e8fa6e110841e6fd087a361e07ddcca3a95530c8d79ec335abcaabc16fc5269f"
+    },
+    {
+      "path": "25_DARK_ARCHIVE_BREAK_GLASS_AND_EMERGENCY_DISCLOSURE.md",
+      "bytes": 8230,
+      "sha256": "8d1da1af81c874ed5e2e158f420dc23a660b43a90f6b9c139b505a5ec090036b"
+    },
+    {
+      "path": "26_PUBLIC_FINDING_AIDS_PROJECTIONS_MINIMIZATION_AND_DISPUTE_STATUS.md",
+      "bytes": 8214,
+      "sha256": "c47ff309e26a76b9a713fbba52425ebf0522440d26130f0a25a8cfe1426abaf1"
+    },
+    {
+      "path": "27_REPATRIATION_RETURN_SHARED_CUSTODY_AND_DIGITAL_RESTITUTION.md",
+      "bytes": 8279,
+      "sha256": "bf1be0f7b7c5e100af5a8c9e98afcca1924830bd29c968ef06e57a03899fcfdf"
+    },
+    {
+      "path": "28_HISTORICAL_HARMS_CONTEXT_CORRECTION_AND_REMEDIATION.md",
+      "bytes": 8258,
+      "sha256": "09ba6d1c6ce00859afeb75a11475a70844edcb3d87826d9bf8f63423bf0cd9a1"
+    },
+    {
+      "path": "29_CONTESTED_RECORDS_PLURAL_NARRATIVES_DISPUTES_AND_DISSENT.md",
+      "bytes": 8113,
+      "sha256": "c18c1148a32c6a92c754f23f5334028863289d70ae1186b90fe399c8b226603d"
+    },
+    {
+      "path": "30_COPYRIGHT_MORAL_RIGHTS_ARCHIVAL_USE_AND_NON_ADJUDICATION.md",
+      "bytes": 8151,
+      "sha256": "ac646ecc5cdcebe472774dc97ac87c977a9628a07a7cac28909c374d8b5e0485"
+    },
+    {
+      "path": "31_RIGHTS_REFERENCE_LONG_TERM_RESOLUTION_AND_SOURCE_AUTHORITY.md",
+      "bytes": 8093,
+      "sha256": "36745645e1b716acb4fecf9578288a8b3483117c0ad17338884bd2efcd469e8f"
+    },
+    {
+      "path": "32_AI_MODEL_RESEARCH_AND_COMMERCIAL_REUSE_RESTRICTIONS.md",
+      "bytes": 8223,
+      "sha256": "ead0226404410677e96f5880b481db06e5d68c0e72d51b601a24c157996691ac"
+    },
+    {
+      "path": "33_BENEFIT_SHARING_RESEARCH_OUTPUT_REVIEW_AND_COMMUNITY_RETURN.md",
+      "bytes": 8156,
+      "sha256": "ec7dbf28882b6b5d8ec16a0048da22dba038b5ebb6463fc455f3881312379b31"
+    },
+    {
+      "path": "34_DISASTER_CONFLICT_CLIMATE_AND_EMERGENCY_RESPONSE.md",
+      "bytes": 8075,
+      "sha256": "e3d85671d3648d5d51a9d1a074b7b8edf122dedae098188c22942a6b89cc3aec"
+    },
+    {
+      "path": "35_GEOGRAPHIC_JURISDICTIONAL_AND_INSTITUTIONAL_DIVERSIFICATION.md",
+      "bytes": 8169,
+      "sha256": "0af14e34ef07fbddce73069ed3c01f59d240b37b0c23d83010b0340b00594d3b"
+    },
+    {
+      "path": "36_OFFLINE_PHYSICAL_ANALOG_AND_AIR_GAPPED_COPIES.md",
+      "bytes": 8137,
+      "sha256": "ca69ed61239142243847e5bda873ca68791882061b48b99b1f79f4372a78dc74"
+    },
+    {
+      "path": "37_SHARED_PRESERVATION_FUND_ENDOWMENT_RESERVES_AND_FISCAL_DUTIES.md",
+      "bytes": 8142,
+      "sha256": "b2efdc9a8e74981682712ac90b65b146a059c0c08fba2d941fd06eec4f876a65"
+    },
+    {
+      "path": "38_FUNDING_CONCENTRATION_DONOR_INDEPENDENCE_AND_BENEFIT_CONFLICTS.md",
+      "bytes": 8103,
+      "sha256": "1c6d4d5400be75ebe3822cb8de75b6b28ad0b7ba79799bda27a00eee134554e5"
+    },
+    {
+      "path": "39_PROCUREMENT_VENDOR_OPERATOR_NEUTRALITY_AND_TECHNOLOGY_TRANSFER.md",
+      "bytes": 8137,
+      "sha256": "abf9fe772568e6d4eecebcdf0e7587f9489558f012c1b525e53c47d38b6b61f8"
+    },
+    {
+      "path": "40_WORKFORCE_SUCCESSION_KNOWLEDGE_TRANSFER_AND_PROFESSIONAL_ETHICS.md",
+      "bytes": 8169,
+      "sha256": "655da75df8a90b4bc64f1288e3a4ed961a50fe8fb943c180cf9448f6c1fa74e5"
+    },
+    {
+      "path": "41_PUBLIC_LEGITIMACY_ANTI_CAPTURE_AND_INDEPENDENT_OVERSIGHT.md",
+      "bytes": 8196,
+      "sha256": "b6f57ed0f45357270b5c565c7af2c1694d3cf0e060fd8b80309cf992fea4f4b1"
+    },
+    {
+      "path": "42_FUTURE_GENERATIONS_VOICE_LIMITS_AND_LONG_HORIZON_PARTICIPATION.md",
+      "bytes": 8101,
+      "sha256": "4f33fe81f2a327cbbcbaca0f803347c82e0b2d71043c22305e570fd962b78bb1"
+    },
+    {
+      "path": "43_MINIMUM_PUBLIC_MEMORY_SERVICE_FLOOR_AND_ESSENTIAL_CONTINUITY.md",
+      "bytes": 8207,
+      "sha256": "d4e61a5bbd41c0a0afbb74cb8121223d0005d5d3460786c6452f619f6a7b16db"
+    },
+    {
+      "path": "44_DISSOLUTION_ASSET_LOCK_POST_TRUST_SURVIVAL_AND_WIND_DOWN.md",
+      "bytes": 8155,
+      "sha256": "2fe7b93468967fd34775eeb83d0c6a212518c4a464075f322590739aaf38d882"
+    },
+    {
+      "path": "45_EXTERNAL_REVIEW_TRUSTWORTHY_REPOSITORY_ASSURANCE_AND_REASSESSMENT.md",
+      "bytes": 8105,
+      "sha256": "3e679ddb78c2dd6469d73748d4fbbdd195f2aa8ef2828eb44f03f6ee3b5b73c3"
+    },
+    {
+      "path": "46_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "bytes": 8164,
+      "sha256": "01e9a0c048e1a98559250165a0a0f4bac96604bc224d376426f4d65dddfb6f19"
+    },
+    {
+      "path": "47_API_EVENTS_BACKGROUND_JOBS_AND_EXTERNAL_ADAPTERS.md",
+      "bytes": 8125,
+      "sha256": "5ea3e4168b5d8220905dcf88605e5812412ccdf3a75cb318cbbfcff8e8b77377"
+    },
+    {
+      "path": "48_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 8213,
+      "sha256": "a4d2ed4012ad1fce070c1501a3022167f1d0164dbaab5f89f7355beab1733fcc"
+    },
+    {
+      "path": "49_ADMIN_TRUST_CUSTODY_ACCESS_REMEDY_AND_APPROVAL_OPERATIONS.md",
+      "bytes": 8256,
+      "sha256": "4626d0c1a4a1f4c1ebc530e1b29eacd81ef21d8f0b1c5c99c51ed872a8e21b4e"
+    },
+    {
+      "path": "50_OBSERVABILITY_PRESERVATION_HEALTH_PUBLIC_REPORTING_AND_INCIDENTS.md",
+      "bytes": 8154,
+      "sha256": "a8864e3d9dc4d94438a7a57c14b8b7137b2d69af4cc2d6b8ac2370ce1ab145f1"
+    },
+    {
+      "path": "51_TESTING_MULTI_CUSTODIAN_PILOT_DEEP_TIME_SIMULATION_AND_ROLLOUT.md",
+      "bytes": 8189,
+      "sha256": "5799d74b56b8e40f14fbffaf6089ff5a1afa9eae1fc5b08695250bfa8cccc238"
+    },
+    {
+      "path": "52_MODEL_TRUST_CHARTER_CULTURAL_AUTHORITY_AND_CUSTODY_PACKAGE.md",
+      "bytes": 8280,
+      "sha256": "6c730dcb03fb64ca2227072e218f594f38147a176375a7dd2c7799c9023b8925"
+    },
+    {
+      "path": "53_PUBLIC_CONSULTATION_RATIFICATION_AMENDMENT_WITHDRAWAL_AND_SUNSET.md",
+      "bytes": 8155,
+      "sha256": "89529e9f94d0490d0ebb75df5a785efe0f0ba4f8045fad28ed5ca15ea2187633"
+    },
+    {
+      "path": "54_PROVIDER_REPLACEMENT_STEP_IN_CONTINUITY_AND_TOURIFY_EXIT.md",
+      "bytes": 8164,
+      "sha256": "1e7b7d99ae2eb06fdad56900226155b6c6bf17013257e39836afd7f3c99ce0d9"
+    },
+    {
+      "path": "55_OPEN_SOURCE_REPOSITORY_LICENSING_CONTRIBUTOR_AND_SUPPLY_CHAIN_GOVERNANCE.md",
+      "bytes": 8228,
+      "sha256": "f78d398a396f0e4270974710d22ed111930ac74207f86b917061ae465bea374a"
+    },
+    {
+      "path": "56_PUBLIC_ASSET_REGISTER_DOMAINS_NAMESPACES_MARKS_KEYS_AND_SPECIFICATIONS.md",
+      "bytes": 8169,
+      "sha256": "918d7393e8784992b3accbd23e29242dc177dcd51c8cf7d2f82dc739962114b1"
+    },
+    {
+      "path": "57_DATA_PORTABILITY_EXPORT_REIMPLEMENTATION_AND_DECOMMISSIONING.md",
+      "bytes": 8164,
+      "sha256": "e8793392d8ef44da9f6f7657c5bcfd2c5bc075b89195fadee4ba983a5d790e61"
+    },
+    {
+      "path": "58_PHASE_21_GLOBAL_CREATOR_MEMORY_CONSTELLATION_AND_PLANETARY_RESILIENCE_HANDOFF.md",
+      "bytes": 1911,
+      "sha256": "c94aa6f888fc03165ed5539f588c58a56755bbe0cd9250778951803ae7e13e82"
+    },
+    {
+      "path": "59_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 4165,
+      "sha256": "4b4e92bf7744fcb2743da3aa0e611eddde47c81f68a69946bcbe8cd87240e8ab"
+    },
+    {
+      "path": "60_DEFINITION_OF_DONE.md",
+      "bytes": 4006,
+      "sha256": "53dbfc96457f7e8c915d7a61217328d6f4536a589d9945da0d16d19ed4e66e94"
+    },
+    {
+      "path": "61_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 7284,
+      "sha256": "d0730b23be3baa3cc48f275decdc825b552bd7642135c7448b5fe3ab9bc6bd98"
+    },
+    {
+      "path": "62_CURRENT_STANDARDS_LEGAL_PRIVACY_ARCHIVES_AND_CULTURAL_MEMORY_REVIEW.md",
+      "bytes": 8992,
+      "sha256": "f9b961623cb0ca8c3f6a2ae608754f9f18a4f17914a2296818975c146266cc38"
+    },
+    {
+      "path": "63_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "bytes": 4412,
+      "sha256": "544897c907df20ccc07b085693117dc9643a98bc22c09486bbee7aa366c58c3a"
+    },
+    {
+      "path": "64_MODEL_DEEP_TIME_COMMONS_PUBLIC_APPROVAL_PACKAGE.md",
+      "bytes": 2840,
+      "sha256": "8856875b9d763e79e30a5613c657b60b63e66812b3f3eb46f3d8ebf92c7523ea"
+    },
+    {
+      "path": "65_PHASE_20_PUBLIC_APPROVAL_AND_ACTIVATION_GATE.md",
+      "bytes": 3315,
+      "sha256": "4cc7aff00ec521fbcf7572b8d2f82ec61e3a60e875133e209e803bc005ca926a"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 894,
+      "sha256": "00b27c20428e5c86e0c9d0bc7d72875c2e10a44aa52c89e08c5f597a96e9f06a"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 2569,
+      "sha256": "8024e1e291aadd5d0237927362f5d6c282025760179e3586b95ae09b7e655f29"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1916,
+      "sha256": "78703f6481adffa78f87626ad0af62925093fdedd465b46b93e5bfba5cd44bb2"
+    },
+    {
+      "path": "SOURCE_PHASE_19_HANDOFF.md",
+      "bytes": 2172,
+      "sha256": "dc6c0ea4017bc19554d0bc66ce2ebf5f8d187811e06eb8b8eee1446d36c49b3b"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "bytes": 369,
+      "sha256": "ba206f45070ffd2c52499d9eb7f05164a92e207aceccae7511eeab1c56f5dd09"
+    },
+    {
+      "path": "phase-20-execution-plan.schema.json",
+      "bytes": 4358,
+      "sha256": "796fecc90ba4de5258eb2ffee14f6e3a5d910213e8d698998884f13de82b87f6"
+    },
+    {
+      "path": "phase-20-execution-plan.template.json",
+      "bytes": 698906,
+      "sha256": "4ec6e55698e15466722f3cc9b4a009ebc00f01499495af45f81c206885658972"
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "bytes": 913,
+      "sha256": "08644d74e2b06e711a415a1fc27defc9299baa9f3e29e859c42dced3faea81f5"
+    },
+    {
+      "path": "reference/api-examples/create-deep-time-package.json",
+      "bytes": 173,
+      "sha256": "05cdd3f5b2aa3bc150556c5475b4817487095d558b55c7fd9e8ba0d81d05f08b"
+    },
+    {
+      "path": "reference/api-examples/create-repatriation-request.json",
+      "bytes": 159,
+      "sha256": "0859329a5efe9e13aade3f7b43f5b0d826728376d8120bdc7721ebdf3446670b"
+    },
+    {
+      "path": "reference/api-examples/create-trust-readiness-review.json",
+      "bytes": 177,
+      "sha256": "2ad9b6e9e83bfe02659de340cbf2127403b46a7f92919f799a77d25c069e8f85"
+    },
+    {
+      "path": "reference/api-examples/create-voluntary-deposit.json",
+      "bytes": 213,
+      "sha256": "8f97d1f82cb9a89d7ff8bd01a10bb4e6f80d6a88026755ef2ad0d71731c8514d"
+    },
+    {
+      "path": "reference/api-examples/custodian-restore-webhook.json",
+      "bytes": 233,
+      "sha256": "f4ef6d1465a08b6b2eee526d793dca7c58c09b17b214551eb3c4fb7b68d5e385"
+    },
+    {
+      "path": "reference/api-examples/register-cultural-authority.json",
+      "bytes": 223,
+      "sha256": "584e9bd4694282498749995e146c40cada3cad44968231125d042d08cccb39c6"
+    },
+    {
+      "path": "reference/api-examples/request-mediated-access.json",
+      "bytes": 168,
+      "sha256": "f65f8d25d13ab0bfd9999003ab7a89640d61cd29e91acd8fa8c3a4f14c51ca3d"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/access-and-disclosure-policy.ts",
+      "bytes": 500,
+      "sha256": "67aa28981c88d9751c5bbc9a59be4acabb7da0331a3aea22a5cd9eb8046a2ff1"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/cultural-authority-policy.ts",
+      "bytes": 648,
+      "sha256": "11be01b8c2306e6707137a3d8d29d47e1839c50f5ac8ddd377416ebb715c4352"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/custodian-accreditation-policy.ts",
+      "bytes": 501,
+      "sha256": "3a28c3c0cfbe7f3765373c05e19a56f9fa8db3896c47f8d81e3378944a3b2ac0"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/deep-time-domain.ts",
+      "bytes": 748,
+      "sha256": "5be7a3885405709e833a7c3dfd2961794188b12f05f43067e920fc866e0fd5b0"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/deep-time-identifier-policy.ts",
+      "bytes": 566,
+      "sha256": "1033ec26ccf3ec46425ad6db97a060a60922e7d9f5f8a9a212307800fe4eca1e"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/emergency-response-policy.ts",
+      "bytes": 394,
+      "sha256": "687e0489ec523c2ded62e3d4ca13313a087c38ded85208710b66414093426450"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/future-reuse-policy.ts",
+      "bytes": 554,
+      "sha256": "806d169f984b68dc66e86466279d1b2dd18c0713be00159bdf64c1b9e4596e7a"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/phase20-activation-gate.ts",
+      "bytes": 504,
+      "sha256": "bd77328ca1da389ddcfd6cfaebb1dcb850cff2b92f5218d7a79c7370329b6c8b"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/post-dissolution-policy.ts",
+      "bytes": 361,
+      "sha256": "1ab33050b45661407097a25082884953df099950da2ac9d972a667e31700043c"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/preservation-profile-policy.ts",
+      "bytes": 426,
+      "sha256": "876006392ecdcfd7b9175400ca781b9fffb49f925593fd087c5fb64886548d4d"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/repatriation-remediation-policy.ts",
+      "bytes": 490,
+      "sha256": "6da0fc3291a8efc2d83644ce76b4dc9f7b71470248fb48dd8c02a5fee1863cbe"
+    },
+    {
+      "path": "reference/lib/music/creator-cultural-memory-trust/trust-charter-state-machine.ts",
+      "bytes": 811,
+      "sha256": "2b1d4f82ebebd2afb0c135cac3522e9e9f4a394e5f4363759060e1e2641e9081"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_trust_entities_charters_participation_authorities.sql",
+      "bytes": 1782,
+      "sha256": "183b75aabd681bfcdafa8d56f730d889e58f1019dbf3707baf0dbe1b60dd2d38"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_deposits_custodians_preservation_packages.sql",
+      "bytes": 2046,
+      "sha256": "de7098d2382bb81aae328f632228ac5b601a0eb0b51f232139df14eea274b2d2"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_access_reuse_repatriation_remediation.sql",
+      "bytes": 1789,
+      "sha256": "d6646559e1af5a7b5efaaead753dfeb216bbeca5ecde6026b757687c84827f6d"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_public_projections_incidents_audit_outbox.sql",
+      "bytes": 1984,
+      "sha256": "29bd4997650d7eb25d55737d3ef3dfcfee4ab8496a92169d3a8986b97b917350"
+    },
+    {
+      "path": "reference/tests/access-and-disclosure-policy.test.ts",
+      "bytes": 388,
+      "sha256": "780c746bfbd6d3058731f76de929dd6a682a064de9b962b3bc7f68329008bc2f"
+    },
+    {
+      "path": "reference/tests/charter-state-machine.test.ts",
+      "bytes": 307,
+      "sha256": "1093d521b954d245f9a038b5ad1cbaf26bb7c50110d6322006f6107069f2220c"
+    },
+    {
+      "path": "reference/tests/cultural-authority-policy.test.ts",
+      "bytes": 378,
+      "sha256": "63a4f920cbe486d0b2342647d8020b399046eaa7e4b6fe27fc2db3056df92a25"
+    },
+    {
+      "path": "reference/tests/phase20-activation-gate.test.ts",
+      "bytes": 512,
+      "sha256": "efd40eb553a97f49343397cba8eee7ac3ca30894c539a74243683a35b9e0adf8"
+    }
+  ]
+}

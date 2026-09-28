@@ -8,6 +8,23 @@ import { withAdminCapability } from "@/lib/auth/api-auth"
 const idSchema = z.string().uuid()
 const directoryQuerySchema = z.string().trim().min(2).max(120).transform(value => value.replace(/[,()%]/g, " "))
 
+// `withAdminCapability` hands the handler an untyped client, so the directory
+// projection is asserted explicitly here. `__tests__/admin/admin-profile-column-drift.test.ts`
+// pins these column lists so a future `profiles` drift cannot hide behind `any`
+// the way `display_name` / `primary_genres` did.
+interface DirectoryArtistRow {
+  id: string
+  full_name: string | null
+  username: string | null
+  location: string | null
+  avatar_url: string | null
+}
+
+interface ArtistGenreRow {
+  user_id: string | null
+  genres: unknown
+}
+
 function errorResponse(error: unknown, fallback: string) {
   if (error instanceof z.ZodError) {
     return NextResponse.json({ error: "Validation error", details: error.issues }, { status: 400 })
@@ -32,21 +49,46 @@ export const GET = withAdminCapability("tour.view", async (request: NextRequest,
       const query = directoryQuerySchema.parse(rawQuery)
       const parsedLimit = Number.parseInt(url.searchParams.get("limit") || "12", 10)
       const limit = Number.isFinite(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 50)) : 12
+      // `profiles` has no `display_name` and no `primary_genres` column in the
+      // active migration chain or in the generated contract, so the previous
+      // select made every directory search fail at PostgREST. The canonical
+      // profile display column is `full_name` (written by the signup triggers),
+      // with `username` as the established fallback, and genres live on
+      // `artist_profiles.genres` — the same two-source shape
+      // `app/api/admin/artists/route.ts` already uses.
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, location, avatar_url, primary_genres")
+        .select("id, full_name, username, location, avatar_url")
         .eq("role", "artist")
-        .ilike("display_name", `%${query}%`)
-        .order("display_name", { ascending: true })
+        .ilike("full_name", `%${query}%`)
+        .order("full_name", { ascending: true })
         .limit(limit)
       if (error) throw new Error(error.message)
+
+      const directoryRows = (data ?? []) as DirectoryArtistRow[]
+      const genresByUserId = new Map<string, string[]>()
+      if (directoryRows.length > 0) {
+        const { data: artistProfiles, error: genresError } = await supabase
+          .from("artist_profiles")
+          .select("user_id, genres")
+          .in("user_id", directoryRows.map((artist) => artist.id))
+        if (genresError) throw new Error(genresError.message)
+        for (const artistProfile of (artistProfiles ?? []) as ArtistGenreRow[]) {
+          if (!artistProfile.user_id) continue
+          genresByUserId.set(
+            artistProfile.user_id,
+            Array.isArray(artistProfile.genres) ? (artistProfile.genres as string[]) : []
+          )
+        }
+      }
+
       return NextResponse.json({
-        artists: (data ?? []).map((artist: Record<string, unknown>) => ({
+        artists: directoryRows.map((artist) => ({
           id: artist.id,
-          name: artist.display_name,
+          name: artist.full_name || artist.username,
           location: artist.location,
           avatarUrl: artist.avatar_url,
-          genres: artist.primary_genres ?? [],
+          genres: genresByUserId.get(artist.id) ?? [],
         })),
       })
     }

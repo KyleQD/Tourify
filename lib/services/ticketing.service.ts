@@ -68,12 +68,17 @@ export class TicketingService {
     terms_accepted?: boolean
   }) {
     try {
+      const idempotencyKey = crypto.randomUUID()
       const response = await fetch('/api/ticketing/enhanced', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
           action: 'purchase',
-          ...purchaseData
+          ...purchaseData,
+          metadata: { idempotency_key: idempotencyKey },
         })
       })
       
@@ -486,4 +491,4 @@ export class TicketingService {
 }
 
 // Export singleton instance
-export const ticketingService = new TicketingService() 
+export const ticketingService = new TicketingService()

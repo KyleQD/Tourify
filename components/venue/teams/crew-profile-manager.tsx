@@ -50,6 +50,8 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { detailSurfacePattern } from "@/components/dashboard/detail-surface-pattern"
+import { cn } from "@/lib/utils"
 
 // Mock crew profile data
 const crewProfiles = [
@@ -574,10 +576,11 @@ export function CrewProfileManager() {
       {/* Profile detail dialog */}
       {selectedProfileData && (
         <Dialog open={selectedProfile !== null} onOpenChange={(open) => !open && setSelectedProfile(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className={cn("max-w-4xl max-h-[90vh] overflow-hidden flex flex-col", detailSurfacePattern.dialogContent)}>
+            <div className={detailSurfacePattern.topAccent} />
             <DialogHeader>
-              <DialogTitle>{isEditingProfile ? "Edit Crew Profile" : "Crew Profile Details"}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className={detailSurfacePattern.title}>{isEditingProfile ? "Edit Crew Profile" : "Crew Profile Details"}</DialogTitle>
+              <DialogDescription className={detailSurfacePattern.description}>
                 {isEditingProfile
                   ? "Update information for this crew member"
                   : "Detailed information about this crew member"}
@@ -588,12 +591,12 @@ export function CrewProfileManager() {
               <div className="space-y-6 pb-4">
                 {/* Profile header */}
                 <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-                  <Avatar className="h-24 w-24">
+                  <Avatar className={cn("h-24 w-24", detailSurfacePattern.avatarRing)}>
                     <AvatarImage
                       src={selectedProfileData.avatar || "/placeholder.svg"}
                       alt={selectedProfileData.name}
                     />
-                    <AvatarFallback>
+                    <AvatarFallback className={detailSurfacePattern.avatarFallback}>
                       {selectedProfileData.name
                         .split(" ")
                         .map((n) => n[0])
@@ -605,14 +608,14 @@ export function CrewProfileManager() {
                     {isEditingProfile ? (
                       <>
                         <div className="space-y-1">
-                          <Label htmlFor="name">Full Name</Label>
-                          <Input id="name" defaultValue={selectedProfileData.name} />
+                          <Label htmlFor="name" className={detailSurfacePattern.label}>Full Name</Label>
+                          <Input id="name" defaultValue={selectedProfileData.name} className={detailSurfacePattern.input} />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1">
-                            <Label htmlFor="role">Role</Label>
+                            <Label htmlFor="role" className={detailSurfacePattern.label}>Role</Label>
                             <Select defaultValue={selectedProfileData.role}>
-                              <SelectTrigger>
+                              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                                 <SelectValue placeholder="Select role" />
                               </SelectTrigger>
                               <SelectContent>
@@ -625,9 +628,9 @@ export function CrewProfileManager() {
                             </Select>
                           </div>
                           <div className="space-y-1">
-                            <Label htmlFor="status">Status</Label>
+                            <Label htmlFor="status" className={detailSurfacePattern.label}>Status</Label>
                             <Select defaultValue={selectedProfileData.status}>
-                              <SelectTrigger>
+                              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                                 <SelectValue placeholder="Select status" />
                               </SelectTrigger>
                               <SelectContent>
@@ -640,15 +643,15 @@ export function CrewProfileManager() {
                       </>
                     ) : (
                       <>
-                        <h2 className="text-2xl font-bold">{selectedProfileData.name}</h2>
+                        <h2 className={cn("text-2xl font-bold", detailSurfacePattern.title)}>{selectedProfileData.name}</h2>
                         <div className="flex items-center justify-center md:justify-start gap-2">
-                          <div className="flex items-center gap-1 text-muted-foreground">
+                          <div className={cn("flex items-center gap-1", detailSurfacePattern.subtleText)}>
                             {roleIcons[selectedProfileData.role] || <Briefcase className="h-4 w-4" />}
                             <span>{selectedProfileData.role}</span>
                           </div>
                           <Badge
                             variant={selectedProfileData.status === "active" ? "default" : "secondary"}
-                            className={selectedProfileData.status === "active" ? "bg-green-500" : "bg-gray-500"}
+                            className={selectedProfileData.status === "active" ? detailSurfacePattern.badgeSuccess : detailSurfacePattern.badgeOutline}
                           >
                             {selectedProfileData.status === "active" ? "Active" : "Inactive"}
                           </Badge>
@@ -658,19 +661,19 @@ export function CrewProfileManager() {
 
                     <div className="flex flex-wrap gap-2 justify-center md:justify-start">
                       {selectedProfileData.availability === "available" && (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                        <Badge variant="outline" className={detailSurfacePattern.badgeSuccess}>
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Available
                         </Badge>
                       )}
                       {selectedProfileData.availability === "busy" && (
-                        <Badge variant="outline" className="bg-orange-500/10 text-orange-500 border-orange-500/20">
+                        <Badge variant="outline" className={detailSurfacePattern.badgeWarning}>
                           <Clock className="h-3 w-3 mr-1" />
                           Busy
                         </Badge>
                       )}
                       {selectedProfileData.availability === "offline" && (
-                        <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">
+                        <Badge variant="outline" className={detailSurfacePattern.badgeOutline}>
                           <XCircle className="h-3 w-3 mr-1" />
                           Offline
                         </Badge>
@@ -682,39 +685,39 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* Contact information */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Contact Information</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Contact Information</h3>
                   {isEditingProfile ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <Label htmlFor="email">Email</Label>
-                        <Input id="email" defaultValue={selectedProfileData.email} />
+                        <Label htmlFor="email" className={detailSurfacePattern.label}>Email</Label>
+                        <Input id="email" defaultValue={selectedProfileData.email} className={detailSurfacePattern.input} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input id="phone" defaultValue={selectedProfileData.phone} />
+                        <Label htmlFor="phone" className={detailSurfacePattern.label}>Phone</Label>
+                        <Input id="phone" defaultValue={selectedProfileData.phone} className={detailSurfacePattern.input} />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="location">Location</Label>
-                        <Input id="location" defaultValue={selectedProfileData.location} />
+                        <Label htmlFor="location" className={detailSurfacePattern.label}>Location</Label>
+                        <Input id="location" defaultValue={selectedProfileData.location} className={detailSurfacePattern.input} />
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className={cn("text-sm", detailSurfacePattern.description)}>Email</p>
                         <p>{selectedProfileData.email}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Phone</p>
+                        <p className={cn("text-sm", detailSurfacePattern.description)}>Phone</p>
                         <p>{selectedProfileData.phone}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Location</p>
+                        <p className={cn("text-sm", detailSurfacePattern.description)}>Location</p>
                         <p>{selectedProfileData.location}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Member Since</p>
+                        <p className={cn("text-sm", detailSurfacePattern.description)}>Member Since</p>
                         <p>{formatSafeDate(selectedProfileData.joinDate)}</p>
                       </div>
                     </div>
@@ -724,11 +727,11 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* Bio */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Professional Bio</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Professional Bio</h3>
                   {isEditingProfile ? (
                     <div className="space-y-1">
-                      <Textarea rows={4} defaultValue={selectedProfileData.bio} />
+                      <Textarea rows={4} defaultValue={selectedProfileData.bio} className={detailSurfacePattern.textarea} />
                     </div>
                   ) : (
                     <p>{selectedProfileData.bio}</p>
@@ -738,18 +741,18 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* Skills */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Skills & Expertise</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Skills & Expertise</h3>
                   {isEditingProfile ? (
                     <div className="space-y-4">
                       {selectedProfileData.skills.map((skill, index) => (
                         <div key={index} className="flex items-center gap-4">
                           <div className="flex-1">
-                            <Input defaultValue={skill.name} />
+                            <Input defaultValue={skill.name} className={detailSurfacePattern.input} />
                           </div>
                           <div className="flex-1">
                             <Select defaultValue={skill.level.toString()}>
-                              <SelectTrigger>
+                              <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                                 <SelectValue placeholder="Skill level" />
                               </SelectTrigger>
                               <SelectContent>
@@ -766,7 +769,7 @@ export function CrewProfileManager() {
                           </Button>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className={cn("w-full", detailSurfacePattern.btnOutline)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Skill
                       </Button>
@@ -786,21 +789,21 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* Equipment expertise */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Equipment Expertise</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Equipment Expertise</h3>
                   {isEditingProfile ? (
                     <div className="space-y-4">
                       {selectedProfileData.equipment.map((item, index) => (
                         <div key={index} className="flex items-center gap-4">
                           <div className="flex-1">
-                            <Input defaultValue={item} />
+                            <Input defaultValue={item} className={detailSurfacePattern.input} />
                           </div>
                           <Button variant="ghost" size="icon">
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className={cn("w-full", detailSurfacePattern.btnOutline)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Equipment
                       </Button>
@@ -811,7 +814,7 @@ export function CrewProfileManager() {
                         <Badge
                           key={index}
                           variant="outline"
-                          className="bg-blue-500/10 text-blue-500 border-blue-500/20"
+                         className={detailSurfacePattern.badgeSoft}
                         >
                           <Wrench className="h-3 w-3 mr-1" />
                           {item}
@@ -824,21 +827,21 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* Certifications */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Certifications & Qualifications</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Certifications & Qualifications</h3>
                   {isEditingProfile ? (
                     <div className="space-y-4">
                       {selectedProfileData.certifications.map((cert, index) => (
                         <div key={index} className="flex items-center gap-4">
                           <div className="flex-1">
-                            <Input defaultValue={cert} />
+                            <Input defaultValue={cert} className={detailSurfacePattern.input} />
                           </div>
                           <Button variant="ghost" size="icon">
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className={cn("w-full", detailSurfacePattern.btnOutline)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Certification
                       </Button>
@@ -858,21 +861,21 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* References */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Professional References</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Professional References</h3>
                   {isEditingProfile ? (
                     <div className="space-y-4">
                       {selectedProfileData.references.map((ref, index) => (
                         <div key={index} className="flex items-center gap-4">
                           <div className="flex-1">
-                            <Input defaultValue={ref} />
+                            <Input defaultValue={ref} className={detailSurfacePattern.input} />
                           </div>
                           <Button variant="ghost" size="icon">
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       ))}
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className={cn("w-full", detailSurfacePattern.btnOutline)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Reference
                       </Button>
@@ -892,8 +895,8 @@ export function CrewProfileManager() {
                 <Separator />
 
                 {/* Availability */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Availability</h3>
+                <div className={cn(detailSurfacePattern.panel, "p-4")}>
+                  <h3 className={cn("text-lg font-medium mb-3", detailSurfacePattern.title)}>Availability</h3>
                   {isEditingProfile ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-7 gap-2">
@@ -907,17 +910,18 @@ export function CrewProfileManager() {
                         ))}
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="availabilityNotes">Availability Notes</Label>
+                        <Label htmlFor="availabilityNotes" className={detailSurfacePattern.label}>Availability Notes</Label>
                         <Textarea
                           id="availabilityNotes"
                           rows={3}
                           defaultValue={selectedProfileData.availabilityNotes}
+                          className={detailSurfacePattern.textarea}
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label htmlFor="availabilityStatus">Current Status</Label>
+                        <Label htmlFor="availabilityStatus" className={detailSurfacePattern.label}>Current Status</Label>
                         <Select defaultValue={selectedProfileData.availability}>
-                          <SelectTrigger>
+                          <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                             <SelectValue placeholder="Select availability" />
                           </SelectTrigger>
                           <SelectContent>
@@ -947,7 +951,7 @@ export function CrewProfileManager() {
                         ))}
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">Availability Notes</p>
+                        <p className={cn("text-sm mb-1", detailSurfacePattern.description)}>Availability Notes</p>
                         <p>{selectedProfileData.availabilityNotes}</p>
                       </div>
                     </div>
@@ -956,31 +960,31 @@ export function CrewProfileManager() {
               </div>
             </ScrollArea>
 
-            <DialogFooter className="pt-4 border-t">
+            <DialogFooter className={cn(detailSurfacePattern.footer, "pt-4")}>
               {isEditingProfile ? (
                 <>
-                  <Button variant="outline" onClick={() => setIsEditingProfile(false)}>
+                  <Button variant="outline" className={detailSurfacePattern.btnOutline} onClick={() => setIsEditingProfile(false)}>
                     Cancel
                   </Button>
-                  <Button variant="destructive" onClick={() => handleDeleteProfile(selectedProfileData.id)}>
+                  <Button variant="destructive" className={detailSurfacePattern.btnDestructive} onClick={() => handleDeleteProfile(selectedProfileData.id)}>
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete Profile
                   </Button>
-                  <Button onClick={handleSaveProfile}>
+                  <Button className={detailSurfacePattern.btnPrimary} onClick={handleSaveProfile}>
                     <Save className="h-4 w-4 mr-2" />
                     Save Changes
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setSelectedProfile(null)}>
+                  <Button variant="outline" className={detailSurfacePattern.btnOutline} onClick={() => setSelectedProfile(null)}>
                     Close
                   </Button>
-                  <Button variant="outline">
+                  <Button variant="outline" className={detailSurfacePattern.btnOutline}>
                     <Download className="h-4 w-4 mr-2" />
                     Export Profile
                   </Button>
-                  <Button onClick={() => setIsEditingProfile(true)}>
+                  <Button className={detailSurfacePattern.btnPrimary} onClick={() => setIsEditingProfile(true)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit Profile
                   </Button>
@@ -993,26 +997,27 @@ export function CrewProfileManager() {
 
       {/* Add profile dialog */}
       <Dialog open={isAddingProfile} onOpenChange={setIsAddingProfile}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className={cn("max-w-4xl max-h-[90vh] overflow-hidden flex flex-col", detailSurfacePattern.dialogContent)}>
+          <div className={detailSurfacePattern.topAccent} />
           <DialogHeader>
-            <DialogTitle>Add New Crew Profile</DialogTitle>
-            <DialogDescription>Create a detailed profile for a new crew member</DialogDescription>
+            <DialogTitle className={detailSurfacePattern.title}>Add New Crew Profile</DialogTitle>
+            <DialogDescription className={detailSurfacePattern.description}>Create a detailed profile for a new crew member</DialogDescription>
           </DialogHeader>
 
           <ScrollArea className="flex-1 pr-4">
             <div className="space-y-6 pb-4">
               {/* Basic information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Basic Information</h3>
+              <div className={cn(detailSurfacePattern.panel, "space-y-4 p-4")}>
+                <h3 className={cn("text-lg font-medium", detailSurfacePattern.title)}>Basic Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label htmlFor="newName">Full Name</Label>
-                    <Input id="newName" placeholder="Enter full name" />
+                    <Label htmlFor="newName" className={detailSurfacePattern.label}>Full Name</Label>
+                    <Input id="newName" placeholder="Enter full name" className={detailSurfacePattern.input} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="newRole">Role</Label>
+                    <Label htmlFor="newRole" className={detailSurfacePattern.label}>Role</Label>
                     <Select>
-                      <SelectTrigger>
+                      <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1025,21 +1030,21 @@ export function CrewProfileManager() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="newEmail">Email</Label>
-                    <Input id="newEmail" type="email" placeholder="Enter email address" />
+                    <Label htmlFor="newEmail" className={detailSurfacePattern.label}>Email</Label>
+                    <Input id="newEmail" type="email" placeholder="Enter email address" className={detailSurfacePattern.input} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="newPhone">Phone</Label>
-                    <Input id="newPhone" placeholder="Enter phone number" />
+                    <Label htmlFor="newPhone" className={detailSurfacePattern.label}>Phone</Label>
+                    <Input id="newPhone" placeholder="Enter phone number" className={detailSurfacePattern.input} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="newLocation">Location</Label>
-                    <Input id="newLocation" placeholder="Enter location" />
+                    <Label htmlFor="newLocation" className={detailSurfacePattern.label}>Location</Label>
+                    <Input id="newLocation" placeholder="Enter location" className={detailSurfacePattern.input} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="newStatus">Status</Label>
+                    <Label htmlFor="newStatus" className={detailSurfacePattern.label}>Status</Label>
                     <Select defaultValue="active">
-                      <SelectTrigger>
+                      <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1054,27 +1059,27 @@ export function CrewProfileManager() {
               <Separator />
 
               {/* Professional bio */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Professional Bio</h3>
+              <div className={cn(detailSurfacePattern.panel, "space-y-4 p-4")}>
+                <h3 className={cn("text-lg font-medium", detailSurfacePattern.title)}>Professional Bio</h3>
                 <div className="space-y-1">
-                  <Label htmlFor="newBio">Bio</Label>
-                  <Textarea id="newBio" placeholder="Enter professional background and experience" rows={4} />
+                  <Label htmlFor="newBio" className={detailSurfacePattern.label}>Bio</Label>
+                  <Textarea id="newBio" placeholder="Enter professional background and experience" rows={4} className={detailSurfacePattern.textarea} />
                 </div>
               </div>
 
               <Separator />
 
               {/* Skills */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Skills & Expertise</h3>
+              <div className={cn(detailSurfacePattern.panel, "space-y-4 p-4")}>
+                <h3 className={cn("text-lg font-medium", detailSurfacePattern.title)}>Skills & Expertise</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
-                      <Input placeholder="Enter skill name" />
+                      <Input placeholder="Enter skill name" className={detailSurfacePattern.input} />
                     </div>
                     <div className="flex-1">
                       <Select defaultValue="3">
-                        <SelectTrigger>
+                        <SelectTrigger className={detailSurfacePattern.selectTrigger}>
                           <SelectValue placeholder="Skill level" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1090,7 +1095,7 @@ export function CrewProfileManager() {
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className={cn("w-full", detailSurfacePattern.btnOutline)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Skill
                   </Button>
@@ -1100,8 +1105,8 @@ export function CrewProfileManager() {
               <Separator />
 
               {/* Availability */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Availability</h3>
+              <div className={cn(detailSurfacePattern.panel, "space-y-4 p-4")}>
+                <h3 className={cn("text-lg font-medium", detailSurfacePattern.title)}>Availability</h3>
                 <div className="grid grid-cols-7 gap-2">
                   {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => (
                     <div key={day} className="flex flex-col items-center">
@@ -1115,18 +1120,18 @@ export function CrewProfileManager() {
                   ))}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="newAvailabilityNotes">Availability Notes</Label>
-                  <Textarea id="newAvailabilityNotes" placeholder="Enter any notes about availability" rows={3} />
+                  <Label htmlFor="newAvailabilityNotes" className={detailSurfacePattern.label}>Availability Notes</Label>
+                  <Textarea id="newAvailabilityNotes" placeholder="Enter any notes about availability" rows={3} className={detailSurfacePattern.textarea} />
                 </div>
               </div>
             </div>
           </ScrollArea>
 
-          <DialogFooter className="pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsAddingProfile(false)}>
+          <DialogFooter className={cn(detailSurfacePattern.footer, "pt-4")}>
+            <Button variant="outline" className={detailSurfacePattern.btnOutline} onClick={() => setIsAddingProfile(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveProfile}>
+            <Button className={detailSurfacePattern.btnPrimary} onClick={handleSaveProfile}>
               <Save className="h-4 w-4 mr-2" />
               Create Profile
             </Button>

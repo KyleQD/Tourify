@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-023",
+  "title": "Retire venue sonner primitive after shared contract migration",
+  "status": "completed",
+  "priority": "P2",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-11T18:11:53.141Z",
+  "updated_at": "2026-09-11T20:27:32.868Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (689 entries)",
+  "goal": "Migrate approved consumers from components/venue/ui/sonner.tsx to components/ui/sonner.tsx, verify contract parity and zero-use evidence, then retire the venue twin.",
+  "scope": {
+    "in": [
+      "components/venue/ui/sonner.tsx",
+      "components/ui/sonner.tsx",
+      "Any explicitly approved consumer paths"
+    ],
+    "out": [
+      "components/venue/ui keep files and compatibility exceptions",
+      "Venue behavior changes",
+      "Unrelated primitive families"
+    ]
+  },
+  "working_set": [
+    "components/venue/ui/sonner.tsx",
+    "components/ui/sonner.tsx"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/tasks/active/DESIGN-004.json",
+    "docs/engineering/tasks/active/VENUE-002.json",
+    "docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv"
+  ],
+  "acceptance_criteria": [
+    "All consumers of the venue twin are audited and either migrated in scope or documented as an approved external dependency.",
+    "The canonical feature component preserves the public contract and focused checks pass.",
+    "Confirm public/export parity with the canonical target before retirement. The venue twin is retained until migration and zero-use evidence are complete; no keep file or venue behavior is changed."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "rg -n \"components/venue/ui/sonner|@/components/venue/ui/sonner\" app components hooks lib apps __tests__ scripts --glob \"*.{ts,tsx,js,jsx,mjs,cjs}\"",
+      "./node_modules/.bin/eslint components/venue/ui/sonner.tsx components/ui/sonner.tsx",
+      "git diff --check -- components/venue/ui/sonner.tsx components/ui/sonner.tsx docs/engineering",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Zero-use consumer audit (twin): the task-specified rg command for \"components/venue/ui/sonner|@/components/venue/ui/sonner\" across app, components, hooks, lib, apps, __tests__, scripts returned 0 matches (rg exit 1). No source file imports components/venue/ui/sonner.tsx on any path form.",
+      "Canonical import inventory: 0 imports of \"components/ui/sonner\" in the audited dirs and 0 imports of \"@/components/ui/sonner\" repo-wide (excluding node_modules/docs); 0 venue-surface consumers under app/venue/** or components/venue/**. The only sonner usage on venue surfaces is six direct npm-package imports of { toast } from \"sonner\" (app/venue/components/{promotions-tab,chat-tab,people-tab}.tsx, app/venue/components/event-details/delete-event-dialog.tsx, components/venue/staff/{shift-drop-pickup,shift-swap-request}.tsx), which bypass both wrapper files. The mounted Toaster is the npm package's own component imported directly at app/layout.tsx:11 (<Toaster richColors position=\"top-right\" /> at app/layout.tsx:74); app/venue/layout.tsx mounts the radix-based @/components/ui/toaster instead. Neither sonner wrapper is consumed.",
+      "Register disposition (docs/implementation/ui-ux-completion/CANONICAL_COMPONENT_REGISTER.csv, DUP-087): components/venue/ui/sonner.tsx is \"retire later\" with canonicalTarget components/ui/sonner.tsx and basis \"Exact duplicate; preserve until imports move and zero-use evidence is recorded.\"; components/ui/sonner.tsx is \"keep\". The register's third DUP-087 row (app/venue/components/ui/sonner.tsx, \"retire later\") references a path that does not exist on disk (app/venue/components/ui/ is absent), so no venue-surface duplicate remains to reconcile.",
+      "Twin characterization: byte-identical to canonical. git diff exits 0 and SHA-256 matches (771ab8637d27384c3ed030ba3be01a07b90c791c294eae06646250f8e81bc49e) for both files; both are 31-line \"use client\" wrappers. Public exports are identical: single named export Toaster (ToasterProps = React.ComponentProps<typeof Sonner>), wrapping the sonner npm <Toaster> with next-themes useTheme and the shadcn toaster group classNames. Contract parity is exact; no ref/API divergence.",
+      "Disposition for this pass: canonical components/ui/sonner.tsx remains keep (registered DUP-087). components/venue/ui/sonner.tsx is confirmed as registered retire-later compatibility debt with zero live consumers; because the twin never had app imports, the already-migrated consumer framing does not apply and zero-use evidence is recorded here. No file was deleted or edited: deletion is not authorized in this bounded audit-only pass and is deferred to orchestrated retirement after register/owner approval."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-11T20:27:32.868Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Bounded sonner audit complete. Neither sonner wrapper is consumed; both are byte-identical 31-line Toaster wrappers and remain registered retire-later (DUP-087). Twin retained.",
+    "completed": [
+      "Zero-use consumer audit of the venue twin: 0 matches for components/venue/ui/sonner across app, components, hooks, lib, apps, __tests__, scripts.",
+      "Canonical import inventory: 0 imports of components/ui/sonner repo-wide; 0 venue-surface consumers under app/venue/** and components/venue/**; six direct npm-package { toast } imports noted and excluded (they bypass both wrappers).",
+      "Twin characterization: byte-identical (diff exit 0, identical SHA-256 771ab8637d27384c3ed030ba3be01a07b90c791c294eae06646250f8e81bc49e); single named export Toaster identical in both; ToasterProps = React.ComponentProps<typeof Sonner> ref parity confirmed.",
+      "Register reconciliation: DUP-087 rows for components/ui/sonner.tsx (keep) and components/venue/ui/sonner.tsx (retire later, exact duplicate) match the observed files; third DUP-087 row path (app/venue/components/ui/sonner.tsx) absent on disk.",
+      "Focused verification: eslint exit 0 on both files, git diff --check exit 0 on the working set plus docs/engineering, agents:validate exit 0 (17 agents/93 tasks/0 warnings/0 errors)."
+    ],
+    "next_steps": [
+      "Disposition recorded: canonical keeps; twin is registered retire-later compatibility debt with zero-use evidence now in the task record.",
+      "Any future deletion of components/venue/ui/sonner.tsx requires orchestrated register/owner approval and is not authorized by this audit-only pass.",
+      "Remaining retire-later families continue under their own DESIGN-005..DESIGN-027 records."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-11T20:09:17.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded audit-only pass for DESIGN-023. The venue twin is a byte-identical, zero-consumer copy of the canonical (identical SHA-256 771ab8637d2738..., 0 imports on any path form); the canonical also has no imports. Root layout mounts the npm package's own Toaster directly and app/venue/layout.tsx mounts the radix @/components/ui/toaster, so neither sonner wrapper is consumed anywhere. Register DUP-087 disposition is consistent: canonical keep, twin retire-later debt, third register row path absent on disk. No consumer migration was required and no file was deleted or edited; verification passed (rg 0 matches, eslint exit 0, git diff --check exit 0, agents:validate 17 agents/93 tasks/0 warnings/0 errors).",
+        "changed_paths": [
+          "docs/engineering/tasks/active/DESIGN-023.json"
+        ],
+        "verification": [
+          "rg zero-use audit (twin): 0 matches, exit 1",
+          "rg canonical import inventory: 0 imports repo-wide; 0 venue-surface consumers (6 direct npm { toast } imports noted, not wrapper consumers)",
+          "diff + shasum: byte-identical (771ab8637d27384c3ed030ba3be01a07b90c791c294eae06646250f8e81bc49e)",
+          "eslint components/venue/ui/sonner.tsx components/ui/sonner.tsx: exit 0",
+          "git diff --check -- components/venue/ui/sonner.tsx components/ui/sonner.tsx docs/engineering: exit 0",
+          "npm run agents:validate: validated 17 agents, 93 tasks, 0 warnings, 0 errors"
+        ],
+        "blockers": [],
+        "next_steps": [
+          "Canonical remains keep; twin remains registered retire-later debt pending orchestrated deletion approval.",
+          "No edits or deletions were made to sonner sources, consumers, the register, or venue behavior."
+        ]
+      },
+      {
+        "at": "2026-09-11T20:27:32.868Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Bounded sonner audit complete. Neither sonner wrapper is consumed; both are byte-identical 31-line Toaster wrappers and remain registered retire-later (DUP-087). Twin retained.",
+        "completed": [],
+        "next_steps": [],
+        "blockers": []
+      }
+    ]
+  },
+  "handoffs": []
+}

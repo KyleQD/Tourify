@@ -1,0 +1,374 @@
+{
+  "schema_version": "2.0",
+  "id": "INTG-010",
+  "title": "Retire deferred partner webhooks and resolve integrations type drift",
+  "status": "completed",
+  "execution_state": "done",
+  "priority": "P1",
+  "owner_agent": "integrations",
+  "outcome_id": "CORE-WEB-LAUNCH",
+  "deliverable_class": "implementation",
+  "decision_owner": "integrations",
+  "created_at": "2026-09-27T20:11:46.715Z",
+  "updated_at": "2026-09-27T22:24:58.494Z",
+  "base_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "working_tree_status": "dirty shared worktree; INTG-009 completed and released app/api/webhooks/**",
+  "goal": "Record the deferred disposition of the three advanced partner webhook routes and resolve the integrations-owned database type-drift cluster, so INTG-009 closes with no undischarged handoff.",
+  "scope": {
+    "in": [
+      "The three advanced partner webhook routes",
+      "The integrations entries in the database type inventory (read-only)"
+    ],
+    "out": [
+      "Enabling advanced_music_webhooks",
+      "Schema authoring (route to database)",
+      "Editing the shared type inventory (the database lane owns that file)"
+    ]
+  },
+  "working_set": [
+    "app/api/webhooks/music-institutional/**",
+    "app/api/webhooks/music-licensing/**",
+    "app/api/webhooks/music-rights-admin/**",
+    "__tests__/integrations/**"
+  ],
+  "shared_working_set": [],
+  "working_set_correction": {
+    "recorded_at": "2026-09-27",
+    "finding": "Three of the four declared working-set globs match nothing on disk. `app/api/webhooks/music-institutional/**`, `app/api/webhooks/music-licensing/**` and `app/api/webhooks/music-rights-admin/**` do not exist. `find app/api/webhooks -type f` returns only music-marketplace/[partner], music-royalty-payouts, and supabase/notifications plus two test files. The three deferred partner ingress routes are mounted by their owning feature surface instead, and the record was written by hand before that was established.",
+    "corrected_paths": [
+      "app/api/institutional/partners/webhooks/[provider]/route.ts",
+      "app/api/licensing/partners/webhooks/[provider]/route.ts",
+      "app/api/rights-admin/partners/webhooks/[provider]/route.ts"
+    ],
+    "why_corrected": "These are the only three routes the task title and AC-1 name: the advanced partner ingress routes that still carried an unsigned-bypass flag. They are integrations-owned, are named as the three siblings in the INTG-009 checkpoint, and are already classified in the integrations route inventory as integrations-owned. The task's intent is unambiguous, so the paths were corrected rather than the scope narrowed. No other `app/api/webhooks/**` route was touched."
+  },
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "docs/engineering/agents/integrations/CHARTER.md"
+  ],
+  "depends_on": [],
+  "resume_condition": "The task is selected as the owner's next collision-free work item.",
+  "blocked_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "criterion": "Record the deferred disposition of the three advanced partner routes - unsigned flag, acknowledge-on-collision, unredacted payload - and confirm each is permanently 503 while advanced_music_webhooks is disabled.",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": [
+        "__tests__/integrations/webhook-deferred-partner-certification.test.ts — 43 cases over the three routes, gate forced open with a test double.",
+        "`npx vitest run __tests__/integrations/` -> 10 files / 245 tests passed (baseline 9 / 200).",
+        "`npm run agents:validate -- --strict` -> validated 18 agents, 216 tasks, 100 pending handoffs, 0 warnings, 0 errors.",
+        "Scoped `npx tsc -p <scoped tsconfig over the three routes and __tests__/integrations/**>` -> exit 0, 0 diagnostics."
+      ],
+      "result": "Reachable? No. Permanently 503, and each route is proven twice over.",
+      "reachability_proof": [
+        "`isLaunchCapabilityAvailable` returns `false` for any `explicitlyApproved` value unless status is 'enabled' or 'pilot' (lib/config/launch-capabilities.ts:195-202). `advanced_music_webhooks` is `status: 'disabled', exposure: 'none'` (lines 56-60), and `isAuditFeatureApproved('advanced_webhooks')` delegates to it with the env approval as the second argument (lib/config/audit-feature-gates.ts:27-31). Therefore no value of FEATURE_AUDIT_ADVANCED_WEBHOOKS_APPROVED can open it. Asserted at runtime, not only by reading: the suite calls the real `isAuditFeatureApproved` with 'true', '1', 'on' and unset and gets false every time, and separately asserts `auditFeatureUnavailable` returns 503.",
+        "Each route consumes the gate as its first statement, before `request.text()`, before any env secret read, and before the service-role client is constructed, so a 503 cannot consume a body, touch a secret, or open a database session.",
+        "Second, independent barrier: none of the three receipt ledgers (music_institutional_partner_events, music_licensing_partner_events, music_rights_admin_partner_events) nor their outbox/invoice/agreement siblings exist in the active migration chain. `rg -l` over supabase/migrations returns zero files; the only definitions are in supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/ with manifest status `local_only_unapplied`. Forcing the gate open without first applying the schema would 500 on the claim insert, not process a delivery."
+      ],
+      "decision": "FIX, not defer. Applied the INTG-009 pattern to all three routes rather than carrying the defect as debt.",
+      "decision_reason": "Three reasons. (1) It is the same defect class INTG-009 already fixed on the two enabled sibling routes, and the fix is mechanical reuse of code that already exists in this domain — `redactCredentialMaterial` and the `resolveClaim` shape. Divergence between four structurally identical partner routes is itself a defect. (2) The unsigned flag is one env var from a live unauthenticated-ingress bypass, which is exactly the latent launch defect AC-1 forbids leaving unowned; INTG-006 preserved it deliberately as fixture behaviour and INTG-009 then removed the marketplace twin, so the siblings were left inconsistent rather than intentionally deferred. (3) The change is provably inert: the routes are unconditionally 503, so no live behaviour can change and the fix carries zero launch risk. Deferring would have saved nothing and left a single-env-var bypass with no owner.",
+      "per_route": [
+        {
+          "route": "POST /api/institutional/partners/webhooks/[provider]",
+          "file": "app/api/institutional/partners/webhooks/[provider]/route.ts",
+          "posture": "permanently 503, unreachable",
+          "defects_found": [
+            "SIGNATURE: `MUSIC_INSTITUTIONAL_WEBHOOK_ALLOW_UNSIGNED === 'true'` with no configured secret fell through to full processing, persisting the row with signature_verified: false and answering 200.",
+            "REPLAY: `if (isUniqueViolation(error)) return { idempotent: true }` answered a collision without reading processing_status/processed_at, so a delivery that claimed and then failed was acknowledged as done and its side effect (fund.nav.finalized outbox insert) was never applied.",
+            "COMPLETION: `.update(...).eq('id', stored.id)` was checked for `error` only, so a completion write landing on zero rows (deleted receipt, concurrently changed status) returned 200 and reported success.",
+            "REDACTION: the full provider payload was persisted verbatim in music_institutional_partner_events.raw_payload and in the music_institutional_outbox_events payload — a durable, service-role-readable copy of an unauthenticated boundary input."
+          ],
+          "fix": "Unsigned flag removed; an unconfigured secret is unconditionally 503. Claim collision resolved by a `resolveClaim` helper that reads the completion marker first: processed acknowledges with zero side effects, a `failed` or a `received`-past-300s claim is atomically reclaimed and resumes, an unreadable marker or unresolvable collision is 500. Completion update now returns its row via `.select('id').maybeSingle()` guarded on the expected prior status `processing_status = 'received'`, and `!completed` is a failure. Receipt and outbox payloads pass through the shared `redactCredentialMaterial`; `payload_hash` still covers the unredacted signed payload. Route-local `resolveClaim`/`isBefore` only — no new shared primitive was invented and the shared helper was not edited."
+        },
+        {
+          "route": "POST /api/licensing/partners/webhooks/[provider]",
+          "file": "app/api/licensing/partners/webhooks/[provider]/route.ts",
+          "posture": "permanently 503, unreachable",
+          "defects_found": [
+            "SIGNATURE: `MUSIC_LICENSING_WEBHOOK_ALLOW_UNSIGNED` unsigned processing pass, as above.",
+            "REPLAY: acknowledge-on-collision with no completion-marker read. The `invoice.paid` side effects (music_license_invoices.status='paid' plus the music_licensing_outbox insert) could be permanently skipped, so a paid licence invoice could stay unpaid.",
+            "COMPLETION: error-only check on the completion update; a zero-row update reported success.",
+            "REDACTION: full payload persisted verbatim in music_licensing_partner_events.payload."
+          ],
+          "fix": "Same four fixes. Adaptations to this ledger's own vocabulary: the claim status is `verified` (now unconditional, since a signature is required), the failure marker is `rejected`, the completion guard is `.eq('status','verified')`, and the reclaim restores `status: 'verified'` with a bumped `received_at`. This deliberately stays inside the archived check constraint `status in ('received','verified','processed','rejected','duplicate')` rather than inventing a `processing` value, so the reclaim cannot violate the schema it will eventually run against."
+        },
+        {
+          "route": "POST /api/rights-admin/partners/webhooks/[provider]",
+          "file": "app/api/rights-admin/partners/webhooks/[provider]/route.ts",
+          "posture": "permanently 503, unreachable",
+          "defects_found": [
+            "SIGNATURE: `MUSIC_RIGHTS_ADMIN_WEBHOOK_ALLOW_UNSIGNED` unsigned processing pass, as above.",
+            "REPLAY: acknowledge-on-collision with no completion-marker read. The `registration.status` side effects (music_rights_external_records insert plus the music_rights_admin_outbox insert keyed `reg-reconcile-<eventId>`) could be permanently skipped, so a provider status change would never be reconciled.",
+            "COMPLETION: error-only check on the completion update; a zero-row update reported success.",
+            "REDACTION: full payload persisted verbatim in BOTH music_rights_admin_partner_events.payload and music_rights_external_records.payload (the latter built by spreading the raw payload). This route had two durable verbatim copies, not one."
+          ],
+          "fix": "Same four fixes, with the same `verified`/`rejected` vocabulary adaptation as licensing. `aggregate_id` was also repointed from the insert-time `stored.id` to the resolved `receiptRowId`, because on a resumed claim the insert returned no row and the outbox would otherwise have been written against a null aggregate."
+        }
+      ],
+      "required_to_enable": [
+        "Database: additive forward-only migration restoring the three receipt ledgers (music_institutional_partner_events, music_licensing_partner_events, music_rights_admin_partner_events) plus every sibling the three routes write — music_institutional_outbox_events, music_licensing_outbox, music_rights_admin_outbox, music_rights_external_records, music_license_invoices, music_license_agreements. All six currently exist only as `local_only_unapplied` archive SQL. Apply additively, never `supabase db reset` (CP-051).",
+        "Database: the reclaim depends on `received_at timestamptz not null default now()` and `processed_at timestamptz` existing on all three ledgers, and on the status check constraints admitting the claim vocabulary above. This was verified against archived DDL only; no hosted table was queried and no such claim is made.",
+        "Release/Database: flip `advanced_music_webhooks` from 'disabled' to a launchable status in lib/config/launch-capabilities.ts. That single line is the entire launch gate, which is why the defects had to be removed now rather than at enablement time.",
+        "Release: provision per-provider `MUSIC_{INSTITUTIONAL,LICENSING,RIGHTS_ADMIN}_WEBHOOK_SECRET[_<PROVIDER>]` values. No unsigned path can be configured, so there is no fixture mode to preserve.",
+        "QA/Release: hosted replay and redaction evidence against a real table. INTG-010 produced no hosted or provider evidence and claims none.",
+        "NOTE for the future enabler: `hashPayload` digests `JSON.stringify(payload)` of the *parsed* body, not the raw bytes, so `payload_hash` proves a canonical re-serialization rather than byte-exact body integrity. This is unchanged from INTG-009 and from the pre-existing `hashPayload` contract, and it is recorded rather than silently altered."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "criterion": "Classify and dispose every integrations-domain entry in the type inventory, recorded in the task record: canonical replacement, or dead-consumer deletion with a zero-use re-validation.",
+      "owner": "integrations",
+      "state": "met",
+      "evidence": [
+        "docs/engineering/database-type-inventory-2026-09-25.json codeDriftClusters entry owningDomain=integrations -> 1 object, 6 diagnostic hits, 1 object with a live consumer. The inventory file was read and NOT edited; the database lane owns it and TICKET-008 is live against it."
+      ],
+      "counts": {
+        "integrations_cluster_objects": 1,
+        "diagnostic_hits": 6,
+        "canonical_replacement_available": 0,
+        "dead_consumer_deletions": 0,
+        "requires_new_database_migration": 1
+      },
+      "dispositions": [
+        {
+          "object": "event_provider_connections",
+          "classification_in_inventory": "code-drift",
+          "canonicalReplacement": null,
+          "disposition": "NEITHER repoint NOR delete — the object must genuinely exist as schema. Raised to the database lane as HF-DB019-EVENT-PROVIDER-CONNECTIONS against the already-active DB-019 ('Close non-regenerable schema drift'), which is exactly this failure mode. Reported, not performed: no file was deleted, no route was repointed, and the inventory was not edited.",
+          "zero_use_revalidation": "FAILED as a dead-consumer candidate, on two independent grounds, and the inventory's own consumer list is wrong in a way that matters.",
+          "revalidation_detail": [
+            "FALSE ATTRIBUTION: the inventory names app/api/hiring/apply/profile-preview/route.ts as a tscFile and a liveConsumer of event_provider_connections. Read in full, that file contains ZERO references to event_provider_connections — it queries only job_posting_templates and job_applications. Its tsc diagnostic belongs to `job_posting_templates.application_form_template`, a separate work-domain item in the same inventory. 1 of the 2 named live consumers is not a consumer.",
+            "UNDERSTATEMENT: a repository-wide search finds FIVE app-code consumers, not two — app/api/integrations/bandsintown/status/route.ts:16, app/api/integrations/bandsintown/connect/route.ts:40, app/api/integrations/bandsintown/disconnect/route.ts:25 and :37, app/api/events/[id]/claim/route.ts:61, and four references in app/api/cron/events/sync/route.ts (lines 154, 173, 186, 213). The other four do not appear in the inventory at all.",
+            "WHY THEY ARE MISSED, and why this matters more than the count: three of the five use `createServiceRoleClient()` and their `.from()` chain resolves through an untyped client, so they emit no tsc diagnostic and can never enter an inventory built from a preserved tsc log. The inventory is a floor derived from compiler output, not a liveness census.",
+            "LIVENESS OF THE FIVE, by the gate that actually protects each: bandsintown/status — REACHABLE, has no capability gate at all; it authenticates, queries, and returns `mode` (always 'disabled') with whatever rows come back. bandsintown/connect — permanently 503, `getBandsintownMode()` is 'disabled' because `external_event_providers` is 'disabled'. bandsintown/disconnect — REACHABLE and the sharpest of them: it is gated by session auth only, never by provider mode, and it reads then service-role-writes the table, so an authenticated caller can drive a real state change. events/[id]/claim — permanently 503, `isEventFeatureEnabled('EVENT_EXTERNAL_CLAIMS')` routes through the same disabled capability. cron/events/sync — permanently 503, explicit `isLaunchCapabilityAvailable('external_event_providers')` guard.",
+            "CONCLUSION: deletion is not an option (2 reachable consumers, 1 of them a service-role write path), and the repository records no canonical replacement (`canonicalReplacement: null`; no identity map names a destination). The only honest disposition is an additive forward-only migration. The archived DDL is complete and unambiguous, and every column any consumer selects is present in it, so no column-contract invention is required."
+          ],
+          "exact_column_contract_supplied": "id uuid pk default gen_random_uuid(); owner_type text not null check in ('artist','venue','organization'); owner_id uuid not null; provider text not null; external_identity text not null; display_name text; status text not null default 'pending' check in ('pending','active','error','disconnected'); connection_mode text not null default 'artist_owned_key' check in ('artist_owned_key','partner'); secret_reference text; scopes text[]; verified_at timestamptz; last_synced_at timestamptz; next_sync_at timestamptz; last_error_code text; created_by uuid not null references auth.users(id) on delete cascade; created_at timestamptz not null default now(); updated_at timestamptz not null default now(); unique (owner_type, owner_id, provider, external_identity); plus partial index on (provider, next_sync_at) where status = 'active'. Source: supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/20260804130000_event_provider_foundation.sql lines 67-91. Note `secret_reference` is a pointer into the approved secret store and must stay a pointer — the archived DDL says so explicitly and INTG-007 makes that boundary fail-closed."
+        }
+      ],
+      "collateral_finding_for_the_database_lane": "The same blind spot explains why AC-1's three receipt ledgers are absent from the inventory: all three deferred partner routes (and both INTG-009 partner routes, and the Supabase notifications route) hold the service-role client as `let supabase: any` and therefore emit no type diagnostics at all. Verified: music_licensing_partner_events, music_rights_admin_partner_events, music_institutional_partner_events, music_rights_external_records, music_rights_admin_outbox, music_licensing_outbox, music_license_invoices, music_license_agreements, music_institutional_outbox_events, event_sync_jobs, event_claims and event_discovery_index are all absent from the inventory. The '1 object' integrations figure is therefore a lower bound on the domain's real type-drift exposure, not a measurement of it. Recorded for TICKET-008/DB-019; no inventory edit was made.",
+      "inventory_edits_made": 0,
+      "deletions_performed": 0
+    }
+  ],
+  "codeql_handoff_disposition": {
+    "handoff": "HF-RELEASE-SEC-CODEQL",
+    "scope": "re-pointed here with its condition narrowed to integrations scope",
+    "alert_state_closed": "NONE. Zero alerts were dismissed, fixed, re-opened, re-triaged on GitHub, or otherwise mutated. No `dismissed_reason` was set, no suppression comment was added, and no behaviour was changed to satisfy a rule. Every entry below is a source-level reading only.",
+    "closure_is_owner_gated": "It is not merely owner-gated, it is structurally impossible from this lane. GitHub Advanced Security has no local engine and no local re-scan exists, so the only artefact that can close an alert is a new recorded analysis. Re-verified live in this task: `gh api 'repos/KyleQD/Tourify/code-scanning/analyses?ref=refs/heads/main'` -> 0 analyses, and `alerts?branch=main&state=open|dismissed|fixed` -> 0 / 0 / 0. main has zero alerts in ANY state, which is the direct consequence of .github/workflows/security-scans.yml never having been on main, so its `on: push: branches: [main]` trigger has never fired. The platform gate therefore still diffs against nothing and still attributes the whole tree to the PR. A registry disposition and a passing local test are both worth zero alert state.",
+    "real_backlog": "The 96 open alerts are not the integrations backlog. Per HF-RELEASE-SEC-CODEQL, 94 of 96 sit in files the pull request never touched, an attribution artifact of the missing baseline. Once a main analysis exists the correct number is the absolute open count on main, and it is expected to be large because the merge carries the whole branch. That is the honest number (CP-060) and it must not be reduced by dismissal.",
+    "integrations_owned_alerts": {
+      "count": 2,
+      "items": [
+        "#102 js/user-controlled-bypass app/api/social/oauth/callback/route.ts:44 — already registered as CODEQL-102-SOCIAL-OAUTH-CALLBACK-CODE-PRESENCE-GUARD (not_exploitable, expires 2026-11-24) in Wave 33.",
+        "#94 js/insufficient-password-hash __tests__/integrations/security.test.ts:52 — already registered as CODEQL-94-INTEGRATIONS-SECURITY-TEST-HMAC-STATE (not_exploitable, expires 2026-11-24) in Wave 33."
+      ],
+      "action_taken": "None. Both already carry a registry entry, a real productionExploitability decision and an owner. Re-reading the current source found no drift that would change either rationale, and re-registering would have been a no-op. Note that INTG-010's changes cannot move #94: it is raised from a test file, and __tests__/integrations/security.test.ts was not modified.",
+      "zero_new_alerts": "Zero alerts fall in app/api/webhooks/**, app/api/{institutional,licensing,rights-admin}/**webhooks/**, or lib/integrations/**. Hardening these three routes introduced no new finding, and no alert existed on them to begin with."
+    },
+    "triaged_and_routed_not_registered": [
+      {
+        "alert": "#85 js/user-controlled-bypass app/auth/callback/route.ts:37",
+        "verdict": "No defect. The reported guard is `if (code)` and the sink is `supabase.auth.exchangeCodeForSession(code)` at line 41 — the guard consumes the identical value the sensitive action consumes, so no separate authorization condition exists to bypass and the `else` branch at line 101 performs no code exchange. This is the same rule shape already dispositioned for #102 in Wave 33.",
+        "action": "Routed, not registered. app/auth/** is not integrations-owned; registering an integrations-owned exception for another lane's file would be a governance claim this lane cannot make."
+      },
+      {
+        "alert": "#103 js/user-controlled-bypass app/auth/confirm/route.ts:50",
+        "verdict": "No defect. The guard is `if (type === 'recovery')` and the sensitive action is the redirect to /reset-password. The attacker-controlled `type` is itself the consumed value, and it has already been constrained to the ALLOWED_OTP_TYPES allowlist at line 28 and successfully verified by `verifyOtp` at line 38 before line 50 is reached, so the session is established by the time the branch runs. The value narrows paths rather than skipping a check.",
+        "action": "Routed, not registered — auth/identity lane."
+      },
+      {
+        "alert": "js/clear-text-storage-of-sensitive-data hooks/use-multi-account.tsx:74",
+        "verdict": "No credential at rest. The value written to sessionStorage is `{ userId, profileId, accountType }` — identifiers, not secrets. sessionStorage is tab-scoped and dies with the tab, and the read-back at the call site is guarded by `parsed.userId !== userId`, so it is a UX pointer and not an authorization store.",
+        "action": "Routed, not registered — general-user lane."
+      },
+      {
+        "alert": "js/clear-text-storage-of-sensitive-data lib/services/venue.service.ts:180",
+        "verdict": "No credential at rest. `sessionStorage.setItem('active_venue_id', venueId)` stores a venue identifier used only to preselect a venue in the UI; it confers no access, and venue scope is re-verified server-side at the data boundary.",
+        "action": "Routed, not registered — venue lane."
+      }
+    ],
+    "already_routed_elsewhere": "#95 js/insufficient-password-hash lib/admin/content-hub/oauth-state.ts:96 is admin-owned, already registered as CODEQL-95-ADMIN-OAUTH-STATE-HMAC-SINK and already handed off as HF-INTG-033-CODEQL-OAUTH-STATE-HASH. Untouched. The 1 critical, #16 js/request-forgery app/api/discover/route.ts:351, is discover-lane owned and outside the integrations working set; it was deliberately left untouched and undismissed.",
+    "registry_mutations": 0,
+    "registry_gate": "`node scripts/ci/check-security-exceptions.mjs` -> exit 0, 'Security exception registry OK — 3 active exception(s)'. `node --test scripts/ci/check-security-exceptions.test.mjs` -> 3 pass / 0 fail. The registry is unchanged by this task; the gate was run because `Security exception governance` is a required check on main and its pass must not be inferred."
+  },
+  "added_paths": [
+    {
+      "path": "app/api/institutional/partners/webhooks/[provider]/route.ts",
+      "reason": "The actual location of one of the three routes AC-1 names. The declared glob app/api/webhooks/music-institutional/** matches nothing on disk. See working_set_correction."
+    },
+    {
+      "path": "app/api/licensing/partners/webhooks/[provider]/route.ts",
+      "reason": "Same — the actual location of the licensing partner ingress route."
+    },
+    {
+      "path": "app/api/rights-admin/partners/webhooks/[provider]/route.ts",
+      "reason": "Same — the actual location of the rights-admin partner ingress route."
+    },
+    {
+      "path": "lib/config/launch-capabilities.ts",
+      "reason": "READ-ONLY. AC-1 requires proving the routes are permanently 503 rather than assuming it. The `advanced_music_webhooks` status and the `isLaunchCapabilityAvailable` short-circuit are the proof. Not edited."
+    },
+    {
+      "path": "lib/config/audit-feature-gates.ts",
+      "reason": "READ-ONLY. Proves `isAuditFeatureApproved('advanced_webhooks')` delegates to the disabled capability with the env approval as a second argument, so the gate is unopenable. Not edited."
+    },
+    {
+      "path": "app/api/integrations/bandsintown/status/route.ts",
+      "reason": "READ-ONLY. AC-2 zero-use re-validation of event_provider_connections; named by HF-DB008-TYPECHECK-INTEGRATIONS. Not edited."
+    },
+    {
+      "path": "app/api/hiring/apply/profile-preview/route.ts",
+      "reason": "READ-ONLY. AC-2 zero-use re-validation. Reading it in full disproved the inventory's claim that it is a live consumer of event_provider_connections. Not edited."
+    },
+    {
+      "path": "app/api/integrations/bandsintown/connect/route.ts",
+      "reason": "READ-ONLY. AC-2 zero-use re-validation; a consumer the inventory does not name. Not edited."
+    },
+    {
+      "path": "app/api/integrations/bandsintown/disconnect/route.ts",
+      "reason": "READ-ONLY. AC-2 zero-use re-validation; the one reachable service-role write consumer the inventory does not name. Not edited."
+    },
+    {
+      "path": "app/api/cron/events/sync/route.ts",
+      "reason": "READ-ONLY. AC-2 zero-use re-validation; a consumer the inventory does not name, used to confirm its capability gate. Not edited."
+    },
+    {
+      "path": "app/api/events/[id]/claim/route.ts",
+      "reason": "READ-ONLY. AC-2 zero-use re-validation; a consumer the inventory does not name. Not edited."
+    },
+    {
+      "path": "app/auth/callback/route.ts",
+      "reason": "READ-ONLY. CodeQL handoff triage of alert #85. Not edited — app/auth/** is not integrations-owned."
+    },
+    {
+      "path": "app/auth/confirm/route.ts",
+      "reason": "READ-ONLY. CodeQL handoff triage of alert #103. Not edited."
+    },
+    {
+      "path": "hooks/use-multi-account.tsx",
+      "reason": "READ-ONLY. CodeQL handoff triage of the clear-text-storage alert. Not edited."
+    },
+    {
+      "path": "lib/services/venue.service.ts",
+      "reason": "READ-ONLY. CodeQL handoff triage of the clear-text-storage alert. Not edited."
+    },
+    {
+      "path": "supabase/migration-archive/pre-reconciliation-local-only-2026-08-20/*.sql",
+      "reason": "READ-ONLY. Authoritative archived DDL for the three receipt ledgers (AC-1 reclaim column contract) and for event_provider_connections (AC-2 column contract). Archive files are not applied and were not modified."
+    },
+    {
+      "path": "lib/music/{institutional,licensing,rights-admin}/partner-adapters.ts",
+      "reason": "READ-ONLY. To confirm `hashPayload` digests the unredacted parsed payload, which is what keeps payload_hash an integrity proof after redaction. Not edited."
+    }
+  ],
+  "migration_authoring": {
+    "migrations_authored": 0,
+    "migrations_applied": 0,
+    "note": "AC-1 and AC-2 are both record/report dispositions and neither requires schema. The three webhook ledgers and event_provider_connections are all reported to the database lane as additive forward-only migrations with the exact column contract supplied; the database lane authors and manually applies them under CP-051. `supabase start` was not attempted and no `supabase db reset` was run or considered.",
+    "files_to_be_authored_by_database": "No file was authored by this lane, so there is no filename to report."
+  },
+  "not_done": [
+    "No hosted, credentialed, or provider evidence exists and none is claimed: no partner secret, no staging delivery, no receipt-ledger query against a real table, no migration applied (CP-051 untouched).",
+    "No full-repository typecheck was run. The 1,384-diagnostic baseline was NOT re-measured, so the reduction attributable to this task's cluster is not quantified; the scoped slice over the three routes and __tests__/integrations/** is the only type claim made.",
+    "No CodeQL alert state was closed and none can be from this lane.",
+    "`advanced_music_webhooks` and every external provider remain disabled. Nothing in this task enables them."
+  ],
+  "verification": {
+    "tier": "fast",
+    "gates": [
+      {
+        "id": "local",
+        "level": "local",
+        "owner": "integrations",
+        "required_for": "task",
+        "result": "pass",
+        "commands": [
+          "npx vitest run __tests__/integrations/",
+          "npx vitest run __tests__/config/",
+          "npx jest app/api/webhooks",
+          "npx eslint app/api/institutional/partners/webhooks/[provider]/route.ts app/api/licensing/partners/webhooks/[provider]/route.ts app/api/rights-admin/partners/webhooks/[provider]/route.ts __tests__/integrations/webhook-deferred-partner-certification.test.ts __tests__/integrations/webhook-route-inventory.test.ts",
+          "npm run agents:validate -- --strict",
+          "node scripts/ci/check-security-exceptions.mjs"
+        ],
+        "evidence": [
+          "npx vitest run __tests__/integrations/ -> Test Files 10 passed (10), Tests 245 passed (245). Baseline before this task was 9 files / 200 tests, so the suite grew and did not shrink.",
+          "npx vitest run __tests__/config/ -> Test Files 3 passed (3), Tests 68 passed (68). Covers audit-feature-gates and launch-capability consumers, the gate these three routes sit behind.",
+          "npx jest app/api/webhooks -> Test Suites 2 passed, Tests 12 passed. Unchanged from the INTG-009 baseline.",
+          "npx eslint over the 5 changed files -> exit 0, no output.",
+          "npx tsc -p <temp scoped tsconfig including the three routes and __tests__/integrations/**> -> exit 0, 0 lines of output. Scoped by design; the full-repo typecheck was NOT run.",
+          "npm run agents:validate -- --strict -> validated 18 agents, 216 tasks, 101 pending handoffs, 0 warnings, 0 errors. 101 reflects the new HF-DB019 handoff; the count was 100 before and 0 warnings / 0 errors then too.",
+          "node scripts/ci/check-security-exceptions.mjs -> exit 0, 'Security exception registry OK - 3 active exception(s)'. node --test scripts/ci/check-security-exceptions.test.mjs -> 3 pass / 0 fail. Registry unmutated by this task.",
+          "Mutation proof, 4 defect families x 3 routes = 12 mutations, all 12 detected: restoring the unsigned flag, restoring acknowledge-on-23505, removing the completion-row verification, and removing the redaction each fail 2-4 of the 68 suite cases. Harness run manually from a temp directory; it is not a committed gate and touches no repository file.",
+          "gh api 'repos/KyleQD/Tourify/code-scanning/analyses?ref=refs/heads/main' -> 0; 'alerts?branch=main&state=open|dismissed|fixed' -> 0 / 0 / 0. Read-only. main has no baseline, so no alert state moved and none could."
+        ],
+        "last_run_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "last_run_at": "2026-09-27T22:24:58.494Z"
+      }
+    ]
+  },
+  "progress": {
+    "summary": "INTG-010 complete. All four INTG-009 defect families fixed on the three deferred advanced partner routes; the working-set globs in the record were wrong and are corrected. AC-2 disposed to a database migration with a false-attribution and blind-spot correction. No CodeQL alert state closed.",
+    "completed": [
+      "Corrected the working set: the three deferred partner routes are app/api/{institutional,licensing,rights-admin}/partners/webhooks/[provider]/route.ts, not app/api/webhooks/music-*/**, which match nothing on disk.",
+      "AC-1: proved all three routes permanently 503 twice over (unopenable advanced_music_webhooks capability asserted at runtime, plus receipt ledgers absent from the active chain), then fixed rather than deferred.",
+      "AC-1: removed the last three MUSIC_*_WEBHOOK_ALLOW_UNSIGNED processing passes; an unconfigured secret is now unconditionally 503 on all four partner routes.",
+      "AC-1: claim collisions on all three routes are now resolved by the completion marker (completed acks with zero side effects, incomplete past 300s is atomically reclaimed and resumes, unreadable or unresolvable is 500); completion writes return their row guarded on the expected prior status.",
+      "AC-1: persisted partner payloads pass through the shared redactCredentialMaterial on all three routes; the rights-admin route had two verbatim copies and both are now redacted. payload_hash still covers the unredacted signed payload.",
+      "AC-2: the integrations type-drift cluster is 1 object, 6 diagnostic hits, 0 canonical replacements, 0 dead-consumer deletions, 1 requiring a new migration. Disposed to a database additive migration, not repointed and not deleted.",
+      "AC-2: zero-use re-validation disproved the inventory on both sides - it names a non-consumer (hiring/apply/profile-preview) and omits four real consumers, two of which are reachable with no capability gate. Routed to DB-019 with the exact archived column contract.",
+      "Recorded the structural blind spot: routes holding the service-role client as 'any' emit no tsc diagnostic, so 12 music/event-family tables including all three webhook ledgers are absent from the type inventory. The count of 1 is a floor, not a measurement.",
+      "CodeQL: triaged 4 further in-scope sites to no-defect-and-routed, registered nothing (the 2 integrations-owned alerts already carry entries), mutated the registry zero times, and re-verified live that refs/heads/main has 0 analyses and 0 alerts in any state. No alert state was closed and none can be from this lane."
+    ],
+    "next_steps": [
+      "Database (DB-019): author and manually apply the additive forward-only migration for public.event_provider_connections per HF-DB019-EVENT-PROVIDER-CONNECTIONS; keep secret_reference a pointer; regenerate types. Nothing in this task unblocks that - it is the successor task's work.",
+      "Release: flip advanced_music_webhooks out of 'disabled' only when the six music-family tables are in the active chain, per-provider secrets are provisioned, and hosted replay/redaction evidence exists. That single line in lib/config/launch-capabilities.ts is the entire launch gate, which is why the defects were removed now rather than at enablement time.",
+      "Release/orchestrator: the CodeQL baseline procedure (merge security-scans.yml to main, confirm a push-event run, confirm GET /code-scanning/analyses?ref=refs/heads/main is non-empty) remains an owner action, not an agent task. Until step 3 is non-empty the Advanced Security gate is not a valid regression signal."
+    ],
+    "blockers": [
+      "No hosted, credentialed or provider evidence exists and none is claimed. bandsintown/status and bandsintown/disconnect return 500 on an authenticated request until DB-019 applies event_provider_connections; they expose no credential and mutate nothing beyond the row the caller already owns. Next action owner: database, task DB-019.",
+      "The 1,384-diagnostic tsc baseline was not re-measured (68m18s on CI, OOM locally, four lanes on one 8GB machine), so the reduction attributable to the integrations cluster stays unquantified. Only a scoped slice over this lane's own files is claimed. Next action owner: release, when a full run is affordable."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-27T22:02:05.850Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "Record created to receive the two handoffs INTG-009 accepted but did not discharge; HF-DB008-TYPECHECK-INTEGRATIONS re-pointed here.",
+        "completed": [],
+        "next_steps": [
+          "Disposition the three advanced partner webhook routes and resolve the integrations type-drift cluster."
+        ],
+        "blockers": []
+      },
+      {
+        "at": "2026-09-27T22:24:58.494Z",
+        "sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+        "summary": "INTG-010 complete. All four INTG-009 defect families fixed on the three deferred advanced partner routes; the working-set globs in the record were wrong and are corrected. AC-2 disposed to a database migration with a false-attribution and blind-spot correction. No CodeQL alert state closed.",
+        "completed": [
+          "Corrected the working set: the three deferred partner routes are app/api/{institutional,licensing,rights-admin}/partners/webhooks/[provider]/route.ts, not app/api/webhooks/music-*/**, which match nothing on disk.",
+          "AC-1: proved all three routes permanently 503 twice over (unopenable advanced_music_webhooks capability asserted at runtime, plus receipt ledgers absent from the active chain), then fixed rather than deferred.",
+          "AC-1: removed the last three MUSIC_*_WEBHOOK_ALLOW_UNSIGNED processing passes; an unconfigured secret is now unconditionally 503 on all four partner routes.",
+          "AC-1: claim collisions on all three routes are now resolved by the completion marker (completed acks with zero side effects, incomplete past 300s is atomically reclaimed and resumes, unreadable or unresolvable is 500); completion writes return their row guarded on the expected prior status.",
+          "AC-1: persisted partner payloads pass through the shared redactCredentialMaterial on all three routes; the rights-admin route had two verbatim copies and both are now redacted. payload_hash still covers the unredacted signed payload.",
+          "AC-2: the integrations type-drift cluster is 1 object, 6 diagnostic hits, 0 canonical replacements, 0 dead-consumer deletions, 1 requiring a new migration. Disposed to a database additive migration, not repointed and not deleted.",
+          "AC-2: zero-use re-validation disproved the inventory on both sides - it names a non-consumer (hiring/apply/profile-preview) and omits four real consumers, two of which are reachable with no capability gate. Routed to DB-019 with the exact archived column contract.",
+          "Recorded the structural blind spot: routes holding the service-role client as 'any' emit no tsc diagnostic, so 12 music/event-family tables including all three webhook ledgers are absent from the type inventory. The count of 1 is a floor, not a measurement.",
+          "CodeQL: triaged 4 further in-scope sites to no-defect-and-routed, registered nothing (the 2 integrations-owned alerts already carry entries), mutated the registry zero times, and re-verified live that refs/heads/main has 0 analyses and 0 alerts in any state. No alert state was closed and none can be from this lane."
+        ],
+        "next_steps": [
+          "Database (DB-019): author and manually apply the additive forward-only migration for public.event_provider_connections per HF-DB019-EVENT-PROVIDER-CONNECTIONS; keep secret_reference a pointer; regenerate types. Nothing in this task unblocks that - it is the successor task's work.",
+          "Release: flip advanced_music_webhooks out of 'disabled' only when the six music-family tables are in the active chain, per-provider secrets are provisioned, and hosted replay/redaction evidence exists. That single line in lib/config/launch-capabilities.ts is the entire launch gate, which is why the defects were removed now rather than at enablement time.",
+          "Release/orchestrator: the CodeQL baseline procedure (merge security-scans.yml to main, confirm a push-event run, confirm GET /code-scanning/analyses?ref=refs/heads/main is non-empty) remains an owner action, not an agent task. Until step 3 is non-empty the Advanced Security gate is not a valid regression signal."
+        ],
+        "blockers": [
+          "No hosted, credentialed or provider evidence exists and none is claimed. bandsintown/status and bandsintown/disconnect return 500 on an authenticated request until DB-019 applies event_provider_connections; they expose no credential and mutate nothing beyond the row the caller already owns. Next action owner: database, task DB-019.",
+          "The 1,384-diagnostic tsc baseline was not re-measured (68m18s on CI, OOM locally, four lanes on one 8GB machine), so the reduction attributable to the integrations cluster stays unquantified. Only a scoped slice over this lane's own files is claimed. Next action owner: release, when a full run is affordable."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

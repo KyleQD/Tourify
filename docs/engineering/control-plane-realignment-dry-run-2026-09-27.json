@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "mode": "dry-run",
+  "generated_at": "2026-09-27T19:59:01.228Z",
+  "source_sha": "16fb834f1a03a70f165be470a5f98f389bf6100a",
+  "before": {
+    "tasks": 183,
+    "criteria": 673,
+    "verificationEvidence": 1386,
+    "checkpoints": 735,
+    "handoffs": 100
+  },
+  "proposed": {
+    "tasks": 211,
+    "criteria": 712,
+    "verificationEvidence": 1496,
+    "checkpoints": 735,
+    "handoffs": 105
+  },
+  "preservation_gate": {
+    "lost_acceptance_criteria": 0,
+    "lost_verification_evidence": 0,
+    "lost_checkpoints": 0,
+    "lost_handoff_records": 0,
+    "result": "pass"
+  },
+  "decision": "Apply after the preservation gate passed; keep completed v1 history immutable except WFC-001."
+}

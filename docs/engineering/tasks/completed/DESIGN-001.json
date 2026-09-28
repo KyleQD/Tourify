@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "id": "DESIGN-001",
+  "title": "Audit Design System workspace — baseline, gaps, and questions",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "design-system",
+  "created_at": "2026-09-09T06:17:42.655Z",
+  "updated_at": "2026-09-10T22:20:00.000Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty (585 entries)",
+  "goal": "Audit the Design System area to gather a baseline understanding: what exists today, what the area is trying to build, and what is missing/incomplete/needs improvement. Use deep research and sequential thinking; finish with prioritized questions for the owner to answer on how to build or fix each gap. Focus: shared UI primitives, accessibility, layout, tokens, and interaction consistency",
+  "scope": {
+    "in": [
+      "docs/engineering/agents/design-system/ — charter, state, architecture, backlog, interfaces, decisions, verification, working set",
+      "The design-system default paths declared in WORKING_SET.json",
+      "docs/engineering/generated/ — routes, api-routes, components, database-schema, permissions, integrations maps",
+      "docs/work-packets/ — existing bounded work packets for this area",
+      ".agents/ legacy specialist ledgers that document this area"
+    ],
+    "out": [
+      "Production code and migration changes (this is a read-only audit)",
+      "Surfaces owned by other agents",
+      "docs/admin-audit remediation stream unless findings directly affect this domain",
+      "Agent registry, task model, and opencode agent definitions"
+    ]
+  },
+  "working_set": [
+    "docs/engineering/agents/design-system/",
+    "docs/engineering/generated/",
+    "docs/work-packets/"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/INDEX.md",
+    "docs/engineering/PROJECT_STATE.md",
+    "docs/engineering/SYSTEM_MAP.md",
+    "docs/engineering/DEPENDENCY_MAP.md",
+    "docs/engineering/DECISIONS.md",
+    "docs/engineering/agents/registry.yaml",
+    "docs/DEVELOPMENT_BACKLOG.md"
+  ],
+  "acceptance_criteria": [
+    "Baseline produced as docs/engineering/agents/design-system/BASELINE.md with current routes, components, services, API routes, database objects, tests, evidence, and intended direction backed by real paths.",
+    "Started from the domain working set and a packet built via npm run agents:context -- --task DESIGN-001; evidence-required expansions are recorded in the packet and checkpoint.",
+    "Gaps are triaged as missing, incomplete, or improve with evidence and locations.",
+    "Prioritized owner questions explain build vs fix vs drop and sequencing.",
+    "STATE.md, BACKLOG.md, DECISIONS.md, and VERIFICATION.md reflect the reconciled findings.",
+    "No production code or migration files changed.",
+    "npm run agents:validate passes with 0 errors before completion.",
+    "The task is not blocked on unanswered questions; owner answers become follow-up task records."
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npm run agents:context -- --task DESIGN-001",
+      "npm run agents:generate",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Bounded context packet built before the audit.",
+      "Generated maps refreshed at SHA 7cf660ad8422dbd3adbdb77369d94638cdc2231b: 369 web routes, 24 mobile routes, 939 API handlers, 1,939 component files, 693 detected database objects across 422 migrations, 1,287 detected policies, and 9 integrations.",
+      "Reconciled DESIGN-002 evidence: hooks/use-mobile.ts is canonical; former shared duplicate files are gone; three domain copies remain for follow-up.",
+      "Reconciled DESIGN-003 evidence: shared EmptyState/ErrorState/Skeleton exist, shared callers adopt them, and the focused suite covers 3 tests.",
+      "npm run agents:validate -> validated 17 agents, 69 tasks, 1 warning, 0 errors. The warning is pre-existing RELEASE-001 completed without passing verification.",
+      "No production code or migration files were modified by DESIGN-001."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T22:20:00.000Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Reconciled the design-system audit against current source, refreshed generated maps, and normalized the baseline, gaps, questions, state, backlog, decisions, verification, and work packet. Resolved DESIGN-002/DESIGN-003 findings are no longer reported as missing; remaining adoption, token, accessibility, i18n, and twin work is prioritized for follow-up.",
+    "completed": [
+      "Read the required engineering index, design-system charter/state, task record, working set, and named references.",
+      "Built the bounded DESIGN-001 context packet via npm run agents:context -- --task DESIGN-001.",
+      "Refreshed docs/engineering/generated maps via npm run agents:generate.",
+      "Reconciled BASELINE.md with current primitive counts, layout/surface paths, token/theme sources, routes, services, API/database context, tests, and intended direction.",
+      "Reconciled GAPS.md so shared state primitives and the canonical use-mobile hook are recorded as completed foundations with remaining adoption debt distinguished.",
+      "Reconciled QUESTIONS.md with resolved DESIGN-002/DESIGN-003 direction and prioritized owner decisions for remaining gaps.",
+      "Updated STATE.md, BACKLOG.md, DECISIONS.md, VERIFICATION.md, and created docs/work-packets/DESIGN-001.md.",
+      "Verified no production code or migration files changed.",
+      "Ran npm run agents:validate successfully with 0 errors."
+    ],
+    "next_steps": [
+      "Continue active DESIGN-004 for the venue primitive-tree cleanup with venue coordination.",
+      "Create follow-up tasks from QUESTIONS.md, prioritizing token authority, responsive-hook migration, shared-state adoption, and the WS-2.6 accessibility/i18n gates."
+    ],
+    "blockers": [],
+    "checkpoints": [
+      {
+        "at": "2026-09-10T22:20:00.000Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "DESIGN-001 complete: reconciled the design-system audit with current source and DESIGN-002/DESIGN-003 evidence, refreshed generated maps, and recorded remaining gaps and owner questions.",
+        "completed": [
+          "Updated BASELINE.md, GAPS.md, QUESTIONS.md, STATE.md, BACKLOG.md, DECISIONS.md, VERIFICATION.md, and the DESIGN-001 work packet.",
+          "Moved DESIGN-001 to completed after control-plane validation."
+        ],
+        "next_steps": [
+          "Proceed with DESIGN-004 and create bounded follow-up tasks from the unanswered questions."
+        ],
+        "blockers": [],
+        "evidence": [
+          "npm run agents:validate -> 17 agents, 69 tasks, 1 warning, 0 errors; warning is pre-existing RELEASE-001 verification debt."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}

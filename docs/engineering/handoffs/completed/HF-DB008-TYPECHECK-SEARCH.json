@@ -1,0 +1,47 @@
+{
+  "schema_version": "2.0",
+  "id": "HF-DB008-TYPECHECK-SEARCH",
+  "task_id": "DB-008",
+  "from_agent": "database",
+  "to_agent": "discover",
+  "status": "completed",
+  "created_at": "2026-09-25T21:30:00.000Z",
+  "source_sha": "d21769046d517898144ee09a1c7bb4a7d36b068f",
+  "summary": "The 1,384-diagnostic `tsc --noEmit` failure on d2176904 is a generated-database-contract defect, not stale types alone. The database lane reconstructed the live public-schema surface the active migration chain leaves behind and classified every named missing object. This handoff is your share of the `code-drift` cluster \"search\": 2 objects, 19 diagnostic hits, of which 2 are reached by a LIVE entry-reachable route or page so deletion is not an option. The full evidence-backed classification is docs/engineering/database-type-inventory-2026-09-25.json; this handoff names your objects and the canonical replacement for each where the repository records one. 2 objects (calculate_venue_profile_completion, and the artist_profiles.verification_status reads in app/api/search/enhanced and app/api/search/unified) feed the canonical search projection that DISC-002 already owns.",
+  "working_set": [
+    "docs/engineering/database-type-inventory-2026-09-25.json",
+    "app/api/photos/purchase/route.ts",
+    "app/api/profile/[username]/route.ts",
+    "app/api/search/enhanced/route.ts",
+    "app/api/search/unified/route.ts",
+    "app/api/settings/route.ts"
+  ],
+  "completed": [
+    "Classified 2 objects as code-drift for the \"search\" cluster: artist_profiles.verification_status, calculate_venue_profile_completion.",
+    "For 0 of them the repository already names a canonical replacement: none.",
+    "Established consumer liveness for each: 2 reached by an entry-reachable route/page, 0 reachable only from modules nothing imports.",
+    "Proved the objects are absent from the active migration chain AND from lib/database.types.ts, so regenerating the types cannot fix them.",
+    "CONSUMED BY DISC-003. The discover share was one file and it is fixed: app/api/search/enhanced/route.ts dropped artist_profiles.verification_status from its select (the column is in neither the active chain nor lib/database.types.ts, so the query errored at PostgREST and the route returned zero artist results) and buildArtistResult now derives `verified` from profiles.is_verified.",
+    "Inventory correction recorded for the database lane: the inventory attributes calculate_venue_profile_completion to app/api/search/enhanced/route.ts and app/api/search/unified/route.ts, but neither file references it. Its only live consumer in the repository is app/api/settings/route.ts:125, so the discover share of that object is zero, not two hits."
+  ],
+  "next_steps": [
+    "Discover: nothing. This share is closed and the residual is carried by the already-closed HF-DISC-002-DRIFT-SEO-SETTINGS, which names the owners for app/api/settings/route.ts (general-user) and lib/services/** (design-system).",
+    "Database lane: both objects remain absent from the active migration chain AND from lib/database.types.ts, so regenerating the types cannot fix them. If either must exist as real schema, that is a new database task, not this handoff."
+  ],
+  "blockers": [
+    "Not discover's to close: calculate_venue_profile_completion is consumed by app/api/settings/route.ts:125 (general-user), and profiles.custom_url / create_post_with_context are consumed by lib/seo/public-preview-readers.ts and lib/services/account-management.service.ts. Both are outside discover file ownership and were not edited."
+  ],
+  "verification": [
+    "PASS: the object set was re-derived from the preserved `Lint And Build` CI log on d2176904 and the published inventory was validated against every diagnostic in it (107 object literals + 21 column pairs, 0 objects or column pairs in the inventory that the log does not name, 0 in the log that the inventory omits).",
+    "PASS: every consumer path and every recorded evidence source in the inventory was checked to exist on disk.",
+    "NOT RUN: no tsc run and no migration apply were performed by the database lane in this wave.",
+    "PASS (discover share, DISC-003): the app/api/search/enhanced/route.ts select no longer names artist_profiles.verification_status, so the PostgREST 400 that silently emptied the artist section of the enhanced search route is gone. Guarded by the canonical search tests under __tests__/search/.",
+    "PASS (verification method, DISC-003): the absent-object claim was re-checked against the active chain and lib/database.types.ts, not against a tsc diagnostic count. A tsc count is a lower bound on drift, never an upper bound (CP-084).",
+    "NOT RUN: no full-repo npm run typecheck, and therefore no re-measurement of the 1,384 baseline. Scoped type checks only; full-repo typecheck is ~68 min and OOMs on this 8GB box."
+  ],
+  "evidence_document": "docs/engineering/database-type-inventory-2026-09-25.json",
+  "accepting_task_id": "DISC-003",
+  "completion_condition": "Read the cluster in docs/engineering/database-type-inventory-2026-09-25.json (filter items by owningDomain). Each entry carries classification, basis, canonicalReplacement, liveConsumers, deadConsumers and the non-active SQL that proves the object is archived.",
+  "resolved_at": "2026-09-27T21:30:48.334Z",
+  "consumed_by": "discover (DISC-003, completed 2026-09-27)"
+}

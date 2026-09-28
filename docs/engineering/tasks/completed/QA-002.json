@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "id": "QA-002",
+  "title": "Resolve 27 vitest failures inline",
+  "status": "completed",
+  "priority": "P1",
+  "owner_agent": "qa",
+  "created_at": "2026-09-09T09:35:24.290Z",
+  "updated_at": "2026-09-10T04:00:45.073Z",
+  "base_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+  "working_tree_status": "dirty shared worktree; QA-owned changes limited to five Vitest contract files",
+  "goal": "Establish and reduce local Vitest failures without masking product or Supabase migration gaps",
+  "scope": {
+    "in": [],
+    "out": []
+  },
+  "working_set": [
+    "__tests__/feed/event-share.test.ts",
+    "__tests__/feed/music-post-preview.test.ts",
+    "__tests__/logistics/site-map-versions.test.ts",
+    "__tests__/profile/account-author-feeds.test.ts",
+    "__tests__/profile/artist-url-slug.test.ts",
+    "docs/engineering/agents/qa/STATE.md"
+  ],
+  "references": [
+    "docs/DEVELOPMENT_WORKFLOW.md",
+    "docs/engineering/agents/qa/QUESTIONS.md",
+    "docs/engineering/DECISIONS.md"
+  ],
+  "acceptance_criteria": [
+    "Zero vitest failures"
+  ],
+  "verification": {
+    "tier": "fast",
+    "commands": [
+      "npx vitest run --reporter=json --outputFile /tmp/tourify-qa-002-after.json",
+      "npm run check:migration-chain",
+      "npm run check:migration-validation",
+      "npx vitest run --reporter=json --outputFile /tmp/tourify-qa-002-final.json",
+      "npm run agents:validate"
+    ],
+    "evidence": [
+      "Vitest baseline reduced from 16 failed assertions in 11 files to 8 failed assertions in 6 files; 4867/4883 tests passed.",
+      "Active migration-chain check passed (279 files scanned).",
+      "Migration validation remains blocked by the missing required manifest for 20260909195618_atomic_org_invites and its undocumented no-op migration.",
+      "FINAL full-suite rerun (independent QA, 2026-09-10T04:00Z, HEAD 7cf660ad): npx vitest run --reporter=json --outputFile /tmp/tourify-qa-002-final.json -> success=true; 512 test files, 1881/1881 suites passed, 4891 passed, 0 failed, 8 pending/skipped, 0 todo.",
+      "Delta vs 13:00Z baseline: 8 failed assertions in 6 files -> 0 failed assertions in 0 files. All owner-handoff fixes landed and are green (Artist feed analytics/username routing, onboarding artist_profiles.url_slug, DB-007 post-styles/post-engagement migrations, WORK-003 resolveOrCreateEventZone bridge, org-invites validation manifest, Admin role:admin grant test correction).",
+      "npm run check:migration-chain -> PASS: active migration chain has no duplicate policy creations (288 files scanned).",
+      "npm run check:migration-validation -> PASS on re-run (exit 0): every changed migration scanned with planned manifest, incl. 20260909195618_atomic_org_invites (ORG-003) and 20260910000000_fix_accept_org_invite_first_recipient_rls (ORG-004). First parallel invocation transiently flagged the ORG-004 manifest as missing because it was being written concurrently in the shared worktree; clean on immediate re-run.",
+      "npm run agents:validate -> 17 agents, 66 tasks validated, 0 errors, 1 warning (RELEASE-001 completed without passing verification — pre-existing, unrelated to QA-002).",
+      "Skipped disposition: 8 pending tests are intentional describe.skipIf(!env) suites — 2 in __tests__/admin/rls-live.test.ts (live RLS DB not configured, SUPABASE_RLS_TEST_* env / isRlsDatabaseConfigured()) and 6 in __tests__/geo/integration.local.test.ts (opt-in live-DB integration: GEO_INTEGRATION=1 + WORLD_DB_URL + WORLD_SERVICE_KEY per file header). Both files are unmodified tracked files; no accidental it.skip/test.skip found."
+    ],
+    "last_run_sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+    "last_run_at": "2026-09-10T04:00:45.073Z",
+    "result": "pass"
+  },
+  "progress": {
+    "summary": "Full Vitest suite green: 4891 passed, 0 failed, 8 environment-gated skips across 512 files (1881 suites). All 8 owner-handoff failures from the 13:00Z baseline resolved; migration-chain and migration-validation checks pass; agents:validate 0 errors. Acceptance criterion (zero vitest failures) met.",
+    "completed": [
+      "Updated feed preview, event-share, site-map access, public-profile, venue posts, and artist migration contract assertions to the current implementation.",
+      "Captured an after-run Vitest JSON report at /tmp/tourify-qa-002-after.json.",
+      "Verified the active Supabase migration chain passes.",
+      "Independent final verification run: full Vitest suite green (4891 passed / 0 failed / 8 env-gated skips); JSON report at /tmp/tourify-qa-002-final.json.",
+      "check:migration-chain passed (288 files); check:migration-validation passed on re-run incl. ORG-003/ORG-004 manifests; agents:validate 0 errors.",
+      "Confirmed all 8 previously failing assertions (owner handoffs) resolved; suite-level green matches the orchestrator's rerun (4891 passed, 512 files)."
+    ],
+    "next_steps": [
+      "None — acceptance criteria met; residual 8 skips are intentional describe.skipIf(!env) live-DB suites, not accidental."
+    ],
+    "blockers": [
+      "All five owner blockers resolved (Artist, General User/Auth, Database, Work/Logistics, Organization) plus the Admin stale-grant test; none remain."
+    ],
+    "checkpoints": [
+      {
+        "at": "2026-09-09T13:00:00.000Z",
+        "summary": "Full Vitest run: 4867 passed, 8 failed. QA-owned test drift reduced by eight assertions; remaining failures retained as owner handoffs.",
+        "next": "Parent orchestrator should route the recorded owner fixes, then return QA-002 for a full rerun."
+      },
+      {
+        "at": "2026-09-10T04:00:45.073Z",
+        "sha": "7cf660ad8422dbd3adbdb77369d94638cdc2231b",
+        "summary": "Full Vitest suite green: 4891 passed, 0 failed, 8 environment-gated skips across 512 files (1881 suites). All 8 owner-handoff failures from the 13:00Z baseline resolved; migration-chain and migration-validation checks pass; agents:validate 0 errors. Acceptance criterion (zero vitest failures) met.",
+        "completed": [
+          "Independent final verification run: full Vitest suite green (4891 passed / 0 failed / 8 env-gated skips); JSON report at /tmp/tourify-qa-002-final.json.",
+          "check:migration-chain passed (288 files); check:migration-validation passed on re-run incl. ORG-003/ORG-004 manifests; agents:validate 0 errors.",
+          "Confirmed all 8 previously failing assertions (owner handoffs) resolved; suite-level green matches the orchestrator's rerun (4891 passed, 512 files)."
+        ],
+        "next_steps": [
+          "None — acceptance criteria met; residual 8 skips are intentional describe.skipIf(!env) live-DB suites, not accidental."
+        ],
+        "blockers": [
+          "All five owner blockers resolved (Artist, General User/Auth, Database, Work/Logistics, Organization) plus the Admin stale-grant test; none remain."
+        ]
+      }
+    ]
+  },
+  "handoffs": []
+}
