@@ -320,3 +320,35 @@ export async function listGlobalRoleTemplates(
     return department !== 0 ? department : a.label.localeCompare(b.label)
   })
 }
+
+
+export async function listRoleTemplatesForOwner(
+  supabase: SupabaseClient,
+  owner?: { entityType: "venue" | "organization"; entityId: string } | null
+): Promise<RoleTemplate[]> {
+  const globals = await listGlobalRoleTemplates(supabase)
+  if (!owner) return globals
+
+  const merged = new Map(globals.map((role) => [role.key, role]))
+
+  try {
+    const { data } = await supabase
+      .from("role_templates")
+      .select("*")
+      .eq("owner_entity_type", owner.entityType)
+      .eq("owner_entity_id", owner.entityId)
+      .eq("is_active", true)
+
+    for (const row of data ?? []) {
+      const normalized = normalizeRoleTemplate(row as Record<string, unknown>)
+      if (normalized.key) merged.set(normalized.key, normalized)
+    }
+  } catch {
+    // Global catalog remains available even if entity-owned templates cannot load.
+  }
+
+  return Array.from(merged.values()).sort((a, b) => {
+    const department = a.department.localeCompare(b.department)
+    return department !== 0 ? department : a.label.localeCompare(b.label)
+  })
+}
