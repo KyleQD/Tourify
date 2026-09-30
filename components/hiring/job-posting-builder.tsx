@@ -207,6 +207,10 @@ export function JobPostingBuilder({
   function applyRoleTemplate(roleKey: string): void {
     if (roleKey === "custom") {
       form.setValue("role_template_id", null, { shouldDirty: true })
+      form.setValue("role_type", "", { shouldDirty: true, shouldValidate: true })
+      form.setValue("required_credentials", [], { shouldDirty: true })
+      form.setValue("workflow_requirements", {}, { shouldDirty: true })
+      form.setValue("role_essentials", [], { shouldDirty: true })
       return
     }
 
