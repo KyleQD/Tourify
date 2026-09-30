@@ -3,6 +3,52 @@
 -- the selected role definition onto job postings so later template edits do not
 -- silently change the requirements of already-published jobs.
 
+-- Expand legacy job classification constraints so the workforce catalog can use
+-- stable role slugs instead of the original six-role beta enum.
+alter table public.job_posting_templates
+  drop constraint if exists job_posting_templates_role_type_check,
+  drop constraint if exists job_posting_templates_employment_type_check,
+  drop constraint if exists job_posting_templates_experience_level_check;
+
+alter table public.job_posting_templates
+  add constraint job_posting_templates_role_type_check
+    check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9-]{0,99}$'),
+  add constraint job_posting_templates_employment_type_check
+    check (employment_type is null or employment_type in ('full_time','part_time','contractor','volunteer','intern')),
+  add constraint job_posting_templates_experience_level_check
+    check (experience_level is null or experience_level in ('entry','mid','senior','executive','any'));
+
+do $$
+begin
+  if to_regclass('public.job_board_postings') is not null then
+    alter table public.job_board_postings
+      drop constraint if exists job_board_postings_role_type_check,
+      drop constraint if exists job_board_postings_employment_type_check,
+      drop constraint if exists job_board_postings_experience_level_check;
+    alter table public.job_board_postings
+      add constraint job_board_postings_role_type_check
+        check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9-]{0,99}$'),
+      add constraint job_board_postings_employment_type_check
+        check (employment_type in ('full_time','part_time','contractor','volunteer','intern')),
+      add constraint job_board_postings_experience_level_check
+        check (experience_level in ('entry','mid','senior','executive','any'));
+  end if;
+
+  if to_regclass('public.organization_job_postings') is not null then
+    alter table public.organization_job_postings
+      drop constraint if exists organization_job_postings_role_type_check,
+      drop constraint if exists organization_job_postings_employment_type_check,
+      drop constraint if exists organization_job_postings_experience_level_check;
+    alter table public.organization_job_postings
+      add constraint organization_job_postings_role_type_check
+        check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9-]{0,99}$'),
+      add constraint organization_job_postings_employment_type_check
+        check (employment_type in ('full_time','part_time','contractor','volunteer','intern')),
+      add constraint organization_job_postings_experience_level_check
+        check (experience_level in ('entry','mid','senior','executive','any'));
+  end if;
+end $$;
+
 alter table public.role_templates
   add column if not exists job_summary text,
   add column if not exists duties text[] not null default '{}',
