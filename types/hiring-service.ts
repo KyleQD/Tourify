@@ -48,6 +48,7 @@ export interface CreateJobPostingInput {
   employment_type?: string
   location?: string
   role_type?: string
+  role_template_id?: string | null
   number_of_positions?: number
   salary_range?: Record<string, unknown> | null
   requirements?: string[]
@@ -58,6 +59,9 @@ export interface CreateJobPostingInput {
   remote?: boolean
   urgent?: boolean
   required_certifications?: string[]
+  required_credentials?: Array<Record<string, unknown>>
+  role_essentials?: string[]
+  workflow_requirements?: Record<string, unknown>
   application_form_template?: Record<string, unknown>
   onboarding_template_id?: string | null
   event_id?: string | null
