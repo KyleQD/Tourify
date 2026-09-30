@@ -819,16 +819,51 @@ async function createEmploymentAssignmentShell({
   const userId = application.applicant_id ?? application.user_id
   if (!userId || typeof userId !== "string") return ok(null)
 
+  const jobPostingId =
+    typeof application.job_posting_id === "string" ? application.job_posting_id : null
+
+  let posting: Record<string, unknown> | null = null
+  if (jobPostingId) {
+    const { data } = await supabase
+      .from("job_posting_templates")
+      .select("*")
+      .eq("id", jobPostingId)
+      .maybeSingle()
+    posting = (data as Record<string, unknown> | null) ?? null
+  }
+
   const position =
     (typeof application.position === "string" && application.position) ||
     (typeof application.job_position === "string" && application.job_position) ||
+    (posting && typeof posting.position === "string" ? posting.position : null) ||
     null
-  const department = typeof application.department === "string" ? application.department : null
-  const permissions = resolveWorkModePermissions({ position, department })
+  const department =
+    (typeof application.department === "string" && application.department) ||
+    (posting && typeof posting.department === "string" ? posting.department : null) ||
+    null
+
+  const owner =
+    actor.employer.entityType === "venue" || actor.employer.entityType === "organization"
+      ? { entityType: actor.employer.entityType, entityId: actor.employer.entityId }
+      : null
+
+  const grant = await resolveWorkModeGrant(supabase, {
+    roleTemplateId:
+      posting && typeof posting.role_template_id === "string" ? posting.role_template_id : null,
+    templateKey:
+      posting && typeof posting.role_type === "string" ? posting.role_type : null,
+    position,
+    department,
+    owner,
+  })
 
   // Pre-scope the assignment to the job posting's event/tour so approved hires land
   // on the roster already attached to the right ops context.
-  const { eventId, tourId } = await resolveAssignmentJobContext({ supabase, application })
+  const { eventId, tourId } = await resolveAssignmentJobContext({
+    supabase,
+    application,
+    jobPosting: posting,
+  })
 
   const { data: existing } = await supabase
     .from("employment_assignments")
@@ -842,7 +877,11 @@ async function createEmploymentAssignmentShell({
     const { data: updated, error: updateError } = await supabase
       .from("employment_assignments")
       .update({
-        permissions,
+        permissions: grant.permissions,
+        role_category: grant.roleCategory,
+        ...(grant.roleTemplateId ? { role_template_id: grant.roleTemplateId } : {}),
+        ...(position ? { role_title: position } : {}),
+        ...(department ? { department } : {}),
         status: "invited",
         ...(eventId && !existing.event_id ? { event_id: eventId } : {}),
         ...(tourId && !existing.tour_id ? { tour_id: tourId } : {}),
@@ -870,8 +909,10 @@ async function createEmploymentAssignmentShell({
     user_id: userId,
     role_title: position || department || "Staff",
     department,
+    role_template_id: grant.roleTemplateId,
+    role_category: grant.roleCategory,
     status: "invited",
-    permissions,
+    permissions: grant.permissions,
     organizer_id: organizerId,
     ...(eventId ? { event_id: eventId } : {}),
     ...(tourId ? { tour_id: tourId } : {}),
