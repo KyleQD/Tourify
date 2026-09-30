@@ -52,7 +52,7 @@ alter table public.job_posting_templates
 
 alter table public.job_posting_templates
   add constraint job_posting_templates_role_type_check
-    check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9-]{0,99}$'),
+    check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9_-]{0,99}$'),
   add constraint job_posting_templates_employment_type_check
     check (employment_type is null or employment_type in ('full_time','part_time','contractor','volunteer','intern')),
   add constraint job_posting_templates_experience_level_check
@@ -67,7 +67,7 @@ begin
       drop constraint if exists job_board_postings_experience_level_check;
     alter table public.job_board_postings
       add constraint job_board_postings_role_type_check
-        check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9-]{0,99}$'),
+        check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9_-]{0,99}$'),
       add constraint job_board_postings_employment_type_check
         check (employment_type in ('full_time','part_time','contractor','volunteer','intern')),
       add constraint job_board_postings_experience_level_check
@@ -81,7 +81,7 @@ begin
       drop constraint if exists organization_job_postings_experience_level_check;
     alter table public.organization_job_postings
       add constraint organization_job_postings_role_type_check
-        check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9-]{0,99}$'),
+        check (role_type is null or role_type ~ '^[a-z0-9][a-z0-9_-]{0,99}$'),
       add constraint organization_job_postings_employment_type_check
         check (employment_type in ('full_time','part_time','contractor','volunteer','intern')),
       add constraint organization_job_postings_experience_level_check
