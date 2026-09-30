@@ -1,0 +1,6 @@
+{
+ "extends":"./tsconfig.json",
+ "compilerOptions":{"incremental":false,"skipLibCheck":true,"paths":{"@/*":["./*"]}},
+ "include":["lib/workforce/recognition-types.ts","lib/services/workforce-recognition.service.ts","app/api/workforce/recognition/route.ts","app/api/admin/workforce/recognition/route.ts","components/achievements/verified-role-recognition.tsx","components/achievements/workforce-completion-verification.tsx"],
+ "exclude":["node_modules"]
+}

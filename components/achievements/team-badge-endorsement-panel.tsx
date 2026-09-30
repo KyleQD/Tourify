@@ -1,5 +1,7 @@
 "use client"
 
+import { WorkforceRecognitionLink } from "./workforce-recognition-link"
+import { WorkforceCompletionVerification } from "./workforce-completion-verification"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -207,6 +209,8 @@ export function TeamBadgeEndorsementPanel({ venueId, className }: TeamBadgeEndor
 
   return (
     <>
+      <WorkforceRecognitionLink />
+      {venueId && <WorkforceCompletionVerification entityType="venue" entityId={venueId} />}
       <Card className={cn("border-slate-700 bg-slate-900/50", className)}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">

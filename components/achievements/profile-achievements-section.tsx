@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
+import { VerifiedRoleRecognition } from "./verified-role-recognition"
 import { AchievementCard } from "./achievement-card"
 import { BadgeCard } from "./badge-card"
 import { EndorsementCard } from "./endorsement-card"
@@ -207,6 +208,7 @@ export function ProfileAchievementsSection({
 
   return (
     <Card className={cn(className, "border-border/60 bg-card/40")}>
+      <VerifiedRoleRecognition userId={userId} isOwnProfile={isOwnProfile} />
       <CardHeader>
         {loadNotice ? (
           <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">

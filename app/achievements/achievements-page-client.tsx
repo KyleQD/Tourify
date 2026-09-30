@@ -18,6 +18,7 @@ import {
   Target,
   Zap
 } from "lucide-react"
+import { VerifiedRoleRecognition } from "@/components/achievements/verified-role-recognition"
 import { AchievementCard } from "@/components/achievements/achievement-card"
 import { BadgeCard } from "@/components/achievements/badge-card"
 import { EndorsementCard } from "@/components/achievements/endorsement-card"
@@ -259,6 +260,7 @@ export function AchievementsPageClient() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900/20 to-slate-900">
       <div className="container mx-auto px-6 py-8">
+        {currentUser?.id && <VerifiedRoleRecognition userId={currentUser.id} isOwnProfile />}
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Achievements & Recognition</h1>
