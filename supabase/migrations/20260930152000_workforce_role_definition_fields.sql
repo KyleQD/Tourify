@@ -31,8 +31,19 @@ alter table public.job_posting_templates
 create index if not exists idx_job_posting_templates_role_template
   on public.job_posting_templates (role_template_id);
 
+alter table public.employment_assignments
+  add column if not exists role_key text,
+  add column if not exists role_definition_snapshot jsonb;
+
+create index if not exists idx_employment_assignments_role_key
+  on public.employment_assignments (role_key);
+
 comment on column public.job_posting_templates.role_definition_snapshot is
   'Immutable-at-posting snapshot of the selected workforce role definition used for hiring and onboarding context.';
+comment on column public.employment_assignments.role_key is
+  'Stable workforce role key copied from the job posting for Work Mode and management surfaces.';
+comment on column public.employment_assignments.role_definition_snapshot is
+  'Role definition snapshot copied from the hiring job so workforce management preserves the original duties, qualifications, credentials, essentials, and workflow.';
 
 -- Existing role rows remain valid and receive safe empty defaults. No destructive
 -- backfill is performed because historical postings may have custom requirements.
