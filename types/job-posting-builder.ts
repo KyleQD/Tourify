@@ -52,6 +52,25 @@ export interface JobSalaryRange {
   type?: JobSalaryType | null
 }
 
+export interface JobRoleCredentialDefinition {
+  key: string
+  label: string
+  authority?: string
+  isRequired: boolean
+  isExpiryTracked: boolean
+  jurisdictionDependent?: boolean
+}
+
+export interface JobWorkflowRequirements {
+  management_surfaces?: string[]
+  lifecycle?: string[]
+  requires_shift_assignment?: boolean
+  requires_check_in?: boolean
+  handoff_required?: boolean
+  incident_reporting?: boolean
+  [key: string]: unknown
+}
+
 export interface JobPostingFormValues {
   id?: string
   title: string
@@ -61,6 +80,7 @@ export interface JobPostingFormValues {
   employment_type: JobEmploymentType
   location?: string
   role_type?: string
+  role_template_id?: string | null
   number_of_positions: number
   salary_range?: JobSalaryRange | null
   requirements: string[]
@@ -71,6 +91,9 @@ export interface JobPostingFormValues {
   remote: boolean
   urgent: boolean
   required_certifications: string[]
+  required_credentials: JobRoleCredentialDefinition[]
+  role_essentials: string[]
+  workflow_requirements: JobWorkflowRequirements
   application_form_template: ApplicationFormTemplateDefinition
   onboarding_template_id?: string | null
   event_id?: string | null
@@ -85,6 +108,22 @@ export interface JobPostingTemplateOption {
   department?: string | null
   position?: string | null
   isDefault?: boolean | null
+}
+
+export interface JobRoleTemplateOption {
+  id?: string
+  key: string
+  label: string
+  department: string
+  role_category: string
+  employment_type: JobEmploymentType
+  job_summary?: string | null
+  duties: string[]
+  qualifications: string[]
+  required_credentials: JobRoleCredentialDefinition[]
+  essentials: string[]
+  workflow_requirements: JobWorkflowRequirements
+  tags: string[]
 }
 
 export interface JobPostingBuilderProps {
