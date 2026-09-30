@@ -3,6 +3,7 @@ import { z } from "zod"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { canManageVenue, getCurrentVenueContext } from "@/lib/venue/venue-access"
+import { listRoleTemplatesForOwner } from "@/lib/staff/role-templates"
 
 export const dynamic = "force-dynamic"
 
@@ -14,6 +15,13 @@ const createRoleSchema = z.object({
   role_category: z.string().optional().default("general"),
   employment_type: z.string().optional().default("part_time"),
   permissions: z.record(z.any()).optional(),
+  job_summary: z.string().optional(),
+  duties: z.array(z.string()).optional(),
+  qualifications: z.array(z.string()).optional(),
+  required_credentials: z.array(z.record(z.unknown())).optional(),
+  essentials: z.array(z.string()).optional(),
+  workflow_requirements: z.record(z.unknown()).optional(),
+  tags: z.array(z.string()).optional(),
 })
 
 async function resolveVenueId(request: NextRequest, auth: { user: any; supabase: any }) {
@@ -36,16 +44,12 @@ export async function GET(request: NextRequest) {
   if (!access.allowed) return NextResponse.json({ success: false, error: access.reason || "Forbidden" }, { status: 403 })
 
   const service = createServiceRoleClient()
-  const { data, error } = await service
-    .from("role_templates")
-    .select("*")
-    .or(`owner_entity_id.is.null,owner_entity_id.eq.${venueId}`)
-    .eq("is_active", true)
-    .order("department", { ascending: true })
-    .order("label", { ascending: true })
+  const roles = await listRoleTemplatesForOwner(service, {
+    entityType: "venue",
+    entityId: venueId,
+  })
 
-  if (error) return NextResponse.json({ success: false, error: error.message, roles: [] }, { status: 500 })
-  return NextResponse.json({ success: true, roles: data || [], data: data || [] })
+  return NextResponse.json({ success: true, roles, data: roles })
 }
 
 export async function POST(request: NextRequest) {
@@ -69,6 +73,13 @@ export async function POST(request: NextRequest) {
       role_category: body.role_category,
       employment_type: body.employment_type,
       permissions: body.permissions || {},
+      job_summary: body.job_summary ?? null,
+      duties: body.duties ?? [],
+      qualifications: body.qualifications ?? [],
+      required_credentials: body.required_credentials ?? [],
+      essentials: body.essentials ?? [],
+      workflow_requirements: body.workflow_requirements ?? {},
+      tags: body.tags ?? [],
       owner_entity_type: "venue",
       owner_entity_id: venueId,
     })
