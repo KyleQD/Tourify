@@ -8,35 +8,98 @@ import {
   routeErrorToResponse,
 } from "@/lib/api/hiring-route-helpers"
 import { createHiringServiceClient } from "@/lib/supabase/hiring-service-client"
+import { getRoleTemplateById, getRoleTemplateByKey, type RoleTemplate } from "@/lib/staff/role-templates"
 import { fail, ok } from "@/types/hiring-service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
 
-const ALLOWED_EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "volunteer"]
-const ALLOWED_EXPERIENCE_LEVELS = ["entry", "mid", "senior", "executive"]
-const ALLOWED_ROLE_TYPES = ["security", "bartender", "street_team", "production", "management", "other"]
+const ALLOWED_EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "volunteer", "intern"]
+const ALLOWED_EXPERIENCE_LEVELS = ["entry", "mid", "senior", "executive", "any"]
 
-function getJobPostingPatchPayload(parsed: ReturnType<typeof createJobPostingApiSchema.parse>) {
+function normalizeRoleType(value?: string | null): string | null {
+  if (!value) return null
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  return normalized && normalized.length <= 100 ? normalized : null
+}
+
+function getJobPostingPatchPayload(
+  parsed: ReturnType<typeof createJobPostingApiSchema.parse>,
+  roleTemplate: RoleTemplate | null
+) {
   return {
     title: parsed.title,
     description: parsed.description,
-    department: parsed.department || null,
-    position: parsed.position || null,
-    employment_type: parsed.employment_type && ALLOWED_EMPLOYMENT_TYPES.includes(parsed.employment_type) ? parsed.employment_type : "contractor",
+    department: parsed.department || roleTemplate?.department || null,
+    position: parsed.position || roleTemplate?.label || null,
+    employment_type:
+      parsed.employment_type && ALLOWED_EMPLOYMENT_TYPES.includes(parsed.employment_type)
+        ? parsed.employment_type
+        : roleTemplate?.employment_type ?? "contractor",
     location: parsed.location ?? "TBD",
-    role_type: parsed.role_type && ALLOWED_ROLE_TYPES.includes(parsed.role_type) ? parsed.role_type : null,
+    role_type: normalizeRoleType(parsed.role_type ?? roleTemplate?.key),
+    role_template_id: roleTemplate?.id ?? parsed.role_template_id ?? null,
     number_of_positions: parsed.number_of_positions ?? 1,
     salary_range: parsed.salary_range ?? null,
-    requirements: parsed.requirements ?? [],
-    responsibilities: parsed.responsibilities ?? [],
+    requirements:
+      parsed.requirements && parsed.requirements.length > 0
+        ? parsed.requirements
+        : roleTemplate?.qualifications ?? [],
+    responsibilities:
+      parsed.responsibilities && parsed.responsibilities.length > 0
+        ? parsed.responsibilities
+        : roleTemplate?.duties ?? [],
     benefits: parsed.benefits ?? [],
     skills: parsed.skills ?? [],
     experience_level: parsed.experience_level && ALLOWED_EXPERIENCE_LEVELS.includes(parsed.experience_level) ? parsed.experience_level : "entry",
     remote: parsed.remote ?? false,
     urgent: parsed.urgent ?? false,
-    required_certifications: parsed.required_certifications ?? [],
+    required_certifications:
+      parsed.required_certifications && parsed.required_certifications.length > 0
+        ? parsed.required_certifications
+        : (roleTemplate?.required_credentials ?? [])
+            .filter((credential) => credential && typeof credential === "object" && (credential as Record<string, unknown>).isRequired !== false)
+            .map((credential) =>
+              typeof (credential as Record<string, unknown>).label === "string"
+                ? String((credential as Record<string, unknown>).label)
+                : ""
+            )
+            .filter(Boolean),
+    required_credentials:
+      parsed.required_credentials && parsed.required_credentials.length > 0
+        ? parsed.required_credentials
+        : roleTemplate?.required_credentials ?? [],
+    role_essentials:
+      parsed.role_essentials && parsed.role_essentials.length > 0
+        ? parsed.role_essentials
+        : roleTemplate?.essentials ?? [],
+    workflow_requirements:
+      parsed.workflow_requirements && Object.keys(parsed.workflow_requirements).length > 0
+        ? parsed.workflow_requirements
+        : roleTemplate?.workflow_requirements ?? {},
+    role_definition_snapshot: roleTemplate
+      ? {
+          template_id: roleTemplate.id ?? null,
+          key: roleTemplate.key,
+          label: roleTemplate.label,
+          department: roleTemplate.department,
+          role_category: roleTemplate.role_category,
+          employment_type: roleTemplate.employment_type,
+          job_summary: roleTemplate.job_summary,
+          duties: roleTemplate.duties,
+          qualifications: roleTemplate.qualifications,
+          required_credentials: roleTemplate.required_credentials,
+          essentials: roleTemplate.essentials,
+          workflow_requirements: roleTemplate.workflow_requirements,
+          tags: roleTemplate.tags,
+          captured_at: new Date().toISOString(),
+        }
+      : null,
     application_form_template: parsed.application_form_template ?? { fields: [] },
     onboarding_template_id: parsed.onboarding_template_id ?? null,
     event_id: parsed.event_id ?? parsed.eventId ?? null,
@@ -95,7 +158,39 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const actorResult = await resolveHiringActorFromRequest({ request, supabase, body: bodyResult.data })
     if (!actorResult.ok) return hiringResultToResponse(actorResult)
 
-    const patchPayload = getJobPostingPatchPayload(parsed.data)
+    const employer = actorResult.data.employer
+    const roleOwner =
+      employer.entityType === "venue" || employer.entityType === "organization"
+        ? { entityType: employer.entityType, entityId: employer.entityId }
+        : null
+
+    let roleTemplate: RoleTemplate | null = null
+    if (parsed.data.role_template_id) {
+      roleTemplate = await getRoleTemplateById(supabase, parsed.data.role_template_id)
+      if (!roleTemplate) {
+        return hiringResultToResponse(
+          fail({ code: "BAD_REQUEST", message: "The selected workforce role template does not exist or is inactive." })
+        )
+      }
+      if (
+        roleTemplate.owner_entity_id &&
+        (!roleOwner ||
+          roleTemplate.owner_entity_id !== roleOwner.entityId ||
+          roleTemplate.owner_entity_type !== roleOwner.entityType)
+      ) {
+        return hiringResultToResponse(
+          fail({ code: "FORBIDDEN", message: "The selected workforce role template is not available to this employer." })
+        )
+      }
+    } else if (parsed.data.role_type) {
+      roleTemplate = await getRoleTemplateByKey(
+        supabase,
+        normalizeRoleType(parsed.data.role_type) ?? parsed.data.role_type,
+        roleOwner
+      )
+    }
+
+    const patchPayload = getJobPostingPatchPayload(parsed.data, roleTemplate)
     if (patchPayload.status === "published" && !patchPayload.onboarding_template_id) {
       return hiringResultToResponse(
         fail({

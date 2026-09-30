@@ -39,7 +39,8 @@ function defaultsForBoard(template: JobPostingTemplateRow) {
       | 'full_time'
       | 'part_time'
       | 'contractor'
-      | 'volunteer',
+      | 'volunteer'
+      | 'intern',
     location: template.location || 'TBD',
     number_of_positions: template.number_of_positions ?? 1,
     salary_range: template.salary_range ?? null,
@@ -51,17 +52,12 @@ function defaultsForBoard(template: JobPostingTemplateRow) {
       | 'entry'
       | 'mid'
       | 'senior'
-      | 'executive',
+      | 'executive'
+      | 'any',
     remote: Boolean(template.remote),
     urgent: Boolean(template.urgent),
     required_certifications: template.required_certifications ?? [],
-    role_type: (template.role_type || 'other') as
-      | 'security'
-      | 'bartender'
-      | 'street_team'
-      | 'production'
-      | 'management'
-      | 'other',
+    role_type: template.role_type || 'other',
     background_check_required: Boolean(template.background_check_required),
     drug_test_required: Boolean(template.drug_test_required),
     uniform_provided: Boolean(template.uniform_provided),

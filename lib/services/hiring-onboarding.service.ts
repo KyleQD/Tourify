@@ -12,7 +12,12 @@ import type {
 import type { HiringAuditActivity } from "@/types/hiring-dashboard"
 import { fail, ok } from "@/types/hiring-service"
 import { assertCanManageHiring } from "@/lib/auth/hiring-permissions"
-import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
+import {
+  getRoleTemplateById,
+  getRoleTemplateByKey,
+  resolveWorkModeGrant,
+  type RoleTemplate,
+} from "@/lib/staff/role-templates"
 import { buildFieldTypeMap, redactSensitiveResponses } from "@/lib/hiring/sensitive-field-utils"
 import { buildOnboardingTemplateSnapshot } from "@/lib/hiring/template-snapshot"
 import { publishJobTemplateToBoardSurfaces } from "@/lib/job-board/publish-template-to-board"
@@ -78,9 +83,8 @@ function filterUuidIds(ids: Array<string | null | undefined>): string[] {
   return Array.from(new Set(ids.filter((id): id is string => Boolean(id && UUID_PATTERN.test(id)))))
 }
 
-const ALLOWED_EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "volunteer"] as const
-const ALLOWED_EXPERIENCE_LEVELS = ["entry", "mid", "senior", "executive"] as const
-const ALLOWED_ROLE_TYPES = ["security", "bartender", "street_team", "production", "management", "other"] as const
+const ALLOWED_EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "volunteer", "intern"] as const
+const ALLOWED_EXPERIENCE_LEVELS = ["entry", "mid", "senior", "executive", "any"] as const
 
 function normalizeEmploymentType(value?: string | null): string {
   if (value && (ALLOWED_EMPLOYMENT_TYPES as readonly string[]).includes(value)) return value
@@ -93,8 +97,14 @@ function normalizeExperienceLevel(value?: string | null): string {
 }
 
 function normalizeRoleType(value?: string | null): string | null {
-  if (value && (ALLOWED_ROLE_TYPES as readonly string[]).includes(value)) return value
-  return null
+  if (!value) return null
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  if (!normalized || normalized.length > 100) return null
+  return normalized
 }
 
 function generateInvitationToken(): string {
@@ -809,16 +819,61 @@ async function createEmploymentAssignmentShell({
   const userId = application.applicant_id ?? application.user_id
   if (!userId || typeof userId !== "string") return ok(null)
 
+  const jobPostingId =
+    typeof application.job_posting_id === "string" ? application.job_posting_id : null
+
+  let posting: Record<string, unknown> | null = null
+  if (jobPostingId) {
+    const { data } = await supabase
+      .from("job_posting_templates")
+      .select("*")
+      .eq("id", jobPostingId)
+      .maybeSingle()
+    posting = (data as Record<string, unknown> | null) ?? null
+  }
+
   const position =
     (typeof application.position === "string" && application.position) ||
     (typeof application.job_position === "string" && application.job_position) ||
+    (posting && typeof posting.position === "string" ? posting.position : null) ||
     null
-  const department = typeof application.department === "string" ? application.department : null
-  const permissions = resolveWorkModePermissions({ position, department })
+  const department =
+    (typeof application.department === "string" && application.department) ||
+    (posting && typeof posting.department === "string" ? posting.department : null) ||
+    null
+
+  const owner =
+    actor.employer.entityType === "venue" || actor.employer.entityType === "organization"
+      ? { entityType: actor.employer.entityType, entityId: actor.employer.entityId }
+      : null
+
+  const grant = await resolveWorkModeGrant(supabase, {
+    roleTemplateId:
+      posting && typeof posting.role_template_id === "string" ? posting.role_template_id : null,
+    templateKey:
+      posting && typeof posting.role_type === "string" ? posting.role_type : null,
+    position,
+    department,
+    owner,
+  })
+
+  const roleKey =
+    posting && typeof posting.role_type === "string" ? posting.role_type : null
+  const roleDefinitionSnapshot =
+    posting &&
+    posting.role_definition_snapshot &&
+    typeof posting.role_definition_snapshot === "object" &&
+    !Array.isArray(posting.role_definition_snapshot)
+      ? (posting.role_definition_snapshot as Record<string, unknown>)
+      : null
 
   // Pre-scope the assignment to the job posting's event/tour so approved hires land
   // on the roster already attached to the right ops context.
-  const { eventId, tourId } = await resolveAssignmentJobContext({ supabase, application })
+  const { eventId, tourId } = await resolveAssignmentJobContext({
+    supabase,
+    application,
+    jobPosting: posting,
+  })
 
   const { data: existing } = await supabase
     .from("employment_assignments")
@@ -832,7 +887,13 @@ async function createEmploymentAssignmentShell({
     const { data: updated, error: updateError } = await supabase
       .from("employment_assignments")
       .update({
-        permissions,
+        permissions: grant.permissions,
+        role_category: grant.roleCategory,
+        ...(grant.roleTemplateId ? { role_template_id: grant.roleTemplateId } : {}),
+        ...(roleKey ? { role_key: roleKey } : {}),
+        ...(roleDefinitionSnapshot ? { role_definition_snapshot: roleDefinitionSnapshot } : {}),
+        ...(position ? { role_title: position } : {}),
+        ...(department ? { department } : {}),
         status: "invited",
         ...(eventId && !existing.event_id ? { event_id: eventId } : {}),
         ...(tourId && !existing.tour_id ? { tour_id: tourId } : {}),
@@ -860,8 +921,12 @@ async function createEmploymentAssignmentShell({
     user_id: userId,
     role_title: position || department || "Staff",
     department,
+    role_template_id: grant.roleTemplateId,
+    role_category: grant.roleCategory,
+    role_key: roleKey,
+    role_definition_snapshot: roleDefinitionSnapshot,
     status: "invited",
-    permissions,
+    permissions: grant.permissions,
     organizer_id: organizerId,
     ...(eventId ? { event_id: eventId } : {}),
     ...(tourId ? { tour_id: tourId } : {}),
@@ -943,25 +1008,113 @@ export const HiringOnboardingService = {
       })
     }
 
+    const roleOwner =
+      actor.employer.entityType === "venue" || actor.employer.entityType === "organization"
+        ? { entityType: actor.employer.entityType, entityId: actor.employer.entityId }
+        : null
+
+    let roleTemplate: RoleTemplate | null = null
+    if (data.role_template_id) {
+      roleTemplate = await getRoleTemplateById(supabase, data.role_template_id)
+      if (!roleTemplate) {
+        return fail({
+          code: "BAD_REQUEST",
+          message: "The selected workforce role template does not exist or is inactive.",
+        })
+      }
+
+      if (
+        roleTemplate.owner_entity_id &&
+        (!roleOwner ||
+          roleTemplate.owner_entity_id !== roleOwner.entityId ||
+          roleTemplate.owner_entity_type !== roleOwner.entityType)
+      ) {
+        return fail({
+          code: "FORBIDDEN",
+          message: "The selected workforce role template is not available to this employer.",
+        })
+      }
+    } else if (data.role_type) {
+      roleTemplate = await getRoleTemplateByKey(
+        supabase,
+        normalizeRoleType(data.role_type) ?? data.role_type,
+        roleOwner
+      )
+    }
+
+    const roleCredentials =
+      data.required_credentials && data.required_credentials.length > 0
+        ? data.required_credentials
+        : ((roleTemplate?.required_credentials ?? []) as Array<Record<string, unknown>>)
+
+    const credentialLabels = roleCredentials
+      .filter((credential) => credential && typeof credential === "object")
+      .filter((credential) => credential.isRequired !== false)
+      .map((credential) => (typeof credential.label === "string" ? credential.label : null))
+      .filter((label): label is string => Boolean(label))
+
+    const roleEssentials =
+      data.role_essentials && data.role_essentials.length > 0
+        ? data.role_essentials
+        : roleTemplate?.essentials ?? []
+
+    const workflowRequirements =
+      data.workflow_requirements && Object.keys(data.workflow_requirements).length > 0
+        ? data.workflow_requirements
+        : roleTemplate?.workflow_requirements ?? {}
+
+    const roleDefinitionSnapshot = roleTemplate
+      ? {
+          template_id: roleTemplate.id ?? null,
+          key: roleTemplate.key,
+          label: roleTemplate.label,
+          department: roleTemplate.department,
+          role_category: roleTemplate.role_category,
+          employment_type: roleTemplate.employment_type,
+          job_summary: roleTemplate.job_summary,
+          duties: roleTemplate.duties,
+          qualifications: roleTemplate.qualifications,
+          required_credentials: roleTemplate.required_credentials,
+          essentials: roleTemplate.essentials,
+          workflow_requirements: roleTemplate.workflow_requirements,
+          tags: roleTemplate.tags,
+          captured_at: getNowIso(),
+        }
+      : null
+
     const payload = {
       ...getEmployerColumns(actor.employer),
       title: data.title,
-      description: data.description,
-      department: data.department || null,
-      position: data.position || null,
-      employment_type: normalizeEmploymentType(data.employment_type),
+      description: data.description || roleTemplate?.job_summary || "",
+      department: data.department || roleTemplate?.department || null,
+      position: data.position || roleTemplate?.label || null,
+      employment_type: normalizeEmploymentType(data.employment_type ?? roleTemplate?.employment_type),
       location: data.location ?? "TBD",
-      role_type: normalizeRoleType(data.role_type),
+      role_type: normalizeRoleType(data.role_type ?? roleTemplate?.key),
+      role_template_id: roleTemplate?.id ?? data.role_template_id ?? null,
       number_of_positions: data.number_of_positions ?? 1,
       salary_range: data.salary_range ?? null,
-      requirements: data.requirements ?? [],
-      responsibilities: data.responsibilities ?? [],
+      requirements:
+        data.requirements && data.requirements.length > 0
+          ? data.requirements
+          : roleTemplate?.qualifications ?? [],
+      responsibilities:
+        data.responsibilities && data.responsibilities.length > 0
+          ? data.responsibilities
+          : roleTemplate?.duties ?? [],
       benefits: data.benefits ?? [],
       skills: data.skills ?? [],
       experience_level: normalizeExperienceLevel(data.experience_level),
       remote: data.remote ?? false,
       urgent: data.urgent ?? false,
-      required_certifications: data.required_certifications ?? [],
+      required_certifications:
+        data.required_certifications && data.required_certifications.length > 0
+          ? data.required_certifications
+          : credentialLabels,
+      required_credentials: roleCredentials,
+      role_essentials: roleEssentials,
+      workflow_requirements: workflowRequirements,
+      role_definition_snapshot: roleDefinitionSnapshot,
       application_form_template: data.application_form_template ?? { fields: [] },
       onboarding_template_id: onboardingTemplateId,
       event_id: data.event_id ?? actor.employer.scope?.eventId ?? null,
@@ -1041,7 +1194,11 @@ export const HiringOnboardingService = {
       eventType: "job_posting_created",
       entityTable: "job_posting_templates",
       entityId: String(inserted.id),
-      metadata: { status: payload.status },
+      metadata: {
+        status: payload.status,
+        role_type: payload.role_type,
+        role_template_id: payload.role_template_id,
+      },
     })
 
     return ok(inserted as Record<string, unknown>)

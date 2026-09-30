@@ -2,6 +2,26 @@ import { z } from "zod"
 
 const hiringEntityTypeSchema = z.enum(["venue", "organization", "artist"])
 
+const roleCredentialApiSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  authority: z.string().optional(),
+  isRequired: z.boolean(),
+  isExpiryTracked: z.boolean(),
+  jurisdictionDependent: z.boolean().optional(),
+})
+
+const workflowRequirementsApiSchema = z
+  .object({
+    management_surfaces: z.array(z.string()).optional(),
+    lifecycle: z.array(z.string()).optional(),
+    requires_shift_assignment: z.boolean().optional(),
+    requires_check_in: z.boolean().optional(),
+    handoff_required: z.boolean().optional(),
+    incident_reporting: z.boolean().optional(),
+  })
+  .passthrough()
+
 export const hiringScopeApiSchema = z.object({
   entityType: hiringEntityTypeSchema.optional(),
   entity_type: hiringEntityTypeSchema.optional(),
@@ -43,6 +63,7 @@ export const createJobPostingApiSchema = hiringScopeApiSchema.extend({
   employment_type: z.string().optional(),
   location: z.string().optional(),
   role_type: z.string().optional(),
+  role_template_id: z.string().uuid().nullable().optional(),
   event_date: z.string().nullable().optional(),
   number_of_positions: z.number().int().positive().max(1000).optional(),
   salary_range: z.record(z.unknown()).nullable().optional(),
@@ -54,6 +75,9 @@ export const createJobPostingApiSchema = hiringScopeApiSchema.extend({
   remote: z.boolean().optional(),
   urgent: z.boolean().optional(),
   required_certifications: z.array(z.string()).optional(),
+  required_credentials: z.array(roleCredentialApiSchema).optional(),
+  role_essentials: z.array(z.string()).optional(),
+  workflow_requirements: workflowRequirementsApiSchema.optional(),
   application_form_template: z
     .object({
       fields: z.array(applicationFormFieldSchema).default([]),

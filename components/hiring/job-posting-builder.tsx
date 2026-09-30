@@ -24,7 +24,12 @@ import {
   normalizeJobPostingPayload,
 } from "@/lib/hiring/job-posting-builder-schema"
 import { getEmployerQueryString } from "@/lib/hiring/hiring-dashboard-utils"
-import type { JobPostingBuilderProps, JobPostingFormValues, JobPostingTemplateOption } from "@/types/job-posting-builder"
+import type {
+  JobPostingBuilderProps,
+  JobPostingFormValues,
+  JobPostingTemplateOption,
+  JobRoleTemplateOption,
+} from "@/types/job-posting-builder"
 
 const DEPARTMENT_SUGGESTIONS = [
   "Production",
@@ -102,10 +107,12 @@ export function JobPostingBuilder({
 
   const status = form.watch("status")
   const applicationFields = form.watch("application_form_template.fields")
+  const selectedRoleType = form.watch("role_type")
 
   const [events, setEvents] = useState<EventOption[]>([])
   const [tours, setTours] = useState<TourOption[]>([])
   const [templates, setTemplates] = useState<JobPostingTemplateOption[]>(onboardingTemplates)
+  const [roleTemplates, setRoleTemplates] = useState<JobRoleTemplateOption[]>([])
 
   useEffect(() => {
     if (onboardingTemplates.length > 0) {
@@ -135,6 +142,30 @@ export function JobPostingBuilder({
       isActive = false
     }
   }, [employer, onboardingTemplates])
+
+  useEffect(() => {
+    let isActive = true
+
+    async function loadRoleTemplates(): Promise<void> {
+      try {
+        const response = await fetch(`/api/hiring/role-templates?${getEmployerQueryString(employer)}`, {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        })
+        if (!isActive || !response.ok) return
+        const payload = (await response.json()) as { data?: JobRoleTemplateOption[] }
+        setRoleTemplates(payload.data ?? [])
+      } catch {
+        // Non-blocking: a custom role can still be entered if the catalog is unavailable.
+      }
+    }
+
+    void loadRoleTemplates()
+
+    return () => {
+      isActive = false
+    }
+  }, [employer])
 
   useEffect(() => {
     let isActive = true
@@ -172,6 +203,44 @@ export function JobPostingBuilder({
       isActive = false
     }
   }, [])
+
+  function applyRoleTemplate(roleKey: string): void {
+    if (roleKey === "custom") {
+      form.setValue("role_template_id", null, { shouldDirty: true })
+      form.setValue("role_type", "", { shouldDirty: true, shouldValidate: true })
+      form.setValue("required_credentials", [], { shouldDirty: true })
+      form.setValue("workflow_requirements", {}, { shouldDirty: true })
+      form.setValue("role_essentials", [], { shouldDirty: true })
+      return
+    }
+
+    const role = roleTemplates.find((candidate) => candidate.key === roleKey)
+    if (!role) return
+
+    form.setValue("role_template_id", role.id ?? null, { shouldDirty: true })
+    form.setValue("role_type", role.key, { shouldDirty: true, shouldValidate: true })
+    form.setValue("department", role.department, { shouldDirty: true, shouldValidate: true })
+    form.setValue("position", role.label, { shouldDirty: true, shouldValidate: true })
+    form.setValue("employment_type", role.employment_type, { shouldDirty: true, shouldValidate: true })
+    if (role.job_summary) {
+      form.setValue("description", role.job_summary, { shouldDirty: true, shouldValidate: true })
+    }
+    if (!form.getValues("title").trim()) {
+      form.setValue("title", role.label, { shouldDirty: true, shouldValidate: true })
+    }
+    form.setValue("responsibilities", role.duties ?? [], { shouldDirty: true })
+    form.setValue("requirements", role.qualifications ?? [], { shouldDirty: true })
+    form.setValue("required_credentials", role.required_credentials ?? [], { shouldDirty: true })
+    form.setValue(
+      "required_certifications",
+      (role.required_credentials ?? [])
+        .filter((credential) => credential.isRequired)
+        .map((credential) => credential.label),
+      { shouldDirty: true }
+    )
+    form.setValue("role_essentials", role.essentials ?? [], { shouldDirty: true })
+    form.setValue("workflow_requirements", role.workflow_requirements ?? {}, { shouldDirty: true })
+  }
 
   async function submitJobPosting(values: JobPostingFormValues): Promise<void> {
     if (isSubmitting) return
@@ -253,6 +322,49 @@ export function JobPostingBuilder({
         <CardContent className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
+              <Label>Workforce role template</Label>
+              <Select
+                value={roleTemplates.some((role) => role.key === selectedRoleType) ? selectedRoleType : "custom"}
+                onValueChange={applyRoleTemplate}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={roleTemplates.length ? "Select a workforce role" : "Loading role catalog..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Custom role</SelectItem>
+                  {roleTemplates.map((role) => (
+                    <SelectItem key={role.key} value={role.key}>
+                      {role.department} — {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Selecting a role pre-fills its job definition, duties, qualifications, credential defaults,
+                essential operating requirements, and management-workflow integrations. Every field remains editable for this posting.
+              </p>
+              {roleTemplates.find((role) => role.key === selectedRoleType) ? (
+                <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-3 text-xs text-slate-300">
+                  <div className="font-medium text-slate-100">Management workflow</div>
+                  <div className="mt-1">
+                    {roleTemplates
+                      .find((role) => role.key === selectedRoleType)
+                      ?.workflow_requirements.management_surfaces?.join(" • ") || "Workforce • Communications"}
+                  </div>
+                  {(roleTemplates.find((role) => role.key === selectedRoleType)?.required_credentials?.length ?? 0) > 0 ? (
+                    <div className="mt-2">
+                      Credential defaults:{" "}
+                      {roleTemplates
+                        .find((role) => role.key === selectedRoleType)
+                        ?.required_credentials.map((credential) => credential.label)
+                        .join(", ")}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="title">Job title</Label>
               <Input id="title" {...form.register("title")} placeholder="Example: Security Guard - Night Shift" />
               {form.formState.errors.title ? <p className="text-sm text-destructive">{form.formState.errors.title.message}</p> : null}
@@ -275,7 +387,7 @@ export function JobPostingBuilder({
               <Label htmlFor="department">Department</Label>
               <Input id="department" {...form.register("department")} list="department-suggestions" placeholder="Security" />
               <datalist id="department-suggestions">
-                {DEPARTMENT_SUGGESTIONS.map((department) => (
+                {Array.from(new Set([...DEPARTMENT_SUGGESTIONS, ...roleTemplates.map((role) => role.department)])).map((department) => (
                   <option key={department} value={department} />
                 ))}
               </datalist>
@@ -323,7 +435,7 @@ export function JobPostingBuilder({
               <Label htmlFor="role_type">Role type</Label>
               <Input id="role_type" {...form.register("role_type")} list="role-type-suggestions" placeholder="security" />
               <datalist id="role-type-suggestions">
-                {ROLE_TYPE_SUGGESTIONS.map((roleType) => (
+                {Array.from(new Set([...ROLE_TYPE_SUGGESTIONS, ...roleTemplates.map((role) => role.key)])).map((roleType) => (
                   <option key={roleType} value={roleType} />
                 ))}
               </datalist>
@@ -432,6 +544,19 @@ export function JobPostingBuilder({
                   onChange={field.onChange}
                   placeholder="Example: Valid guard card"
                   description="Use real role requirements, not placeholder requirements."
+                />
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="role_essentials"
+              render={({ field }) => (
+                <JobPostingArrayField
+                  label="Role essentials"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Example: Current run of show and radio access"
+                  description="Operational prerequisites, access, handoffs, and essential conditions for the role."
                 />
               )}
             />
