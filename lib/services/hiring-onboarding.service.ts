@@ -12,7 +12,12 @@ import type {
 import type { HiringAuditActivity } from "@/types/hiring-dashboard"
 import { fail, ok } from "@/types/hiring-service"
 import { assertCanManageHiring } from "@/lib/auth/hiring-permissions"
-import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
+import {
+  getRoleTemplateById,
+  getRoleTemplateByKey,
+  resolveWorkModeGrant,
+  type RoleTemplate,
+} from "@/lib/staff/role-templates"
 import { buildFieldTypeMap, redactSensitiveResponses } from "@/lib/hiring/sensitive-field-utils"
 import { buildOnboardingTemplateSnapshot } from "@/lib/hiring/template-snapshot"
 import { publishJobTemplateToBoardSurfaces } from "@/lib/job-board/publish-template-to-board"
@@ -78,9 +83,8 @@ function filterUuidIds(ids: Array<string | null | undefined>): string[] {
   return Array.from(new Set(ids.filter((id): id is string => Boolean(id && UUID_PATTERN.test(id)))))
 }
 
-const ALLOWED_EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "volunteer"] as const
-const ALLOWED_EXPERIENCE_LEVELS = ["entry", "mid", "senior", "executive"] as const
-const ALLOWED_ROLE_TYPES = ["security", "bartender", "street_team", "production", "management", "other"] as const
+const ALLOWED_EMPLOYMENT_TYPES = ["full_time", "part_time", "contractor", "volunteer", "intern"] as const
+const ALLOWED_EXPERIENCE_LEVELS = ["entry", "mid", "senior", "executive", "any"] as const
 
 function normalizeEmploymentType(value?: string | null): string {
   if (value && (ALLOWED_EMPLOYMENT_TYPES as readonly string[]).includes(value)) return value
@@ -93,8 +97,14 @@ function normalizeExperienceLevel(value?: string | null): string {
 }
 
 function normalizeRoleType(value?: string | null): string | null {
-  if (value && (ALLOWED_ROLE_TYPES as readonly string[]).includes(value)) return value
-  return null
+  if (!value) return null
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  if (!normalized || normalized.length > 100) return null
+  return normalized
 }
 
 function generateInvitationToken(): string {
