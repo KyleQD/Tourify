@@ -1,6 +1,7 @@
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { getLiveEventRoleDefinition } from "@/lib/staff/live-event-role-catalog"
 
 export type WorkforcePersonSource =
   | "staff_members"
@@ -17,6 +18,10 @@ export interface WorkforcePerson {
   role: string | null
   status: string | null
   staffMemberId: string | null
+  roleKey?: string | null
+  roleTemplateId?: string | null
+  roleCategory?: string | null
+  roleDefinition?: Record<string, unknown> | null
   sources: WorkforcePersonSource[]
 }
 
@@ -49,6 +54,10 @@ function mergePerson(
       role: person.role,
       status: person.status,
       staffMemberId: person.staffMemberId,
+      roleKey: person.roleKey ?? null,
+      roleTemplateId: person.roleTemplateId ?? null,
+      roleCategory: person.roleCategory ?? null,
+      roleDefinition: person.roleDefinition ?? null,
       sources: [person.source],
     })
     return
@@ -58,6 +67,10 @@ function mergePerson(
   if (!existing.email && person.email) existing.email = person.email
   if ((!existing.role || existing.role === "Staff") && person.role) existing.role = person.role
   if (!existing.staffMemberId && person.staffMemberId) existing.staffMemberId = person.staffMemberId
+  if (!existing.roleKey && person.roleKey) existing.roleKey = person.roleKey
+  if (!existing.roleTemplateId && person.roleTemplateId) existing.roleTemplateId = person.roleTemplateId
+  if (!existing.roleCategory && person.roleCategory) existing.roleCategory = person.roleCategory
+  if (!existing.roleDefinition && person.roleDefinition) existing.roleDefinition = person.roleDefinition
   if (person.name && (existing.name === "Staff member" || existing.name.length < person.name.length)) {
     existing.name = person.name
   }
@@ -98,7 +111,7 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
 
     let assignmentQuery = args.supabase
       .from("employment_assignments")
-      .select("id, user_id, role_title, position, status, staff_member_id, event_id, tour_id")
+      .select("id, user_id, role_title, position, status, staff_member_id, event_id, tour_id, role_key, role_template_id, role_category, role_definition_snapshot")
       .eq("employer_entity_type", args.employerEntityType)
       .eq("employer_entity_id", args.employerEntityId)
       .in("status", assignmentStatuses)
@@ -118,6 +131,15 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
         role: row.position || row.role_title || "Staff",
         status: row.status ?? null,
         staffMemberId: row.staff_member_id ?? null,
+        roleKey: row.role_key ?? null,
+        roleTemplateId: row.role_template_id ?? null,
+        roleCategory: row.role_category ?? null,
+        roleDefinition:
+          row.role_definition_snapshot &&
+          typeof row.role_definition_snapshot === "object" &&
+          !Array.isArray(row.role_definition_snapshot)
+            ? (row.role_definition_snapshot as Record<string, unknown>)
+            : null,
         source: "employment_assignments",
       })
     }
@@ -215,7 +237,18 @@ export async function listWorkforcePeople(args: ListWorkforcePeopleArgs): Promis
     }
   }
 
-  return Array.from(peopleByUserId.values())
+  const people = Array.from(peopleByUserId.values())
+  for (const person of people) {
+    if (!person.roleDefinition && person.roleKey) {
+      const fallback = getLiveEventRoleDefinition(person.roleKey)
+      if (fallback) {
+        person.roleDefinition = fallback as unknown as Record<string, unknown>
+        person.roleCategory = person.roleCategory ?? fallback.role_category
+      }
+    }
+  }
+
+  return people
     .sort((a, b) => a.name.localeCompare(b.name))
     .slice(0, limit)
 }
