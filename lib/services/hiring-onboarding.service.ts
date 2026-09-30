@@ -857,6 +857,16 @@ async function createEmploymentAssignmentShell({
     owner,
   })
 
+  const roleKey =
+    posting && typeof posting.role_type === "string" ? posting.role_type : null
+  const roleDefinitionSnapshot =
+    posting &&
+    posting.role_definition_snapshot &&
+    typeof posting.role_definition_snapshot === "object" &&
+    !Array.isArray(posting.role_definition_snapshot)
+      ? (posting.role_definition_snapshot as Record<string, unknown>)
+      : null
+
   // Pre-scope the assignment to the job posting's event/tour so approved hires land
   // on the roster already attached to the right ops context.
   const { eventId, tourId } = await resolveAssignmentJobContext({
@@ -880,6 +890,8 @@ async function createEmploymentAssignmentShell({
         permissions: grant.permissions,
         role_category: grant.roleCategory,
         ...(grant.roleTemplateId ? { role_template_id: grant.roleTemplateId } : {}),
+        ...(roleKey ? { role_key: roleKey } : {}),
+        ...(roleDefinitionSnapshot ? { role_definition_snapshot: roleDefinitionSnapshot } : {}),
         ...(position ? { role_title: position } : {}),
         ...(department ? { department } : {}),
         status: "invited",
@@ -911,6 +923,8 @@ async function createEmploymentAssignmentShell({
     department,
     role_template_id: grant.roleTemplateId,
     role_category: grant.roleCategory,
+    role_key: roleKey,
+    role_definition_snapshot: roleDefinitionSnapshot,
     status: "invited",
     permissions: grant.permissions,
     organizer_id: organizerId,
