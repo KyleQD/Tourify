@@ -6,6 +6,8 @@ import { resolveAdminWorkforceEmployer } from "@/lib/hiring/resolve-admin-workfo
 import { createClient } from "@/lib/supabase/server"
 import type { HiringEntity } from "@/types/hiring-entity"
 
+import { WorkforceCompletionVerification } from "@/components/achievements/workforce-completion-verification"
+
 interface RosterPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
@@ -78,6 +80,7 @@ export default async function RosterPage({ searchParams }: RosterPageProps) {
         description={`Manage active staff, compliance status, Work Mode assignments, and roster exports for ${employer.displayName}.${contextHint ? ` Context: ${contextHint}` : ""}`}
         badge={employer.entityType}
       />
+      <WorkforceCompletionVerification entityType={employer.entityType} entityId={employer.entityId} />
       <TeamRosterPanel employer={employer} eventId={eventId} tourId={tourId} />
     </WorkforcePageShell>
   )
