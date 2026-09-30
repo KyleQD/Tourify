@@ -63,6 +63,26 @@ export const jobSalaryRangeSchema = z
   .optional()
   .nullable()
 
+export const jobRoleCredentialSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  authority: z.string().optional(),
+  isRequired: z.boolean(),
+  isExpiryTracked: z.boolean(),
+  jurisdictionDependent: z.boolean().optional(),
+})
+
+export const jobWorkflowRequirementsSchema = z
+  .object({
+    management_surfaces: z.array(z.string()).optional(),
+    lifecycle: z.array(z.string()).optional(),
+    requires_shift_assignment: z.boolean().optional(),
+    requires_check_in: z.boolean().optional(),
+    handoff_required: z.boolean().optional(),
+    incident_reporting: z.boolean().optional(),
+  })
+  .passthrough()
+
 export const jobPostingFormSchema = z
   .object({
     id: z.string().optional(),
@@ -73,6 +93,7 @@ export const jobPostingFormSchema = z
     employment_type: z.enum(["full_time", "part_time", "contractor", "volunteer", "intern"]),
     location: z.string().optional(),
     role_type: z.string().optional(),
+    role_template_id: z.string().uuid().nullable().optional().or(z.literal("")),
     number_of_positions: z.coerce.number().int().min(1).max(1000),
     salary_range: jobSalaryRangeSchema,
     requirements: z.array(z.string()).default([]),
@@ -83,6 +104,9 @@ export const jobPostingFormSchema = z
     remote: z.boolean().default(false),
     urgent: z.boolean().default(false),
     required_certifications: z.array(z.string()).default([]),
+    required_credentials: z.array(jobRoleCredentialSchema).default([]),
+    role_essentials: z.array(z.string()).default([]),
+    workflow_requirements: jobWorkflowRequirementsSchema.default({}),
     application_form_template: z
       .object({
         fields: z.array(applicationFieldSchema).default([]),
@@ -171,6 +195,7 @@ export function getDefaultJobPostingValues(initialData?: Partial<JobPostingFormV
     employment_type: initialData?.employment_type ?? "contractor",
     location: initialData?.location ?? "",
     role_type: initialData?.role_type ?? "",
+    role_template_id: initialData?.role_template_id ?? null,
     number_of_positions: initialData?.number_of_positions ?? 1,
     salary_range: initialData?.salary_range ?? null,
     requirements: initialData?.requirements ?? [],
@@ -181,6 +206,9 @@ export function getDefaultJobPostingValues(initialData?: Partial<JobPostingFormV
     remote: initialData?.remote ?? false,
     urgent: initialData?.urgent ?? false,
     required_certifications: initialData?.required_certifications ?? [],
+    required_credentials: initialData?.required_credentials ?? [],
+    role_essentials: initialData?.role_essentials ?? [],
+    workflow_requirements: initialData?.workflow_requirements ?? {},
     application_form_template: initialData?.application_form_template ?? {
       fields: getDefaultApplicationFields(),
     },
@@ -215,6 +243,7 @@ export function normalizeJobPostingPayload({
     employer_entity_type: employer.entityType,
     employer_entity_id: employer.entityId,
     venue_id: employer.entityType === "venue" ? employer.entityId : employer.scope?.venueId ?? null,
+    role_template_id: parsed.role_template_id || null,
     event_id: parsed.event_id || employer.scope?.eventId || null,
     tour_id: parsed.tour_id || employer.scope?.tourId || null,
     event_date: parsed.event_date || null,
