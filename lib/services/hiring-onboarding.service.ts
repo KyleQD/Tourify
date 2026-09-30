@@ -994,25 +994,113 @@ export const HiringOnboardingService = {
       })
     }
 
+    const roleOwner =
+      actor.employer.entityType === "venue" || actor.employer.entityType === "organization"
+        ? { entityType: actor.employer.entityType, entityId: actor.employer.entityId }
+        : null
+
+    let roleTemplate: RoleTemplate | null = null
+    if (data.role_template_id) {
+      roleTemplate = await getRoleTemplateById(supabase, data.role_template_id)
+      if (!roleTemplate) {
+        return fail({
+          code: "BAD_REQUEST",
+          message: "The selected workforce role template does not exist or is inactive.",
+        })
+      }
+
+      if (
+        roleTemplate.owner_entity_id &&
+        (!roleOwner ||
+          roleTemplate.owner_entity_id !== roleOwner.entityId ||
+          roleTemplate.owner_entity_type !== roleOwner.entityType)
+      ) {
+        return fail({
+          code: "FORBIDDEN",
+          message: "The selected workforce role template is not available to this employer.",
+        })
+      }
+    } else if (data.role_type) {
+      roleTemplate = await getRoleTemplateByKey(
+        supabase,
+        normalizeRoleType(data.role_type) ?? data.role_type,
+        roleOwner
+      )
+    }
+
+    const roleCredentials =
+      data.required_credentials && data.required_credentials.length > 0
+        ? data.required_credentials
+        : ((roleTemplate?.required_credentials ?? []) as Array<Record<string, unknown>>)
+
+    const credentialLabels = roleCredentials
+      .filter((credential) => credential && typeof credential === "object")
+      .filter((credential) => credential.isRequired !== false)
+      .map((credential) => (typeof credential.label === "string" ? credential.label : null))
+      .filter((label): label is string => Boolean(label))
+
+    const roleEssentials =
+      data.role_essentials && data.role_essentials.length > 0
+        ? data.role_essentials
+        : roleTemplate?.essentials ?? []
+
+    const workflowRequirements =
+      data.workflow_requirements && Object.keys(data.workflow_requirements).length > 0
+        ? data.workflow_requirements
+        : roleTemplate?.workflow_requirements ?? {}
+
+    const roleDefinitionSnapshot = roleTemplate
+      ? {
+          template_id: roleTemplate.id ?? null,
+          key: roleTemplate.key,
+          label: roleTemplate.label,
+          department: roleTemplate.department,
+          role_category: roleTemplate.role_category,
+          employment_type: roleTemplate.employment_type,
+          job_summary: roleTemplate.job_summary,
+          duties: roleTemplate.duties,
+          qualifications: roleTemplate.qualifications,
+          required_credentials: roleTemplate.required_credentials,
+          essentials: roleTemplate.essentials,
+          workflow_requirements: roleTemplate.workflow_requirements,
+          tags: roleTemplate.tags,
+          captured_at: getNowIso(),
+        }
+      : null
+
     const payload = {
       ...getEmployerColumns(actor.employer),
       title: data.title,
-      description: data.description,
-      department: data.department || null,
-      position: data.position || null,
-      employment_type: normalizeEmploymentType(data.employment_type),
+      description: data.description || roleTemplate?.job_summary || "",
+      department: data.department || roleTemplate?.department || null,
+      position: data.position || roleTemplate?.label || null,
+      employment_type: normalizeEmploymentType(data.employment_type ?? roleTemplate?.employment_type),
       location: data.location ?? "TBD",
-      role_type: normalizeRoleType(data.role_type),
+      role_type: normalizeRoleType(data.role_type ?? roleTemplate?.key),
+      role_template_id: roleTemplate?.id ?? data.role_template_id ?? null,
       number_of_positions: data.number_of_positions ?? 1,
       salary_range: data.salary_range ?? null,
-      requirements: data.requirements ?? [],
-      responsibilities: data.responsibilities ?? [],
+      requirements:
+        data.requirements && data.requirements.length > 0
+          ? data.requirements
+          : roleTemplate?.qualifications ?? [],
+      responsibilities:
+        data.responsibilities && data.responsibilities.length > 0
+          ? data.responsibilities
+          : roleTemplate?.duties ?? [],
       benefits: data.benefits ?? [],
       skills: data.skills ?? [],
       experience_level: normalizeExperienceLevel(data.experience_level),
       remote: data.remote ?? false,
       urgent: data.urgent ?? false,
-      required_certifications: data.required_certifications ?? [],
+      required_certifications:
+        data.required_certifications && data.required_certifications.length > 0
+          ? data.required_certifications
+          : credentialLabels,
+      required_credentials: roleCredentials,
+      role_essentials: roleEssentials,
+      workflow_requirements: workflowRequirements,
+      role_definition_snapshot: roleDefinitionSnapshot,
       application_form_template: data.application_form_template ?? { fields: [] },
       onboarding_template_id: onboardingTemplateId,
       event_id: data.event_id ?? actor.employer.scope?.eventId ?? null,
@@ -1092,7 +1180,11 @@ export const HiringOnboardingService = {
       eventType: "job_posting_created",
       entityTable: "job_posting_templates",
       entityId: String(inserted.id),
-      metadata: { status: payload.status },
+      metadata: {
+        status: payload.status,
+        role_type: payload.role_type,
+        role_template_id: payload.role_template_id,
+      },
     })
 
     return ok(inserted as Record<string, unknown>)
