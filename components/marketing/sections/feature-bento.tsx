@@ -9,12 +9,7 @@ import { accents } from "@/lib/marketing/accent"
 import { features } from "@/lib/marketing/features"
 import { cn } from "@/lib/utils"
 
-const spans: Record<string, string> = {
-  tours: "lg:col-span-2",
-  analytics: "lg:col-span-2",
-  messaging: "lg:col-span-2",
-  "profiles-epk": "lg:col-span-2",
-}
+const wide = new Set(["tours", "analytics"])
 
 export function FeatureBento() {
   return (
@@ -24,38 +19,40 @@ export function FeatureBento() {
           eyebrow="The platform"
           title={
             <>
-              Everything a show needs, <GradientText>working together</GradientText>
+              Ten tools. <GradientText>One source of truth.</GradientText>
             </>
           }
-          description="Ten connected tools. Each one is useful alone and better beside the others. Every badge shows exactly where a feature stands today."
+          description="Every date, ticket, shift and message is tied to the show it belongs to. Change a set time once and every person who needs it sees it."
         />
 
-        <Stagger className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" stagger={0.06}>
+        <Stagger className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-flow-dense lg:grid-cols-4" stagger={0.06}>
           {features.map((f) => {
             const a = accents[f.accent]
             return (
-              <StaggerItem key={f.slug} className={cn(spans[f.slug])}>
-                <SpotlightCard color={`${a.hex}33`} className="h-full">
+              <StaggerItem key={f.slug} className={cn(wide.has(f.slug) && "lg:col-span-2")}>
+                <SpotlightCard color={`${a.hex}33`} className="group h-full">
                   <Link
                     href={`/features/${f.slug}`}
-                    className="flex h-full flex-col gap-4 p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
+                    className="flex h-full flex-col gap-5 p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl border", a.bg, a.border)}>
-                        <f.icon className={cn("h-5 w-5", a.text)} aria-hidden />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2.5">
+                        <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg border", a.bg, a.border)}>
+                          <f.icon className={cn("h-4 w-4", a.text)} aria-hidden />
+                        </span>
+                        <span className="text-sm font-semibold leading-tight text-white">{f.title}</span>
                       </span>
-                      <StatusBadge status={f.status} />
+                      <StatusBadge status={f.status} className="shrink-0 whitespace-nowrap" />
                     </div>
-                    <FeaturePreview slug={f.slug} />
-                    <div className="mt-auto">
-                      <h3 className="flex items-center gap-1.5 text-lg font-semibold text-white">
-                        {f.title}
-                        <ArrowUpRight
-                          className="h-4 w-4 text-slate-500 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
-                          aria-hidden
-                        />
-                      </h3>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-400">{f.summary}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm leading-relaxed text-slate-400 text-pretty">{f.summary}</p>
+                      <ArrowUpRight
+                        className="mt-1 h-4 w-4 shrink-0 text-slate-600 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white"
+                        aria-hidden
+                      />
+                    </div>
+                    <div className="flex-1 [&>div]:h-full">
+                      <FeaturePreview slug={f.slug} />
                     </div>
                   </Link>
                 </SpotlightCard>

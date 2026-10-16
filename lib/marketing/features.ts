@@ -1,14 +1,14 @@
 import {
-  BarChart3,
-  Calendar,
-  Compass,
-  Map,
-  MessageSquare,
+  CalendarRange,
+  ChartLine,
+  ClipboardList,
+  Handshake,
+  HardHat,
+  IdCard,
+  MessagesSquare,
+  Route,
   Search,
   Ticket,
-  Truck,
-  UserCircle2,
-  Users,
   type LucideIcon,
 } from "lucide-react"
 import type { AccentKey } from "./accent"
@@ -32,10 +32,10 @@ export const features: Feature[] = [
   {
     slug: "events",
     title: "Events",
-    summary: "Create, publish and manage shows from one dashboard.",
+    summary: "Build the show once. Lineup, times and capacity stay in sync everywhere.",
     intro:
       "Set up an event once and keep its details, lineup, schedule and capacity in sync everywhere they appear.",
-    icon: Calendar,
+    icon: CalendarRange,
     accent: "purple",
     status: "beta",
     personas: ["venues", "event-organizers", "promoters", "fans"],
@@ -54,7 +54,7 @@ export const features: Feature[] = [
   {
     slug: "ticketing",
     title: "Ticketing",
-    summary: "Sell tickets and manage capacity without third-party tools.",
+    summary: "Tiers, holds and live sell-through, without handing fans to a third party.",
     intro: "Define tiers, set capacity and track sales next to the event they belong to.",
     icon: Ticket,
     accent: "amber",
@@ -75,10 +75,10 @@ export const features: Feature[] = [
   {
     slug: "tours",
     title: "Tour routing",
-    summary: "Plan multi-city runs and see the whole route at a glance.",
+    summary: "Map every stop, drive time and day off before you commit to a date.",
     intro:
       "Lay out a run city by city, keep every date in one calendar and see how the legs connect.",
-    icon: Map,
+    icon: Route,
     accent: "blue",
     status: "beta",
     personas: ["artists", "tour-managers", "fans"],
@@ -97,9 +97,9 @@ export const features: Feature[] = [
   {
     slug: "workforce",
     title: "Workforce",
-    summary: "Schedule shifts, invite staff and onboard new hires.",
+    summary: "Post shifts, fill gaps and see who is on the door before doors.",
     intro: "Build a roster, assign shifts and bring new team members up to speed with guided steps.",
-    icon: Users,
+    icon: HardHat,
     accent: "emerald",
     status: "beta",
     personas: ["venues", "event-organizers", "tour-managers", "crew"],
@@ -118,10 +118,10 @@ export const features: Feature[] = [
   {
     slug: "logistics",
     title: "Advancing and logistics",
-    summary: "Keep day sheets, assets and show details in one place.",
+    summary: "Day sheets, riders and stage plots attached to the show, not buried in email.",
     intro:
       "Track the details that make a show day run: schedules, equipment and the information each crew needs.",
-    icon: Truck,
+    icon: ClipboardList,
     accent: "rose",
     status: "in-development",
     personas: ["tour-managers", "venues", "event-organizers"],
@@ -140,9 +140,9 @@ export const features: Feature[] = [
   {
     slug: "messaging",
     title: "Messaging",
-    summary: "Direct messages, groups and booking threads in one inbox.",
+    summary: "Every conversation lives on the show it is about. No more lost threads.",
     intro: "Keep conversations next to the work. Bookings, shows and teams each get their own thread.",
-    icon: MessageSquare,
+    icon: MessagesSquare,
     accent: "cyan",
     status: "available",
     personas: ["artists", "tour-managers", "venues", "event-organizers", "crew", "promoters", "fans"],
@@ -161,9 +161,9 @@ export const features: Feature[] = [
   {
     slug: "analytics",
     title: "Analytics",
-    summary: "See event performance, audience and revenue clearly.",
+    summary: "Sales, revenue and audience trends while there is still time to act.",
     intro: "Dashboards that show how shows are doing, so decisions come from the numbers.",
-    icon: BarChart3,
+    icon: ChartLine,
     accent: "fuchsia",
     status: "beta",
     personas: ["artists", "tour-managers", "venues", "event-organizers", "promoters"],
@@ -182,10 +182,10 @@ export const features: Feature[] = [
   {
     slug: "profiles-epk",
     title: "Profiles and EPK",
-    summary: "A living profile and press kit you update once.",
+    summary: "A press kit that updates itself. Share one link with every buyer.",
     intro:
       "Present your work with a rich public profile: bio, photos, music and video, always current.",
-    icon: UserCircle2,
+    icon: IdCard,
     accent: "purple",
     status: "available",
     personas: ["artists", "venues", "crew", "promoters", "fans"],
@@ -204,7 +204,7 @@ export const features: Feature[] = [
   {
     slug: "discovery",
     title: "Discovery",
-    summary: "Find shows, artists, venues and opportunities.",
+    summary: "Search artists, rooms and shows by sound, city and date.",
     intro:
       "Search and browse the Tourify community, from local shows to open roles in the industry.",
     icon: Search,
@@ -226,9 +226,9 @@ export const features: Feature[] = [
   {
     slug: "bookings",
     title: "Bookings",
-    summary: "Send, receive and track booking requests in one pipeline.",
+    summary: "Every offer from first ask to signed date, in one pipeline.",
     intro: "Move from first inquiry to confirmed date without losing the thread.",
-    icon: Compass,
+    icon: Handshake,
     accent: "blue",
     status: "beta",
     personas: ["artists", "tour-managers", "venues", "promoters", "crew"],
@@ -247,10 +247,10 @@ export const features: Feature[] = [
 ]
 
 export const roadmapExtras: { title: string; body: string; status: FeatureStatus }[] = [
-  { title: "AI venue matching", body: "Suggested venues and artists based on fit.", status: "in-development" },
-  { title: "Contracts and riders", body: "Manage agreements next to the booking.", status: "in-development" },
-  { title: "Merch and music storefront", body: "Sell directly from your profile.", status: "planned" },
-  { title: "Mobile apps", body: "Day-of tools in your pocket.", status: "planned" },
+  { title: "AI venue matching", body: "Ranked venue and artist suggestions based on sound, draw and routing.", status: "in-development" },
+  { title: "Contracts and riders", body: "Draft, sign and version agreements beside the booking they cover.", status: "in-development" },
+  { title: "Merch and music storefront", body: "Sell merch and music straight from your artist profile.", status: "planned" },
+  { title: "Mobile apps", body: "Day sheets, check-in and messages on iOS and Android.", status: "planned" },
 ]
 
 export function getFeature(slug: string) {
