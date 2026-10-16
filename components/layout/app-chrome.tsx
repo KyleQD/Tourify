@@ -28,9 +28,13 @@ interface AppChromeProps {
 export function AppChrome({ children }: AppChromeProps) {
   const pathname = usePathname() || ''
   const isAdminRoute = pathname.startsWith('/admin')
+  const isMarketingRoute =
+    pathname.startsWith('/solutions') ||
+    pathname.startsWith('/features')
   const hideRootNav =
     pathname.startsWith('/auth') ||
-    pathname.startsWith('/login')
+    pathname.startsWith('/login') ||
+    isMarketingRoute
 
   return (
     <JukeboxProvider>
@@ -40,7 +44,7 @@ export function AppChrome({ children }: AppChromeProps) {
           <main className={`flex-1 ${isAdminRoute ? '' : 'pb-[var(--player-height,0px)]'}`}>
             {children}
           </main>
-          {!isAdminRoute ? (
+          {!isAdminRoute && !isMarketingRoute ? (
             <>
               <PersistentPlayerBar />
               <FullPlayerView />

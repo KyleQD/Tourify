@@ -43,7 +43,7 @@ export function PersonaPage({ persona }: { persona: Persona }) {
             <h1 className="mt-5 text-balance text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               {persona.headline[0]}
               <br />
-              <span className={cn("bg-gradient-to-r bg-clip-text text-transparent", a.gradientText)}>{persona.headline[1]}</span>
+              <span className={cn("inline-block bg-gradient-to-r bg-clip-text pb-1 text-transparent", a.gradientText)}>{persona.headline[1]}</span>
             </h1>
             <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-slate-300">{persona.sub}</p>
             <div className="mt-8 flex flex-wrap gap-3">
