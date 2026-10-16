@@ -6,7 +6,7 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet"
-import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
@@ -75,9 +75,7 @@ export function FullPlayerView() {
         className="h-[100dvh] sm:h-[85vh] rounded-t-2xl border-t border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-black p-0 [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <VisuallyHidden.Root>
-          <SheetTitle>Jukebox Player</SheetTitle>
-        </VisuallyHidden.Root>
+<SheetTitle className="sr-only">Jukebox Player</SheetTitle>
         <FullPlayerContent />
       </SheetContent>
     </Sheet>
