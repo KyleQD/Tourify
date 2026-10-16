@@ -17,6 +17,11 @@ import {
   EPK_SECTION_BACKDROPS,
   EPK_SECTION_MOTIONS,
   EPK_SECTION_SPACINGS,
+  EPK_PHOTO_FOCUS,
+  EPK_PHOTO_LAYOUTS,
+  EPK_PHOTO_LAYOUT_LABELS,
+  EPK_PHOTO_SHAPES,
+  type EpkPhotoLayout,
   type EpkSectionStyle,
 } from "@/lib/epk/epk-section-styles"
 import { epkFontClass } from "@/components/epk/epk-preview-fonts"
@@ -342,6 +347,7 @@ export function ElementInspector({
               ))}
             </div>
           </PanelSection>
+          {sectionId === "hero" ? <PhotoLayoutPanel style={style} onChange={set} /> : null}
           <PanelSection title="Color">
             <ColorField label="Section accent" value={style.accentHex ?? null} onChange={(v) => set({ accentHex: v ?? undefined })} />
             <Segmented label="Backdrop" value={style.backdrop ?? "none"} options={EPK_SECTION_BACKDROPS} onChange={(v) => set({ backdrop: v })} />
@@ -371,6 +377,92 @@ export function ElementInspector({
         </>
       )}
     </>
+  )
+}
+
+/** Schematic thumbnail: accent block = photo, gray lines = text. */
+function PhotoLayoutThumb({ layout }: { layout: EpkPhotoLayout }) {
+  const photo = "absolute bg-purple-400/80"
+  const text = (
+    <span className="flex flex-col gap-0.5">
+      <span className="h-1 w-6 rounded-full bg-white/70" />
+      <span className="h-1 w-4 rounded-full bg-white/30" />
+    </span>
+  )
+  return (
+    <span className="relative flex h-10 w-full overflow-hidden rounded bg-white/[0.06]">
+      {layout === "template" ? (
+        <span className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Auto</span>
+      ) : null}
+      {layout === "left" ? <><span className={cn(photo, "inset-y-0 left-0 w-1/2")} /><span className="ml-auto flex w-1/2 items-center justify-center">{text}</span></> : null}
+      {layout === "right" ? <><span className={cn(photo, "inset-y-0 right-0 w-1/2")} /><span className="flex w-1/2 items-center justify-center">{text}</span></> : null}
+      {layout === "top" ? <><span className={cn(photo, "inset-x-0 top-0 h-[55%]")} /><span className="mt-auto flex w-full justify-center pb-1">{text}</span></> : null}
+      {layout === "background" ? <><span className={cn(photo, "inset-0")} /><span className="relative mt-auto p-1.5">{text}</span></> : null}
+      {layout === "corner" ? <><span className={cn(photo, "inset-y-0 right-0 w-3/5")} style={{ clipPath: "polygon(0 0,100% 0,100% 100%)" }} /><span className="mt-auto p-1.5">{text}</span></> : null}
+      {layout === "diagonal" ? <><span className={cn(photo, "inset-y-0 right-0 w-3/5")} style={{ clipPath: "polygon(30% 0,100% 0,100% 100%,0 100%)" }} /><span className="flex items-center p-1.5">{text}</span></> : null}
+      {layout === "inset" ? <span className="flex h-full w-full items-center gap-1.5 px-2"><span className="h-6 w-6 shrink-0 rounded bg-purple-400/80" />{text}</span> : null}
+    </span>
+  )
+}
+
+function PhotoLayoutPanel({
+  style,
+  onChange,
+}: {
+  style: EpkSectionStyle
+  onChange: (patch: Partial<EpkSectionStyle>) => void
+}) {
+  const layout = style.photoLayout ?? "template"
+  const custom = layout !== "template"
+  return (
+    <PanelSection title="Photo layout">
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Photo layout">
+        {EPK_PHOTO_LAYOUTS.map((l) => (
+          <button
+            key={l}
+            type="button"
+            role="radio"
+            aria-checked={layout === l}
+            onClick={() => onChange({ photoLayout: l === "template" ? undefined : l })}
+            className={cn(
+              "flex flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-colors",
+              layout === l ? "border-purple-400 bg-purple-500/10" : "border-white/[0.08] hover:border-white/25",
+            )}
+          >
+            <PhotoLayoutThumb layout={l} />
+            <span className="truncate px-0.5 text-[11px] text-slate-300">{EPK_PHOTO_LAYOUT_LABELS[l]}</span>
+          </button>
+        ))}
+      </div>
+      {custom ? (
+        <>
+          <Segmented
+            label={layout === "inset" ? "Photo size" : "Photo share"}
+            value={style.photoSize ?? "md"}
+            options={[{ value: "sm", label: "Small" }, { value: "md", label: "Medium" }, { value: "lg", label: "Large" }] as const}
+            onChange={(v) => onChange({ photoSize: v })}
+          />
+          <Segmented
+            label="Focus"
+            value={style.photoFocus ?? "center"}
+            options={EPK_PHOTO_FOCUS}
+            onChange={(v) => onChange({ photoFocus: v })}
+          />
+          {layout === "inset" ? (
+            <Segmented
+              label="Shape"
+              value={style.photoShape ?? "rounded"}
+              options={EPK_PHOTO_SHAPES}
+              onChange={(v) => onChange({ photoShape: v })}
+            />
+          ) : null}
+        </>
+      ) : (
+        <p className="text-xs leading-relaxed text-slate-500">
+          Using the template&apos;s hero design. Pick a layout to arrange the photo yourself.
+        </p>
+      )}
+    </PanelSection>
   )
 }
 

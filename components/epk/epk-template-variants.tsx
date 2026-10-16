@@ -57,6 +57,7 @@ import {
 } from "@/lib/epk/epk-appearance"
 import {
   isEpkSectionStyleEmpty,
+  hasCustomPhotoLayout,
   type EpkSectionStyle,
 } from "@/lib/epk/epk-section-styles"
 
@@ -3762,6 +3763,7 @@ interface RenderInSkinOptions {
   appearance?: EpkAppearance
   chrome?: boolean
   className?: string
+  render?: (ctx: EpkSectionRenderCtx) => React.ReactNode
 }
 
 /** Renders one section with another template's element design, on that template's surface. */
@@ -3800,9 +3802,222 @@ export function renderEpkSectionInSkin(
       {options.chrome ? (
         <EpkPageChrome skin={skin} color={resolved.color} styles={resolved.styles} />
       ) : null}
-      <div className="relative px-5 py-8 sm:px-8">{renderEpkSection(sectionId, sectionCtx)}</div>
+      <div className="relative px-5 py-8 sm:px-8">
+        {options.render ? options.render(sectionCtx) : renderEpkSection(sectionId, sectionCtx)}
+      </div>
     </div>
   )
+}
+
+const PHOTO_FOCUS_POSITION: Record<NonNullable<EpkSectionStyle["photoFocus"]>, string> = {
+  top: "50% 15%",
+  center: "50% 50%",
+  bottom: "50% 85%",
+}
+
+const PHOTO_SPLIT_COLUMNS: Record<NonNullable<EpkSectionStyle["photoSize"]>, string> = {
+  sm: "2fr 3fr",
+  md: "1fr 1fr",
+  lg: "3fr 2fr",
+}
+
+const PHOTO_TOP_HEIGHT: Record<NonNullable<EpkSectionStyle["photoSize"]>, string> = {
+  sm: "h-56 sm:h-64",
+  md: "h-72 sm:h-96",
+  lg: "h-96 sm:h-[32rem]",
+}
+
+const PHOTO_OVERLAY_WIDTH: Record<NonNullable<EpkSectionStyle["photoSize"]>, string> = {
+  sm: "lg:w-[42%]",
+  md: "lg:w-[55%]",
+  lg: "lg:w-[68%]",
+}
+
+const PHOTO_INSET_WIDTH: Record<NonNullable<EpkSectionStyle["photoSize"]>, string> = {
+  sm: "max-w-[14rem]",
+  md: "max-w-[20rem]",
+  lg: "max-w-[26rem]",
+}
+
+const PHOTO_SHAPE_STYLE: Record<
+  NonNullable<EpkSectionStyle["photoShape"]>,
+  { className: string; clipPath?: string }
+> = {
+  square: { className: "rounded-none" },
+  rounded: { className: "rounded-3xl" },
+  circle: { className: "rounded-full" },
+  arch: { className: "rounded-t-full rounded-b-2xl" },
+  triangle: { className: "", clipPath: "polygon(50% 0, 100% 100%, 0 100%)" },
+}
+
+/** Hero rebuilt around a user-chosen photo arrangement, styled with the active template tokens. */
+function renderPhotoLayoutHero(ctx: EpkSectionRenderCtx, style: EpkSectionStyle): React.ReactNode {
+  const { data, t, s, ph, initial, editableField, heroGapClass } = ctx
+  const layout = style.photoLayout ?? "left"
+  const size = style.photoSize ?? "md"
+  const objectPosition = PHOTO_FOCUS_POSITION[style.photoFocus ?? "center"]
+  const wide = layout === "top" || layout === "background"
+  const imageUrl = wide
+    ? data.coverUrl || data.avatarUrl
+    : data.avatarUrl || data.coverUrl
+  const imageAlt = data.artistName ? `${data.artistName} press photo` : "Artist press photo"
+  const onPhoto = layout === "background"
+  const lightText: React.CSSProperties | undefined = onPhoto ? { color: "#fff" } : undefined
+
+  const photo = (className?: string, extra?: React.CSSProperties) =>
+    imageUrl ? (
+      <img
+        src={imageUrl}
+        alt={imageAlt}
+        className={cn("h-full w-full object-cover", ctx.c.heroImage, className)}
+        style={{ objectPosition, ...extra }}
+      />
+    ) : (
+      <div
+        className={cn("flex h-full w-full items-center justify-center", className)}
+        style={{
+          background:
+            "color-mix(in srgb, var(--epk-accent, #8b8b8b) 22%, transparent)",
+          ...extra,
+        }}
+      >
+        <span className="font-serif text-6xl italic opacity-60" aria-hidden="true">
+          {initial}
+        </span>
+      </div>
+    )
+
+  const copy = (
+    <div className="relative flex flex-col gap-5">
+      <h1
+        className="text-balance text-4xl font-bold leading-[0.95] tracking-tight sm:text-6xl"
+        style={{ ...s.heading, ...lightText }}
+      >
+        {heroNameNode(ctx)}
+      </h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <Badge className={t.badge} style={s.badge}>
+          {editableField?.("genre", data.genre, "Genre") ?? ph(data.genre, "Genre")}
+        </Badge>
+        <span
+          className={cn("inline-flex items-center gap-1.5 text-sm", !onPhoto && t.muted)}
+          style={onPhoto ? { color: "rgba(255,255,255,0.8)" } : s.muted}
+        >
+          <MapPin className="h-4 w-4" aria-hidden="true" />
+          {editableField?.("location", data.location, "City, region") ??
+            ph(data.location, "City, region")}
+        </span>
+      </div>
+      {renderStatGrid(ctx)}
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className={t.btnPrimary} style={s.buttonPrimary}>
+          <Mail className="mr-2 h-4 w-4" />
+          Book / Contact
+        </Button>
+        <Button size="sm" variant="outline" className={t.btnGhost} style={s.buttonGhost}>
+          <Share2 className="mr-2 h-4 w-4" />
+          Share
+        </Button>
+      </div>
+    </div>
+  )
+
+  const shell = cn("relative overflow-hidden rounded-3xl", heroGapClass)
+  const frame: React.CSSProperties = {
+    ...s.heroShell,
+    border: "1px solid color-mix(in srgb, currentColor 10%, transparent)",
+  }
+
+  if (layout === "left" || layout === "right") {
+    const cols = PHOTO_SPLIT_COLUMNS[size]
+    const columns = layout === "left" ? cols : cols.split(" ").reverse().join(" ")
+    return (
+      <header key="hero" className={shell} style={frame}>
+        <div
+          className="grid lg:min-h-[30rem] lg:[grid-template-columns:var(--epk-hero-cols)]"
+          style={{ "--epk-hero-cols": columns } as React.CSSProperties}
+        >
+          <div className={cn("h-72 sm:h-96 lg:h-auto", layout === "right" && "lg:order-2")}>
+            {photo()}
+          </div>
+          <div className="flex items-center p-6 sm:p-10">{copy}</div>
+        </div>
+      </header>
+    )
+  }
+
+  if (layout === "top") {
+    return (
+      <header key="hero" className={shell} style={frame}>
+        <div className={PHOTO_TOP_HEIGHT[size]}>{photo()}</div>
+        <div className="p-6 sm:p-10">{copy}</div>
+      </header>
+    )
+  }
+
+  if (layout === "background") {
+    const minH = { sm: "min-h-[24rem]", md: "min-h-[32rem]", lg: "min-h-[40rem]" }[size]
+    return (
+      <header key="hero" className={cn(shell, "flex items-end", minH)} style={frame}>
+        <div className="absolute inset-0">{photo()}</div>
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0.05) 100%)",
+          }}
+        />
+        <div className="relative w-full p-6 sm:p-10">{copy}</div>
+      </header>
+    )
+  }
+
+  if (layout === "corner" || layout === "diagonal") {
+    const clip =
+      layout === "corner"
+        ? "lg:[clip-path:polygon(0_0,100%_0,100%_100%)]"
+        : "lg:[clip-path:polygon(22%_0,100%_0,100%_100%,0_100%)]"
+    return (
+      <header key="hero" className={cn(shell, "lg:min-h-[30rem]")} style={frame}>
+        <div
+          className={cn(
+            "h-72 sm:h-96 lg:absolute lg:inset-y-0 lg:right-0 lg:h-auto",
+            PHOTO_OVERLAY_WIDTH[size],
+            clip,
+          )}
+        >
+          {photo()}
+        </div>
+        <div className="relative flex p-6 sm:p-10 lg:min-h-[30rem] lg:max-w-[52%] lg:items-center">
+          {copy}
+        </div>
+      </header>
+    )
+  }
+
+  const shape = PHOTO_SHAPE_STYLE[style.photoShape ?? "rounded"]
+  return (
+    <header key="hero" className={cn(shell, "p-6 sm:p-10")} style={frame}>
+      <div className="flex flex-col items-center gap-8 lg:flex-row lg:gap-12">
+        <div className={cn("aspect-square w-full shrink-0", PHOTO_INSET_WIDTH[size])}>
+          {photo(cn(shape.className, "shadow-2xl"), shape.clipPath ? { clipPath: shape.clipPath } : undefined)}
+        </div>
+        <div className="w-full">{copy}</div>
+      </div>
+    </header>
+  )
+}
+
+function renderSectionWithStyle(
+  sectionId: string,
+  ctx: EpkSectionRenderCtx,
+  style?: EpkSectionStyle,
+): React.ReactNode {
+  if (sectionId === "hero" && hasCustomPhotoLayout(style)) {
+    return renderPhotoLayoutHero(ctx, style as EpkSectionStyle)
+  }
+  return renderEpkSection(sectionId, ctx)
 }
 
 const SECTION_SPACING_CLASS: Record<NonNullable<EpkSectionStyle["spacing"]>, string> = {
@@ -3852,6 +4067,7 @@ export function renderStyledEpkSection(
     content = renderEpkSectionInSkin(sectionId, ctx, style.skin, {
       appearance,
       className: "rounded-3xl",
+      render: (skinCtx) => renderSectionWithStyle(sectionId, skinCtx, style),
     })
   } else if (style.accentHex) {
     const resolved = resolveEpkAppearanceForRender({ skin: ctx.skin, appearance })
@@ -3868,9 +4084,11 @@ export function renderStyledEpkSection(
       ),
       trackInteraction: ctx.trackInteraction,
     }
-    content = <div style={resolved.rootStyle}>{renderEpkSection(sectionId, accentCtx)}</div>
+    content = (
+      <div style={resolved.rootStyle}>{renderSectionWithStyle(sectionId, accentCtx, style)}</div>
+    )
   } else {
-    content = renderEpkSection(sectionId, ctx)
+    content = renderSectionWithStyle(sectionId, ctx, style)
   }
 
   const backdrop = style.backdrop && style.backdrop !== "none" ? style.backdrop : null

@@ -5,6 +5,33 @@ export const EPK_SECTION_BACKDROPS = ["none", "tint", "accent", "frame"] as cons
 export const EPK_SECTION_SPACINGS = ["tight", "default", "airy"] as const
 export const EPK_SECTION_MOTIONS = ["inherit", "none", "fade", "rise", "zoom", "blur"] as const
 
+/** Hero photo arrangements. "template" keeps the template's own hero design. */
+export const EPK_PHOTO_LAYOUTS = [
+  "template",
+  "left",
+  "right",
+  "top",
+  "background",
+  "corner",
+  "diagonal",
+  "inset",
+] as const
+export const EPK_PHOTO_LAYOUT_LABELS: Record<(typeof EPK_PHOTO_LAYOUTS)[number], string> = {
+  template: "Template",
+  left: "Full left",
+  right: "Full right",
+  top: "Full top",
+  background: "Full bleed",
+  corner: "Corner triangle",
+  diagonal: "Diagonal split",
+  inset: "Framed",
+}
+export const EPK_PHOTO_SIZES = ["sm", "md", "lg"] as const
+export const EPK_PHOTO_FOCUS = ["top", "center", "bottom"] as const
+export const EPK_PHOTO_SHAPES = ["square", "rounded", "circle", "arch", "triangle"] as const
+
+export type EpkPhotoLayout = (typeof EPK_PHOTO_LAYOUTS)[number]
+
 /** Per-section overrides layered on top of the page-wide appearance. */
 export interface EpkSectionStyle {
   /** Render this section with another template's element design. */
@@ -13,6 +40,15 @@ export interface EpkSectionStyle {
   backdrop?: (typeof EPK_SECTION_BACKDROPS)[number]
   spacing?: (typeof EPK_SECTION_SPACINGS)[number]
   motion?: (typeof EPK_SECTION_MOTIONS)[number]
+  /** Hero only: how the press photo is arranged. */
+  photoLayout?: EpkPhotoLayout
+  photoSize?: (typeof EPK_PHOTO_SIZES)[number]
+  photoFocus?: (typeof EPK_PHOTO_FOCUS)[number]
+  photoShape?: (typeof EPK_PHOTO_SHAPES)[number]
+}
+
+export function hasCustomPhotoLayout(style: EpkSectionStyle | undefined | null): boolean {
+  return Boolean(style?.photoLayout && style.photoLayout !== "template")
 }
 
 export type EpkSectionStyles = Record<string, EpkSectionStyle>
@@ -30,7 +66,8 @@ export function isEpkSectionStyleEmpty(style: EpkSectionStyle | undefined | null
     !style.accentHex &&
     (!style.backdrop || style.backdrop === "none") &&
     (!style.spacing || style.spacing === "default") &&
-    (!style.motion || style.motion === "inherit")
+    (!style.motion || style.motion === "inherit") &&
+    !hasCustomPhotoLayout(style)
   )
 }
 
@@ -45,6 +82,10 @@ export function normalizeEpkSectionStyle(raw: unknown): EpkSectionStyle | null {
     backdrop: pick(EPK_SECTION_BACKDROPS, r.backdrop),
     spacing: pick(EPK_SECTION_SPACINGS, r.spacing),
     motion: pick(EPK_SECTION_MOTIONS, r.motion),
+    photoLayout: pick(EPK_PHOTO_LAYOUTS, r.photoLayout),
+    photoSize: pick(EPK_PHOTO_SIZES, r.photoSize),
+    photoFocus: pick(EPK_PHOTO_FOCUS, r.photoFocus),
+    photoShape: pick(EPK_PHOTO_SHAPES, r.photoShape),
   }
   for (const key of Object.keys(style) as (keyof EpkSectionStyle)[]) {
     if (style[key] === undefined) delete style[key]
