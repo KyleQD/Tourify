@@ -22,6 +22,9 @@ import {
   RedColumnEpkTemplate,
   ScrapbookEpkTemplate,
   SunburstEpkTemplate,
+  VinylEpkTemplate,
+  RisoEpkTemplate,
+  ChromeEpkTemplate,
   WhitespaceEpkTemplate,
 } from "@/components/epk/epk-template-variants"
 import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
@@ -102,6 +105,12 @@ export default function EPKPreview({
       return <ColorBlockEpkTemplate {...props} />
     case "sunburst":
       return <SunburstEpkTemplate {...props} />
+    case "vinyl":
+      return <VinylEpkTemplate {...props} />
+    case "riso":
+      return <RisoEpkTemplate {...props} />
+    case "chrome":
+      return <ChromeEpkTemplate {...props} />
     default:
       return <ModernEpkTemplate {...props} />
   }

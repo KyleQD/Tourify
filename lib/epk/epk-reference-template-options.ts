@@ -97,4 +97,31 @@ export const EPK_REFERENCE_TEMPLATE_OPTIONS: EpkReferenceTemplateOption[] = [
     previewClassName: "bg-[linear-gradient(135deg,#f6c743_0_75%,#d02d20_75%)]",
     defaultFont: "sans",
   },
+  {
+    id: "vinyl",
+    name: "Vinyl",
+    description:
+      "Record-sleeve cover with a spinning disc, warm oxblood and brass.",
+    previewClassName:
+      "bg-[radial-gradient(circle_at_70%_50%,#e0a526_0_8%,#111_9%_34%,transparent_35%),linear-gradient(135deg,#2a1411,#1c0d0b)]",
+    defaultFont: "serif",
+  },
+  {
+    id: "riso",
+    name: "Riso Zine",
+    description:
+      "Two-ink risograph print: fluoro pink over federal blue, halftone grit.",
+    previewClassName:
+      "bg-[linear-gradient(135deg,#f2ede4_0_55%,#ff4fa3_55%_80%,#1d3fa8_80%)]",
+    defaultFont: "sans",
+  },
+  {
+    id: "chrome",
+    name: "Chrome",
+    description:
+      "Polished metal type with animated sheen and cobalt stage light.",
+    previewClassName:
+      "bg-[linear-gradient(160deg,#0b0d10_0_40%,#c9ced6_50%,#3d6bff_62%,#0b0d10_75%)]",
+    defaultFont: "sans",
+  },
 ]

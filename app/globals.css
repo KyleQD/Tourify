@@ -1482,3 +1482,25 @@ select:focus {
     display: none;
   }
 }
+
+/* EPK signature-skin ambient motion */
+@keyframes epk-sheen {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes epk-wobble {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes epk-spin { to { transform: rotate(360deg); } }
+.epk-ambient-spin { animation: epk-spin 14s linear infinite; }
+.epk-ambient-sheen {
+  background-size: 200% 100%;
+  animation: epk-sheen 6s linear infinite;
+}
+.epk-ambient-wobble { animation: epk-wobble 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .epk-ambient-spin,
+  .epk-ambient-sheen,
+  .epk-ambient-wobble { animation: none; }
+}

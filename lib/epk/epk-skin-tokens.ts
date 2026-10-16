@@ -18,6 +18,12 @@ export type EpkSkinId =
   | "whitespace"
   | "colorblock"
   | "sunburst"
+  | "vinyl"
+  | "riso"
+  | "chrome"
+
+/** Signature skins with bespoke hero, chrome, and section headers. */
+export const EPK_SIGNATURE_SKINS = ["vinyl", "riso", "chrome"] as const
 
 export interface EpkSkinTokens {
   page: string
@@ -608,6 +614,95 @@ export const EPK_SKIN_TOKENS: Record<EpkSkinId, EpkSkinTokens> = {
       "rounded-none border-2 border-[#d02d20] bg-transparent font-black uppercase text-[#d02d20] hover:bg-[#d02d20] hover:text-[#ffd85e]",
     isLightSurface: true,
   },
+  vinyl: {
+    page: "relative min-h-screen overflow-hidden bg-[#1c0d0b] text-[#f3e6d0]",
+    card: "rounded-[1.5rem] border border-[#f3e6d0]/12 bg-[#2a1411] p-5 sm:p-7",
+    cardMuted: "rounded-2xl border border-[#f3e6d0]/10 bg-[#f3e6d0]/[0.04]",
+    heading:
+      "font-serif text-2xl italic tracking-[-0.02em] text-[#f3e6d0] sm:text-3xl",
+    subheading: "text-sm leading-7 text-[#f3e6d0]/75",
+    badge:
+      "rounded-full border border-[#e0a526]/40 bg-[#e0a526]/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#f1c25b]",
+    btnPrimary:
+      "rounded-full bg-[#e0a526] px-5 font-semibold text-[#1c0d0b] hover:bg-[#f1b93a]",
+    btnGhost:
+      "rounded-full border border-[#f3e6d0]/25 bg-transparent text-[#f3e6d0] hover:bg-[#f3e6d0]/10",
+    dashed: "rounded-2xl border border-dashed border-[#f3e6d0]/20 bg-transparent",
+    accentIcon: "text-[#e0a526]",
+    oneLinerWrap:
+      "rounded-[1.5rem] border border-[#e0a526]/25 bg-[#2a1411] px-6 py-8 text-center font-serif text-xl italic leading-9 text-[#f3e6d0] sm:px-12",
+    muted: "text-[#f3e6d0]/55",
+    label: "text-[10px] uppercase tracking-[0.24em] text-[#e0a526]/80",
+    link: "text-[#f1c25b]",
+    statCell:
+      "rounded-2xl border border-[#f3e6d0]/10 bg-black/20 px-3 py-4 text-center text-[#f3e6d0]",
+    statValue: "font-serif text-2xl italic tabular-nums text-[#f1c25b] sm:text-3xl",
+    trackArtFallback:
+      "rounded-full bg-[radial-gradient(circle,#e0a526_0_18%,#140807_19%_100%)]",
+    bodyStrong: "font-semibold text-[#f3e6d0]",
+    outlineBtn:
+      "rounded-full border-[#f3e6d0]/25 bg-transparent text-[#f3e6d0] hover:bg-[#f3e6d0]/10",
+    isLightSurface: false,
+  },
+  riso: {
+    page: "relative min-h-screen overflow-hidden bg-[#f2ede4] text-[#1d3fa8]",
+    card: "rounded-none border-2 border-[#1d3fa8] bg-[#f7f3ec] p-5 sm:p-7",
+    cardMuted: "rounded-none border border-[#1d3fa8]/40 bg-[#f2ede4]",
+    heading:
+      "text-3xl font-black uppercase tracking-[-0.03em] text-[#1d3fa8] [text-shadow:3px_2px_0_#ff4fa3]",
+    subheading: "text-sm leading-7 text-[#1d3fa8]/85",
+    badge:
+      "rounded-none border-0 bg-[#ff4fa3] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#f2ede4]",
+    btnPrimary:
+      "rounded-none bg-[#1d3fa8] px-5 font-bold uppercase text-[#f2ede4] shadow-[4px_4px_0_#ff4fa3] transition-[transform,box-shadow] hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-[#1d3fa8] hover:shadow-[2px_2px_0_#ff4fa3]",
+    btnGhost:
+      "rounded-none border-2 border-[#1d3fa8] bg-transparent font-bold uppercase text-[#1d3fa8] hover:border-[#ff4fa3] hover:bg-[#ff4fa3] hover:text-[#f2ede4]",
+    dashed: "rounded-none border-2 border-dashed border-[#1d3fa8]/50 bg-transparent",
+    accentIcon: "text-[#ff4fa3]",
+    oneLinerWrap:
+      "rounded-none border-y-2 border-[#1d3fa8] bg-[#ff4fa3]/10 px-6 py-8 text-center text-xl font-bold leading-8 text-[#1d3fa8]",
+    muted: "text-[#1d3fa8]/60",
+    label: "text-[10px] font-black uppercase tracking-[0.2em] text-[#e0378a]",
+    link: "text-[#e0378a]",
+    statCell:
+      "rounded-none border-2 border-[#1d3fa8] bg-[#f7f3ec] px-3 py-4 text-center text-[#1d3fa8] shadow-[4px_4px_0_#ff4fa3]",
+    statValue: "text-2xl font-black tabular-nums text-[#1d3fa8]",
+    trackArtFallback: "rounded-none bg-[#ff4fa3]",
+    bodyStrong: "font-bold text-[#1d3fa8]",
+    outlineBtn:
+      "rounded-none border-2 border-[#1d3fa8] bg-transparent font-bold text-[#1d3fa8] hover:bg-[#1d3fa8] hover:text-[#f2ede4]",
+    isLightSurface: true,
+  },
+  chrome: {
+    page: "relative min-h-screen overflow-hidden bg-[#0b0d10] text-[#e6e9ee]",
+    card: "rounded-2xl border border-white/12 bg-[linear-gradient(180deg,#17191e,#0f1115)] p-5 sm:p-7",
+    cardMuted: "rounded-xl border border-white/10 bg-white/[0.03]",
+    heading:
+      "bg-[linear-gradient(180deg,#ffffff_0%,#9aa3ad_60%,#e6e9ee_100%)] bg-clip-text text-2xl font-semibold uppercase tracking-[0.04em] text-transparent sm:text-3xl",
+    subheading: "text-sm leading-7 text-[#aeb5bf]",
+    badge:
+      "rounded-md border border-[#3d6bff]/40 bg-[#3d6bff]/12 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#9db4ff]",
+    btnPrimary:
+      "rounded-lg bg-[#3d6bff] px-5 font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_30px_-10px_#3d6bff] hover:bg-[#5a82ff]",
+    btnGhost:
+      "rounded-lg border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] text-[#e6e9ee] hover:bg-white/10",
+    dashed: "rounded-xl border border-dashed border-white/15 bg-transparent",
+    accentIcon: "text-[#7f9cff]",
+    oneLinerWrap:
+      "rounded-2xl border border-white/10 bg-[linear-gradient(180deg,#15171c,#0d0f12)] px-6 py-8 text-center text-lg leading-8 text-[#e6e9ee] sm:px-12",
+    muted: "text-[#8b939e]",
+    label: "font-mono text-[10px] uppercase tracking-[0.22em] text-[#8b939e]",
+    link: "text-[#7f9cff]",
+    statCell:
+      "rounded-xl border border-white/10 bg-black/30 px-3 py-4 text-center text-[#e6e9ee]",
+    statValue: "font-mono text-xl tabular-nums text-white sm:text-2xl",
+    trackArtFallback:
+      "rounded-lg bg-[linear-gradient(135deg,#c9ced6,#5d646e_50%,#e6e9ee)]",
+    bodyStrong: "font-semibold text-[#e6e9ee]",
+    outlineBtn:
+      "rounded-lg border-white/20 bg-transparent text-[#e6e9ee] hover:bg-white/10",
+    isLightSurface: false,
+  },
 }
 
 /** Skins that use light page backgrounds (placeholder / cover controls). */
@@ -659,6 +754,12 @@ export function resolveEpkPreviewTemplateId(
       return "colorblock"
     case "sunburst":
       return "sunburst"
+    case "vinyl":
+      return "vinyl"
+    case "riso":
+      return "riso"
+    case "chrome":
+      return "chrome"
     case "black":
       return "minimal"
     case "neon":

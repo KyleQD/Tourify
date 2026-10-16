@@ -21,6 +21,10 @@ import type { EPKData } from "@/lib/services/epk.service"
 import {
   EPK_COLOR_SWATCHES,
   EPK_PALETTE_PRESETS,
+  EPK_MOOD_PALETTES,
+  EPK_STYLE_RECIPES,
+  EPK_MOTION_STYLES,
+  EPK_MOTION_SPEEDS,
   type EpkAppearance,
 } from "@/lib/epk/epk-appearance"
 import type { EpkSkinId } from "@/lib/epk/epk-skin-tokens"
@@ -40,6 +44,8 @@ import {
   RotateCcw,
   Columns3,
   Sparkles,
+  Wand2,
+  Waves,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -195,6 +201,8 @@ export function EpkBuilderToolbar({
     a.backgroundStyle !== "template" ||
     a.heroImageTreatment !== "natural" ||
     a.sectionDividerStyle !== "line"
+  const hasMotionOverrides =
+    a.motionStyle !== "rise" || a.motionSpeed !== "normal" || a.ambientMotion !== "on"
 
   const triggerClass = (active?: boolean) =>
     cn(epkToolButton, active && epkToolButtonActive, "gap-1.5")
@@ -392,6 +400,38 @@ export function EpkBuilderToolbar({
                               style={{ backgroundColor: hex }}
                             />
                           ))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className={cn(epkControlLabel, "mb-2 block")}>Mood palettes</Label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {EPK_MOOD_PALETTES.map((mood) => (
+                    <button
+                      key={mood.id}
+                      type="button"
+                      title={mood.name}
+                      className="group overflow-hidden rounded-xl border border-white/10 text-left transition-all hover:-translate-y-0.5 hover:border-white/30"
+                      onClick={() => setA(paletteFields(mood))}
+                    >
+                      <span
+                        className="flex h-9 items-end gap-0.5 p-1"
+                        style={{ backgroundColor: mood.pageBackgroundHex ?? "#111" }}
+                      >
+                        {[mood.accentHex, mood.secondaryAccentHex, mood.cardBackgroundHex]
+                          .filter(Boolean)
+                          .map((hex, i) => (
+                            <span
+                              key={`${mood.id}-${i}`}
+                              className="h-3 flex-1 rounded-sm"
+                              style={{ backgroundColor: hex as string }}
+                            />
+                          ))}
+                      </span>
+                      <span className="block truncate bg-black/40 px-1.5 py-1 text-[10px] font-medium text-slate-200">
+                        {mood.name}
                       </span>
                     </button>
                   ))}
@@ -868,6 +908,98 @@ export function EpkBuilderToolbar({
 
         <Popover>
           <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className={triggerClass(hasMotionOverrides)}>
+              <Waves className="h-3.5 w-3.5" />
+              Motion
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className={panelClass("w-72")} align="start">
+            <div className="space-y-3">
+              <div>
+                <Label className={epkControlLabel}>Section entrance</Label>
+                <div className={cn(epkSegmentedRow, "mt-2 grid-cols-5")}>
+                  {EPK_MOTION_STYLES.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={cn(segmentClass(a.motionStyle === k), "capitalize")}
+                      onClick={() => setA({ motionStyle: k })}
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className={epkControlLabel}>Speed</Label>
+                <div className={cn(epkSegmentedRow, "mt-2 grid-cols-3")}>
+                  {EPK_MOTION_SPEEDS.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      disabled={a.motionStyle === "none"}
+                      className={cn(segmentClass(a.motionSpeed === k), "capitalize disabled:opacity-40")}
+                      onClick={() => setA({ motionSpeed: k })}
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label className={epkControlLabel}>Ambient motion</Label>
+                <div className={cn(epkSegmentedRow, "mt-2 grid-cols-2")}>
+                  {(["on", "off"] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={cn(segmentClass(a.ambientMotion === k), "capitalize")}
+                      onClick={() => setA({ ambientMotion: k })}
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Spinning records, chrome sheen and other looping details. Visitors with reduced motion enabled always see a static page.
+                </p>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className={triggerClass()}>
+              <Wand2 className="h-3.5 w-3.5" />
+              Looks
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className={panelClass("w-80")} align="start">
+            <Label className={cn(epkControlLabel, "mb-2 block")}>One-click looks</Label>
+            <p className="mb-2 text-[10px] text-slate-500">
+              Sets cards, effects and motion. Your colors and content stay as they are.
+            </p>
+            <div className="grid gap-1.5">
+              {EPK_STYLE_RECIPES.map((recipe) => (
+                <button
+                  key={recipe.id}
+                  type="button"
+                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-left transition-all hover:border-purple-300/45 hover:bg-white/[0.07]"
+                  onClick={() => setA(recipe.patch)}
+                >
+                  <span className="block text-xs font-semibold text-white">{recipe.name}</span>
+                  <span className="mt-0.5 block text-[10px] leading-relaxed text-slate-400">
+                    {recipe.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
             <Button type="button" variant="ghost" size="sm" className={triggerClass()}>
               <Layers className="h-3.5 w-3.5" />
               Template
@@ -902,6 +1034,9 @@ export function EpkBuilderToolbar({
                 <SelectItem value="whitespace">Whitespace</SelectItem>
                 <SelectItem value="colorblock">Color Block</SelectItem>
                 <SelectItem value="sunburst">Sunburst</SelectItem>
+                <SelectItem value="vinyl">Vinyl</SelectItem>
+                <SelectItem value="riso">Riso Zine</SelectItem>
+                <SelectItem value="chrome">Chrome</SelectItem>
                 <SelectItem value="black">Black (→ minimal)</SelectItem>
                 <SelectItem value="neon">Neon (→ bold)</SelectItem>
                 <SelectItem value="sunset">Sunset (→ classic)</SelectItem>

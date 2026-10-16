@@ -34,7 +34,15 @@ export interface EpkAppearance {
   sectionSpacing: "compact" | "default" | "relaxed"
   coverHeight: "short" | "medium" | "tall"
   coverOverlay: "light" | "medium" | "heavy"
+  /** Scroll-reveal entrance for sections */
+  motionStyle: "none" | "fade" | "rise" | "zoom" | "blur"
+  motionSpeed: "slow" | "normal" | "fast"
+  /** Decorative looping motion (spinning records, chrome sheen, etc.) */
+  ambientMotion: "off" | "on"
 }
+
+export const EPK_MOTION_STYLES = ["none", "fade", "rise", "zoom", "blur"] as const
+export const EPK_MOTION_SPEEDS = ["slow", "normal", "fast"] as const
 
 export const DEFAULT_EPK_APPEARANCE: EpkAppearance = {
   fontSizeScale: "md",
@@ -63,6 +71,9 @@ export const DEFAULT_EPK_APPEARANCE: EpkAppearance = {
   sectionSpacing: "default",
   coverHeight: "medium",
   coverOverlay: "medium",
+  motionStyle: "rise",
+  motionSpeed: "normal",
+  ambientMotion: "on",
 }
 
 const HEX_RE = /^#([0-9A-Fa-f]{6})$/
@@ -188,6 +199,9 @@ export function normalizeEpkAppearance(raw: unknown, template?: string): EpkAppe
     ),
     coverHeight: pick(o.coverHeight, ["short", "medium", "tall"], base.coverHeight),
     coverOverlay: pick(o.coverOverlay, ["light", "medium", "heavy"], base.coverOverlay),
+    motionStyle: pick(o.motionStyle, EPK_MOTION_STYLES, base.motionStyle),
+    motionSpeed: pick(o.motionSpeed, EPK_MOTION_SPEEDS, base.motionSpeed),
+    ambientMotion: pick(o.ambientMotion, ["off", "on"], base.ambientMotion),
   }
 }
 
@@ -585,6 +599,30 @@ export interface ResolvedEpkAppearance {
   classicCoverHeightClass: string
   classicCoverOverlayFromClass: string
   contentMaxWidthClass: string
+  motion: ResolvedEpkMotion
+}
+
+export interface ResolvedEpkMotion {
+  style: EpkAppearance["motionStyle"]
+  durationMs: number
+  staggerMs: number
+  ambient: boolean
+}
+
+const MOTION_TIMING: Record<EpkAppearance["motionSpeed"], { durationMs: number; staggerMs: number }> = {
+  slow: { durationMs: 1100, staggerMs: 140 },
+  normal: { durationMs: 750, staggerMs: 90 },
+  fast: { durationMs: 450, staggerMs: 60 },
+}
+
+export function resolveEpkMotion(appearance: EpkAppearance): ResolvedEpkMotion {
+  const style = appearance.motionStyle ?? DEFAULT_EPK_APPEARANCE.motionStyle
+  const timing = MOTION_TIMING[appearance.motionSpeed ?? "normal"] ?? MOTION_TIMING.normal
+  return {
+    style,
+    ...timing,
+    ambient: (appearance.ambientMotion ?? "on") === "on",
+  }
 }
 
 function nonEmptyStyle(style: CSSProperties): CSSProperties {
@@ -811,6 +849,7 @@ export function resolveEpkAppearanceForRender({
     classicCoverHeightClass: COVER_HEIGHT[appearance.coverHeight],
     classicCoverOverlayFromClass: COVER_OVERLAY[appearance.coverOverlay],
     contentMaxWidthClass,
+    motion: resolveEpkMotion(appearance),
   }
 }
 
@@ -1264,4 +1303,242 @@ export const EPK_PALETTE_PRESETS: Record<EpkSkinId, EpkPalettePreset[]> = {
       borderColorHex: "#7f1d1d",
     },
   ],
+  vinyl: [
+    {
+      id: "oxblood-sleeve",
+      name: "Oxblood Sleeve",
+      accentHex: "#e0a526",
+      secondaryAccentHex: "#c25a3c",
+      pageBackgroundHex: "#1c0d0b",
+      textColorCustomHex: "#f3e6d0",
+      cardBackgroundHex: "#2a1411",
+      borderColorHex: "#4a2620",
+    },
+    {
+      id: "blue-note",
+      name: "Blue Note",
+      accentHex: "#f2b33d",
+      secondaryAccentHex: "#7fa7d9",
+      pageBackgroundHex: "#0e1a2b",
+      textColorCustomHex: "#eef1f5",
+      cardBackgroundHex: "#16253a",
+      borderColorHex: "#2b4060",
+    },
+  ],
+  riso: [
+    {
+      id: "fluoro-blue",
+      name: "Fluoro + Federal Blue",
+      accentHex: "#ff4fa3",
+      secondaryAccentHex: "#1d3fa8",
+      pageBackgroundHex: "#f2ede4",
+      textColorCustomHex: "#1d3fa8",
+      cardBackgroundHex: "#f7f3ec",
+      borderColorHex: "#1d3fa8",
+    },
+    {
+      id: "teal-orange",
+      name: "Teal + Orange",
+      accentHex: "#ff6c2f",
+      secondaryAccentHex: "#00838a",
+      pageBackgroundHex: "#efeae0",
+      textColorCustomHex: "#00646a",
+      cardBackgroundHex: "#f6f2ea",
+      borderColorHex: "#00646a",
+    },
+  ],
+  chrome: [
+    {
+      id: "cobalt-chrome",
+      name: "Cobalt Chrome",
+      accentHex: "#3d6bff",
+      secondaryAccentHex: "#c9ced6",
+      pageBackgroundHex: "#0b0d10",
+      textColorCustomHex: "#e6e9ee",
+      cardBackgroundHex: "#14161b",
+      borderColorHex: "#2a2e36",
+    },
+    {
+      id: "ember-alloy",
+      name: "Ember Alloy",
+      accentHex: "#ff5a36",
+      secondaryAccentHex: "#d9dde3",
+      pageBackgroundHex: "#0d0b0a",
+      textColorCustomHex: "#ece8e4",
+      cardBackgroundHex: "#171412",
+      borderColorHex: "#322a26",
+    },
+  ],
 }
+
+/** Template-agnostic palettes that pair with any layout. */
+export const EPK_MOOD_PALETTES: EpkPalettePreset[] = [
+  {
+    id: "midnight-brass",
+    name: "Midnight Brass",
+    accentHex: "#d4a24c",
+    secondaryAccentHex: "#6d8fbf",
+    pageBackgroundHex: "#0d1117",
+    textColorCustomHex: "#ece6da",
+    cardBackgroundHex: "#161b24",
+    borderColorHex: "#2a3240",
+  },
+  {
+    id: "forest-session",
+    name: "Forest Session",
+    accentHex: "#e9b872",
+    secondaryAccentHex: "#7fb69e",
+    pageBackgroundHex: "#0f1f19",
+    textColorCustomHex: "#e8efe6",
+    cardBackgroundHex: "#16291f",
+    borderColorHex: "#2b4436",
+  },
+  {
+    id: "glacier",
+    name: "Glacier",
+    accentHex: "#2563eb",
+    secondaryAccentHex: "#0e7490",
+    pageBackgroundHex: "#f1f5f9",
+    textColorCustomHex: "#0f172a",
+    cardBackgroundHex: "#ffffff",
+    borderColorHex: "#cbd5e1",
+  },
+  {
+    id: "tangerine",
+    name: "Tangerine",
+    accentHex: "#ff6b35",
+    secondaryAccentHex: "#2b2d42",
+    pageBackgroundHex: "#fff4e8",
+    textColorCustomHex: "#2b2d42",
+    cardBackgroundHex: "#ffffff",
+    borderColorHex: "#f4c7a6",
+  },
+  {
+    id: "rose-quartz",
+    name: "Rose Quartz",
+    accentHex: "#c2416b",
+    secondaryAccentHex: "#6b4f3f",
+    pageBackgroundHex: "#f8ece9",
+    textColorCustomHex: "#3a2329",
+    cardBackgroundHex: "#fffaf8",
+    borderColorHex: "#e6c6c0",
+  },
+  {
+    id: "ink-signal",
+    name: "Ink Signal",
+    accentHex: "#ff3d2e",
+    secondaryAccentHex: "#f5f5f0",
+    pageBackgroundHex: "#111111",
+    textColorCustomHex: "#f5f5f0",
+    cardBackgroundHex: "#1b1b1b",
+    borderColorHex: "#333333",
+  },
+]
+
+export interface EpkStyleRecipe {
+  id: string
+  name: string
+  description: string
+  patch: Partial<EpkAppearance>
+}
+
+/** One-click "looks" that set structure, effects and motion without touching colors. */
+export const EPK_STYLE_RECIPES: EpkStyleRecipe[] = [
+  {
+    id: "festival-night",
+    name: "Festival Night",
+    description: "Glowing mesh light, glass cards, zoom-in reveals.",
+    patch: {
+      effectStyle: "glow",
+      effectIntensity: "medium",
+      backgroundStyle: "mesh",
+      surfaceStyle: "glass",
+      buttonStyle: "neon",
+      heroImageTreatment: "cinematic",
+      sectionDividerStyle: "glow",
+      cardRadius: "rounded",
+      motionStyle: "zoom",
+      motionSpeed: "normal",
+      ambientMotion: "on",
+    },
+  },
+  {
+    id: "press-clean",
+    name: "Press Clean",
+    description: "Sharp outlines, quiet fades, generous spacing.",
+    patch: {
+      effectStyle: "none",
+      backgroundStyle: "template",
+      surfaceStyle: "outlined",
+      buttonStyle: "outline",
+      cardRadius: "sharp",
+      buttonRadius: "sharp",
+      heroImageTreatment: "natural",
+      sectionDividerStyle: "line",
+      sectionSpacing: "relaxed",
+      motionStyle: "fade",
+      motionSpeed: "fast",
+      ambientMotion: "off",
+    },
+  },
+  {
+    id: "underground",
+    name: "Underground",
+    description: "Film grain, duotone photos, ticker dividers.",
+    patch: {
+      effectStyle: "grain",
+      effectIntensity: "high",
+      backgroundStyle: "spotlight",
+      surfaceStyle: "solid",
+      buttonStyle: "solid",
+      cardRadius: "sharp",
+      heroImageTreatment: "duotone",
+      sectionDividerStyle: "ticker",
+      motionStyle: "rise",
+      motionSpeed: "slow",
+      ambientMotion: "on",
+    },
+  },
+  {
+    id: "soft-focus",
+    name: "Soft Focus",
+    description: "Pill shapes, soft imagery, dreamy blur-in.",
+    patch: {
+      effectStyle: "shadow",
+      backgroundStyle: "radial",
+      surfaceStyle: "editorial",
+      buttonStyle: "solid",
+      cardRadius: "pill",
+      buttonRadius: "pill",
+      avatarShape: "circle",
+      heroImageTreatment: "soft",
+      sectionDividerStyle: "none",
+      sectionSpacing: "relaxed",
+      motionStyle: "blur",
+      motionSpeed: "slow",
+      ambientMotion: "on",
+    },
+  },
+  {
+    id: "poster-punch",
+    name: "Poster Punch",
+    description: "Loud contrast, posterized photos, tight rhythm.",
+    patch: {
+      effectStyle: "poster",
+      effectIntensity: "medium",
+      backgroundStyle: "template",
+      surfaceStyle: "solid",
+      buttonStyle: "solid",
+      cardRadius: "sharp",
+      buttonRadius: "sharp",
+      borderStrength: "strong",
+      heroImageTreatment: "posterized",
+      sectionDividerStyle: "accent",
+      sectionSpacing: "compact",
+      headingScale: "xl",
+      motionStyle: "zoom",
+      motionSpeed: "fast",
+      ambientMotion: "on",
+    },
+  },
+]

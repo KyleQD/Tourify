@@ -43,7 +43,12 @@ import {
   Ticket,
   Users,
 } from "lucide-react"
-import { type EpkSkinId, type EpkSkinTokens } from "@/lib/epk/epk-skin-tokens"
+import {
+  EPK_SIGNATURE_SKINS,
+  type EpkSkinId,
+  type EpkSkinTokens,
+} from "@/lib/epk/epk-skin-tokens"
+import { EpkReveal } from "@/components/epk/epk-reveal"
 import {
   getDefaultEpkAppearance,
   resolveEpkAppearanceForRender,
@@ -86,6 +91,7 @@ export interface EpkSectionRenderCtx {
   setHoveredTrack: (id: string | null) => void
   trackingEnabled: boolean
   trackInteraction: (eventType: string, metadata?: Record<string, unknown>) => void
+  motion: ResolvedEpkAppearance["motion"]
   /** When provided, simple text fields become inline-editable in builder mode. */
   editableField?: (
     field: string,
@@ -164,6 +170,7 @@ export function createEpkRenderCtx(
     avatarShapeClass: resolved.avatarShapeClass,
     classicCoverHeightClass: resolved.classicCoverHeightClass,
     classicCoverOverlayFromClass: resolved.classicCoverOverlayFromClass,
+    motion: resolved.motion,
     accent,
     ph,
     empty,
@@ -722,6 +729,240 @@ function renderReferenceHero(ctx: EpkSectionRenderCtx): React.ReactNode | null {
   )
 }
 
+function isSignatureEpkSkin(skin: EpkSkinId) {
+  return (EPK_SIGNATURE_SKINS as readonly EpkSkinId[]).includes(skin)
+}
+
+function renderSignatureHero(ctx: EpkSectionRenderCtx): React.ReactNode | null {
+  const { data, skin, t, c, s, ph, initial, editableField, heroGapClass, motion } = ctx
+  if (!isSignatureEpkSkin(skin)) return null
+
+  const eName = heroNameNode(ctx)
+  const eGenre =
+    editableField?.("genre", data.genre, "Genre") ?? ph(data.genre, "Genre")
+  const eLocation =
+    editableField?.("location", data.location, "City, region") ??
+    ph(data.location, "City, region")
+  const statGrid = renderStatGrid(ctx)
+  const imageUrl = data.avatarUrl || data.coverUrl
+  const imageAlt = data.artistName
+    ? `${data.artistName} press image`
+    : "Artist press image"
+  const ambient = motion.ambient
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <Button size="sm" className={t.btnPrimary} style={s.buttonPrimary}>
+        <Mail className="mr-2 h-4 w-4" />
+        Book / Contact
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className={t.btnGhost}
+        style={s.buttonGhost}
+      >
+        <Share2 className="mr-2 h-4 w-4" />
+        Share
+      </Button>
+    </div>
+  )
+  const location = (
+    <span
+      className={cn("inline-flex items-center gap-1.5 text-sm", t.muted)}
+      style={s.muted}
+    >
+      <MapPin className="h-4 w-4" aria-hidden="true" />
+      {eLocation}
+    </span>
+  )
+
+  if (skin === "vinyl") {
+    return (
+      <header className={cn("relative", heroGapClass)} style={s.heroShell}>
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+          <div className="relative mx-auto w-full max-w-md pr-[18%] sm:pr-[22%]">
+            <div
+              aria-hidden="true"
+              className={cn(
+                "absolute right-0 top-1/2 aspect-square w-[82%] -translate-y-1/2 rounded-full shadow-[0_30px_60px_rgba(0,0,0,0.55)]",
+                ambient && "epk-ambient-spin",
+              )}
+              style={{
+                background:
+                  "repeating-radial-gradient(circle, #111 0 2px, #1d1d1d 2px 4px)",
+              }}
+            >
+              <div
+                className={cn(
+                  "absolute inset-[34%] flex items-center justify-center rounded-full bg-[#e0a526] text-xs font-bold uppercase tracking-[0.2em] text-[#1c0d0b]",
+                  c.accentBg,
+                )}
+                style={s.decorativeAccent}
+              >
+                <span className="font-serif text-2xl italic normal-case tracking-normal">
+                  {initial}
+                </span>
+              </div>
+              <div className="absolute inset-[48%] rounded-full bg-[#1c0d0b]" />
+            </div>
+            <div className="relative aspect-square overflow-hidden rounded-md border border-[#f3e6d0]/15 bg-[#2a1411] shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={imageAlt}
+                  className={cn("h-full w-full object-cover", c.heroImage)}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#3a1a15,#1c0d0b)]">
+                  <Disc3 className="h-20 w-20 text-[#e0a526]/60" aria-hidden="true" />
+                </div>
+              )}
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.12),transparent_40%)]" />
+            </div>
+          </div>
+          <div className="space-y-6">
+            <p className={t.label} style={s.label}>
+              Side A &middot; Electronic Press Kit
+            </p>
+            <h1
+              className="text-balance font-serif text-5xl italic leading-[0.95] tracking-[-0.03em] text-[#f3e6d0] sm:text-7xl"
+              style={s.heading}
+            >
+              {eName}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className={t.badge} style={s.badge}>
+                {eGenre}
+              </Badge>
+              {location}
+            </div>
+            <div
+              className={cn("h-px w-full bg-[#f3e6d0]/15", c.accentDivider)}
+              style={s.divider}
+            />
+            {statGrid}
+            {actions}
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (skin === "riso") {
+    return (
+      <header className={cn("relative", heroGapClass)} style={s.heroShell}>
+        <div className="relative border-2 border-[#1d3fa8] bg-[#f7f3ec]">
+          <div className="flex items-center justify-between border-b-2 border-[#1d3fa8] px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-[#1d3fa8]">
+            <span>Press Kit</span>
+            <span aria-hidden="true">{"\u2022 \u2022 \u2022"}</span>
+            <span>Vol. {new Date().getFullYear()}</span>
+          </div>
+          <div className="grid lg:grid-cols-[1.1fr_1fr]">
+            <div className="flex flex-col justify-between gap-8 p-6 sm:p-10">
+              <h1
+                className="text-balance break-words text-6xl font-black uppercase leading-[0.85] tracking-[-0.05em] text-[#1d3fa8] [text-shadow:5px_4px_0_#ff4fa3] sm:text-8xl"
+                style={s.heading}
+              >
+                {eName}
+              </h1>
+              <div className="space-y-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge className={t.badge} style={s.badge}>
+                    {eGenre}
+                  </Badge>
+                  {location}
+                </div>
+                {statGrid}
+                {actions}
+              </div>
+            </div>
+            <div className="relative min-h-[22rem] overflow-hidden border-t-2 border-[#1d3fa8] bg-[#ff4fa3] lg:border-l-2 lg:border-t-0">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={imageAlt}
+                  className={cn(
+                    "absolute inset-0 h-full w-full object-cover mix-blend-multiply grayscale contrast-125",
+                    c.heroImage,
+                  )}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-[10rem] font-black text-[#1d3fa8]/70">
+                  {initial}
+                </div>
+              )}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-40 mix-blend-multiply"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle, #1d3fa8 1.2px, transparent 1.4px)",
+                  backgroundSize: "7px 7px",
+                }}
+              />
+              <div
+                className={cn(
+                  "absolute bottom-5 right-5 flex h-24 w-24 items-center justify-center rounded-full bg-[#f2ede4] text-center text-[10px] font-black uppercase leading-tight tracking-[0.12em] text-[#1d3fa8] shadow-[3px_3px_0_#1d3fa8]",
+                  ambient && "epk-ambient-wobble",
+                )}
+              >
+                Now
+                <br />
+                Booking
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  return (
+    <header className={cn("relative text-center", heroGapClass)} style={s.heroShell}>
+      <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.3em] text-[#8b939e]">
+        <span>EPK</span>
+        <span className="hidden sm:inline">Official press materials</span>
+        <span>{new Date().getFullYear()}</span>
+      </div>
+      <div className="mt-4 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)]" />
+      <div className="mx-auto mt-10 flex max-w-3xl flex-col items-center gap-7">
+        <div className="rounded-[2rem] bg-[linear-gradient(145deg,#f4f6f9,#5f6670_45%,#d9dde3_70%,#3a3f47)] p-[3px] shadow-[0_30px_80px_-20px_rgba(61,107,255,0.45)]">
+          <div className="h-40 w-40 overflow-hidden rounded-[1.85rem] bg-[#0b0d10] sm:h-48 sm:w-48">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={imageAlt}
+                className={cn("h-full w-full object-cover", c.heroImage)}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-6xl font-semibold text-[#c9ced6]">
+                {initial}
+              </div>
+            )}
+          </div>
+        </div>
+        <h1
+          className={cn(
+            "text-balance bg-[linear-gradient(100deg,#8b939e_0%,#ffffff_25%,#9aa3ad_50%,#ffffff_75%,#8b939e_100%)] bg-clip-text text-5xl font-semibold uppercase leading-[0.9] tracking-[-0.02em] text-transparent sm:text-7xl lg:text-8xl",
+            ambient && "epk-ambient-sheen",
+          )}
+          style={s.heading}
+        >
+          {eName}
+        </h1>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Badge className={t.badge} style={s.badge}>
+            {eGenre}
+          </Badge>
+          {location}
+        </div>
+        <div className="w-full">{statGrid}</div>
+        <div className="flex justify-center">{actions}</div>
+      </div>
+    </header>
+  )
+}
+
 function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
   const {
     data,
@@ -754,6 +995,9 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
   const accentBg = c.accentBg
   const customText = c.text
   const customSubtext = c.subtext
+  const signatureHero = renderSignatureHero(ctx)
+  if (signatureHero) return signatureHero
+
   const referenceHero = renderReferenceHero(ctx)
 
   if (referenceHero) return referenceHero
@@ -1715,6 +1959,11 @@ function sectionCardClass(ctx: EpkSectionRenderCtx, sectionId: string) {
     skin === "whitespace" && "shadow-none",
     skin === "colorblock" && "shadow-none",
     skin === "sunburst" && "shadow-none",
+    skin === "vinyl" &&
+      "overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.45)]",
+    skin === "riso" && "shadow-[6px_6px_0_#ff4fa3]",
+    skin === "chrome" &&
+      "overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_30px_70px_-30px_rgba(0,0,0,0.8)]",
     sectionId === "media" &&
       (skin === "gallery" || skin === "modern") &&
       "sm:p-8",
@@ -1753,6 +2002,12 @@ function sectionItemClass(ctx: EpkSectionRenderCtx, index = 0) {
     skin === "whitespace" && "hover:border-black/25",
     skin === "colorblock" && "hover:bg-white/[0.12]",
     skin === "sunburst" && "hover:-translate-y-0.5 hover:bg-[#f9d869]",
+    skin === "vinyl" &&
+      "hover:-translate-y-0.5 hover:border-[#e0a526]/45 hover:bg-[#341915]",
+    skin === "riso" &&
+      "hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_#1d3fa8]",
+    skin === "chrome" &&
+      "hover:border-white/25 hover:bg-white/[0.05] hover:shadow-[0_0_30px_-12px_var(--epk-accent,#3d6bff)]",
   )
 }
 
@@ -1908,6 +2163,69 @@ function renderSectionHeader(
     )
   }
 
+  if (skin === "vinyl") {
+    return (
+      <div className="mb-6 flex items-center gap-4">
+        <span
+          aria-hidden="true"
+          className="h-7 w-7 shrink-0 rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, var(--epk-accent,#e0a526) 0 22%, #111 23% 100%)",
+          }}
+        />
+        <h2 className={t.heading} style={s.heading}>
+          {title}
+        </h2>
+        <div
+          className={cn("h-px flex-1 bg-[#f3e6d0]/12", c.accentDivider)}
+          style={s.divider}
+        />
+      </div>
+    )
+  }
+
+  if (skin === "riso") {
+    return (
+      <div className="mb-6 flex items-center justify-between gap-3 border-b-2 border-[#1d3fa8] pb-3">
+        <h2 className={t.heading} style={s.heading}>
+          {title}
+        </h2>
+        <span
+          className={cn(
+            "flex h-9 w-9 items-center justify-center bg-[#ff4fa3] text-[#f2ede4] [&>svg]:h-4 [&>svg]:w-4",
+            c.accentBg,
+          )}
+          style={s.decorativeAccent}
+        >
+          {icon}
+        </span>
+      </div>
+    )
+  }
+
+  if (skin === "chrome") {
+    return (
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          <span className={cn("[&>svg]:h-4 [&>svg]:w-4", t.accentIcon)} style={s.accentText}>
+            {icon}
+          </span>
+          <h2 className={t.heading} style={s.heading}>
+            {title}
+          </h2>
+        </div>
+        <div
+          className={cn(
+            "mt-4 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0.4),rgba(255,255,255,0.04))]",
+            c.accentDivider,
+          )}
+          style={s.divider}
+        />
+      </div>
+    )
+  }
+
   if (isReferenceEpkSkin(skin)) {
     const treatments: Record<
       EpkSkinId,
@@ -1971,6 +2289,21 @@ function renderSectionHeader(
         wrap: "border-b-2 border-[#d02d20] pb-4",
         title: "text-3xl font-black text-[#d02d20]",
         icon: "rounded-none bg-[#d02d20] text-[#ffd85e]",
+      },
+      vinyl: {
+        wrap: "border-b border-[#e8a33d]/30 pb-4",
+        title: "text-3xl font-bold text-[#f4ead8]",
+        icon: "rounded-full bg-[#e8a33d] text-[#16110d]",
+      },
+      riso: {
+        wrap: "border-b-2 border-dashed border-[#ff48b0] pb-4",
+        title: "text-3xl font-black uppercase text-[#1b3cff]",
+        icon: "rounded-none bg-[#ff48b0] text-[#f6f1e4]",
+      },
+      chrome: {
+        wrap: "border-b border-white/20 pb-4",
+        title: "text-3xl font-semibold tracking-tight text-[#e8edf5]",
+        icon: "rounded-full bg-[#c7d2e2] text-[#0b0e14]",
       },
     }
     const treatment = treatments[skin]
@@ -3182,6 +3515,41 @@ function EpkPageChrome({
     )
   }
 
+  if (skin === "vinyl") {
+    return (
+      <>
+        {effectOverlay}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(224,165,38,0.14),transparent_60%)]" />
+      </>
+    )
+  }
+
+  if (skin === "riso") {
+    return (
+      <>
+        {effectOverlay}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle, #1d3fa8 1px, transparent 1.2px)",
+            backgroundSize: "9px 9px",
+          }}
+        />
+      </>
+    )
+  }
+
+  if (skin === "chrome") {
+    return (
+      <>
+        {effectOverlay}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(ellipse_at_top,color-mix(in_srgb,var(--epk-accent,#3d6bff)_22%,transparent),transparent_65%)]" />
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[linear-gradient(transparent,rgba(255,255,255,0.06),transparent)]" />
+      </>
+    )
+  }
+
   if (isReferenceEpkSkin(skin)) {
     const common = <>{effectOverlay}</>
     if (skin === "scrapbook")
@@ -3340,7 +3708,9 @@ function EpkSectionStack({
     skin === "cinema" ||
     skin === "luxe" ||
     skin === "poster" ||
-    isReferenceEpkSkin(skin)
+    isReferenceEpkSkin(skin) ||
+    isSignatureEpkSkin(skin)
+  let revealIndex = 0
 
   return (
     <div
@@ -3367,9 +3737,9 @@ function EpkSectionStack({
         {layout.sectionOrder.map((sectionId) => {
           if (!isSectionVisible(sectionId, layout)) return null
           return (
-            <React.Fragment key={sectionId}>
+            <EpkReveal key={sectionId} motion={ctx.motion} index={revealIndex++}>
               {renderEpkSection(sectionId, ctx)}
-            </React.Fragment>
+            </EpkReveal>
           )
         })}
         <EpkCreatedWithFooter t={t} />
@@ -3454,4 +3824,16 @@ export function ColorBlockEpkTemplate(props: EpkTemplateProps) {
 
 export function SunburstEpkTemplate(props: EpkTemplateProps) {
   return <EpkSectionStack {...props} skin="sunburst" />
+}
+
+export function VinylEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="vinyl" />
+}
+
+export function RisoEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="riso" />
+}
+
+export function ChromeEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="chrome" />
 }
