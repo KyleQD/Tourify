@@ -88,6 +88,7 @@ export function normalizeEpkLayout(layout: EPKData["layout"] | undefined): EPKDa
     preset: base.preset ?? "booker",
     sectionOrder: order,
     sectionVisibility: mergedVis,
+    ...(base.sectionStyles ? { sectionStyles: base.sectionStyles } : {}),
   }
 }
 

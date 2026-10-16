@@ -1,51 +1,46 @@
 "use client"
 
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-  type DragStartEvent,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable"
-import { Button } from "@/components/ui/button"
-import { Save, Share2, X, Loader2, Pencil } from "lucide-react"
+  ArrowLeft,
+  Blocks,
+  Layers,
+  LayoutTemplate,
+  Loader2,
+  PanelLeft,
+  Palette,
+  Redo2,
+  Save,
+  Share2,
+  Undo2,
+  X,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { EPKData } from "@/lib/services/epk.service"
-import { isSectionVisible, normalizeEpkLayout, EPK_SECTION_EDITOR_TAB } from "@/lib/epk/epk-preview-utils"
+import { EPK_SECTION_LABELS, isSectionVisible, normalizeEpkLayout } from "@/lib/epk/epk-preview-utils"
 import {
   getDefaultEpkAppearance,
   getDefaultEpkAppearanceForTemplate,
   resolveEpkAppearanceForRender,
-  type EpkAppearance,
 } from "@/lib/epk/epk-appearance"
-import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
+import { resolveEpkPreviewTemplateId, type EpkSkinId } from "@/lib/epk/epk-skin-tokens"
+import { isEpkSectionStyleEmpty, type EpkSectionStyle } from "@/lib/epk/epk-section-styles"
 import { epkFontClass } from "@/components/epk/epk-preview-fonts"
 import {
-  createEpkRenderCtx,
-  renderEpkSection,
   EpkPageChrome,
   contentMaxWidth,
+  createEpkRenderCtx,
+  renderStyledEpkSection,
+  resolveSectionMotion,
 } from "@/components/epk/epk-template-variants"
-import { SortableEpkSection, SortableEpkSectionOverlay } from "@/components/epk/sortable-epk-section"
-import { EpkHiddenSectionsPanel } from "@/components/epk/epk-hidden-sections-panel"
-import { EpkBuilderToolbar } from "@/components/epk/epk-builder-toolbar"
-import { epkGlassPanel, epkIconButton, epkStatusPill } from "@/components/epk/epk-ui-styles"
+import { EpkReveal } from "@/components/epk/epk-reveal"
+import { LayersPanel } from "@/components/epk/studio/studio-layers"
+import { ElementLibrary, TemplateLibrary } from "@/components/epk/studio/studio-library"
+import { ElementInspector, PageInspector } from "@/components/epk/studio/studio-inspector"
+import { skinName } from "@/components/epk/studio/studio-ui"
 
-interface StyleSnapshot {
-  appearance: EpkAppearance
-  template: string
-  epkFont: EPKData["epkFont"]
-}
+type DesignSnapshot = Pick<EPKData, "epkAppearance" | "template" | "epkFont" | "layout">
+type LeftTab = "layers" | "templates" | "elements"
 
 interface EpkBuilderViewProps {
   epkData: EPKData
@@ -53,7 +48,8 @@ interface EpkBuilderViewProps {
   onSave: () => void | Promise<void>
   onShare: () => void
   onExitPreview: () => void
-  onNavigateToTab: (tab: string) => void
+  /** Kept for compatibility; all editing now happens inside the studio. */
+  onNavigateToTab?: (tab: string) => void
   isSaving: boolean
   savedPublicUrl?: string | null
   hasSavedEpk?: boolean
@@ -61,122 +57,11 @@ interface EpkBuilderViewProps {
   isPublished?: boolean
 }
 
-const INLINE_EDITABLE_SECTIONS = new Set(["hero", "one-liner", "bio", "contact"])
-
-function InlineEditableField({
-  value,
-  placeholder,
-  multiline,
-  className,
-  onCommit,
-}: {
-  value: string
-  placeholder: string
-  multiline?: boolean
-  className?: string
-  onCommit: (newValue: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-  const ref = useRef<HTMLTextAreaElement | HTMLInputElement>(null)
-
-  useEffect(() => { setDraft(value) }, [value])
-
-  useEffect(() => {
-    if (editing && ref.current) {
-      ref.current.focus()
-      if (ref.current instanceof HTMLInputElement) ref.current.select()
-    }
-  }, [editing])
-
-  if (!editing) {
-    return (
-      <span
-        role="button"
-        tabIndex={0}
-        className={cn("cursor-text rounded px-1 transition-colors hover:ring-1 hover:ring-purple-500/40", className)}
-        onClick={() => setEditing(true)}
-        onKeyDown={(e) => { if (e.key === "Enter") setEditing(true) }}
-      >
-        {value?.trim() || <span className="italic opacity-50">{placeholder}</span>}
-      </span>
-    )
-  }
-
-  const commit = () => {
-    setEditing(false)
-    if (draft !== value) onCommit(draft)
-  }
-
-  if (multiline) {
-    return (
-      <textarea
-        ref={ref as React.RefObject<HTMLTextAreaElement>}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === "Escape") { setDraft(value); setEditing(false) } }}
-        placeholder={placeholder}
-        rows={4}
-        className={cn("w-full resize-none rounded-lg border border-purple-500/40 bg-black/30 px-3 py-2 text-inherit outline-none backdrop-blur-sm", className)}
-      />
-    )
-  }
-
-  return (
-    <input
-      ref={ref as React.RefObject<HTMLInputElement>}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") { setDraft(value); setEditing(false) }
-        if (e.key === "Enter") commit()
-      }}
-      placeholder={placeholder}
-      className={cn("w-full rounded-lg border border-purple-500/40 bg-black/30 px-3 py-1 text-inherit outline-none backdrop-blur-sm", className)}
-    />
-  )
-}
-
-function applyFieldUpdate(
-  epkData: EPKData,
-  fieldPath: string,
-  value: string
-): Partial<EPKData> {
-  if (fieldPath.startsWith("contact.")) {
-    const key = fieldPath.replace("contact.", "") as keyof EPKData["contact"]
-    return { contact: { ...epkData.contact, [key]: value } }
-  }
-  if (fieldPath.startsWith("bookingAssets.")) {
-    const key = fieldPath.replace("bookingAssets.", "") as keyof EPKData["bookingAssets"]
-    return { bookingAssets: { ...epkData.bookingAssets, [key]: value } }
-  }
-  return { [fieldPath]: value }
-}
-
-function SectionEditOverlay({
-  sectionId,
-  onNavigateToTab,
-}: {
-  sectionId: string
-  onNavigateToTab: (tab: string) => void
-}) {
-  const tab = EPK_SECTION_EDITOR_TAB[sectionId]
-  if (!tab) return null
-  return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity group-hover/section:opacity-100">
-      <Button
-        size="sm"
-        className="rounded-xl border border-purple-500/40 bg-[#1a1d28]/90 text-purple-300 shadow-lg backdrop-blur-sm hover:bg-purple-500/20 hover:text-white"
-        onClick={() => onNavigateToTab(tab)}
-      >
-        <Pencil className="mr-1.5 h-3.5 w-3.5" />
-        Edit in {tab.charAt(0).toUpperCase() + tab.slice(1)} tab
-      </Button>
-    </div>
-  )
-}
+const LEFT_TABS: { id: LeftTab; label: string; icon: typeof Layers }[] = [
+  { id: "layers", label: "Layers", icon: Layers },
+  { id: "templates", label: "Templates", icon: LayoutTemplate },
+  { id: "elements", label: "Elements", icon: Blocks },
+]
 
 export function EpkBuilderView({
   epkData,
@@ -184,38 +69,161 @@ export function EpkBuilderView({
   onSave,
   onShare,
   onExitPreview,
-  onNavigateToTab,
   isSaving,
-  savedPublicUrl,
   hasSavedEpk = false,
   isDirty = false,
   isPublished = false,
 }: EpkBuilderViewProps) {
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const [leftTab, setLeftTab] = useState<LeftTab>("layers")
+  const [mobilePanel, setMobilePanel] = useState<"left" | "right" | null>(null)
   const [hoveredTrack, setHoveredTrack] = useState<string | null>(null)
-  const [canUndoStyle, setCanUndoStyle] = useState(false)
-  const stylePastRef = useRef<StyleSnapshot[]>([])
+  const pastRef = useRef<DesignSnapshot[]>([])
+  const futureRef = useRef<DesignSnapshot[]>([])
+  const [, forceHistory] = useState(0)
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const layout = normalizeEpkLayout(epkData.layout)
+  const sectionStyles = layout.sectionStyles ?? {}
   const skin = resolveEpkPreviewTemplateId(epkData.template)
-  const fontClass = epkFontClass(epkData.epkFont ?? "sans")
   const appearance = epkData.epkAppearance ?? getDefaultEpkAppearance(epkData.template)
-  const resolved = useMemo(
-    () =>
-      resolveEpkAppearanceForRender({
-        skin,
-        appearance,
-      }),
-    [skin, appearance]
+  const resolved = useMemo(() => resolveEpkAppearanceForRender({ skin, appearance }), [skin, appearance])
+  const data = useMemo(() => ({ ...epkData, epkAppearance: appearance }), [epkData, appearance])
+  const ctx = createEpkRenderCtx(data, skin, true, hoveredTrack, setHoveredTrack, undefined, resolved)
+
+  const visible = layout.sectionOrder.filter((id) => isSectionVisible(id, layout))
+  const hidden = Object.keys(EPK_SECTION_LABELS).filter((id) => !visible.includes(id))
+
+  /* ---------- history ---------- */
+  const snapshot = useCallback(
+    (): DesignSnapshot => ({
+      epkAppearance: epkData.epkAppearance ?? getDefaultEpkAppearance(epkData.template),
+      template: epkData.template,
+      epkFont: epkData.epkFont,
+      layout: normalizeEpkLayout(epkData.layout),
+    }),
+    [epkData.epkAppearance, epkData.template, epkData.epkFont, epkData.layout],
   )
 
-  const visibleSections = layout.sectionOrder.filter((id) =>
-    isSectionVisible(id, layout)
+  const commit = useCallback(
+    (patch: Partial<EPKData>) => {
+      pastRef.current.push(snapshot())
+      if (pastRef.current.length > 40) pastRef.current.shift()
+      futureRef.current = []
+      forceHistory((n) => n + 1)
+      updateEPKData(patch)
+    },
+    [snapshot, updateEPKData],
   )
-  const publicUrl = savedPublicUrl || (hasSavedEpk && epkData.epkSlug ? `/epk/${epkData.epkSlug}` : null)
-  const urlLabel = publicUrl || "Save to create URL"
-  const savedStateLabel = isSaving
-    ? "Saving"
+
+  const undo = useCallback(() => {
+    const prev = pastRef.current.pop()
+    if (!prev) return
+    futureRef.current.push(snapshot())
+    forceHistory((n) => n + 1)
+    updateEPKData(prev)
+  }, [snapshot, updateEPKData])
+
+  const redo = useCallback(() => {
+    const next = futureRef.current.pop()
+    if (!next) return
+    pastRef.current.push(snapshot())
+    forceHistory((n) => n + 1)
+    updateEPKData(next)
+  }, [snapshot, updateEPKData])
+
+  /* ---------- design actions ---------- */
+  const setStyle = useCallback(
+    (patch: Partial<Pick<EPKData, "epkAppearance" | "epkFont" | "template">>) => {
+      if (patch.template && patch.template !== epkData.template && !patch.epkAppearance) {
+        commit({ ...patch, epkAppearance: getDefaultEpkAppearanceForTemplate(patch.template) })
+      } else {
+        commit(patch)
+      }
+    },
+    [commit, epkData.template],
+  )
+
+  const setLayout = useCallback(
+    (next: Partial<EPKData["layout"]>) => commit({ layout: { ...layout, ...next } }),
+    [commit, layout],
+  )
+
+  const setSectionStyle = useCallback(
+    (id: string, style: EpkSectionStyle) => {
+      const next = { ...sectionStyles }
+      if (isEpkSectionStyleEmpty(style)) delete next[id]
+      else next[id] = style
+      setLayout({ sectionStyles: next })
+    },
+    [sectionStyles, setLayout],
+  )
+
+  const setVisible = useCallback(
+    (id: string, show: boolean) => {
+      setLayout({
+        sectionOrder: layout.sectionOrder.includes(id) ? layout.sectionOrder : [...layout.sectionOrder, id],
+        sectionVisibility: { ...layout.sectionVisibility, [id]: show },
+      })
+      if (!show && selected === id) setSelected(null)
+      if (show) setSelected(id)
+    },
+    [layout, selected, setLayout],
+  )
+
+  const reorderVisible = useCallback(
+    (nextVisible: string[]) => {
+      const hiddenIds = layout.sectionOrder.filter((id) => !nextVisible.includes(id))
+      setLayout({ sectionOrder: [...nextVisible, ...hiddenIds] })
+    },
+    [layout.sectionOrder, setLayout],
+  )
+
+  const moveSelected = useCallback(
+    (dir: -1 | 1) => {
+      if (!selected) return
+      const i = visible.indexOf(selected)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= visible.length) return
+      const next = [...visible]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      reorderVisible(next)
+    },
+    [reorderVisible, selected, visible],
+  )
+
+  const select = useCallback((id: string | null) => {
+    setSelected(id)
+    if (id) {
+      setMobilePanel("right")
+      requestAnimationFrame(() =>
+        sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+      )
+    }
+  }, [])
+
+  /* ---------- keyboard ---------- */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      const typing = target.closest("input, textarea, select, [contenteditable='true']")
+      if (e.key === "Escape" && !typing) setSelected(null)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !typing) {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        void onSave()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onSave, redo, undo])
+
+  const statusLabel = isSaving
+    ? "Saving…"
     : isDirty
       ? "Unsaved changes"
       : hasSavedEpk
@@ -223,300 +231,292 @@ export function EpkBuilderView({
           ? "Live"
           : "Draft saved"
         : "Not saved"
-  const templateLabel = skin.charAt(0).toUpperCase() + skin.slice(1)
-  const qualityScore = epkData.quality?.score ?? 0
 
-  const editableField = useCallback(
-    (field: string, value: string, placeholder: string, opts?: { multiline?: boolean; className?: string }) => (
-      <InlineEditableField
-        key={field}
-        value={value}
-        placeholder={placeholder}
-        multiline={opts?.multiline}
-        className={opts?.className}
-        onCommit={(newValue) => updateEPKData(applyFieldUpdate(epkData, field, newValue))}
-      />
-    ),
-    [epkData, updateEPKData]
+  const leftPanel = (
+    <>
+      <div role="tablist" aria-label="Studio panels" className="flex gap-1 border-b border-white/[0.06] p-2">
+        {LEFT_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={leftTab === id}
+            onClick={() => setLeftTab(id)}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-medium transition-colors",
+              leftTab === id ? "bg-white/10 text-white" : "text-slate-400 hover:text-white",
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {leftTab === "layers" ? (
+          <LayersPanel
+            visible={visible}
+            hidden={hidden}
+            selected={selected}
+            styles={sectionStyles}
+            onSelect={select}
+            onReorder={reorderVisible}
+            onSetVisible={setVisible}
+          />
+        ) : null}
+        {leftTab === "templates" ? (
+          <TemplateLibrary ctx={ctx} activeSkin={skin} onApply={(s) => setStyle({ template: s })} />
+        ) : null}
+        {leftTab === "elements" ? (
+          <ElementLibrary
+            ctx={ctx}
+            pageSkin={skin}
+            selectedSection={selected}
+            currentSkinFor={(id) => sectionStyles[id]?.skin ?? skin}
+            onUse={(id, s) => {
+              const current = sectionStyles[id] ?? {}
+              setSectionStyle(id, { ...current, skin: s === skin ? undefined : s })
+              if (!isSectionVisible(id, layout)) setVisible(id, true)
+              else select(id)
+            }}
+          />
+        ) : null}
+      </div>
+    </>
   )
 
-  const ctx = createEpkRenderCtx(
-    { ...epkData, epkAppearance: appearance },
-    skin,
-    true,
-    hoveredTrack,
-    setHoveredTrack,
-    editableField,
-    resolved
-  )
-
-  const handleCommitStyle = useCallback(
-    (patch: Partial<Pick<EPKData, "epkAppearance" | "epkFont" | "template">>) => {
-      const nextPatch =
-        patch.template && patch.template !== epkData.template && !patch.epkAppearance
-          ? {
-              ...patch,
-              epkAppearance: getDefaultEpkAppearanceForTemplate(patch.template),
-            }
-          : patch
-      const snap: StyleSnapshot = {
-        appearance: epkData.epkAppearance ?? getDefaultEpkAppearance(epkData.template),
-        template: epkData.template,
-        epkFont: epkData.epkFont,
-      }
-      stylePastRef.current.push(snap)
-      if (stylePastRef.current.length > 20) stylePastRef.current.shift()
-      setCanUndoStyle(true)
-      updateEPKData(nextPatch)
-    },
-    [epkData.epkAppearance, epkData.template, epkData.epkFont, updateEPKData]
-  )
-
-  const handleUndoStyle = useCallback(() => {
-    const prev = stylePastRef.current.pop()
-    setCanUndoStyle(stylePastRef.current.length > 0)
-    if (!prev) return
-    updateEPKData({
-      epkAppearance: prev.appearance,
-      template: prev.template,
-      epkFont: prev.epkFont,
-    })
-  }, [updateEPKData])
-
-  const handleResetStyle = useCallback(() => {
-    handleCommitStyle({
-      epkAppearance: getDefaultEpkAppearanceForTemplate(epkData.template),
-      epkFont: "sans",
-    })
-  }, [epkData.template, handleCommitStyle])
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor)
-  )
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(String(event.active.id))
-  }, [])
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      setActiveId(null)
-      const { active, over } = event
-      if (!over || active.id === over.id) return
-
-      const oldIndex = layout.sectionOrder.indexOf(String(active.id))
-      const newIndex = layout.sectionOrder.indexOf(String(over.id))
-      if (oldIndex === -1 || newIndex === -1) return
-
-      const newOrder = arrayMove([...layout.sectionOrder], oldIndex, newIndex)
-      updateEPKData({
-        layout: { ...layout, sectionOrder: newOrder },
-      })
-    },
-    [layout, updateEPKData]
-  )
-
-  const handleToggleVisibility = useCallback(
-    (sectionId: string) => {
-      updateEPKData({
-        layout: {
-          ...layout,
-          sectionVisibility: {
-            ...layout.sectionVisibility,
-            [sectionId]: false,
-          },
-        },
-      })
-    },
-    [layout, updateEPKData]
-  )
-
-  const handleRestoreSection = useCallback(
-    (sectionId: string) => {
-      const newOrder = layout.sectionOrder.includes(sectionId)
-        ? layout.sectionOrder
-        : [...layout.sectionOrder, sectionId]
-      updateEPKData({
-        layout: {
-          ...layout,
-          sectionOrder: newOrder,
-          sectionVisibility: {
-            ...layout.sectionVisibility,
-            [sectionId]: true,
-          },
-        },
-      })
-    },
-    [layout, updateEPKData]
-  )
-
-  const handleEditSection = useCallback(
-    (sectionId: string) => {
-      if (INLINE_EDITABLE_SECTIONS.has(sectionId)) return
-      const tab = EPK_SECTION_EDITOR_TAB[sectionId]
-      if (tab) onNavigateToTab(tab)
-    },
-    [onNavigateToTab]
+  const rightPanel = selected ? (
+    <ElementInspector
+      key={selected}
+      sectionId={selected}
+      data={data}
+      skin={skin}
+      style={sectionStyles[selected] ?? {}}
+      onStyle={(style) => setSectionStyle(selected, style)}
+      onPatch={updateEPKData}
+      onClose={() => setSelected(null)}
+      onHide={() => setVisible(selected, false)}
+      onMove={moveSelected}
+      canMoveUp={visible.indexOf(selected) > 0}
+      canMoveDown={visible.indexOf(selected) < visible.length - 1}
+      onApplyToAll={() => {
+        const style = sectionStyles[selected] ?? {}
+        const next = { ...sectionStyles }
+        for (const id of visible) {
+          if (isEpkSectionStyleEmpty(style)) delete next[id]
+          else next[id] = { ...style }
+        }
+        setLayout({ sectionStyles: next })
+      }}
+    />
+  ) : (
+    <>
+      <div className="border-b border-white/[0.06] px-4 py-3">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Page</p>
+        <h2 className="text-base font-semibold text-white">{skinName(skin)} template</h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">Click any section on the canvas to edit it.</p>
+      </div>
+      <PageInspector data={data} skin={skin} appearance={appearance} onStyle={setStyle} />
+    </>
   )
 
   return (
-    <div className="min-h-screen bg-[#070a12] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(168,85,247,0.22),transparent_32%),radial-gradient(circle_at_82%_0%,rgba(34,211,238,0.16),transparent_30%)]" />
-      <div className="sticky top-0 z-40 border-b border-white/10 bg-[#070a12]/86 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <div>
-                <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                  EPK Builder
-                </h1>
-                <p className="text-xs text-slate-400">Drag sections, tune the look, then publish the canonical link.</p>
-              </div>
-              <span className="rounded-full border border-purple-300/35 bg-purple-500/12 px-3 py-1 text-[11px] font-semibold text-purple-100 shadow-[0_0_22px_rgba(168,85,247,0.18)]">
-                Drag to reorder
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={onSave}
-                disabled={isSaving}
-                className="rounded-2xl border border-purple-200/20 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-500 px-4 text-white shadow-[0_0_28px_rgba(168,85,247,0.28)] hover:brightness-110"
-                size="sm"
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
+    <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0c12] font-sans text-white">
+      {/* Top bar */}
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-[#0d0f16] px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onExitPreview}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-slate-300 hover:bg-white/[0.06] hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Exit</span>
+          </button>
+          <span className="h-5 w-px bg-white/10" aria-hidden />
+          <button
+            type="button"
+            aria-label="Open panels"
+            onClick={() => setMobilePanel(mobilePanel === "left" ? null : "left")}
+            className="rounded-lg p-2 text-slate-300 hover:bg-white/[0.06] lg:hidden"
+          >
+            <PanelLeft className="h-4 w-4" aria-hidden />
+          </button>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold">EPK Studio</h1>
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
+              <span
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  isPublished && !isDirty ? "bg-emerald-400" : isDirty ? "bg-amber-400" : "bg-slate-500",
                 )}
-                Save
-              </Button>
-              <Button
-                onClick={onShare}
-                variant="outline"
-                className={epkIconButton}
-                size="sm"
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-              <Button
-                onClick={onExitPreview}
-                variant="outline"
-                className={epkIconButton}
-                size="sm"
-              >
-                <X className="mr-2 h-4 w-4" />
-                Editor
-              </Button>
-            </div>
-          </div>
-          <div className={cn(epkGlassPanel, "flex flex-wrap items-center gap-2 px-3 py-2")}>
-            <span className={cn(
-              epkStatusPill,
-              isPublished
-                ? "border-emerald-300/35 text-emerald-200"
-                : isDirty
-                  ? "border-amber-300/35 text-amber-200"
-                  : "border-purple-300/35 text-purple-100"
-            )}>
-              {savedStateLabel}
-            </span>
-            <span className={epkStatusPill}>{hasSavedEpk ? "Canonical link" : "Private draft"}</span>
-            <span className={cn(epkStatusPill, "max-w-full truncate font-mono")}>{urlLabel}</span>
-            <span className={epkStatusPill}>{templateLabel}</span>
-            <span className={epkStatusPill}>Quality {qualityScore}%</span>
+                aria-hidden
+              />
+              {statusLabel}
+            </p>
           </div>
         </div>
-        <EpkBuilderToolbar
-          epkData={{ ...epkData, epkAppearance: appearance }}
-          skin={skin}
-          onCommitStyle={handleCommitStyle}
-          onUndo={handleUndoStyle}
-          canUndo={canUndoStyle}
-          onReset={handleResetStyle}
-        />
-      </div>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-2 shadow-2xl shadow-black/45 backdrop-blur-xl">
-          <div
-            className={cn(
-              resolved.mergedTokens.page,
-              fontClass,
-              resolved.wrapperClassName,
-              "relative rounded-[1.25rem]",
-              (skin === "modern" ||
-                skin === "cinema" ||
-                skin === "luxe" ||
-                skin === "poster" ||
-                skin === "scrapbook" ||
-                skin === "bandcard" ||
-                skin === "dossier" ||
-                skin === "pressgrid" ||
-                skin === "redcolumn" ||
-                skin === "checkerboard" ||
-                skin === "editorial" ||
-                skin === "whitespace" ||
-                skin === "colorblock" ||
-                skin === "sunburst") &&
-                "overflow-hidden"
-            )}
-            style={{ ...resolved.rootStyle, ...resolved.styles.page }}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Undo"
+            title="Undo (⌘Z)"
+            onClick={undo}
+            disabled={pastRef.current.length === 0}
+            className="rounded-lg p-2 text-slate-300 hover:bg-white/[0.06] disabled:opacity-30"
           >
-            <EpkPageChrome skin={skin} color={resolved.color} styles={resolved.styles} />
+            <Undo2 className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Redo"
+            title="Redo (⇧⌘Z)"
+            onClick={redo}
+            disabled={futureRef.current.length === 0}
+            className="rounded-lg p-2 text-slate-300 hover:bg-white/[0.06] disabled:opacity-30"
+          >
+            <Redo2 className="h-4 w-4" aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Style panel"
+            onClick={() => setMobilePanel(mobilePanel === "right" ? null : "right")}
+            className="rounded-lg p-2 text-slate-300 hover:bg-white/[0.06] lg:hidden"
+          >
+            <Palette className="h-4 w-4" aria-hidden />
+          </button>
+          <span className="mx-1 h-5 w-px bg-white/10" aria-hidden />
+          <button
+            type="button"
+            onClick={onShare}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-300 hover:bg-white/[0.06] hover:text-white"
+          >
+            <Share2 className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Share</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            disabled={isSaving}
+            className="flex items-center gap-1.5 rounded-lg bg-purple-500 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-purple-400 disabled:opacity-60"
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
+            Save
+          </button>
+        </div>
+      </header>
+
+      <div className="relative flex min-h-0 flex-1">
+        {/* Left rail */}
+        <aside
+          aria-label="Layers and libraries"
+          className={cn(
+            "flex w-72 shrink-0 flex-col border-r border-white/[0.07] bg-[#0d0f16]",
+            "max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-20 max-lg:shadow-2xl",
+            mobilePanel === "left" ? "max-lg:flex" : "max-lg:hidden",
+          )}
+        >
+          {leftPanel}
+        </aside>
+
+        {/* Canvas */}
+        <main
+          className="min-w-0 flex-1 overflow-y-auto bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:18px_18px] p-3 sm:p-6"
+          onClick={() => setSelected(null)}
+        >
+          <div className="mx-auto max-w-[1180px] overflow-hidden rounded-2xl shadow-2xl shadow-black/60 ring-1 ring-white/10">
             <div
               className={cn(
-                "relative mx-auto px-4 pb-16 pt-10 sm:px-6 lg:px-8",
-                contentMaxWidth(skin, resolved.contentMaxWidthClass)
+                resolved.mergedTokens.page,
+                epkFontClass(epkData.epkFont ?? "sans"),
+                resolved.wrapperClassName,
+                "relative overflow-hidden",
               )}
+              style={{ ...resolved.rootStyle, ...resolved.styles.page }}
             >
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={visibleSections}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {visibleSections.map((sectionId) => (
-                    <SortableEpkSection
-                      key={sectionId}
-                      id={sectionId}
-                      onToggleVisibility={handleToggleVisibility}
-                      onEditSection={handleEditSection}
+              <EpkPageChrome skin={skin} color={resolved.color} styles={resolved.styles} />
+              <div className={cn("relative mx-auto px-4 pb-16 pt-10 sm:px-6 lg:px-8", contentMaxWidth(skin, resolved.contentMaxWidthClass))}>
+                {visible.map((id, index) => {
+                  const isSelected = selected === id
+                  return (
+                    <div
+                      key={id}
+                      ref={(el) => {
+                        sectionRefs.current[id] = el
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Edit ${EPK_SECTION_LABELS[id] ?? id}`}
+                      aria-pressed={isSelected}
+                      onClickCapture={(e) => {
+                        if ((e.target as HTMLElement).closest("a")) e.preventDefault()
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        select(id)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault()
+                          select(id)
+                        }
+                      }}
+                      className="group/section relative cursor-pointer rounded-xl outline-none"
                     >
-                      <div className="relative">
-                        {!INLINE_EDITABLE_SECTIONS.has(sectionId) && (
-                          <SectionEditOverlay
-                            sectionId={sectionId}
-                            onNavigateToTab={onNavigateToTab}
-                          />
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute -inset-2 z-20 rounded-2xl border-2 transition-colors",
+                          isSelected
+                            ? "border-purple-400"
+                            : "border-transparent group-hover/section:border-purple-400/40 group-focus-visible/section:border-purple-400/70",
                         )}
-                        {renderEpkSection(sectionId, ctx)}
-                      </div>
-                    </SortableEpkSection>
-                  ))}
-                </SortableContext>
-
-                <DragOverlay dropAnimation={null}>
-                  {activeId ? (
-                    <SortableEpkSectionOverlay id={activeId}>
-                      {renderEpkSection(activeId, ctx)}
-                    </SortableEpkSectionOverlay>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+                      />
+                      <span
+                        className={cn(
+                          "pointer-events-none absolute -top-2 left-2 z-30 -translate-y-full rounded-md bg-purple-500 px-2 py-0.5 font-sans text-[11px] font-medium text-white transition-opacity",
+                          isSelected ? "opacity-100" : "opacity-0 group-hover/section:opacity-100",
+                        )}
+                      >
+                        {EPK_SECTION_LABELS[id] ?? id}
+                        {sectionStyles[id]?.skin ? ` · ${skinName(sectionStyles[id].skin as EpkSkinId)}` : ""}
+                      </span>
+                      <EpkReveal motion={resolveSectionMotion(ctx.motion, sectionStyles[id])} index={index}>
+                        {renderStyledEpkSection(id, ctx, sectionStyles[id])}
+                      </EpkReveal>
+                    </div>
+                  )
+                })}
+                {visible.length === 0 ? (
+                  <p className="py-24 text-center font-sans text-sm opacity-60">
+                    No sections on the page. Add one from Layers.
+                  </p>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
+        </main>
 
-        <EpkHiddenSectionsPanel
-          layout={layout}
-          onRestoreSection={handleRestoreSection}
-        />
+        {/* Inspector */}
+        <aside
+          aria-label={selected ? "Element inspector" : "Page inspector"}
+          className={cn(
+            "flex w-80 shrink-0 flex-col overflow-y-auto border-l border-white/[0.07] bg-[#0d0f16]",
+            "max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-20 max-lg:shadow-2xl",
+            mobilePanel === "right" ? "max-lg:flex" : "max-lg:hidden",
+          )}
+        >
+          <button
+            type="button"
+            aria-label="Close panel"
+            onClick={() => setMobilePanel(null)}
+            className="absolute right-2 top-2 hidden rounded-md p-1 text-slate-400 max-lg:block"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+          {rightPanel}
+        </aside>
       </div>
     </div>
   )

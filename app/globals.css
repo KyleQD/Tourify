@@ -1504,3 +1504,9 @@ select:focus {
   .epk-ambient-sheen,
   .epk-ambient-wobble { animation: none; }
 }
+
+@keyframes epk-demo-fade { 0%, 15% { opacity: 0 } 55%, 100% { opacity: 1 } }
+@keyframes epk-demo-rise { 0%, 15% { opacity: 0; transform: translateY(8px) } 55%, 100% { opacity: 1; transform: none } }
+@keyframes epk-demo-zoom { 0%, 15% { opacity: 0; transform: scale(.7) } 55%, 100% { opacity: 1; transform: none } }
+@keyframes epk-demo-blur { 0%, 15% { opacity: 0; filter: blur(6px) } 55%, 100% { opacity: 1; filter: none } }
+@media (prefers-reduced-motion: reduce) { [style*="epk-demo-"] { animation: none !important } }

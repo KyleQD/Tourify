@@ -52,8 +52,13 @@ import { EpkReveal } from "@/components/epk/epk-reveal"
 import {
   getDefaultEpkAppearance,
   resolveEpkAppearanceForRender,
+  type EpkAppearance,
   type ResolvedEpkAppearance,
 } from "@/lib/epk/epk-appearance"
+import {
+  isEpkSectionStyleEmpty,
+  type EpkSectionStyle,
+} from "@/lib/epk/epk-section-styles"
 
 export interface EpkTemplateProps {
   data: EPKData
@@ -3736,14 +3741,154 @@ function EpkSectionStack({
       >
         {layout.sectionOrder.map((sectionId) => {
           if (!isSectionVisible(sectionId, layout)) return null
+          const sectionStyle = layout.sectionStyles?.[sectionId]
           return (
-            <EpkReveal key={sectionId} motion={ctx.motion} index={revealIndex++}>
-              {renderEpkSection(sectionId, ctx)}
+            <EpkReveal
+              key={sectionId}
+              motion={resolveSectionMotion(ctx.motion, sectionStyle)}
+              index={revealIndex++}
+            >
+              {renderStyledEpkSection(sectionId, ctx, sectionStyle)}
             </EpkReveal>
           )
         })}
         <EpkCreatedWithFooter t={t} />
       </div>
+    </div>
+  )
+}
+
+interface RenderInSkinOptions {
+  appearance?: EpkAppearance
+  chrome?: boolean
+  className?: string
+}
+
+/** Renders one section with another template's element design, on that template's surface. */
+export function renderEpkSectionInSkin(
+  sectionId: string,
+  ctx: EpkSectionRenderCtx,
+  skin: EpkSkinId,
+  options: RenderInSkinOptions = {},
+): React.ReactNode {
+  const appearance =
+    options.appearance ?? ctx.data.epkAppearance ?? getDefaultEpkAppearance(ctx.data.template)
+  const resolved = resolveEpkAppearanceForRender({ skin, appearance })
+  const sectionCtx: EpkSectionRenderCtx = {
+    ...createEpkRenderCtx(
+      { ...ctx.data, epkAppearance: appearance },
+      skin,
+      ctx.showPlaceholder,
+      ctx.hoveredTrack,
+      ctx.setHoveredTrack,
+      ctx.editableField,
+      resolved,
+      false,
+    ),
+    trackInteraction: ctx.trackInteraction,
+  }
+  return (
+    <div
+      className={cn(
+        resolved.mergedTokens.page,
+        resolved.wrapperClassName,
+        "relative min-h-0 overflow-hidden",
+        options.className,
+      )}
+      style={{ ...resolved.rootStyle, ...resolved.styles.page }}
+    >
+      {options.chrome ? (
+        <EpkPageChrome skin={skin} color={resolved.color} styles={resolved.styles} />
+      ) : null}
+      <div className="relative px-5 py-8 sm:px-8">{renderEpkSection(sectionId, sectionCtx)}</div>
+    </div>
+  )
+}
+
+const SECTION_SPACING_CLASS: Record<NonNullable<EpkSectionStyle["spacing"]>, string> = {
+  tight: "-my-3",
+  default: "",
+  airy: "py-10 sm:py-16",
+}
+
+function sectionBackdropStyle(
+  backdrop: EpkSectionStyle["backdrop"],
+): React.CSSProperties | undefined {
+  if (backdrop === "tint")
+    return { background: "color-mix(in srgb, var(--epk-accent, #8b8b8b) 7%, transparent)" }
+  if (backdrop === "accent")
+    return { background: "color-mix(in srgb, var(--epk-accent, #8b8b8b) 16%, transparent)" }
+  if (backdrop === "frame")
+    return {
+      border: "1px solid color-mix(in srgb, var(--epk-accent, currentColor) 45%, transparent)",
+    }
+  return undefined
+}
+
+export function resolveSectionMotion(
+  motion: ResolvedEpkAppearance["motion"],
+  style?: EpkSectionStyle,
+): ResolvedEpkAppearance["motion"] {
+  if (!style?.motion || style.motion === "inherit") return motion
+  return { ...motion, style: style.motion }
+}
+
+/** Renders a section with its per-section overrides (element design, accent, backdrop, spacing). */
+export function renderStyledEpkSection(
+  sectionId: string,
+  ctx: EpkSectionRenderCtx,
+  style?: EpkSectionStyle,
+): React.ReactNode {
+  if (!style || isEpkSectionStyleEmpty(style)) return renderEpkSection(sectionId, ctx)
+
+  const baseAppearance = ctx.data.epkAppearance ?? getDefaultEpkAppearance(ctx.data.template)
+  const appearance = style.accentHex
+    ? { ...baseAppearance, accentHex: style.accentHex }
+    : baseAppearance
+  const crossSkin = Boolean(style.skin && style.skin !== ctx.skin)
+
+  let content: React.ReactNode
+  if (crossSkin && style.skin) {
+    content = renderEpkSectionInSkin(sectionId, ctx, style.skin, {
+      appearance,
+      className: "rounded-3xl",
+    })
+  } else if (style.accentHex) {
+    const resolved = resolveEpkAppearanceForRender({ skin: ctx.skin, appearance })
+    const accentCtx: EpkSectionRenderCtx = {
+      ...createEpkRenderCtx(
+        { ...ctx.data, epkAppearance: appearance },
+        ctx.skin,
+        ctx.showPlaceholder,
+        ctx.hoveredTrack,
+        ctx.setHoveredTrack,
+        ctx.editableField,
+        resolved,
+        false,
+      ),
+      trackInteraction: ctx.trackInteraction,
+    }
+    content = <div style={resolved.rootStyle}>{renderEpkSection(sectionId, accentCtx)}</div>
+  } else {
+    content = renderEpkSection(sectionId, ctx)
+  }
+
+  const backdrop = style.backdrop && style.backdrop !== "none" ? style.backdrop : null
+  return (
+    <div
+      className={cn(
+        SECTION_SPACING_CLASS[style.spacing ?? "default"],
+        crossSkin && "my-6",
+      )}
+      style={style.accentHex ? ({ "--epk-accent": style.accentHex } as React.CSSProperties) : undefined}
+    >
+      {backdrop ? (
+        <div className="rounded-3xl p-5 sm:p-8" style={sectionBackdropStyle(backdrop)}>
+          {content}
+        </div>
+      ) : (
+        content
+      )}
     </div>
   )
 }

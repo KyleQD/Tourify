@@ -318,7 +318,7 @@ export default function EPKPage() {
   } = useEPKSync()
 
   const [activeTab, setActiveTab] = useState("overview")
-  const [viewMode, setViewMode] = useState<ViewMode>("editor")
+  const [viewMode, setViewMode] = useState<ViewMode>("builder")
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const [mediaUploadProgress, setMediaUploadProgress] = useState<EpkMediaUploadProgress>({
     active: false,
@@ -688,17 +688,6 @@ export default function EPKPage() {
           isDirty={isDirty}
           isPublished={isPublished}
         />
-        <div className="fixed bottom-20 right-4 z-50 flex gap-2 md:bottom-6">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setViewMode("editor")}
-            className="rounded-xl border-gray-700/80 bg-[#181b23]/95 text-white backdrop-blur hover:bg-white/5"
-          >
-            <FileText className="mr-2 h-4 w-4" />
-            Editor
-          </Button>
-        </div>
       </>
     )
   }

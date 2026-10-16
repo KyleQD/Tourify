@@ -7,6 +7,10 @@ import {
   type EpkAppearance,
 } from '@/lib/epk/epk-appearance'
 import { normalizeEpkFontId } from '@/lib/epk/epk-preview-utils'
+import {
+  normalizeEpkSectionStyles,
+  type EpkSectionStyles,
+} from '@/lib/epk/epk-section-styles'
 
 type EpkDb = SupabaseClient<Database>
 
@@ -108,6 +112,7 @@ interface EPKData {
     preset: 'booker' | 'festival' | 'press'
     sectionOrder: string[]
     sectionVisibility: Record<string, boolean>
+    sectionStyles?: EpkSectionStyles
   }
   bookingAssets: {
     techRiderUrl: string
@@ -737,7 +742,8 @@ class EPKService {
       layout: {
         preset: settings?.layout?.preset || 'booker',
         sectionOrder,
-        sectionVisibility
+        sectionVisibility,
+        sectionStyles: normalizeEpkSectionStyles(settings?.layout?.sectionStyles)
       },
       bookingAssets: {
         techRiderUrl: settings?.bookingAssets?.techRiderUrl || '',
