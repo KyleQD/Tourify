@@ -11,6 +11,7 @@ export default defineConfig({
       'lib/work/**/__tests__/**/*.test.ts',
       'app/api/work/v1/opportunities/__tests__/**/*.test.ts',
       'app/api/admin/work/employer-reviews/__tests__/**/*.test.ts',
+      'app/api/admin/work/hiring-entitlements/__tests__/**/*.test.ts',
     ],
   },
   resolve: {
