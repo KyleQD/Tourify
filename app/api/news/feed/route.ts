@@ -83,6 +83,9 @@ export async function GET(request: NextRequest) {
       requestOrigin: request.nextUrl.origin,
       supabase,
       userId,
+      // Anonymous requests must never receive ordinary or pending social posts.
+      // Enable the same publication guard for members when public News launches.
+      publicOnly: !userId || process.env.NEWS_PUBLIC_ACCESS_ENABLED === 'true',
       limit,
       cursor,
       facet,
