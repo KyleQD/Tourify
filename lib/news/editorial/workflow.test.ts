@@ -2,6 +2,7 @@ import { transitionEditorialStatus } from '@/lib/news/editorial/workflow'
 
 const input = {
   actorId: 'trusted-server-actor',
+  submitterId: 'original-reporter',
   actorRole: 'editor' as const,
   at: '2026-10-18T09:00:00Z',
   notes: 'Evidence reviewed and source confirmed'
@@ -28,10 +29,10 @@ describe('editorial workflow transitions', () => {
 
   it('allows withdrawal only before the submission is approved', () => {
     expect(transitionEditorialStatus('pending', {
-      ...input, action: 'withdraw', actorRole: 'submitter'
+      ...input, action: 'withdraw', actorId: 'original-reporter', actorRole: 'submitter'
     }).status).toBe('withdrawn')
     expect(() => transitionEditorialStatus('approved', {
-      ...input, action: 'withdraw', actorRole: 'submitter'
+      ...input, action: 'withdraw', actorId: 'original-reporter', actorRole: 'submitter'
     })).toThrow()
   })
 
@@ -42,6 +43,18 @@ describe('editorial workflow transitions', () => {
     expect(transitionEditorialStatus('rejected', {
       ...input, action: 'reopen'
     }).status).toBe('in_review')
+  })
+
+  it('prevents editors from approving their own submitted story', () => {
+    expect(() => transitionEditorialStatus('in_review', {
+      ...input, action: 'approve', submitterId: input.actorId
+    })).toThrow()
+  })
+
+  it('refuses unrelated contributors withdrawing another reporter submission', () => {
+    expect(() => transitionEditorialStatus('pending', {
+      ...input, action: 'withdraw', actorRole: 'submitter'
+    })).toThrow()
   })
 
   it('refuses a community author approving their own reporting', () => {
