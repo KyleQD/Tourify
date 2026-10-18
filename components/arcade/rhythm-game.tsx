@@ -53,7 +53,7 @@ export function RhythmGame() {
   const resultsRef = useRef<Results>(initialResults())
   const wallStartRef = useRef(0)
   const frozenTimeRef = useRef(0)
-  const durationRef = useRef(30)
+  const durationRef = useRef(60)
   const hitFnRef = useRef<(lane: Lane) => void>(() => {})
   const pressFnRef = useRef<(lane: Lane, pressed: boolean) => void>(() => {})
   const releaseAllFnRef = useRef<() => void>(() => {})
@@ -79,7 +79,8 @@ export function RhythmGame() {
   const selectSong = (songId: string) => {
     setSelected(songId)
     const composed = getOriginalSong(songId)
-    if (composed) { setTempo(composed.bpm); setStage(composed.stage) }
+    if (composed) { setTempo(composed.bpm); setStage(composed.stage); durationRef.current = composed.duration }
+    else if (songId === 'practice') durationRef.current = 30
   }
 
   useEffect(() => {
@@ -406,7 +407,7 @@ export function RhythmGame() {
 
       // Scenery stays behind note lanes; stage changes never change score/timing.
       const theme = BEAT_DECK_STAGES.find(option => option.id === stage) || BEAT_DECK_STAGES[0]
-      const authoredSong = getOriginalSong(roundIdRef.current.split(':').slice(0, 2).join(':')) || getOriginalSong(selected)
+      const authoredSong = getOriginalSong(selected)
       const energy = getShowEnergy(resultsRef.current.combo)
       const pulse = reducedMotion ? 0.55 : 0.6 + 0.4 * Math.sin(playbackTime * tempo / 60 * Math.PI * 2)
       const grd = ctx.createLinearGradient(0, 0, 0, HEIGHT)
@@ -547,7 +548,7 @@ export function RhythmGame() {
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [chartTime, getTime, tempo, stage, reducedMotion])
+  }, [chartTime, getTime, tempo, stage, reducedMotion, selected])
 
   useEffect(() => {
     const onHide = () => { if (document.hidden) pauseRef.current() }
