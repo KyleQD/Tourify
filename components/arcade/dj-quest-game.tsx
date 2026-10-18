@@ -124,6 +124,8 @@ export function DJQuestGame() {
     if (jukebox?.state.isPlaying) jukebox.pause()
     setGamePhase('playing')
     rootRef.current?.focus({ preventScroll: true })
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    rootRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' })
   }
   const nextChapterFnRef = useRef(() => {})
   nextChapterFnRef.current = advanceChapter
@@ -275,7 +277,8 @@ export function DJQuestGame() {
         if (collectedRef.current.has(index)) return
         if (Math.abs(h.x + h.w / 2 - record.x) < 23 && Math.abs(h.y + h.h / 2 - record.y) < 31) {
           collectedRef.current.add(index)
-          h.records++
+          // Derive vinyl count from uniquely collected IDs, not increments.
+          h.records = collectedRef.current.size + collectedFeaturesRef.current.size
           fx(750, 0.14)
           setHud({ records: h.records, lives: h.lives })
           if (h.records >= DJ_RECORDS_NEEDED && h.records - 1 < DJ_RECORDS_NEEDED) setHint('The guest list is ready! Reach ' + scene.name + '!')
@@ -287,11 +290,11 @@ export function DJQuestGame() {
         if (feature.kind !== 'record-crate' || collectedFeaturesRef.current.has(feature.id)) continue
         if (!hitsDJRecordCrate(h, feature)) continue
         collectedFeaturesRef.current.add(feature.id)
-        h.records += 1
+        h.records = collectedRef.current.size + collectedFeaturesRef.current.size
         bonusPointsRef.current += feature.points
         setBonusPoints(bonusPointsRef.current)
         setHud({ records: h.records, lives: h.lives })
-        setHint('STATE STREET RECORD FIND! +1 vinyl and +' + feature.points + ' encore points!')
+        setHint('STATE STREET RECORD FIND! +1 bonus vinyl and +' + feature.points + ' encore points!')
         fx(1020, 0.18)
       }
       // Respawn stops collision simulation immediately; a fatal collision
