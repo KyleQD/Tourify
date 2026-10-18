@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'DJ Odyssey | Tourify Arcade',
-  description: 'Collect records, dodge club-themed enemies, and reach Studio 54 in an original retro DJ platformer.',
+  description: 'Tour five famous club destinations, including Ibiza and the Sunset Strip, in an original DJ Odyssey platform adventure.',
 }
 
 export default function DJQuestPage() {
