@@ -13,7 +13,9 @@ on:
     paths:
       - 'components/jukebox/**'
       - 'components/dashboard/jukebox-player.tsx'
-      - 'components/music/music-discovery-hub.tsx'
+      - 'components/music/**'
+      - 'lib/music/public-catalog-*.ts'
+      - '__tests__/music/**'
       - 'app/music/**'
       - 'components/layout/navigation-sidebar.tsx'
       - 'lib/jukebox/**'
@@ -41,4 +43,4 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Focused tests
-        run: npx vitest run __tests__/jukebox/home-discovery.test.ts __tests__/jukebox/discovery-extras.test.ts
+        run: npx vitest run __tests__/jukebox/home-discovery.test.ts __tests__/jukebox/discovery-extras.test.ts __tests__/music/public-catalog-normalize.test.ts

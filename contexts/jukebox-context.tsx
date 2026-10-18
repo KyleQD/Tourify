@@ -16,6 +16,7 @@ export interface JukeboxTrack {
   title: string
   artist_name: string
   artist_id?: string
+  artist_username?: string
   artist_avatar_url?: string
   duration?: number
   file_url: string

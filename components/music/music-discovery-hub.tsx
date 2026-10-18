@@ -52,7 +52,7 @@ function MusicTile({
   compact?: boolean
 }) {
   const active = currentId === track.id
-  const artistHref = track.artist_id ? getArtistPublicProfilePath(track.artist_id) : null
+  const artistHref = track.artist_username ? getArtistPublicProfilePath(track.artist_username) : null
   return (
     <article className={cn(
       "group min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] p-2.5 transition hover:border-violet-400/40 hover:bg-white/[0.065]",
@@ -75,7 +75,7 @@ function MusicTile({
         {active && playing && <span className="absolute left-2 top-2 rounded-full bg-violet-500/90 px-2 py-0.5 text-[10px] font-semibold text-white">Playing</span>}
       </div>
       <div className="space-y-1 px-0.5 pb-1 pt-2.5">
-        <p className="truncate text-sm font-semibold text-white" title={track.title}>{track.title}</p>
+        <Link href={"/music/tracks/" + encodeURIComponent(track.id)} className="block truncate text-sm font-semibold text-white hover:text-violet-200 focus-visible:underline" title={"Explore " + track.title}>{track.title}</Link>
         {artistHref ? (
           <Link href={artistHref} className="block truncate text-xs text-slate-400 hover:text-violet-200">{track.artist_name}</Link>
         ) : <p className="truncate text-xs text-slate-400">{track.artist_name}</p>}
@@ -119,6 +119,9 @@ export function MusicDiscoveryHub() {
   const [mode, setMode] = useState<DiscoverMode>(() => findInitialMode(params.get("mode")))
   const [query, setQuery] = useState(() => params.get("q") || "")
   const [genre, setGenre] = useState(() => params.get("genre") || "all")
+  const [artistId, setArtistId] = useState(() => params.get("artistId") || "")
+  const [artistTracks, setArtistTracks] = useState<JukeboxTrack[]>([])
+  const [artistLoading, setArtistLoading] = useState(false)
   const [journey, setJourney] = useState<Journey>("mood")
   const [mood, setMood] = useState<JukeboxMood>("adventure")
   const [decade, setDecade] = useState<JukeboxDecade>("1980s")
@@ -137,6 +140,7 @@ export function MusicDiscoveryHub() {
     setMode(findInitialMode(params.get("mode")))
     setQuery(params.get("q") || "")
     setGenre(params.get("genre") || "all")
+    setArtistId(params.get("artistId") || "")
   }, [params])
 
   useEffect(() => {
@@ -159,6 +163,39 @@ export function MusicDiscoveryHub() {
     void load()
     return () => { mounted = false }
   }, [])
+
+  useEffect(() => {
+    if (!artistId || !/^[0-9a-f-]{36}$/i.test(artistId)) {
+      setArtistTracks([])
+      setArtistLoading(false)
+      return
+    }
+    let mounted = true
+    setArtistLoading(true)
+    const params = new URLSearchParams({ userId: artistId, sortBy: "recent", limit: "80" })
+    fetch("/api/feed/music?" + params, { credentials: "include", cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("artist music unavailable")
+        const result = await response.json()
+        const rows = Array.isArray(result.content) ? result.content : []
+        return uniquePlayableTracks(rows.filter((row: any) => row?.id).map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          artist_name: row.author?.name || "Independent artist",
+          artist_id: row.author?.id,
+          artist_username: row.author?.username || undefined,
+          file_url: row.metadata?.url || "/api/music/stream?trackId=" + row.id,
+          cover_art_url: row.cover_image || undefined,
+          genre: row.metadata?.genre || undefined,
+          tags: row.metadata?.tags || [],
+          access_mode: row.metadata?.accessMode || "free",
+        } as JukeboxTrack)))
+      })
+      .then((tracks) => { if (mounted) setArtistTracks(tracks) })
+      .catch(() => { if (mounted) setArtistTracks([]) })
+      .finally(() => { if (mounted) setArtistLoading(false) })
+    return () => { mounted = false }
+  }, [artistId])
 
   const catalog = useMemo(() => uniquePlayableTracks([...trending, ...recent]), [trending, recent])
   // Match the homepage Jukebox's deterministic fallback candidate window.
@@ -187,9 +224,9 @@ export function MusicDiscoveryHub() {
       return true
     }).slice(0, 9)
   }, [ranked])
-  const searchActive = Boolean(query.trim()) || genre !== "all"
+  const searchActive = Boolean(query.trim()) || genre !== "all" || Boolean(artistId)
   const list = useMemo(() => {
-    const base = mode === "new" ? recent : mode === "trending" ? trending : ranked
+    const base = artistId ? artistTracks : mode === "new" ? recent : mode === "trending" ? trending : ranked
     const q = query.trim().toLowerCase()
     return base.filter((track) => {
       const correctGenre = genre === "all" || track.genre?.toLowerCase() === genre.toLowerCase()
@@ -197,7 +234,7 @@ export function MusicDiscoveryHub() {
         .some((value) => value.toLowerCase().includes(q))
       return correctGenre && correctQuery
     })
-  }, [mode, recent, trending, ranked, query, genre])
+  }, [mode, recent, trending, ranked, artistId, artistTracks, query, genre])
 
   const journeyTracks = useMemo(() => {
     if (journey === "mood") return tracksForMood(catalog, mood).slice(0, 6)
@@ -246,6 +283,7 @@ export function MusicDiscoveryHub() {
           <nav aria-label="Music navigation" className="flex flex-wrap gap-2 text-xs">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2.5 text-slate-200 hover:bg-white/10"><Disc3 className="h-3.5 w-3.5" />Jukebox</Link>
             <Link href="/music" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2.5 text-slate-200 hover:bg-white/10"><Library className="h-3.5 w-3.5" />My Library</Link>
+            <Link href="/music/releases" className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-2.5 text-slate-200 hover:bg-white/10"><Disc3 className="h-3.5 w-3.5" />Releases</Link>
             <button type="button" onClick={() => ctx?.setExpanded(true, "discover")} className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/15 px-3 py-2.5 text-violet-100 hover:bg-violet-500/25"><Headphones className="h-3.5 w-3.5" />Open Player</button>
           </nav>
         </header>
@@ -337,7 +375,7 @@ export function MusicDiscoveryHub() {
           </div>}
         </section>
 
-        {loading ? (
+        {loading || artistLoading ? (
           <section role="status" className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-6">
             <div className="h-5 w-40 animate-pulse rounded-lg bg-white/10" />
             <p className="text-sm text-slate-400">Loading the music catalog…</p>
@@ -346,8 +384,8 @@ export function MusicDiscoveryHub() {
           <section className="space-y-4" aria-live="polite">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div><p className="text-[10px] font-bold uppercase tracking-widest text-violet-300">Music Search</p>
-                <h2 className="text-2xl font-bold">{list.length} {list.length === 1 ? "track" : "tracks"} found</h2></div>
-              <button type="button" onClick={() => { setQuery(""); setGenre("all") }} className="text-xs font-semibold text-violet-300 hover:text-white">Clear filters</button>
+                <h2 className="text-2xl font-bold">{artistId ? "Music from this artist" : list.length + (list.length === 1 ? " track" : " tracks") + " found"}</h2></div>
+              <Link href="/music/discover" className="text-xs font-semibold text-violet-300 hover:text-white">Explore all music</Link>
             </div>
             {list.length ? <div className="grid grid-cols-2 justify-items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {list.map((track) => <div key={track.id} className="[&>article]:!w-full"><MusicTile track={track} onPlay={play} currentId={nowPlaying?.id} playing={isPlaying} /></div>)}
@@ -377,13 +415,13 @@ export function MusicDiscoveryHub() {
                   </div>
                   <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
                     {artistSpotlights.map((track) => {
-                      const href = getArtistPublicProfilePath(track.artist_id)
+                      const href = track.artist_username ? getArtistPublicProfilePath(track.artist_username) : "/music/discover?artistId=" + encodeURIComponent(track.artist_id || "")
                       if (!href) return null
                       return <Link key={track.artist_id} href={href} className="group flex w-[170px] shrink-0 snap-start flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-3 transition hover:border-fuchsia-400/30 hover:bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-violet-300">
                         <TrackCoverImage src={track.cover_art_url} trackId={track.id} alt="" className="aspect-square w-full rounded-xl" iconClassName="h-8 w-8" />
                         <p className="truncate text-sm font-semibold text-white">{track.artist_name}</p>
                         <p className="truncate text-[11px] text-slate-400">Listen to {track.title}</p>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-300">Artist profile <ArrowRight className="h-3 w-3 transition group-hover:translate-x-1" /></span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-300">{track.artist_username ? "Artist profile" : "Artist music"} <ArrowRight className="h-3 w-3 transition group-hover:translate-x-1" /></span>
                       </Link>
                     })}
                   </div>

@@ -352,6 +352,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
               tracks={tracks.tracks}
               defaultTrackId={tracks.defaultTrackId}
               artistName={hero.artistName}
+              artistUserId={hero.userId}
             />
           </section>
           ) : null}

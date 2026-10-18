@@ -216,6 +216,12 @@ export default function MusicPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 flex-wrap justify-end">
+                        {trackId && (
+                          <Link href={"/music/tracks/" + encodeURIComponent(trackId)}
+                            className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent">
+                            Track details
+                          </Link>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => addTrackToPlaylist(item.music_track_id)}>
                           Add to playlist
                         </Button>

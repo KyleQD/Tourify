@@ -13,7 +13,7 @@ export function resolveJukeboxCoverUrl(
 interface FeedTrack {
   id: string
   title: string
-  author?: { id: string; name: string; avatar_url?: string | null }
+  author?: { id: string; name: string; username?: string | null; avatar_url?: string | null }
   metadata?: {
     genre?: string
     duration?: number
@@ -31,6 +31,7 @@ function feedTrackToJukeboxTrack(item: FeedTrack): JukeboxTrack {
     title: item.title,
     artist_name: item.author?.name || item.metadata?.artist || "Unknown Artist",
     artist_id: item.author?.id,
+    artist_username: item.author?.username || undefined,
     artist_avatar_url: item.author?.avatar_url || undefined,
     duration: item.metadata?.duration ?? undefined,
     file_url: item.metadata?.url || `/api/music/stream?trackId=${item.id}`,

@@ -1,11 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
 import type { PublicArtistTrackDTO, PublicArtistViewerDTO } from "@/lib/public-artist/public-artist-types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Library, Play, Pause, Pin, ListPlus, Shuffle, Music, ShoppingBag, Star } from "lucide-react"
+import { ArrowUpRight, Library, Play, Pause, Pin, ListPlus, Shuffle, Music, ShoppingBag, Star } from "lucide-react"
 import { paBtnRound, paCard, paInset, paRow } from "@/components/public-artist/public-artist-ui"
 import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-context"
 import { toast } from "sonner"
@@ -33,6 +35,7 @@ export function PublicArtistMusicSection({
   tracks,
   defaultTrackId,
   artistName,
+  artistUserId,
 }: {
   viewer: PublicArtistViewerDTO
   creatorType?: string | null
@@ -40,8 +43,10 @@ export function PublicArtistMusicSection({
   tracks: PublicArtistTrackDTO[]
   defaultTrackId: string | null
   artistName?: string
+  artistUserId?: string
 }) {
   const playableTracks = useMemo(() => tracks.filter(t => Boolean(t.audioUrl)), [tracks])
+  const router = useRouter()
   const jukebox = useJukeboxOptional()
   const [optimisticPinnedById, setOptimisticPinnedById] = useState<Record<string, boolean>>({})
 
@@ -155,6 +160,13 @@ export function PublicArtistMusicSection({
             <Music className="h-4 w-4 opacity-80" />
             Featured Work
           </CardTitle>
+          <div className="flex items-center gap-2">
+            {artistUserId && (
+              <Link href={"/music/discover?artistId=" + encodeURIComponent(artistUserId)}
+                className="inline-flex items-center gap-1 rounded-full border border-purple-400/25 bg-purple-500/10 px-3 py-1.5 text-[11px] font-semibold text-purple-200 transition hover:bg-purple-500/20">
+                Discover more <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            )}
           {playableTracks.length > 0 && jukebox && (
             <div className="flex items-center gap-1.5">
               <Button
@@ -183,6 +195,7 @@ export function PublicArtistMusicSection({
               </Button>
             </div>
           )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -305,6 +318,21 @@ export function PublicArtistMusicSection({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      title={"Explore " + t.title}
+                      aria-label={"Open music details for " + t.title}
+                      className="rounded-full text-violet-300 hover:text-violet-200"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        router.push("/music/tracks/" + encodeURIComponent(t.id))
+                      }}
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                    </Button>
                     {viewer.isOwner ? (
                       <Button
                         variant="ghost"
