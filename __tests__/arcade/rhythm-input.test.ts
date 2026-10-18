@@ -34,5 +34,8 @@ describe('Beat Deck keyboard input regression', () => {
     expect(explainUnscoredPress(notes, new Set(), first.lane, 40)).toBe('late')
     expect(explainUnscoredPress(notes, new Set(notes.map(note => note.id)), first.lane, 3)).toBe('no-note')
     expect(findHittableNote(notes, new Set(), first.lane, first.at)).toEqual(first)
+    // A note outside the Good scoring window must not count as a successful hit.
+    expect(findHittableNote(notes, new Set(), first.lane, first.at + 0.171)).toBeNull()
+    expect(findHittableNote(notes, new Set(), first.lane, first.at - 0.171)).toBeNull()
   })
 })
