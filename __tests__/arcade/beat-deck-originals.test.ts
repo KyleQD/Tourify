@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   BEAT_DECK_ORIGINALS, getOriginalSong, beatSeconds, songStepSeconds,
   songTotalSteps, originalSongRoot, songLane, originalSongFrequency,
+  getNextOriginalSong,
   createOriginalSongChart,
 } from '@/lib/arcade/beat-deck-originals'
 import { findHittableNote, judgeTiming } from '@/lib/arcade/rhythm-chart'
@@ -55,4 +56,11 @@ describe('Beat Deck original synchronized one-minute soundtracks', () => {
       expect(createOriginalSongChart(song.id, 'normal')).toEqual(createOriginalSongChart(song.id, 'normal'))
     }
   })
+  it('offers the next song in playlist order and wraps the third track', () => {
+    expect(getNextOriginalSong('original:midnight-circuit').id).toBe('original:festival-lights')
+    expect(getNextOriginalSong('original:festival-lights').id).toBe('original:coastal-frequency')
+    expect(getNextOriginalSong('original:coastal-frequency').id).toBe('original:midnight-circuit')
+    expect(getNextOriginalSong('missing').id).toBe('original:midnight-circuit')
+  })
+
 })
