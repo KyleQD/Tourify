@@ -174,6 +174,14 @@ export function MusicDiscoveryHub() {
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10).map(([name]) => name)
   }, [catalog])
+  const artistSpotlights = useMemo(() => {
+    const seen = new Set<string>()
+    return ranked.filter((track) => {
+      if (!track.artist_id || seen.has(track.artist_id)) return false
+      seen.add(track.artist_id)
+      return true
+    }).slice(0, 9)
+  }, [ranked])
   const searchActive = Boolean(query.trim()) || genre !== "all"
   const list = useMemo(() => {
     const base = mode === "new" ? recent : mode === "trending" ? trending : ranked
@@ -350,6 +358,32 @@ export function MusicDiscoveryHub() {
                 currentId={nowPlaying?.id} playing={isPlaying} onPlay={play} />
               <MusicRail title="Fresh finds" eyebrow="New music" description="Hear what artists have recently shared."
                 tracks={recent.filter((track) => track.id !== daily?.id).slice(0, 10)} currentId={nowPlaying?.id} playing={isPlaying} onPlay={play} small />
+              {artistSpotlights.length > 0 && (
+                <section className="space-y-4" aria-label="Meet the artists">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-300">Behind the music</p>
+                      <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Meet the artists.</h2>
+                      <p className="mt-0.5 text-xs text-slate-400">Start with the people behind the tracks you discover.</p>
+                    </div>
+                    <Link href="/discover" className="inline-flex items-center gap-1 text-xs font-semibold text-violet-200 hover:text-white">
+                      More on Discover <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                  <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+                    {artistSpotlights.map((track) => {
+                      const href = getArtistPublicProfilePath(track.artist_id)
+                      if (!href) return null
+                      return <Link key={track.artist_id} href={href} className="group flex w-[170px] shrink-0 snap-start flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-3 transition hover:border-fuchsia-400/30 hover:bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-violet-300">
+                        <TrackCoverImage src={track.cover_art_url} trackId={track.id} alt="" className="aspect-square w-full rounded-xl" iconClassName="h-8 w-8" />
+                        <p className="truncate text-sm font-semibold text-white">{track.artist_name}</p>
+                        <p className="truncate text-[11px] text-slate-400">Listen to {track.title}</p>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-300">Artist profile <ArrowRight className="h-3 w-3 transition group-hover:translate-x-1" /></span>
+                      </Link>
+                    })}
+                  </div>
+                </section>
+              )}
               <MusicRail title="Getting attention" eyebrow="Trending on Tourify" description="Discover tracks that are finding an audience."
                 tracks={trending.filter((track) => track.id !== daily?.id).slice(0, 10)} currentId={nowPlaying?.id} playing={isPlaying} onPlay={play} small />
             </> : <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-sm text-slate-400">
