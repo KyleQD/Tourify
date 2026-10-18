@@ -25,7 +25,8 @@ export function DJChapterRouteMap({
         </div>
         <span className="rounded-full border border-white/15 px-2 py-1 text-xs font-bold text-white/80">{Math.round(progress)}% traveled</span>
       </div>
-      <svg viewBox="0 0 900 148" className="block w-full" role="img"
+      <div className="overflow-x-auto rounded-lg" tabIndex={0} aria-label="Scrollable chapter progress map">
+      <svg viewBox="0 0 900 148" className="block min-w-[720px] w-full" role="img"
         aria-label={'Route from the starting point through ' + chapter.scenery.map(stop => stop.name).join(', ') + ' to ' + chapter.name + '. Player progress ' + Math.round(progress) + ' percent.'}>
         <defs>
           <linearGradient id="dj-route-ocean" x1="0" y1="0" x2="1" y2="0">
@@ -34,7 +35,7 @@ export function DJChapterRouteMap({
           </linearGradient>
         </defs>
         <rect x="0" y="0" width="900" height="148" rx="16" fill="url(#dj-route-ocean)" />
-        <path d="M 58 89 C 212 40 325 125 469 88 S 734 48 846 89" fill="none"
+        <path d="M 58 89 L 846 89" fill="none"
           stroke="#ffffff33" strokeWidth="9" strokeLinecap="round" />
         <path d={'M 58 89 L ' + playerX + ' 89'} fill="none"
           stroke={chapter.accent} strokeWidth="5" strokeLinecap="round" opacity="0.9" />
@@ -62,6 +63,7 @@ export function DJChapterRouteMap({
           <circle cx="0" cy="-29" r="5" fill="#fff8e7" />
         </g>
       </svg>
+      </div>
       <figcaption className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/65">
         <span>◆ Your position</span>
         <span>● Inspired landmarks</span>
