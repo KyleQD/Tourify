@@ -17,7 +17,7 @@ export function decodeNewsIndexCursor(encoded: string | null): NewsIndexCursor |
     if (typeof parsed?.id !== 'string' || !UUID_RE.test(parsed.id)) return null
     if (typeof parsed?.publishedAt !== 'string') return null
     const time = Date.parse(parsed.publishedAt)
-    if (!Number.isFinite(time) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(parsed.publishedAt)) return null
+    if (!Number.isFinite(time) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/.test(parsed.publishedAt)) return null
     return { id: parsed.id, publishedAt: parsed.publishedAt }
   } catch {
     return null
