@@ -131,7 +131,7 @@ create index if not exists news_ingestion_runs_source_idx
 revoke all on table public.news_sources, public.news_stories,
   public.news_items, public.news_submissions, public.news_ingestion_runs,
   public.news_editorial_decisions
-  from anon, authenticated;
+  from public, anon, authenticated;
 
 -- Restrict exposed item columns as well as the rows selected by RLS.
 -- State columns are needed for the indexed API query predicates.
