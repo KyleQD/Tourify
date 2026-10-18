@@ -27,6 +27,7 @@ export interface ProtectedWorkEntitlement {
 /** Server-controlled price ID -> publishing entitlement mapping. */
 export interface WorkHiringPlan {
   priceId: string
+  allowedAccountTypes: readonly string[]
   activeListingLimit: number
 }
 
@@ -74,6 +75,7 @@ export function evaluateProtectedWorkAuthority(input: ProtectedAuthorityInput): 
     ) continue
     const plan = input.hiringPlans.find((candidate) =>
       candidate.priceId === entitlement.stripePriceId &&
+      candidate.allowedAccountTypes.includes(input.accountType) &&
       Boolean(candidate.priceId) &&
       Number.isSafeInteger(candidate.activeListingLimit) &&
       candidate.activeListingLimit >= 0
