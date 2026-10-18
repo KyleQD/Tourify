@@ -7,6 +7,8 @@ on:
       - 'app/api/arcade/**'
       - 'components/arcade/**'
       - 'lib/arcade/**'
+      - 'lib/music/stream-policy.ts'
+      - 'app/api/music/stream/route.ts'
       - '__tests__/arcade/**'
       - '.github/workflows/arcade-unit-tests.yml'
   push:
@@ -17,6 +19,8 @@ on:
       - 'app/api/arcade/**'
       - 'components/arcade/**'
       - 'lib/arcade/**'
+      - 'lib/music/stream-policy.ts'
+      - 'app/api/music/stream/route.ts'
       - '__tests__/arcade/**'
       - '.github/workflows/arcade-unit-tests.yml'
 
@@ -43,4 +47,4 @@ jobs:
       - name: Install dependencies with existing peer-compatibility constraints
         run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund --package-lock=false
       - name: Test original arcade game rules
-        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts
+        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts __tests__/arcade/stream-policy.test.ts
