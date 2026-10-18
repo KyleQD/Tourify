@@ -53,7 +53,7 @@ export function DiscoverSongCard({
           </Button>
         </div>
         <div className="space-y-1 p-3">
-          <p className="truncate font-medium text-slate-100">{track.title}</p>
+          <Link href={"/music/tracks/" + encodeURIComponent(track.id)} className="block truncate font-medium text-slate-100 hover:text-violet-300">{track.title}</Link>
           {artistHref ? (
             <Link
               href={artistHref}
