@@ -3,14 +3,19 @@ name: Jukebox Focused QA
 on:
   push:
     branches:
-      - feat/jukebox-discovery-playground-20261018
+      - 'feat/jukebox-*'
+      - 'feat/music-*'
   pull_request:
     branches:
       - main
-      - feat/home-jukebox-discovery-skins-20261018
+      - 'feat/home-jukebox-*'
+      - 'feat/jukebox-*'
     paths:
       - 'components/jukebox/**'
       - 'components/dashboard/jukebox-player.tsx'
+      - 'components/music/music-discovery-hub.tsx'
+      - 'app/music/**'
+      - 'components/layout/navigation-sidebar.tsx'
       - 'lib/jukebox/**'
       - '__tests__/jukebox/**'
       - '.github/workflows/jukebox-focused-qa.yml'

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import {
   Sheet,
   SheetContent,
@@ -130,7 +131,10 @@ function FullPlayerContent() {
         <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
           Jukebox
         </span>
-        <div className="w-9" />
+        <Link href="/music/discover" onClick={() => ctx.setExpanded(false)}
+          className="inline-flex items-center gap-1 rounded-full border border-violet-400/25 bg-violet-500/15 px-3 py-1.5 text-[11px] font-semibold text-violet-200 transition hover:bg-violet-500/25">
+          Explore Music <Compass className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
       <Tabs

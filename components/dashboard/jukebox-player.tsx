@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import {
   ChevronRight,
   Compass,
@@ -308,7 +309,11 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-wide"><Sparkles className="h-3.5 w-3.5 text-amber-300" /> Song of the Day</h3>
-            <span className="text-[10px] text-white/45">{day}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/45">{day}</span>
+              {daily && <Link href={"/music/discover?track=" + encodeURIComponent(daily.id)}
+                className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-200 hover:text-white focus-visible:ring-2 focus-visible:ring-violet-300">Explore <ChevronRight className="h-3 w-3" /></Link>}
+            </div>
           </div>
           {daily ? <TrackRow track={daily} onPlay={play} label="Today's discovery" /> : (
             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs text-white/60">
@@ -383,6 +388,20 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
         </button>
 
         <JukeboxDiscoveryPlayground tracks={pool} theme={theme} onPlay={play} />
+
+        <Link href="/music/discover"
+          className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-violet-300/30 bg-gradient-to-r from-violet-500/25 via-purple-500/15 to-fuchsia-500/20 p-3.5 transition hover:border-violet-300/60 hover:from-violet-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+          <span className="flex items-center gap-3">
+            <span className="rounded-xl border border-white/10 bg-white/15 p-2.5">
+              <Compass className="h-5 w-5 text-violet-100" aria-hidden="true" />
+            </span>
+            <span>
+              <strong className="block text-sm text-white">Enter Music Discovery</strong>
+              <span className="block text-[11px] text-white/60">Explore artists, fresh music and new scenes</span>
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-violet-200 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+        </Link>
 
         <nav className="grid grid-cols-3 gap-1 border-t border-white/10 pt-3" aria-label="Jukebox collections">
           <button type="button" onClick={() => ctx?.setExpanded(true, "favorites")} className="flex flex-col items-center gap-1 rounded-lg p-2 text-[10px] text-white/60 hover:bg-white/10 hover:text-white"><Heart className="h-4 w-4" />Liked</button>
