@@ -587,6 +587,17 @@ export function RhythmGame() {
           </div>
         </div>
       </div>
+      <div className="space-y-2" aria-label="Beat Deck performance meters">
+        <div className="flex flex-wrap justify-between gap-2 text-xs font-semibold">
+          <span className="flex items-center gap-1.5 text-fuchsia-100"><Disc3 className="h-3.5 w-3.5" /> Set progress · {Math.min(100, Math.round(100 * elapsed / Math.max(1, durationRef.current)))}%</span>
+          <span className="text-emerald-200">Accuracy · {results.perfect + results.good + results.missed ? Math.round(100 * (results.perfect + results.good) / (results.perfect + results.good + results.missed)) : 0}%</span>
+        </div>
+        <div role="progressbar" aria-label="Track playback progress" aria-valuemin={0} aria-valuemax={Math.ceil(durationRef.current)} aria-valuenow={Math.floor(Math.min(elapsed, durationRef.current))}
+          className="h-2.5 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-pink-400 via-purple-400 to-sky-300 transition-[width] duration-100 motion-reduce:transition-none"
+            style={{ width: Math.min(100, Math.max(0, 100 * elapsed / Math.max(1, durationRef.current))) + '%' }} />
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 sm:text-sm" aria-live="polite">
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-fuchsia-200">{results.score.toLocaleString()}</span>Score</div>
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-sky-200">{results.combo}×</span>Combo</div>
