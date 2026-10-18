@@ -74,3 +74,32 @@ P0: reconcile staging/demo music-rights schema and implement artist master+compo
 P1: authored/analysed beatmaps and verified audio synchronization. Basic manual calibration and three difficulty levels are already in the dev branch.
 P1: deeper mobile layout and sound/music coordination with the global Tourify jukebox (pause jukebox when gameplay begins, restore intentionally).
 P2: verified server-side scores, real leaderboards and artist challenge cards; additional original DJ Odyssey levels and venue endpoints.
+
+## Gameplay expansion — 2026-10-18
+
+### Implemented on this draft branch (needs in-browser QA)
+- **Beat Deck concert director:** Three selectable original 2D venues (Underground Club, Festival Main Stage, Neon Skyline), parallax-like skyline/stage geometry, colored light beams, a crowd silhouette, and combo-based energy tiers from Soundcheck to Encore Mode. Venue swaps do not reset or modify the note chart, streaming entitlement, scoring, or audio offset.
+- **Accessibility:** Stage lighting has an explicit "Calm stage lighting" control initialized from `prefers-reduced-motion`; high-energy flashes and beam movement are reduced in that mode. Full WCAG motion/contrast testing remains pending.
+- **DJ Odyssey movement:** Adds a 120ms post-ledge coyote window and a 150ms pre-landing jump buffer. Jump requires a fresh button/key press; death/reset clears queued inputs to avoid auto-jumping. Existing path and physics constants remain otherwise intact.
+- **DJ Odyssey club-city route:** The existing first level is now visually divided into Record Row, Subway Beats and Disco Mile, with ambient color changes, marquees, contextual district announcements and a route progress bar. These are **districts within ONE continuous level**, not three newly authored levels.
+- **Enemy collision fix:** Taking damage/respawning aborts the collision frame so a simultaneous accidental portal victory cannot occur.
+- **Studio 54 interactive victory:** A successful finish unlocks a lightweight original-synth `DJBoothFinale`: Deck A/B looping practice notes, scratch buttons, 0–100 equal-power crossfader, stop control, accessibility labels, and automatic audio cleanup on unmount. It uses **only locally synthesized notes**; no uploaded music, samples, rights grants, or `.flow` content.
+- **Arcade hub:** Now describes the stage choices, districts, movement assist and playable finale.
+- **Logic tests:** `__tests__/arcade/stage-director.test.ts`, `__tests__/arcade/dj-mixer.test.ts`, expanded `__tests__/arcade/dj-quest-level.test.ts`; Arcade CI workflow targets these along with existing gameplay/stream tests.
+
+### Exact limitations
+- Beat Deck's creator-track note charts are still deterministic BPM practice maps, **not** derived from real audio transients. The stage lighting pulses to the chosen practice BPM and current score; it is not a live audio analyzer. Authenticated owner-only track catalog remains unchanged.
+- DJ finale is a simple click-driven, original Web Audio synth sequencer, not true stem mixing or performance-grade beat scheduling; no claims of real artist-sample support.
+- DJ district art is procedurally drawn in canvas using the existing single-level scene, without newly licensed images.
+- Device-local scores are not verified or associated with signed-in leaderboard identities.
+- `.flow` development stays in [separate handoff](../flow-file/FLOW-FILE-HANDOFF.md).
+- **Do not merge based on unit tests alone.** Full desktop/mobile/browser gameplay QA and integrated build verification are release gates.
+
+### Manual browser QA checklist (next gate)
+1. Keyboard D/F/J/K and multitouch lane taps still judge notes accurately at every venue; change stage mid-song without restart/duplicate RAF; combo tier and lighting rise/fall; pause/restart and calibration unchanged.
+2. Change Calm lighting while playing; test OS reduced-motion preference before launch; verify beam movement stops and note highway stays legible.
+3. DJ: press jump within 150ms before landing and up to 120ms after walking off; no infinite/air jump exploit; arrow/touch move+jump simultaneously; death clears buffered presses.
+4. Reach every district and confirm signage, progress updates, collect all records, stomp each enemy, lose hearts, respawn at checkpoints and enter the unlocked door.
+5. Win, tap Deck A/B, move crossfader from 0 to 100 and confirm approximate gain balance; tap vinyl scratch; Stop all, restart level and verify all audio resources close. Confirm autoplay restrictions recover on a direct user gesture.
+6. Test iOS Safari/Android Chrome/desktop Safari/Chrome/Firefox with device rotation, headphones, background tabs, screen reader focus and low-performance throttling.
+7. No off-platform copyrighted media, accidental open bucket paths, signed URLs in browser localStorage, or new Supabase schema/data mutations.
