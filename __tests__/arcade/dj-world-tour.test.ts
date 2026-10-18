@@ -8,7 +8,7 @@ import {
 describe('DJ Odyssey world tour destinations', () => {
   it('contains six playable, distinct club destinations', () => {
     expect(DJ_CHAPTERS.map(chapter => chapter.id)).toEqual([
-      'studio54', 'whisky', 'amnesia', 'eos', 'fabric', 'tresor',
+      'studio54', 'whisky', 'amnesia', 'fabric', 'tresor', 'eos',
     ])
     expect(new Set(DJ_CHAPTERS.map(chapter => chapter.id)).size).toBe(6)
     expect(new Set(DJ_CHAPTERS.map(chapter => chapter.backdrop[0])).size).toBe(6)
