@@ -157,6 +157,7 @@ export class OriginalBeatDeckPlayer {
     const stepSeconds = songStepSeconds(song)
     const quarter = beatSeconds(song)
     const root = originalSongRoot(song, step)
+    const chordMinor = song.chordMinor[Math.floor(step / 32) % song.chordMinor.length]
     const beat = Math.floor(step / 2)
     const bar = Math.floor(beat / 4)
     const withinBar = step % 8
@@ -187,9 +188,8 @@ export class OriginalBeatDeckPlayer {
     }
     // Chords shift every four bars and create audible musical phrases.
     if (step % 8 === 0 && !breakBar) {
-      const minor = song.key.includes('minor')
       const padMidi = root + 12
-      for (const degree of [0, minor ? 3 : 4, 7]) {
+      for (const degree of [0, chordMinor ? 3 : 4, 7]) {
         this.tone(originalSongFrequency(padMidi + degree), time, Math.min(1.8, quarter * 3.5),
           isCoastal ? 0.016 : 0.013, isCoastal ? 'sine' : 'triangle', isCoastal ? 1800 : 1300)
       }
@@ -197,7 +197,9 @@ export class OriginalBeatDeckPlayer {
     // Each lane onset is also an audible lead/pluck. Offbeat notes are quieter,
     // supporting hard charts without adding silent phantom target notes.
     if (step >= 4 && step < songTotalSteps(song) - 2) {
-      const degree = song.motif[Math.floor(step / 2) % song.motif.length]
+      const motifDegree = song.motif[Math.floor(step / 2) % song.motif.length]
+      // Keep the melody compatible with each local chord quality.
+      const degree = chordMinor ? (motifDegree === 4 ? 3 : motifDegree === 11 ? 10 : motifDegree) : (motifDegree === 3 ? 4 : motifDegree === 10 ? 11 : motifDegree)
       const shift = bar >= 16 ? 12 : 0
       const note = root + 12 + degree + shift
       const lane = songLane(song, step)
