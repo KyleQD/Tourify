@@ -286,21 +286,37 @@ export function RhythmGame() {
   hitFnRef.current = hitLane
 
   useEffect(() => {
-    const handleKeys = (event: KeyboardEvent) => {
-      if (!sectionRef.current?.contains(document.activeElement)) return
-      if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
-      if (document.activeElement instanceof HTMLSelectElement || document.activeElement instanceof HTMLInputElement) return
-      const laneIndex = LANE_KEYS.indexOf(event.key.toLowerCase() as typeof LANE_KEYS[number])
-      if (laneIndex >= 0) {
+    const handleDown = (event: KeyboardEvent) => {
+      // Starting a round explicitly arms the game. Focus can drift to the page
+      // or canvas without silently disabling the D/F/J/K controls.
+      if (phaseRef.current !== 'playing') return
+      if (isRhythmEditableTarget(event.target as HTMLElement | null)) return
+      const lane = laneFromKeyboardEvent(event)
+      if (lane !== null) {
         event.preventDefault()
-        hitFnRef.current(laneIndex as Lane)
-      } else if (event.key === 'Escape' && phaseRef.current === 'playing') {
+        if (!event.repeat) {
+          pressFnRef.current(lane, true)
+          hitFnRef.current(lane)
+        }
+      } else if (event.key === 'Escape' && !event.repeat) {
         event.preventDefault()
         pauseRef.current()
       }
     }
-    window.addEventListener('keydown', handleKeys)
-    return () => window.removeEventListener('keydown', handleKeys)
+    const handleUp = (event: KeyboardEvent) => {
+      // Always release tracked lanes, even if the player paused mid-press.
+      const lane = laneFromKeyboardEvent({ key: event.key, code: event.code })
+      if (lane !== null) pressFnRef.current(lane, false)
+    }
+    const releaseAll = () => releaseAllFnRef.current()
+    window.addEventListener('keydown', handleDown)
+    window.addEventListener('keyup', handleUp)
+    window.addEventListener('blur', releaseAll)
+    return () => {
+      window.removeEventListener('keydown', handleDown)
+      window.removeEventListener('keyup', handleUp)
+      window.removeEventListener('blur', releaseAll)
+    }
   }, [])
   const pauseRef = useRef<() => void>(() => {})
   pauseRef.current = pause
