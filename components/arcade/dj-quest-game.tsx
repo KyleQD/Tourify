@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import {
   DJ_ENEMIES, DJ_GRAVITY, DJ_JUMP_SPEED, DJ_PLATFORMS, DJ_RECORDS,
@@ -19,6 +20,7 @@ const baseRecords = () => new Set<number>()
 const baseEnemies = () => new Set<number>()
 
 export function DJQuestGame() {
+  const jukebox = useJukeboxOptional()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rootRef = useRef<HTMLElement>(null)
   const heroRef = useRef<Hero>(startHero())
@@ -66,6 +68,7 @@ export function DJQuestGame() {
   }
   const play = () => {
     if (phaseRef.current === 'won' || phaseRef.current === 'gameover') restart()
+    if (jukebox?.state.isPlaying) jukebox.pause()
     if (typeof window !== 'undefined' && window.AudioContext) {
       try {
         if (!audioContextRef.current) audioContextRef.current = new window.AudioContext()
