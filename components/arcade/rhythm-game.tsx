@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Disc3, Headphones, Pause, Play, RotateCcw, Volume2 } from 'lucide-react'
 import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
+import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
 import {
   createPracticeChart,
   findHittableNote,
@@ -56,6 +57,7 @@ export function RhythmGame() {
   const [offsetMs, setOffsetMs] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
   const [results, setResults] = useState<Results>(initialResults)
+  const [personalBest, setPersonalBest] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [feedback, setFeedback] = useState('Ready when you are')
   const [error, setError] = useState('')
@@ -116,6 +118,15 @@ export function RhythmGame() {
     // Reset timing each time the selected track/tempo changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, tempo, difficulty])
+
+  useEffect(() => {
+    setPersonalBest(readPersonalBest('beat-deck', selected + ':' + difficulty))
+  }, [selected, difficulty])
+
+  useEffect(() => {
+    if (phase !== 'finished') return
+    setPersonalBest(savePersonalBest('beat-deck', selected + ':' + difficulty, resultsRef.current.score))
+  }, [phase, selected, difficulty])
 
   useEffect(() => () => {
     generationRef.current++
@@ -389,10 +400,11 @@ export function RhythmGame() {
       </div>
       <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
 
-      <div className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm" aria-live="polite">
+      <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 sm:text-sm" aria-live="polite">
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-fuchsia-200">{results.score.toLocaleString()}</span>Score</div>
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-sky-200">{results.combo}×</span>Combo</div>
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-amber-200">{results.perfect}</span>Perfect</div>
+        <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-emerald-200">{personalBest.toLocaleString()}</span>Best · this device</div>
       </div>
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block aspect-[760/360] w-full" aria-label="Rhythm highway: four falling note lanes, from left to right D F J K" />
