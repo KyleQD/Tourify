@@ -144,6 +144,13 @@ export function RhythmGame() {
           throw new Error(response.status === 401 || response.status === 403
             ? 'You do not have playback access to this track.' : 'The track is not available for streaming.')
         }
+        // The authoritative stream response controls whether this listener gets a
+        // full song or a clip; do not infer playback length from upload metadata.
+        const permittedSeconds = data.accessLevel === 'preview'
+          ? Number(track.previewDurationSeconds) || 15
+          : Number(track.duration) || 90
+        durationRef.current = Math.max(8, Math.min(240, permittedSeconds))
+        notesRef.current = createPracticeChart(tempo, durationRef.current, track.id)
         const audio = new Audio()
         audio.preload = 'auto'
         audio.src = data.url
