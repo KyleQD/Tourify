@@ -1,15 +1,19 @@
-# Tourify Protected Audio (TPA) — Foundation and execution plan
+# Flow File (.flow) — protected media foundation and execution plan
 Status: PROPOSED ARCHITECTURE + FIRST IMPLEMENTED SECURITY SLICE
 Date: 2026-10-18
 Branch: `feat/feed-living-experience-20261017` / Draft PR #17
-Owner: Tourify music/rights + Arcade workstreams
+Owner: Flow shared-media team (format and protection); Tourify Arcade consumes authorized audio and beatmaps
+
+**Naming decision:** The format/product is **Flow File**, with extension **`.flow`**. This is a proposal for an actual versioned media package; the parser, writer, transport, encryption and interoperability contract still require design and tests in the separate Flow File workstream. The currently shipped Arcade uses ordinary audio and signed URLs; it does **not** produce `.flow` files.
+
+**Canonical separate workstream:** [Flow File handoff](../flow-file/FLOW-FILE-HANDOFF.md). This legacy path is retained so existing Arcade links do not break.
 
 ## 0. Executive decision
 
-**Do not invent a proprietary codec or rely on renaming MP3 files to a `.tpa` extension.**
-Artists keep uploading standard WAV/FLAC/MP3/M4A/etc. Internally, TPA names the protected media **package, contracts, processing, rights, and delivery policy** — not a secret audio algorithm.
+**Do not invent a proprietary codec or rely on renaming MP3 files to a `.flow` extension.**
+Artists keep uploading standard WAV/FLAC/MP3/M4A/etc. Internally, Flow File names the protected media **package, contracts, processing, rights, and delivery policy** — not a secret audio algorithm.
 
-A proprietary `.tpa` manifest/archive may be useful for versioned server-to-server exchange and chain of custody, but it is **not** an anti-piracy measure and must not become a browser-required custom decoder. Keys must never be embedded in a frontend bundle. Any listener able to hear music can attempt analogue/digital re-recording, so **no anti-piracy mechanism guarantees prevention or perfect tracing**.
+A proprietary `.flow` manifest/archive may be useful for versioned server-to-server exchange and chain of custody, but it is **not** an anti-piracy measure and must not become a browser-required custom decoder. Keys must never be embedded in a frontend bundle. Any listener able to hear music can attempt analogue/digital re-recording, so **no anti-piracy mechanism guarantees prevention or perfect tracing**.
 
 ### Security goals
 
@@ -35,7 +39,7 @@ A proprietary `.tpa` manifest/archive may be useful for versioned server-to-serv
 - Active project `tourify-staging` (`dlcqfpabbgltgteqtuko`): `artist-music` bucket **private**, common audio MIME allowlist; `artist_music` and preview job tables are present, but several origin/rights tables expected by the current worker were **not** returned in the public schema survey.
 - Active project `Tourify Demo` (`auqddrodjezjlypkzfpi`): `artist-music` bucket **private**, large `music_rights_*` and related marketplace rights inventory; no `music_arcade_permissions` table found in either active project.
 - Environments are **not schema-identical**. Do not apply proposed SQL until the canonical project/migration baseline is confirmed.
-- **No production, staging or demo schema changes have been made as part of this TPA work.**
+- **No production, staging or demo schema changes have been made as part of this Flow File work.**
 
 ## 2. Implemented first slice in this feature branch
 
@@ -45,14 +49,14 @@ A proprietary `.tpa` manifest/archive may be useful for versioned server-to-serv
 - `__tests__/arcade/stream-policy.test.ts` protects those defaults.
 - **Limitation:** Supabase signed URLs are bearer links valid for their lifetime, even after consent changes. Revoke stops newly-issued links but not an existing link until it expires. Existing generic non-Arcade route still supports authorized one-hour access. An authorized user can save transmitted audio. No DRM or watermarking is yet installed.
 
-## 3. TPA format contract (proposal, NOT shipped)
+## 3. Flow File format contract (proposal, NOT shipped)
 
-The **`TPA v1` package is a versioned server metadata/manifest**, not an audio file codec. No raw storage paths, encryption keys, or signed URLs in publicly shareable manifests.
+The **`Flow File v1` package is a versioned server metadata/manifest**, not an audio file codec. No raw storage paths, encryption keys, or signed URLs in publicly shareable manifests.
 
 Suggested safe metadata:
 ```json
 {
-  "schema": "tourify.protected-audio.v1",
+  "schema": "flow.file.v1",
   "assetId": "<opaque>",
   "trackId": "<opaque>",
   "masterVersion": 1,
@@ -103,7 +107,7 @@ For every recording, preserve separately:
 
 **Default for all existing recordings: Arcade fan opt-in is OFF**. Creating a general public song page or confirming ownership never auto-grants game rights. Requests from owner-practice mode must not be silently repurposed into global fan playback.
 
-A non-applied **SQL proposal**: `docs/feed-living-experience/TPA-ARCADE-RIGHTS-PROPOSED.sql`.
+A non-applied **SQL proposal**: `docs/feed-living-experience/Flow File-ARCADE-RIGHTS-PROPOSED.sql`.
 This is intentionally NOT an executable migration in a live environment until the repo's divergent database baselines and privacy policies are reconciled.
 
 ## 7. Threat model and realistic protections
@@ -117,7 +121,7 @@ This is intentionally NOT an executable migration in a live environment until th
 | Leaked audio posted elsewhere | Test robust forensic watermarking and acoustic fingerprint matching | Watermarks can be stripped or distorted; matching is not proof of ownership |
 | Uploader lacks rights | Two-part master/composition attestation and rights review | An attestation is not legal proof |
 | Artist revokes permission | Stop NEW catalog/game grants and licenses; enforce short TTL | Already-issued signed links valid until expiry |
-| Embedded custom key in `.tpa` JavaScript decoder | **Do not do it**; use established cryptography/DRM and server-managed keys | No DRM is universally supported |
+| Embedded custom key in `.flow` JavaScript decoder | **Do not do it**; use established cryptography/DRM and server-managed keys | No DRM is universally supported |
 | Fake score/achievement | Server-side gameplay event verification and abuse controls | Score verification is an anti-cheat challenge; no trusted leaderboard yet |
 
 Watermarking should be evaluated in a controlled pilot (quality testing, device survivability, privacy/legal review). **Nightshade is designed for images, not to prevent music scraping.**
