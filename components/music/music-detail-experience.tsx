@@ -8,7 +8,11 @@ import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-contex
 import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import type { PublicMusicItem } from "@/lib/music/public-catalog-detail"
-import { isReleaseKind } from "@/lib/music/public-catalog-detail"
+
+
+function isReleaseKind(kind: PublicMusicItem["kind"]): boolean {
+  return kind === "album" || kind === "ep" || kind === "mixtape"
+}
 
 function trackFromItem(item: PublicMusicItem): JukeboxTrack {
   return {
