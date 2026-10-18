@@ -15,7 +15,7 @@ on:
         default: ""
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   build-testflight:
