@@ -29,6 +29,16 @@ Make the logged-in Tourify feed a playful home for community, music, events, art
 
 **Important:** The first rails are *highlights from the loaded feed*, not independently ranked "trending" content. They are not expiring 24-hour stories and do not claim proximity. Do not relabel them as such until corresponding services exist.
 
+## Arcade extension (new development slice)
+
+A playable Tourify Arcade is now included on the same feature branch:
+- Beat Deck: rhythm highway with keyboard/touch, practice charts, creator-track streaming and synthesized beat.
+- DJ Odyssey: original club-themed vinyl-collecting retro platformer.
+- Arcade hub and feed shortcuts.
+- Gameplay details, QA and artist licensing caveats: [ARCADE-HANDOFF.md](ARCADE-HANDOFF.md).
+
+This is **not yet a full fan-wide music game**: artist-approved interactive soundtrack usage requires a separate, explicit opt-in and rights-cleared charting. Scores are local to the game session. The PR remains draft until testing and branch reconciliation.
+
 ## Workstreams and execution order
 
 ### F01 — Stable integration base (Blocker / P0)
