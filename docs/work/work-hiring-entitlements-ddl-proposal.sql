@@ -56,6 +56,67 @@ CREATE TABLE IF NOT EXISTS public.work_hiring_entitlements (
   CONSTRAINT work_hiring_entitlements_unique_subscription UNIQUE(stripe_subscription_id)
 );
 
+-- Immutable reviewer decisions: this is the *only* approved review write path.
+-- Reviewers must have protected auth.users.app_metadata.work_employer_reviewer
+-- and pass real authentication / document checks in the API.
+CREATE TABLE IF NOT EXISTS public.work_employer_review_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+  reviewer_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  decision text NOT NULL CHECK (decision IN ('approved', 'rejected', 'revoked')),
+  reason text NOT NULL CHECK (char_length(btrim(reason)) >= 10),
+  expires_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT work_review_approval_expiry CHECK (
+    decision = 'approved' OR expires_at IS NULL
+  )
+);
+
+-- A single INSERT atomically records the audit event and updates the
+-- protected approval state. No direct reviewer mutation of approval rows.
+CREATE SCHEMA IF NOT EXISTS private;
+CREATE OR REPLACE FUNCTION private.apply_work_employer_review_event()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog
+AS $
+BEGIN
+  IF NEW.decision = 'approved' AND NEW.expires_at IS NOT NULL
+     AND NEW.expires_at <= NEW.created_at THEN
+    RAISE EXCEPTION 'Employer approval must not already be expired';
+  END IF;
+
+  INSERT INTO public.work_employer_approvals (
+    account_id, approval_type, status, approved_by, approved_at,
+    expires_at, revoked_at, updated_at
+  ) VALUES (
+    NEW.account_id, 'employer', NEW.decision, 
+    CASE WHEN NEW.decision = 'approved' THEN NEW.reviewer_user_id ELSE NULL END,
+    CASE WHEN NEW.decision = 'approved' THEN NEW.created_at ELSE NULL END,
+    CASE WHEN NEW.decision = 'approved' THEN NEW.expires_at ELSE NULL END,
+    CASE WHEN NEW.decision = 'revoked' THEN NEW.created_at ELSE NULL END,
+    NEW.created_at
+  )
+  ON CONFLICT (account_id, approval_type) DO UPDATE SET
+    status = EXCLUDED.status,
+    approved_by = EXCLUDED.approved_by,
+    approved_at = EXCLUDED.approved_at,
+    expires_at = EXCLUDED.expires_at,
+    revoked_at = EXCLUDED.revoked_at,
+    updated_at = EXCLUDED.updated_at;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER work_employer_review_events_apply
+AFTER INSERT ON public.work_employer_review_events
+FOR EACH ROW EXECUTE FUNCTION private.apply_work_employer_review_event();
+
+-- Trigger execution occurs as the service-role insert actor. The function
+-- has NO client EXECUTE grant and never trusts a client-provided actor.
+REVOKE ALL ON FUNCTION private.apply_work_employer_review_event() FROM PUBLIC, anon, authenticated;
+
 CREATE INDEX IF NOT EXISTS work_employer_approvals_active_idx
   ON public.work_employer_approvals(account_id, expires_at)
   WHERE status='approved' AND revoked_at IS NULL;
@@ -68,16 +129,21 @@ CREATE INDEX IF NOT EXISTS work_hiring_entitlements_account_idx
 ALTER TABLE public.work_employer_approvals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_hiring_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_hiring_entitlements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_employer_review_events ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.work_employer_approvals FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.work_hiring_plans FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.work_hiring_entitlements FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.work_employer_review_events FROM PUBLIC, anon, authenticated;
 
 -- Service-role access is server-only. Never expose SUPABASE_SERVICE_ROLE_KEY
 -- or these records to a browser/Next public environment variable.
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.work_employer_approvals TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.work_hiring_plans TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.work_hiring_entitlements TO service_role;
+GRANT SELECT, INSERT ON public.work_employer_review_events TO service_role;
+GRANT USAGE ON SCHEMA private TO service_role;
+GRANT EXECUTE ON FUNCTION private.apply_work_employer_review_event() TO service_role;
 
 COMMIT;
 
@@ -85,8 +151,10 @@ COMMIT;
 -- 1. Review account grants: own-row accounts.is_verified is currently editable.
 --    Introduce separate security migration protecting legacy verification
 --    attributes and initial verification_requests status without breaking UI.
--- 2. Build an ADMIN-ONLY approval workflow that uses protected service role,
---    requires authenticated reviewer identity, and records append-only audit.
+-- 2. Build reviewer-only, server-authenticated approval workflow. Reviewer
+--    grants must be independently controlled in auth.users.app_metadata. Test
+--    that only service role may insert append-only review events and the
+--    trigger updates the approval row in the same transaction.
 -- 3. From SIGNATURE-VERIFIED Stripe events, validate subscription owner and
 --    explicit price entitlements. Subscription status must be read fresh and
 --    matched against accounts.owner_user_id at authorization time.
