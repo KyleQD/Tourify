@@ -97,6 +97,21 @@ create table if not exists public.news_submissions (
 create index if not exists news_submissions_queue_idx
   on public.news_submissions (editorial_status, submitted_at);
 
+-- Append-only decision history, separate from private reporter tip content.
+create table if not exists public.news_editorial_decisions (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references public.news_submissions(id) on delete restrict,
+  actor_user_id uuid not null,
+  action text not null check (action in ('start_review','approve','reject','withdraw','reopen')),
+  status_from text not null,
+  status_to text not null,
+  rationale text,
+  occurred_at timestamptz not null default now()
+);
+
+create index if not exists news_editorial_decisions_submission_idx
+  on public.news_editorial_decisions (submission_id, occurred_at desc);
+
 create table if not exists public.news_ingestion_runs (
   id uuid primary key default gen_random_uuid(),
   source_id uuid not null references public.news_sources(id) on delete cascade,
@@ -114,12 +129,21 @@ create index if not exists news_ingestion_runs_source_idx
 -- Limit new tables to explicit, least-privilege API grants.
 -- Supabase announced stricter default Data API exposure for Oct 30, 2026.
 revoke all on table public.news_sources, public.news_stories,
-  public.news_items, public.news_submissions, public.news_ingestion_runs
+  public.news_items, public.news_submissions, public.news_ingestion_runs,
+  public.news_editorial_decisions
   from anon, authenticated;
 
-grant select on table public.news_items, public.news_stories to anon, authenticated;
+-- Restrict exposed item columns as well as the rows selected by RLS.
+-- State columns are needed for the indexed API query predicates.
+grant select (id, origin_type, source_name, headline, excerpt, canonical_url,
+  image_url, topics, story_id, published_at, visibility, publication_state,
+  moderation_state, rights_state)
+  on table public.news_items to anon, authenticated;
+grant select (id, slug, headline, publication_state, published_at, updated_at)
+  on table public.news_stories to anon, authenticated;
 grant all on table public.news_sources, public.news_stories,
-  public.news_items, public.news_submissions, public.news_ingestion_runs
+  public.news_items, public.news_submissions, public.news_ingestion_runs,
+  public.news_editorial_decisions
   to service_role;
 
 alter table public.news_sources enable row level security;
@@ -127,6 +151,7 @@ alter table public.news_stories enable row level security;
 alter table public.news_items enable row level security;
 alter table public.news_submissions enable row level security;
 alter table public.news_ingestion_runs enable row level security;
+alter table public.news_editorial_decisions enable row level security;
 
 -- RLS SELECT applies to both anonymous visitors and members.
 -- The application must never expose drafts, withheld records or raw tips.
