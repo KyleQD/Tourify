@@ -130,3 +130,32 @@ P2: verified server-side scores, real leaderboards and artist challenge cards; a
 7. Reminder: chart remains a tempo-based practice pattern, **not** a verified beatmap derived from uploaded audio.
 
 Status: changes committed to draft branch, **browser gameplay verification required before merging**.
+
+## DJ Odyssey World Tour — five-chapter playable expansion (2026-10-18)
+
+### Chapter catalog (feature branch; full browser QA pending)
+- **New York — Studio 54:** Existing original disco level retained, including its established localStorage best-score key `first-level`.
+- **West Hollywood — Whisky a Go Go:** Sunset Strip-inspired stage palette, palms, vintage-style concert billboards, sunset silhouette, stylized rock-club arrival.
+- **Ibiza — Amnesia:** Mediterranean sea, bright turquoise coves, original Es Vedrà-like rock silhouette, a Dalt Vila-inspired whitewashed fortified town, Ses Salines salt-flat pools, palms and the fictional approach to Sant Rafel. Amnesia is actually inland near Sant Rafel; the level is **not a geographical route**.
+- **London — fabric:** Original rainy London skyline, clocktower, bridge, Underground-style signage and city warehouse atmosphere.
+- **Berlin — Tresor:** Original techno-industrial visual style, TV tower, painted wall, transit stop and power-station silhouettes.
+- These are cultural references, **not sponsored, licensed or affiliated venue partnerships**. No real branding graphics, club likenesses, copyrighted music or official logos are bundled.
+
+### Engineering completed
+- `lib/arcade/dj-world-tour.ts`: strongly typed five-chapter configuration, landmark list, deterministic distinct ground and upper-platform geometry, records and enemies, chapter-aware safe checkpoints and contextual labels. World state is not shared between chapters.
+- `lib/arcade/dj-world-art.ts`: original canvas landmark art and per-chapter colors (island water / palms / sunsets; NYC, UK and Berlin backdrops).
+- `components/arcade/dj-quest-game.tsx`: chapter selector, title and description, themed portal, location-specific visual progress, per-chapter best scores; switching chapters resets the level while keeping the original Studio 54 key.
+- `components/arcade/dj-booth-finale.tsx`: victory DJ booth labels follow the selected venue.
+- `components/arcade/arcade-hub.tsx` and route metadata now describe a five-stop world tour.
+- `__tests__/arcade/dj-world-tour.test.ts` checks chapter uniqueness, geometry gaps within basic jump distance, recognizable Ibiza features and valid floor checkpoints; included in targeted GitHub workflow.
+- This is **five playable prototype chapters** in a common engine, each with changes to backdrop / platforms / pickups / enemies and destination gate. It is **not yet** five fully individually hand-authored long-form levels with original bosses or signed musical soundtracks.
+
+### Acceptance / remaining work
+- [x] Five chapter presets and a chapter-selector UI added to the development branch.
+- [x] Chapter scenery, name, finish gate, pickup/enemy layout and per-chapter local personal best wired into gameplay.
+- [x] Draft branch unit coverage added; initial expanded CI run was successful.
+- [ ] Verify newest Vercel build and static TypeScript compilation. An **intermediate** Vercel commit lacked `world` in draw scope and failed; subsequent drawing-loop code adds it. Do not release without final READY verification.
+- [ ] Manual keyboard and mobile touch playthroughs of every chapter, especially ground gaps, early and late pickup reachability, chapter switching while paused, low-end graphics performance, night/dusk readability, and goal unlocking.
+- [ ] Expand the different chapter environments with per-destination set-piece mechanics, bespoke enemies, interactive scenery, unique rewards and reviewed original music.
+- [ ] Check any future real venue branding/licensing and independent name/trademark implications with rights counsel before monetized distribution or marketing. Club name use is descriptive/unaffiliated in this prototype.
+- [ ] Add separate world-tour map UI and lore if desirable. Current selector is a list of fictional levels, not a geographic routing tool.
