@@ -19,6 +19,7 @@ describe('indexed News feed composition', () => {
     expect(result.filter(i => i.origin === 'rss')).toHaveLength(9)
     expect(result.filter(i => i.origin === 'community')).toHaveLength(7)
     expect(result.filter(i => i.origin === 'editorial')).toHaveLength(4)
+    expect(new Set(result.slice(0, 6).map(i => i.origin)).size).toBe(3)
   })
 
   it('backfills missing categories instead of injecting low-quality placeholders', () => {
