@@ -18,6 +18,7 @@ describe('Beat Deck original synchronized one-minute soundtracks', () => {
       expect(beatSeconds(song)).toBeCloseTo(60 / song.bpm)
       expect(song.motif).toHaveLength(16)
       expect(song.progression).toHaveLength(4)
+      expect(song.chordMinor).toHaveLength(song.progression.length)
       expect(song.tint).toHaveLength(3)
       expect(getOriginalSong(song.id)).toBe(song)
     }
