@@ -11,10 +11,12 @@ import { accountAuthorNeedsRefresh } from '@/lib/accounts/account-author'
 import { resolveAccountAuthorSnapshot } from '@/lib/accounts/acting-account-snapshot'
 import { parsePressFormat } from '@/lib/press/formats'
 import type { NewsCategory, NewsFeedItem, NewsFeedQuery, NewsSortMode, RankedNewsFeedResult } from '@/lib/news/types'
+import { isPublicNewsCandidate } from '@/lib/news/publication'
 import { chooseFanoutStrategy } from '@/lib/news/scale/hybrid-fanout'
 import { fetchFeedPostsWithFallback } from '@/lib/feed/feed-posts-query'
 
 interface BuildNewsFeedParams extends NewsFeedQuery {
+  publicOnly?: boolean
   requestOrigin: string
   supabase: SupabaseClient
 }
@@ -45,7 +47,7 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
       preferredLocations: userSignals.preferredLocations
     }),
     fetchBlogCandidates({ supabase: params.supabase, limit: 60 }),
-    fetchPostCandidates({ supabase: params.supabase, limit: 60 }),
+    params.publicOnly ? Promise.resolve([]) : fetchPostCandidates({ supabase: params.supabase, limit: 60 }),
     fetchMusicCandidates({ supabase: params.supabase, limit: 60 }),
     fetchEventCandidates({
       supabase: params.supabase,
@@ -61,8 +63,11 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
     ...musicCandidates,
     ...eventCandidates
   ])
+  const eligibleCandidates = params.publicOnly
+    ? mergedCandidates.filter(isPublicNewsCandidate)
+    : mergedCandidates
   const filteredByFacet = filterByFacet({
-    items: mergedCandidates,
+    items: eligibleCandidates,
     facet: params.facet,
     followedAuthorIds: userSignals.followedAuthorIds,
     preferredLocations: userSignals.preferredLocations
@@ -78,7 +83,7 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
   const effectiveCandidates = pickEffectiveCandidates({
     filteredByQuery,
     filteredByFacet: filteredByCategory,
-    mergedCandidates,
+    mergedCandidates: eligibleCandidates,
     hasStrictFilter: Boolean(params.category && params.category !== 'featured') || Boolean(params.query?.trim())
   })
 
@@ -490,6 +495,8 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
         ,certification_public_id
       `)
       .eq('is_public', true)
+      .eq('is_visible', true)
+      .eq('moderation_status', 'approved')
       .order('created_at', { ascending: false })
       .limit(params.limit)
 
@@ -570,6 +577,7 @@ async function fetchLegacyEventCandidates(params: { supabase: SupabaseClient; li
       .from('events')
       .select('id, name, description, event_type, event_date, city, state, country, venue_name, tags')
       .eq('status', 'published')
+      .eq('is_public', true)
       .gte('event_date', new Date().toISOString().slice(0, 10))
       .order('event_date', { ascending: true })
       .limit(params.limit)
