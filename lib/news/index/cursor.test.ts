@@ -7,6 +7,11 @@ describe('news index cursor', () => {
     expect(decodeNewsIndexCursor(encodeNewsIndexCursor(good))).toEqual(good)
   })
 
+  it('supports PostgreSQL timestamp offsets without changing the original precision', () => {
+    const offset = { ...good, publishedAt: '2026-10-18T10:00:00.123456+00:00' }
+    expect(decodeNewsIndexCursor(encodeNewsIndexCursor(offset))).toEqual(offset)
+  })
+
   it('rejects malformed and injected values', () => {
     expect(decodeNewsIndexCursor('')).toBe(null)
     expect(decodeNewsIndexCursor('a'.repeat(600))).toBe(null)
