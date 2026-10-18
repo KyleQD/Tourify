@@ -30,8 +30,20 @@ function getJumpHeight(time: number, started: number): number {
 
 const BEST_KEY = (game: GuestlistGameId) => 'tourify:guestlist-games:best:v1:' + game
 
-export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; onExit: () => void }) {
+interface GuestlistGameSessionProps {
+  game: GuestlistGameId
+  onExit: () => void
+  onFinished: () => void
+  onNext: () => void
+  nextGameLabel: string
+  onStay: () => void
+  rotationSeconds: number | null
+}
+
+export function GuestlistGameSession({ game, onExit, onFinished, onNext, nextGameLabel, onStay, rotationSeconds }: GuestlistGameSessionProps) {
   const rootRef = useRef<HTMLElement>(null)
+  const finishedCallbackRef = useRef(onFinished)
+  finishedCallbackRef.current = onFinished
   const clockOriginRef = useRef(0)
   const elapsedBaseRef = useRef(0)
   const elapsedRef = useRef(0)
@@ -51,7 +63,11 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
   const [feedback, setFeedback] = useState(game === 'beat-deck' ? 'Hit D F J K as notes reach the target!' : 'Jump over the waves and collect records!')
   const [best, setBest] = useState(0)
   const duration = GAME_SECONDS[game] * 1000
-  const fullGameUrl = game === 'beat-deck' ? '/arcade/beat-deck' : '/arcade/dj-quest'
+  const fullGameUrl = game === 'beat-deck' ? '/arcade/beat-deck' : '/arcade/dj-quest?chapter=eos'
+
+  useEffect(() => {
+    if (phase === 'finished') finishedCallbackRef.current()
+  }, [phase])
 
   useEffect(() => () => {
     if (laneFlashTimerRef.current !== null) window.clearTimeout(laneFlashTimerRef.current)
@@ -273,6 +289,7 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
             {NOTE_KEYS.map((key, lane) => (
               <button key={key} type="button" disabled={phase !== 'playing'} aria-label={'Hit ' + key.toUpperCase() + ' rhythm lane'}
                 onPointerDown={event => { event.preventDefault(); hit(lane) }}
+                onClick={event => { if (event.detail === 0) hit(lane) }}
                 className={'min-h-12 touch-manipulation rounded-xl border-2 font-black text-white active:bg-white/30 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white ' + (activeLane === lane ? 'bg-white/35 ring-2 ring-white/80' : 'bg-white/10')}
                 style={{ borderColor: NOTE_COLORS[lane] }}>
                 {key.toUpperCase()}
@@ -309,10 +326,13 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
         <div className="rounded-xl border border-amber-300/35 bg-amber-300/10 p-3 text-sm text-white" role="status">
           <p className="font-black">{game === 'dj-odyssey' && lives <= 0 ? 'The waves got you!' : '🎉 Guestlist Challenge complete!'}</p>
           <p className="mt-1">Your score: <strong>{score}</strong> · Best on this device: <strong>{Math.max(score, best)}</strong></p>
+          <p className="mt-1 text-xs text-amber-100/75">Next up: {nextGameLabel}{rotationSeconds !== null ? ' · switching in ' + rotationSeconds + 's' : ''}</p>
         </div>
       )}
       {phase === 'paused' && <div className="rounded-xl border border-white/20 bg-white/10 p-3 text-sm text-white">Paused. Resume when you are ready.</div>}
       <div className="flex flex-wrap items-center gap-2">
+        {phase === 'finished' && <button type="button" onClick={onNext} className="inline-flex min-h-11 items-center gap-1 rounded-xl bg-amber-300 px-3 text-xs font-black text-slate-950 hover:bg-amber-200">Next challenge <ArrowRight className="h-4 w-4" /></button>}
+        {phase === 'finished' && rotationSeconds !== null && <button type="button" onClick={onStay} className="min-h-10 rounded-xl border border-white/20 px-3 text-xs font-bold text-white hover:bg-white/10">Stay on results</button>}
         {phase === 'playing'
           ? <button type="button" onClick={pause} className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-white/20 px-3 text-xs font-bold text-white hover:bg-white/10"><Pause className="h-4 w-4" /> Pause</button>
           : phase === 'paused'
