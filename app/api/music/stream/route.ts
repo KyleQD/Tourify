@@ -7,6 +7,7 @@ import {
   resolveMusicAccess,
 } from "@/lib/music/music-access"
 import { NextRequest, NextResponse } from "next/server"
+import { getMusicStreamPolicy } from "@/lib/music/stream-policy"
 
 export const dynamic = "force-dynamic"
 
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     const trackId = request.nextUrl.searchParams.get("trackId")
+    const streamPolicy = getMusicStreamPolicy(request.nextUrl.searchParams.get("source"))
 
     if (!trackId)
       return NextResponse.json({ error: "trackId is required" }, { status: 400 })
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
     const bucket = getTrackStorageBucket(track, access.accessLevel)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(storagePath, 3600)
+      .createSignedUrl(storagePath, streamPolicy.lifetimeSeconds)
 
     if (signedUrlError || !signedUrlData?.signedUrl) {
       console.error("Failed to sign music stream URL", signedUrlError)
@@ -81,16 +83,17 @@ export async function GET(request: NextRequest) {
       actorUserId: user?.id || null,
       eventType: "stream_issued",
       accessLevel: access.accessLevel,
-      source: "api_music_stream",
+      source: streamPolicy.eventSource,
       metadata: { bucket, storage_path: storagePath },
     })
 
     const response = NextResponse.json({
       url: signedUrlData.signedUrl,
       accessLevel: access.accessLevel,
-      expiresIn: 3600,
+      expiresIn: streamPolicy.lifetimeSeconds,
     })
-    response.headers.set("Cache-Control", "private, max-age=3000")
+    response.headers.set("Cache-Control", streamPolicy.cacheControl)
+    if (streamPolicy.context === "arcade") response.headers.set("Referrer-Policy", "no-referrer")
     return response
   } catch (error) {
     console.error("Stream URL error:", error)

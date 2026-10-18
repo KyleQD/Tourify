@@ -1,6 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
+import { FeedDiscoveryRail } from '@/components/feed/feed-discovery-rail'
+import { GuestlistGameCard } from '@/components/arcade/guestlist-game-card'
+import {
+  GUESTLIST_PREFERENCE_KEY,
+  getGuestlistGameSlot,
+  getGuestlistDiscoveryModule,
+  parseGuestlistFrequency,
+  type GuestlistFrequency,
+} from '@/lib/feed/guestlist-games'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -114,6 +123,10 @@ interface Comment {
   }
 }
 
+// Rollout kill switch: set NEXT_PUBLIC_GUESTLIST_GAMES_ENABLED=false and redeploy.
+// Enabled by default on this unmerged development branch for preview QA.
+const GUESTLIST_GAMES_ENABLED = process.env.NEXT_PUBLIC_GUESTLIST_GAMES_ENABLED !== 'false'
+
 function getProfileUrl(profile: PostData['profiles']) {
   if (profile?.account_context?.profile_path) return profile.account_context.profile_path
   if (!profile?.username) return '/profile/user'
@@ -135,6 +148,7 @@ export function DashboardFeed() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState('following')
+  const [guestlistFrequency, setGuestlistFrequency] = useState<GuestlistFrequency>('normal')
   const [page, setPage] = useState(0)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -149,6 +163,20 @@ export function DashboardFeed() {
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const recentlyCreatedPostsRef = useRef<Map<string, PostData>>(new Map())
   const recentlyCreatedPostTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  // Device-local preference: no new user table, tracking cookie or account
+  // privilege. The selector defaults to normal until hydration to avoid SSR
+  // layout differences; users can always restore hidden games.
+  useEffect(() => {
+    try { setGuestlistFrequency(parseGuestlistFrequency(localStorage.getItem(GUESTLIST_PREFERENCE_KEY))) }
+    catch { /* storage blocked: keep safe default */ }
+  }, [])
+
+  const changeGuestlistFrequency = (next: GuestlistFrequency) => {
+    setGuestlistFrequency(next)
+    try { localStorage.setItem(GUESTLIST_PREFERENCE_KEY, next) }
+    catch { /* optional preference */ }
+  }
 
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
@@ -642,8 +670,21 @@ export function DashboardFeed() {
               Your Posts
             </TabsTrigger>
           </TabsList>
+          {GUESTLIST_GAMES_ENABLED && activeTab !== 'personal' && (
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-xs text-white/65">
+              <label htmlFor="guestlist-games-frequency" className="font-semibold text-fuchsia-100">🎮 Guestlist Games</label>
+              <select id="guestlist-games-frequency" value={guestlistFrequency}
+                onChange={event => changeGuestlistFrequency(parseGuestlistFrequency(event.target.value))}
+                className="min-h-9 rounded-lg border border-white/20 bg-[#261b42] px-2 py-1 text-xs font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200">
+                <option value="normal">Occasionally</option>
+                <option value="fewer">Show fewer</option>
+                <option value="off">Hide games</option>
+              </select>
+            </div>
+          )}
 
           <TabsContent value={activeTab} className="mt-6 space-y-4">
+            <FeedDiscoveryRail posts={posts} mode="highlights" />
             <AnimatePresence>
               {posts.length > 0 ? (
                 posts.map((post, index) => {
@@ -652,14 +693,19 @@ export function DashboardFeed() {
                     : null
 
                   return (
+                  <Fragment key={post.id}>
                   <motion.div
-                    key={post.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: Math.min(index * 0.04, 0.28) }}
                   >
-                    <Card className="bg-white/5 border-white/10 hover:border-white/20 transition-colors">
+                    <Card className={post.event_preview
+                      ? "group relative overflow-hidden rounded-[24px] border border-rose-400/20 bg-gradient-to-br from-rose-500/10 via-white/5 to-purple-500/10 shadow-[0_10px_32px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-rose-300/35 hover:shadow-[0_14px_38px_rgba(100,30,70,0.14)]"
+                      : musicTrack
+                        ? "group relative overflow-hidden rounded-[24px] border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-white/5 to-sky-500/10 shadow-[0_10px_32px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-violet-300/35 hover:shadow-[0_14px_38px_rgba(70,40,120,0.16)]"
+                        : "group relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.025] shadow-[0_10px_32px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-fuchsia-300/25 hover:shadow-[0_14px_38px_rgba(70,40,120,0.14)]"
+                    }>
                       <CardContent className="p-4">
                         {/* Post Header */}
                         <div className="flex items-start gap-3 mb-3">
@@ -1002,6 +1048,19 @@ export function DashboardFeed() {
                       </CardContent>
                     </Card>
                   </motion.div>
+                  {(() => {
+                    const afterPost = index + 1
+                    const game = getGuestlistGameSlot(afterPost, activeTab, GUESTLIST_GAMES_ENABLED ? guestlistFrequency : 'off')
+                    const discovery = getGuestlistDiscoveryModule(afterPost, GUESTLIST_GAMES_ENABLED && guestlistFrequency !== 'off' && activeTab !== 'personal')
+                    return (
+                      <>
+                        {discovery && <FeedDiscoveryRail posts={posts} mode={discovery} />}
+                        {game && <GuestlistGameCard key={game.key} game={game.game} frequency={guestlistFrequency}
+                          onFrequencyChange={changeGuestlistFrequency} />}
+                      </>
+                    )
+                  })()}
+                  </Fragment>
                   )
                 })
               ) : (
