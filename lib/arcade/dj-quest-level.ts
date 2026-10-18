@@ -64,3 +64,28 @@ export function calculateDJRunScore(records: number, lives: number, defeated: nu
   const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
   return safeRecords * 100 + safeLives * 350 + safeDefeated * 150 + Math.max(0, Math.round(2500 - safeSeconds * 20))
 }
+
+/** A small forgiveness window for jump presses (in gameplay simulation time). */
+export const DJ_COYOTE_SECONDS = 0.12
+export const DJ_JUMP_BUFFER_SECONDS = 0.15
+
+export function canDJJump(now: number, lastGroundedAt: number, lastJumpPressedAt: number): boolean {
+  if (![now, lastGroundedAt, lastJumpPressedAt].every(Number.isFinite)) return false
+  const groundedAge = now - lastGroundedAt
+  const pressedAge = now - lastJumpPressedAt
+  return groundedAge >= 0 && groundedAge <= DJ_COYOTE_SECONDS &&
+    pressedAge >= 0 && pressedAge <= DJ_JUMP_BUFFER_SECONDS
+}
+
+export type DJDistrict = 'record-row' | 'subway-beats' | 'disco-mile'
+export function getDJDistrict(x: number): DJDistrict {
+  const position = Number.isFinite(x) ? Math.max(0, x) : 0
+  if (position >= 2200) return 'disco-mile'
+  if (position >= 1020) return 'subway-beats'
+  return 'record-row'
+}
+export const DJ_DISTRICT_LABELS: Record<DJDistrict, string> = {
+  'record-row': 'Record Row',
+  'subway-beats': 'Subway Beats',
+  'disco-mile': 'Disco Mile',
+}
