@@ -67,3 +67,12 @@
 - Real venue partnerships and prize redemption, conditional on contracts, eligibility and rights review.
 
 The draft PR is not production. Do not merge solely based on targeted unit tests.
+
+## October 18 — Feed card polish and challenge rotation
+- The inactive card now displays a recognizable, original mini-game scene (Beat Deck's 4-lane note highway or DJ Odyssey's Santa Barbara sunset coast), with a prominent **Play in feed** overlay. It no longer requires navigating to /arcade merely to begin.
+- After completing a mini challenge, the result panel shows score, best score, and the **Next challenge** button. After seven seconds while the page is visible, the card cycles to the **next preview** without silently starting another game. Players can click **Stay on results** or replay to cancel rotation. Hidden tabs do not auto-rotate.
+- Full-game links from DJ Odyssey now deep-link to `/arcade/dj-quest?chapter=eos`. The full page honors this query and places the game canvas/controls ahead of the chapter map.
+- Inline keyboard/touch lane buttons visibly acknowledge hit presses, have keyboard click handling without double-scoring pointer input, and stay scoped to the focused micro game.
+- Shared `getNextGuestlistGame` helper + unit test enforce Beat Deck → Santa Barbara Sprint → Beat Deck.
+- Audio remains silent in feed, with jukebox playback preserved.
+- **QA gate:** verify mini rotation/opt-out, mobile tap and keyboard controls, scroll-away pause, playing music, and mini/full deep links in actual browser. Keep the flag available for rollback.
