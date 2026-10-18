@@ -62,6 +62,7 @@ Streaming/upload rights and permission to synchronize music to interactive games
 - Runtime: pause/resume both games; tab switch; retry denied/expired stream; unmount cleans audio/RAF; creator-track list empty/errored; browser audio blocked; preview clips shorter than metadata.
 - Platformer: jump gap, stomp bouncer, fall, checkpoint respawn, win with exactly nine records, locked door with eight, gameover after three collisions, restart.
 - Security: no unauthorized track leakage; no signed stream URL persisted; no grants implied by public streaming alone; no copyrighted game artwork.
+- Dependency triage: an inspected Vercel preview install log reported **72 npm advisories (including 2 critical)** in the existing dependency tree. This is a report from package audit, not proof those packages are exploitable at runtime. Track a separate reviewed remediation; do not use an unreviewed `npm audit fix --force` in this feature PR.
 - Accessibility: headings, focus styles, named controls, non-color-only lane identity, status updates, reduced-motion accommodations; canvas needs alternative textual gameplay description.
 
 ## Engineering follow-up priority
