@@ -204,3 +204,11 @@ Potential next development slices: new local landmark gameplay interactions (wha
 - Verify all five other chapters retain their original mechanics, theme, best score keys, sound and endings.
 - Run final-tip Vercel TypeScript/build and Arcade CI before release. Do not rely on earlier intermediate READY builds.
 - Explicitly note no connection/endorsement by EOS Lounge and that place names/landmarks are cultural references.
+ 
+## October 18 — Tour layout, record HUD, and next-stop polish
+- `components/arcade/dj-quest-game.tsx`: Game canvas, current chapter, admission meter, controls and outcome now render above the bulky world selector and fictional route map. Selecting EOS from a deep link honors `?chapter=eos`.
+- **Correct counters:** There are 15 regular vinyl pickups per chapter, nine are required for the door, and EOS has one one-time bonus vinyl. Old `11/9` style admission text was misleading. The entrance meter now maxes at `9/9`, and surplus collectibles display explicitly as `+N bonus vinyl`. The final score screen distinguishes `9/9 entry` from the actual total. Collection state now derives from uniquely collected pickup IDs, preventing accidental extra increments.
+- `lib/arcade/dj-tour-progression.ts`: pure admission-vs-bonus model and cyclic next chapter choice. `__tests__/arcade/dj-tour-progression.test.ts` covers 0/9, 9/9, 11 collected, EOS max 16, bad numeric values and EOS → NYC wraparound.
+- **Stage progression:** a win shows the next venue and counts down ten seconds. Selecting **Stay and mix in the DJ booth**, or interacting with the booth, cancels the automatic transition. Selecting **Next stop** immediately switches to a fresh playable next chapter. Auto-progression wraps EOS back to Studio 54, restores next chapter's local best, and brings the next canvas into view. Paused/hidden tabs do not auto-advance.
+- Beat Deck's playable highway and keypads now appear before track, tempo, difficulty, calibration and stage settings on the full `/arcade/beat-deck` route.
+- **Remaining:** manual desktop/mobile route playthrough; verify auto/stop countdown with DJ booth, notes and keyboard focus; ensure no score inflation or duplicate vinyl from checkpoint/restart; audit personal best preservation. The draft PR should not ship without final Vercel READY and mobile feedback.
