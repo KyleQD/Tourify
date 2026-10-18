@@ -11,6 +11,7 @@ import {
   LANE_KEYS,
   type BeatNote,
   type Lane,
+  type RhythmDifficulty,
 } from '@/lib/arcade/rhythm-chart'
 
 interface EligibleTrack {
@@ -51,6 +52,8 @@ export function RhythmGame() {
   const [catalogMessage, setCatalogMessage] = useState('Loading eligible music…')
   const [selected, setSelected] = useState('practice')
   const [tempo, setTempo] = useState(110)
+  const [difficulty, setDifficulty] = useState<RhythmDifficulty>('normal')
+  const [offsetMs, setOffsetMs] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
   const [results, setResults] = useState<Results>(initialResults)
   const [elapsed, setElapsed] = useState(0)
@@ -63,6 +66,9 @@ export function RhythmGame() {
     if (phaseRef.current === 'playing') return Math.max(0, (performance.now() - wallStartRef.current) / 1000)
     return frozenTimeRef.current
   }, [])
+  // Positive calibration delays the chart to match a slower audio output device.
+  // It never changes playback permissions or the underlying audio.
+  const chartTime = useCallback(() => Math.max(0, getTime() - offsetMs / 1000), [getTime, offsetMs])
 
   const stopAudio = () => {
     const audio = audioRef.current
@@ -109,7 +115,7 @@ export function RhythmGame() {
     reset()
     // Reset timing each time the selected track/tempo changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, tempo])
+  }, [selected, tempo, difficulty])
 
   useEffect(() => () => {
     generationRef.current++
@@ -138,7 +144,7 @@ export function RhythmGame() {
         ? track.previewDurationSeconds || 15 : Number(track.duration) || 90))
       : 30
     durationRef.current = length
-    notesRef.current = createPracticeChart(tempo, length, selected)
+    notesRef.current = createPracticeChart(tempo, length, selected, difficulty)
     if (track) {
       updatePhase('loading')
       try {
@@ -158,7 +164,7 @@ export function RhythmGame() {
           ? Number(track.previewDurationSeconds) || 15
           : Number(track.duration) || 90
         durationRef.current = Math.max(8, Math.min(240, permittedSeconds))
-        notesRef.current = createPracticeChart(tempo, durationRef.current, track.id)
+        notesRef.current = createPracticeChart(tempo, durationRef.current, track.id, difficulty)
         const audio = new Audio()
         audio.preload = 'auto'
         audio.src = data.url
@@ -169,6 +175,13 @@ export function RhythmGame() {
         if (generation !== generationRef.current) { stopAudio(); return }
       } catch (caught) {
         if (generation !== generationRef.current) return
+        // iOS Safari and some browsers require a second explicit tap after
+        // the asynchronous signed-URL fetch before audio can begin.
+        if (caught instanceof DOMException && caught.name === 'NotAllowedError' && audioRef.current?.src) {
+          setError('Your browser requires a second tap. Press Resume to start the song.')
+          updatePhase('paused')
+          return
+        }
         stopAudio()
         setError(caught instanceof Error ? caught.message : 'Could not start playback.')
         updatePhase('idle')
@@ -194,9 +207,10 @@ export function RhythmGame() {
 
   const hitLane = (lane: Lane) => {
     if (phaseRef.current !== 'playing') return
-    const note = findHittableNote(notesRef.current, handledRef.current, lane, getTime())
+    const now = chartTime()
+    const note = findHittableNote(notesRef.current, handledRef.current, lane, now)
     if (!note) { setFeedback('Keep watching the beat line'); return }
-    const judgement = judgeTiming(getTime() - note.at)
+    const judgement = judgeTiming(now - note.at)
     handledRef.current.add(note.id)
     const previous = resultsRef.current
     const combo = previous.combo + 1
@@ -241,11 +255,12 @@ export function RhythmGame() {
     let frame = 0
     let lastHud = 0
     const draw = () => {
-      const t = getTime()
+      const t = chartTime()
+      const playbackTime = getTime()
       if (phaseRef.current === 'playing') {
         // Original oscillator beat for practice mode; no external songs or samples.
         if (!audioRef.current && practiceContextRef.current?.state === 'running') {
-          const index = Math.floor(t * tempo / 60)
+          const index = Math.floor(playbackTime * tempo / 60)
           if (index > lastBeatIndexRef.current) {
             lastBeatIndexRef.current = index
             const audioCtx = practiceContextRef.current
@@ -274,12 +289,12 @@ export function RhythmGame() {
           setResults(next)
           setFeedback('Keep going!')
         }
-        if (!audioRef.current && t >= durationRef.current) {
+        if (!audioRef.current && playbackTime >= durationRef.current) {
           frozenTimeRef.current = durationRef.current
           updatePhase('finished')
           setFeedback('Set complete!')
         }
-        if (performance.now() - lastHud > 125) { setElapsed(t); lastHud = performance.now() }
+        if (performance.now() - lastHud > 125) { setElapsed(playbackTime); lastHud = performance.now() }
       }
 
       ctx.fillStyle = '#09091a'
@@ -330,7 +345,7 @@ export function RhythmGame() {
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [getTime, tempo])
+  }, [chartTime, getTime, tempo])
 
   useEffect(() => {
     const onHide = () => { if (document.hidden) pauseRef.current() }
@@ -358,6 +373,18 @@ export function RhythmGame() {
         </label>
         <label className="text-xs font-medium text-white/80">Chart tempo · <strong className="text-fuchsia-200">{tempo} BPM</strong>
           <input type="range" min={65} max={200} step={5} value={tempo} onChange={e => setTempo(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-fuchsia-400" />
+        </label>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-white/80">Difficulty
+          <select value={difficulty} onChange={e => setDifficulty(e.target.value as RhythmDifficulty)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base capitalize text-white">
+            <option value="easy">Easy · fewer notes</option>
+            <option value="normal">Normal · quarter notes</option>
+            <option value="hard">Hard · rapid notes</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-white/80">Audio calibration: {offsetMs > 0 ? '+' : ''}{offsetMs} ms
+          <input type="range" min={-150} max={150} step={10} value={offsetMs} onChange={e => setOffsetMs(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-sky-400" />
         </label>
       </div>
       <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
