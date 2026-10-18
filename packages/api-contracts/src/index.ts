@@ -291,3 +291,6 @@ export type DiscoverRequest = z.infer<typeof discoverRequestSchema>
 export type DiscoverResponse = z.infer<typeof discoverResponseSchema>
 export type MarketplaceCheckoutRequest = z.infer<typeof marketplaceCheckoutRequestSchema>
 export type MarketplaceCheckoutResponse = z.infer<typeof marketplaceCheckoutResponseSchema>
+
+// Cross-app Music Universe public graph links (v1).
+export * from "./music-universe"
