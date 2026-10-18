@@ -80,23 +80,6 @@ export function DJQuestGame() {
     else if (phaseRef.current === 'paused') play()
   }
 
-  const loseLife = () => {
-    const h = heroRef.current
-    if (worldTimeRef.current < h.invulnerableUntil) return
-    h.lives--
-    fx(145, 0.23)
-    setHud({ records: h.records, lives: h.lives })
-    if (h.lives <= 0) {
-      setGamePhase('gameover'); setHint('The bouncers got you. Give it another spin!')
-      return
-    }
-    h.x = h.checkpoint
-    h.y = 240; h.vy = 0; h.grounded = false
-    h.invulnerableUntil = worldTimeRef.current + 1.45
-    heldRef.current.clear()
-    setHint('One more try! You respawned at the last checkpoint.')
-  }
-
   useEffect(() => {
     const handleDown = (event: KeyboardEvent) => {
       if (!rootRef.current?.contains(document.activeElement)) return
