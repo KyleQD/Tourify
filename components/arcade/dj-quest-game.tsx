@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
+import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import {
   DJ_ENEMIES, DJ_GRAVITY, DJ_JUMP_SPEED, DJ_PLATFORMS, DJ_RECORDS,
   DJ_RECORDS_NEEDED, DJ_RUN_SPEED, DJ_VIEW_HEIGHT, DJ_VIEW_WIDTH, DJ_WORLD_WIDTH,
-  getCheckpoint, intersects, portalOpen, type Rect,
+  getCheckpoint, intersects, portalOpen, calculateDJRunScore, type Rect,
 } from '@/lib/arcade/dj-quest-level'
 
 type Phase = 'ready' | 'playing' | 'paused' | 'won' | 'gameover'
@@ -38,6 +39,10 @@ export function DJQuestGame() {
   const [hud, setHud] = useState({ records: 0, lives: 3 })
   const [hint, setHint] = useState('Collect records, jump over club security, and reach Studio 54.')
   const [muted, setMuted] = useState(false)
+  const [winScore, setWinScore] = useState<number | null>(null)
+  const [personalBest, setPersonalBest] = useState(0)
+
+  useEffect(() => { setPersonalBest(readPersonalBest('dj-odyssey', 'first-level')) }, [])
 
   const setGamePhase = (next: Phase) => { phaseRef.current = next; setPhase(next) }
   const fx = (pitch: number, seconds = 0.09) => {
@@ -63,6 +68,7 @@ export function DJQuestGame() {
     cameraRef.current = 0
     lastInfoRef.current = false
     setHud({ records: 0, lives: 3 })
+    setWinScore(null)
     setHint('Collect records and take the dance floor by storm!')
     setGamePhase('ready')
   }
@@ -175,6 +181,9 @@ export function DJQuestGame() {
 
       if (h.x > DJ_WORLD_WIDTH - 170) {
         if (portalOpen(h.records)) {
+          const score = calculateDJRunScore(h.records, h.lives, defeatedRef.current.size, worldTimeRef.current)
+          setWinScore(score)
+          setPersonalBest(savePersonalBest('dj-odyssey', 'first-level', score))
           setGamePhase('won')
           setHint('You made it to Studio 54! The DJ booth is yours. 🎉')
           fx(900, 0.3)
@@ -354,6 +363,7 @@ export function DJQuestGame() {
       <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-white/85">
         <span className="flex items-center gap-1.5 text-amber-200">◉ {hud.records} / {DJ_RECORDS_NEEDED} records</span>
         <span className="flex items-center gap-1.5 text-pink-200"><Heart className="h-4 w-4" /> {hud.lives} lives</span>
+        <span className="text-emerald-200">Best: {personalBest.toLocaleString()} <span className="text-white/50">(this device)</span></span>
         <span className="ml-auto text-xs text-white/55">A/D or ←/→ move · W/Space/↑ jump</span>
       </div>
       <div className="overflow-hidden rounded-2xl border-2 border-fuchsia-400/30 bg-[#100d2d]">
@@ -383,7 +393,7 @@ export function DJQuestGame() {
           </button>
         </div>
       </div>
-      {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! The DJ booth is yours. Records collected: {hud.records}. Want to try a perfect run?</div>}
+      {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! The DJ booth is yours. Records collected: {hud.records}. Final score: <strong>{(winScore || 0).toLocaleString()}</strong>. Can you beat your personal record?</div>}
       <p className="text-xs text-white/45">Made with original vector pixel art and sound effects. Retro platform mechanics are genre-inspired; no Nintendo characters, music, or artwork are used. Studio 54 is a thematic destination, not an official partnership.</p>
     </section>
   )
