@@ -41,4 +41,4 @@ jobs:
       - name: Install dependencies without running third-party install scripts
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Test original arcade game rules
-        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts
+        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts
