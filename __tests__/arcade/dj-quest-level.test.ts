@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DJ_ENEMIES, DJ_PLATFORMS, DJ_RECORDS, DJ_RECORDS_NEEDED, DJ_WORLD_WIDTH,
-  getCheckpoint, intersects, portalOpen,
+  getCheckpoint, intersects, portalOpen, calculateDJRunScore,
 } from '@/lib/arcade/dj-quest-level'
 
 describe('DJ Odyssey game mechanics', () => {
@@ -24,4 +24,10 @@ describe('DJ Odyssey game mechanics', () => {
     expect(intersects({ x: 10, y: 10, w: 20, h: 20 }, { x: 25, y: 20, w: 20, h: 10 })).toBe(true)
     expect(intersects({ x: 10, y: 10, w: 20, h: 20 }, { x: 30, y: 20, w: 20, h: 10 })).toBe(false)
   })
+  it('calculates finite, bounded local scores and rewards record collection', () => {
+    expect(calculateDJRunScore(10, 3, 2, 40)).toBeGreaterThan(calculateDJRunScore(9, 3, 2, 40))
+    expect(calculateDJRunScore(10, 3, 2, 40)).toBeGreaterThan(calculateDJRunScore(10, 2, 2, 40))
+    expect(calculateDJRunScore(-100, Infinity, NaN, Number.POSITIVE_INFINITY)).toBe(2500)
+  })
+
 })
