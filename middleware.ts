@@ -5,6 +5,7 @@ import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 import { accountTypeMatchesSection } from '@/lib/navigation/account-dashboard-routes'
 import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
+import { isPublicNewsRoute } from '@/lib/routing/public-news-routes'
 import { handleApiCorsPreflight, withApiCors } from '@/lib/api/cors'
 import { isProductionBlockedPathname } from '@/lib/routing/production-blocked-routes'
 
@@ -57,6 +58,9 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAnonymousPublicShareRoute = isPublicShareRoute(pathname)
+  // Kill switch: public News is enabled only after the RLS review and staging tests.
+  const isAnonymousPublicNewsRoute =
+    process.env.NEWS_PUBLIC_ACCESS_ENABLED === 'true' && isPublicNewsRoute(pathname)
   const isRootRoute = pathname === '/'
   const isAdminApiRoute = pathname.startsWith('/api/admin')
 
@@ -89,7 +93,7 @@ export async function middleware(request: NextRequest) {
     isRootRoute ||
     isAuthRoute ||
     isAdminApiRoute ||
-    (isProtectedRoute && !isAnonymousPublicShareRoute) ||
+    (isProtectedRoute && !isAnonymousPublicShareRoute && !isAnonymousPublicNewsRoute) ||
     pathnameRequiresArtistAccount(pathname)
 
   if (!requiresSession) {
@@ -116,7 +120,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (!user && isProtectedRoute && !isAnonymousPublicShareRoute) {
+  if (!user && isProtectedRoute && !isAnonymousPublicShareRoute && !isAnonymousPublicNewsRoute) {
     const redirectUrl = new URL('/login', request.url)
     const targetPath = `${pathname}${request.nextUrl.search || ''}`
     redirectUrl.searchParams.set('redirectTo', targetPath)
