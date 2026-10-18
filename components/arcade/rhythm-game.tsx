@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Disc3, Headphones, Pause, Play, RotateCcw, Volume2 } from 'lucide-react'
 import Link from 'next/link'
+import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import {
   createPracticeChart,
   findHittableNote,
@@ -31,6 +32,7 @@ const HEIGHT = 360
 const HIT_LINE = 288
 
 export function RhythmGame() {
+  const jukebox = useJukeboxOptional()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -114,6 +116,7 @@ export function RhythmGame() {
 
   const start = async () => {
     if (phaseRef.current === 'loading' || phaseRef.current === 'playing') return
+    if (jukebox?.state.isPlaying) jukebox.pause()
     if (phaseRef.current === 'paused') {
       try {
         if (audioRef.current) await audioRef.current.play()
