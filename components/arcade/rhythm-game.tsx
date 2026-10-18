@@ -5,6 +5,7 @@ import { ArrowLeft, Disc3, Headphones, Pause, Play, RotateCcw, Volume2 } from 'l
 import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
+import { BEAT_DECK_STAGES, getShowEnergy, getShowTier, type BeatDeckStage } from '@/lib/arcade/stage-director'
 import {
   createPracticeChart,
   findHittableNote,
@@ -55,6 +56,8 @@ export function RhythmGame() {
   const [selected, setSelected] = useState('practice')
   const [tempo, setTempo] = useState(110)
   const [difficulty, setDifficulty] = useState<RhythmDifficulty>('normal')
+  const [stage, setStage] = useState<BeatDeckStage>('underground')
+  const [reducedMotion, setReducedMotion] = useState(false)
   const [offsetMs, setOffsetMs] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
   const [results, setResults] = useState<Results>(initialResults)
@@ -62,6 +65,10 @@ export function RhythmGame() {
   const [elapsed, setElapsed] = useState(0)
   const [feedback, setFeedback] = useState('Ready when you are')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  }, [])
 
   const updatePhase = (next: Phase) => { phaseRef.current = next; setPhase(next) }
   const getTime = useCallback(() => {
@@ -310,17 +317,63 @@ export function RhythmGame() {
         if (performance.now() - lastHud > 125) { setElapsed(playbackTime); lastHud = performance.now() }
       }
 
-      ctx.fillStyle = '#09091a'
-      ctx.fillRect(0, 0, WIDTH, HEIGHT)
+      // Scenery stays behind note lanes; stage changes never change score/timing.
+      const theme = BEAT_DECK_STAGES.find(option => option.id === stage) || BEAT_DECK_STAGES[0]
+      const energy = getShowEnergy(resultsRef.current.combo)
+      const pulse = reducedMotion ? 0.55 : 0.6 + 0.4 * Math.sin(playbackTime * tempo / 60 * Math.PI * 2)
       const grd = ctx.createLinearGradient(0, 0, 0, HEIGHT)
-      grd.addColorStop(0, '#21103e')
-      grd.addColorStop(0.68, '#12102d')
-      grd.addColorStop(1, '#101b30')
+      grd.addColorStop(0, theme.sky)
+      grd.addColorStop(0.7, theme.horizon)
+      grd.addColorStop(1, theme.floor)
       ctx.fillStyle = grd
       ctx.fillRect(0, 0, WIDTH, HEIGHT)
+
+      ctx.save()
+      const beams = stage === 'festival' ? 9 : stage === 'neon-city' ? 7 : 5
+      for (let i = 0; i < beams; i++) {
+        const originX = (i + 0.5) * WIDTH / beams
+        const sway = reducedMotion ? 0 : Math.sin(playbackTime * 0.8 + i * 2) * (42 + energy * 75)
+        ctx.globalAlpha = Math.min(0.28, 0.05 + energy * 0.13 + pulse * 0.08)
+        ctx.fillStyle = i % 2 ? theme.secondary : theme.light
+        ctx.beginPath()
+        ctx.moveTo(originX - 3, stage === 'festival' ? 13 : 51)
+        ctx.lineTo(originX - 68 + sway, HIT_LINE + 40)
+        ctx.lineTo(originX + 68 + sway, HIT_LINE + 40)
+        ctx.closePath()
+        ctx.fill()
+      }
+      ctx.globalAlpha = 0.4 + energy * 0.33
+      if (stage === 'neon-city') {
+        for (let i = 0; i < 13; i++) {
+          const h = 24 + (i * 29 % 71)
+          const x = i * 62
+          ctx.fillStyle = '#09142c'; ctx.fillRect(x, 171 - h, 48, h)
+          ctx.fillStyle = theme.light; ctx.fillRect(x + 10, 181 - h, 4, 6); ctx.fillRect(x + 27, 191 - h, 4, 6)
+        }
+      } else {
+        ctx.strokeStyle = theme.secondary
+        ctx.lineWidth = 4
+        ctx.beginPath(); ctx.moveTo(14, 84); ctx.lineTo(744, 84); ctx.stroke()
+        if (stage === 'festival') {
+          for (let i = 0; i < 13; i++) {
+            const x = i * 62
+            ctx.fillStyle = i % 2 ? theme.light : theme.secondary
+            ctx.fillRect(x, 87, 26, 4 + energy * 18 * pulse)
+          }
+        }
+      }
+      ctx.globalAlpha = 0.42 + energy * 0.4
+      ctx.fillStyle = '#090817'
+      for (let i = 0; i < 33; i++) {
+        const x = i * 25
+        const crowdY = 313 - (i * 13 % 14) - energy * 14
+        ctx.beginPath(); ctx.arc(x + 5, crowdY, 8, 0, Math.PI * 2); ctx.fill()
+        ctx.fillRect(x - 2, crowdY + 5, 16, 35)
+      }
+      ctx.restore()
       for (let lane = 0; lane < 4; lane++) {
         const x = 46 + lane * 175
-        ctx.fillStyle = lane % 2 ? '#ffffff08' : '#ffffff03'
+        ctx.fillStyle = lane % 2 ? '#05051ab5' : '#05051a9c'
         ctx.fillRect(x, 20, 160, HEIGHT - 40)
         ctx.strokeStyle = '#ffffff1c'; ctx.strokeRect(x, 20, 160, HEIGHT - 40)
         ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = colors[lane]
@@ -332,7 +385,7 @@ export function RhythmGame() {
         ctx.fillStyle = '#ffffff0c'
         ctx.fillRect(46, y, 685, 2)
       }
-      ctx.shadowBlur = 17; ctx.shadowColor = '#e879f9'; ctx.fillStyle = '#f0abfc'
+      ctx.shadowBlur = reducedMotion ? 0 : 17 + getShowEnergy(resultsRef.current.combo) * 14; ctx.shadowColor = theme.light; ctx.fillStyle = theme.secondary
       ctx.fillRect(46, HIT_LINE, 685, 5); ctx.shadowBlur = 0
 
       for (const note of notesRef.current) {
@@ -358,7 +411,7 @@ export function RhythmGame() {
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [chartTime, getTime, tempo])
+  }, [chartTime, getTime, tempo, stage, reducedMotion])
 
   useEffect(() => {
     const onHide = () => { if (document.hidden) pauseRef.current() }
@@ -400,6 +453,14 @@ export function RhythmGame() {
           <input type="range" min={-150} max={150} step={10} value={offsetMs} onChange={e => setOffsetMs(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-sky-400" />
         </label>
       </div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <label className="min-w-[220px] text-xs font-medium text-white/80">Concert venue
+          <select value={stage} onChange={event => setStage(event.target.value as BeatDeckStage)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
+            {BEAT_DECK_STAGES.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+          </select>
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} className="h-4 w-4 accent-fuchsia-400" /> Calm stage lighting</label>
+      </div>
       <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
 
       <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 sm:text-sm" aria-live="polite">
@@ -408,6 +469,7 @@ export function RhythmGame() {
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-amber-200">{results.perfect}</span>Perfect</div>
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-emerald-200">{personalBest.toLocaleString()}</span>Best · this device</div>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fuchsia-400/15 bg-fuchsia-500/5 px-3 py-2 text-sm"><span className="font-bold text-fuchsia-200">SHOW STATUS · {getShowTier(results.combo)}</span><span className="text-xs text-white/60">Build a streak for brighter stage effects</span></div>
       <div className="overflow-hidden rounded-2xl border border-white/10">
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block aspect-[760/360] w-full" aria-label="Rhythm highway: four falling note lanes, from left to right D F J K" />
       </div>
