@@ -93,3 +93,9 @@ export function createOriginalSongChart(
 export function originalSongFrequency(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12)
 }
+
+/** A completed set can reveal the next original track, without autoplaying it. */
+export function getNextOriginalSong(currentId: string): BeatDeckOriginalSong {
+  const index = BEAT_DECK_ORIGINALS.findIndex(song => song.id === currentId)
+  return BEAT_DECK_ORIGINALS[(index + 1) % BEAT_DECK_ORIGINALS.length]
+}
