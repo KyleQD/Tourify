@@ -18,7 +18,9 @@ This change lets Vercel and GitHub Actions select a supported Node 24 runtime on
 
 ## What it does NOT solve
 
-Existing `npm ci` fails to resolve a peer dependency conflict:
+**CI result (October 18, 2026, Node 24):** `npm ci` exits with `EUSAGE`: the existing `package-lock.json` is out of sync with the dependency graph. The logs explicitly report missing locked packages (including `webpack` and `@testing-library/dom`) and mismatched transitive versions. This is an additional blocker, distinct from peer compatibility. Regenerate and review the lockfile using the canonical Node 24/npm toolchain in a separate dependency PR, without hand-editing resolved versions.
+
+An earlier Node 20 `npm ci` run also showed a peer dependency conflict:
 - `@base-ui/react@1.5.0`: optional peer `date-fns@^4.0.0`.
 - Root `date-fns@^3.6.0`.
 - `react-day-picker@8.10.1`: peer `date-fns@^2.28.0 || ^3.0.0`.
