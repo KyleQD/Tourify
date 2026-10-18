@@ -103,3 +103,30 @@ P2: verified server-side scores, real leaderboards and artist challenge cards; a
 5. Win, tap Deck A/B, move crossfader from 0 to 100 and confirm approximate gain balance; tap vinyl scratch; Stop all, restart level and verify all audio resources close. Confirm autoplay restrictions recover on a direct user gesture.
 6. Test iOS Safari/Android Chrome/desktop Safari/Chrome/Firefox with device rotation, headphones, background tabs, screen reader focus and low-performance throttling.
 7. No off-platform copyrighted media, accidental open bucket paths, signed URLs in browser localStorage, or new Supabase schema/data mutations.
+
+## Beat Deck keyboard-input fix — real-player feedback (2026-10-18)
+
+### Root cause from code review
+- The original global `keydown` listener returned immediately unless the active DOM element was inside `sectionRef`. Playing while focus moved outside the section therefore silently ignored D/F/J/K.
+- The existing game acknowledged only scored presses and usually showed just `Keep watching the beat line` when a press was not in the hittable note window. Neither the on-canvas receptor nor pad visibly changed when a key was pressed.
+- A 171ms selection window did not match the 170ms `good` scoring cutoff; boundary hits could count points despite being evaluated as `miss`.
+
+### Implemented change
+- Keyboard mapping is centralized in `lib/arcade/rhythm-input.ts`, matching D/F/J/K case-insensitively with physical `KeyD/KeyF/KeyJ/KeyK` fallback; modifiers/composition are rejected.
+- During an **active** game, keyboard hits are processed irrespective of game-section focus. Inputs, selects, textareas, content-editable regions and rich text editors keep their normal typing behavior. Keyboard repeat is suppressed for scoring.
+- Keydown marks its lane pressed; keyup clears it. Release is also performed on window blur, reset and pause. Touch pointer capture handles release outside the button. A keyboard-activated pad click is accessible with Enter/Space and does not duplicate a pointer hit.
+- Both the canvas hit receptors and visible D/F/J/K pads show pressed/flash feedback, whether or not a note is scored. A keyboard-active status and the **last recognized key** are shown below the note highway.
+- On unscored input, feedback explicitly states `<KEY> REGISTERED · too early / too late / no note waiting`. A judged hit clearly reports the key + Perfect/Nice.
+- `findHittableNote` and `judgeTiming` now share one 170ms hit window.
+- Unit regression coverage in `__tests__/arcade/rhythm-input.test.ts` is wired to Arcade CI.
+
+### Manual verification still required
+1. Start a practice round and press D, F, J and K with focus on the main body, canvas, the pads, and non-input controls. Each must show a press even when no note matches; verify pressing before Start does not score.
+2. Focus an editable text field or selector and type D/F/J/K: inputs should retain keystrokes and the game should not intercept the values.
+3. Hold one key: exactly one note should be judged until the key is released, while the pad remains lit; release makes it unpressed. Repeat with multiple held keys.
+4. Test touch press/drag off/release, rapidly alternating taps, keyboard-activated pad buttons, pause/reset mid-hold, tab switch and browser blur; no stuck lanes or duplicate hits.
+5. Test near-threshold accurate/early/late hits, including calibrated ±150ms audio offset; check device audio latency separately.
+6. Verify desktop Chrome, Firefox, Safari, and Chrome/Safari mobile with slow hardware and screen reader; no screen-width overflow or flashing issues.
+7. Reminder: chart remains a tempo-based practice pattern, **not** a verified beatmap derived from uploaded audio.
+
+Status: changes committed to draft branch, **browser gameplay verification required before merging**.
