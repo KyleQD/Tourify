@@ -83,7 +83,7 @@ export async function resolveProtectedWorkPublisherAuthority(
   // Service-role reads are restricted to server-only protected tables.
   const [approvalResult, entitlementResult] = await Promise.all([
     db.from('work_employer_approvals')
-      .select('account_id, approval_type, status, approved_at, expires_at, revoked_at')
+      .select('account_id, approval_type, status, reviewed_profile_id, reviewed_account_type, reviewed_profile_table, approved_at, expires_at, revoked_at')
       .eq('account_id', account.id)
       .eq('approval_type', 'employer'),
     db.from('work_hiring_entitlements')
@@ -140,6 +140,9 @@ export async function resolveProtectedWorkPublisherAuthority(
   const approvals: ProtectedEmployerApproval[] = (approvalResult.data ?? []).map((row) => ({
     accountId: row.account_id,
     approvalType: row.approval_type,
+    reviewedProfileId: row.reviewed_profile_id,
+    reviewedAccountType: row.reviewed_account_type,
+    reviewedProfileTable: row.reviewed_profile_table,
     status: row.status,
     approvedAt: row.approved_at,
     expiresAt: row.expires_at,
@@ -157,6 +160,8 @@ export async function resolveProtectedWorkPublisherAuthority(
     authority: evaluateProtectedWorkAuthority({
       accountId: account.id,
       accountType: actor.accountType,
+      profileId: actor.profileId,
+      profileTable,
       canManageHiring: true,
       approvals,
       entitlements,
