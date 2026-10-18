@@ -161,7 +161,7 @@ export function RhythmGame() {
     if (track) {
       updatePhase('loading')
       try {
-        const response = await fetch('/api/music/stream?trackId=' + encodeURIComponent(track.id), {
+        const response = await fetch('/api/music/stream?source=arcade&trackId=' + encodeURIComponent(track.id), {
           credentials: 'include',
           cache: 'no-store',
         })
