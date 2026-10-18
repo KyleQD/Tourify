@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Disc3, Headphones, Pause, Play, RotateCcw, Volume2 } from 'lucide-react'
+import { ArrowLeft, Disc3, Headphones, Pause, Play, RotateCcw, Volume2, Waves, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
+import { BEAT_DECK_ORIGINALS, createOriginalSongChart, getOriginalSong } from '@/lib/arcade/beat-deck-originals'
+import { OriginalBeatDeckPlayer } from '@/lib/arcade/beat-deck-audio'
 import { BEAT_DECK_STAGES, getShowEnergy, getShowTier, type BeatDeckStage } from '@/lib/arcade/stage-director'
 import { laneFromKeyboardEvent, isRhythmEditableTarget, explainUnscoredPress } from '@/lib/arcade/rhythm-input'
 import {
@@ -41,6 +43,7 @@ export function RhythmGame() {
   const sectionRef = useRef<HTMLElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const practiceContextRef = useRef<AudioContext | null>(null)
+  const originalPlayerRef = useRef<OriginalBeatDeckPlayer | null>(null)
   const lastBeatIndexRef = useRef(-1)
   const generationRef = useRef(0)
   const roundIdRef = useRef('practice:normal')
@@ -58,10 +61,10 @@ export function RhythmGame() {
   const laneFlashUntilRef = useRef<number[]>([0, 0, 0, 0])
   const [tracks, setTracks] = useState<EligibleTrack[]>([])
   const [catalogMessage, setCatalogMessage] = useState('Loading eligible music…')
-  const [selected, setSelected] = useState('practice')
-  const [tempo, setTempo] = useState(110)
+  const [selected, setSelected] = useState('original:midnight-circuit')
+  const [tempo, setTempo] = useState(120)
   const [difficulty, setDifficulty] = useState<RhythmDifficulty>('normal')
-  const [stage, setStage] = useState<BeatDeckStage>('underground')
+  const [stage, setStage] = useState<BeatDeckStage>('neon-city')
   const [reducedMotion, setReducedMotion] = useState(false)
   const [offsetMs, setOffsetMs] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -80,6 +83,7 @@ export function RhythmGame() {
   const updatePhase = (next: Phase) => { phaseRef.current = next; setPhase(next) }
   const getTime = useCallback(() => {
     if (audioRef.current) return audioRef.current.currentTime || 0
+    if (originalPlayerRef.current) return originalPlayerRef.current.getTime()
     if (phaseRef.current === 'playing') return Math.max(0, (performance.now() - wallStartRef.current) / 1000)
     return frozenTimeRef.current
   }, [])
@@ -120,6 +124,8 @@ export function RhythmGame() {
   const reset = () => {
     generationRef.current++
     stopAudio()
+    originalPlayerRef.current?.dispose()
+    originalPlayerRef.current = null
     notesRef.current = []
     handledRef.current = new Set()
     lastBeatIndexRef.current = -1
@@ -168,6 +174,8 @@ export function RhythmGame() {
   useEffect(() => () => {
     generationRef.current++
     stopAudio()
+    originalPlayerRef.current?.dispose()
+    originalPlayerRef.current = null
     void practiceContextRef.current?.close()
   }, [])
 
@@ -177,6 +185,7 @@ export function RhythmGame() {
     if (phaseRef.current === 'paused') {
       try {
         if (audioRef.current) await audioRef.current.play()
+        else if (originalPlayerRef.current) await originalPlayerRef.current.start()
         else wallStartRef.current = performance.now() - frozenTimeRef.current * 1000
         updatePhase('playing')
         sectionRef.current?.focus()
@@ -188,13 +197,29 @@ export function RhythmGame() {
     roundIdRef.current = selected + ':' + difficulty
     const generation = generationRef.current
     const track = tracks.find(t => t.id === selected)
-    const length = track
+    const original = getOriginalSong(selected)
+    const length = original ? original.duration : track
       ? Math.min(240, Math.max(8, track.previewMode === 'clip'
         ? track.previewDurationSeconds || 15 : Number(track.duration) || 90))
       : 30
     durationRef.current = length
-    notesRef.current = createPracticeChart(tempo, length, selected, difficulty)
-    if (track) {
+    notesRef.current = original ? createOriginalSongChart(original.id, difficulty) : createPracticeChart(tempo, length, selected, difficulty)
+    if (original) {
+      try {
+        if (!window.AudioContext) throw new Error('This browser cannot synthesize the original tracks')
+        if (!practiceContextRef.current) practiceContextRef.current = new window.AudioContext()
+        if (generation !== generationRef.current) return
+        originalPlayerRef.current = new OriginalBeatDeckPlayer(original.id, practiceContextRef.current)
+        await originalPlayerRef.current.start()
+        if (generation !== generationRef.current) { originalPlayerRef.current?.stop(); return }
+      } catch (caught) {
+        originalPlayerRef.current?.dispose()
+        originalPlayerRef.current = null
+        setError(caught instanceof Error ? caught.message : 'Unable to start original soundtrack')
+        updatePhase('idle')
+        return
+      }
+    } else if (track) {
       updatePhase('loading')
       try {
         const response = await fetch('/api/music/stream?source=arcade&trackId=' + encodeURIComponent(track.id), {
@@ -252,6 +277,7 @@ export function RhythmGame() {
     releaseAllLanes()
     frozenTimeRef.current = getTime()
     audioRef.current?.pause()
+    originalPlayerRef.current?.pause()
     updatePhase('paused')
   }
 
@@ -333,7 +359,7 @@ export function RhythmGame() {
       const playbackTime = getTime()
       if (phaseRef.current === 'playing') {
         // Original oscillator beat for practice mode; no external songs or samples.
-        if (!audioRef.current && practiceContextRef.current?.state === 'running') {
+        if (!audioRef.current && !originalPlayerRef.current && practiceContextRef.current?.state === 'running') {
           const index = Math.floor(playbackTime * tempo / 60)
           if (index > lastBeatIndexRef.current) {
             lastBeatIndexRef.current = index
@@ -365,6 +391,7 @@ export function RhythmGame() {
         }
         if (!audioRef.current && playbackTime >= durationRef.current) {
           frozenTimeRef.current = durationRef.current
+          originalPlayerRef.current?.pause()
           updatePhase('finished')
           setFeedback('Set complete!')
         }
