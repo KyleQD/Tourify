@@ -25,21 +25,22 @@ export function createPracticeChart(bpm: number, durationSeconds = 30, seed = 'p
 }
 
 export type Judgement = 'perfect' | 'good' | 'miss'
+export const RHYTHM_HIT_WINDOW_SECONDS = 0.17
 export function judgeTiming(errorSeconds: number): Judgement {
   const distance = Math.abs(errorSeconds)
   if (distance <= 0.075) return 'perfect'
-  if (distance <= 0.17) return 'good'
+  if (distance <= RHYTHM_HIT_WINDOW_SECONDS) return 'good'
   return 'miss'
 }
 
 export function findHittableNote(notes: readonly BeatNote[], handledIds: ReadonlySet<number>, lane: Lane, currentTime: number) {
   let best: BeatNote | null = null
-  let bestDistance = 0.171
+  let bestDistance = RHYTHM_HIT_WINDOW_SECONDS
   for (const note of notes) {
     if (note.lane !== lane || handledIds.has(note.id)) continue
     const distance = Math.abs(note.at - currentTime)
-    if (distance < bestDistance) { best = note; bestDistance = distance }
-    if (note.at > currentTime + 0.17) break
+    if (distance <= bestDistance) { best = note; bestDistance = distance }
+    if (note.at > currentTime + RHYTHM_HIT_WINDOW_SECONDS) break
   }
   return best
 }
