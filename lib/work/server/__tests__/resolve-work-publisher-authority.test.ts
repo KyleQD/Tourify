@@ -29,6 +29,9 @@ const baseData: Record<TableName, Record<string, unknown>[]> = {
   work_employer_approvals: [{
     account_id: accountId,
     approval_type: 'employer',
+    reviewed_profile_id: 'artist1',
+    reviewed_account_type: 'artist',
+    reviewed_profile_table: 'artist_profiles',
     status: 'approved',
     approved_at: yesterday,
     expires_at: tomorrow,
@@ -120,6 +123,14 @@ describe('server-only protected Work publishing authority', () => {
 
   it('denies account without independently approved employer record', async () => {
     const actor = setup({ work_employer_approvals: [] })
+    const result = await resolveProtectedWorkPublisherAuthority(actor, 0)
+    expect(result.authority.isVerifiedEmployer).toBe(false)
+  })
+
+  it('denies an approval granted to a different professional profile', async () => {
+    const actor = setup({ work_employer_approvals: [
+      { ...baseData.work_employer_approvals[0], reviewed_profile_id: 'another-artist' },
+    ] })
     const result = await resolveProtectedWorkPublisherAuthority(actor, 0)
     expect(result.authority.isVerifiedEmployer).toBe(false)
   })
