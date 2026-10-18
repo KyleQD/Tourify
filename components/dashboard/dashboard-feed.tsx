@@ -2,6 +2,14 @@
 
 import { Fragment, useState, useEffect, useRef } from 'react'
 import { FeedDiscoveryRail } from '@/components/feed/feed-discovery-rail'
+import { GuestlistGameCard } from '@/components/arcade/guestlist-game-card'
+import {
+  GUESTLIST_PREFERENCE_KEY,
+  getGuestlistGameSlot,
+  getGuestlistDiscoveryModule,
+  parseGuestlistFrequency,
+  type GuestlistFrequency,
+} from '@/lib/feed/guestlist-games'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -136,6 +144,7 @@ export function DashboardFeed() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState('following')
+  const [guestlistFrequency, setGuestlistFrequency] = useState<GuestlistFrequency>('normal')
   const [page, setPage] = useState(0)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -150,6 +159,20 @@ export function DashboardFeed() {
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const recentlyCreatedPostsRef = useRef<Map<string, PostData>>(new Map())
   const recentlyCreatedPostTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  // Device-local preference: no new user table, tracking cookie or account
+  // privilege. The selector defaults to normal until hydration to avoid SSR
+  // layout differences; users can always restore hidden games.
+  useEffect(() => {
+    try { setGuestlistFrequency(parseGuestlistFrequency(localStorage.getItem(GUESTLIST_PREFERENCE_KEY))) }
+    catch { /* storage blocked: keep safe default */ }
+  }, [])
+
+  const changeGuestlistFrequency = (next: GuestlistFrequency) => {
+    setGuestlistFrequency(next)
+    try { localStorage.setItem(GUESTLIST_PREFERENCE_KEY, next) }
+    catch { /* optional preference */ }
+  }
 
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
@@ -643,6 +666,18 @@ export function DashboardFeed() {
               Your Posts
             </TabsTrigger>
           </TabsList>
+          {activeTab !== 'personal' && (
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-xs text-white/65">
+              <label htmlFor="guestlist-games-frequency" className="font-semibold text-fuchsia-100">🎮 Guestlist Games</label>
+              <select id="guestlist-games-frequency" value={guestlistFrequency}
+                onChange={event => changeGuestlistFrequency(parseGuestlistFrequency(event.target.value))}
+                className="min-h-9 rounded-lg border border-white/20 bg-[#261b42] px-2 py-1 text-xs font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200">
+                <option value="normal">Occasionally</option>
+                <option value="fewer">Show fewer</option>
+                <option value="off">Hide games</option>
+              </select>
+            </div>
+          )}
 
           <TabsContent value={activeTab} className="mt-6 space-y-4">
             <FeedDiscoveryRail posts={posts} mode="highlights" />
@@ -1009,9 +1044,18 @@ export function DashboardFeed() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                  {index === 2 && <FeedDiscoveryRail posts={posts} mode="events" />}
-                  {index === 5 && <FeedDiscoveryRail posts={posts} mode="music" />}
-                  {index === 9 && <FeedDiscoveryRail posts={posts} mode="artists" />}
+                  {(() => {
+                    const afterPost = index + 1
+                    const game = getGuestlistGameSlot(afterPost, activeTab, guestlistFrequency)
+                    const discovery = getGuestlistDiscoveryModule(afterPost, guestlistFrequency !== 'off' && activeTab !== 'personal')
+                    return (
+                      <>
+                        {discovery && <FeedDiscoveryRail posts={posts} mode={discovery} />}
+                        {game && <GuestlistGameCard key={game.key} game={game.game} frequency={guestlistFrequency}
+                          onFrequencyChange={changeGuestlistFrequency} />}
+                      </>
+                    )
+                  })()}
                   </Fragment>
                   )
                 })
