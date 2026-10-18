@@ -1,0 +1,33 @@
+name: Work Phase 0 Isolated Unit Tests
+
+# This workflow exists only to validate the draft Work foundation branch.
+# Production CI remains the release gate; this is NOT a substitute for fixing
+# the repository's date-fns peer dependency conflict.
+on:
+  push:
+    branches:
+      - feat/work-foundation-policy-public-contract-20261018
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  work-foundation:
+    name: Work Foundation Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install with temporary legacy peer resolution
+        run: npm ci --legacy-peer-deps --ignore-scripts
+      - name: Run isolated Work foundation tests
+        run: npx --no-install vitest run lib/work/__tests__/opportunity-foundation.test.ts lib/work/__tests__/publisher-authority.test.ts lib/work/server/__tests__/resolve-work-publisher-authority.test.ts app/api/work/v1/opportunities/__tests__/route.test.ts
