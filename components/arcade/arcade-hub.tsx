@@ -16,10 +16,10 @@ const games = [
     href: '/arcade/dj-quest',
     eyebrow: 'PLATFORMER · RETRO / TOUCH',
     title: 'DJ Odyssey',
-    description: 'Cross three neon districts, collect vinyl, leap past club security, and unlock a playable two-deck DJ booth.',
+    description: 'Tour five legendary nightlife destinations—New York, the Sunset Strip, Ibiza, London and Berlin—with original island and cityscapes, vinyl pickups and DJ-booth finales.',
     icon: Gamepad2,
     accent: 'from-amber-400/25 via-rose-500/20 to-fuchsia-900/40',
-    tags: ['3 districts', 'Jump assist', 'DJ booth finale'], 
+    tags: ['5 club chapters', 'Ibiza island', 'DJ booth'],  
     color: 'text-amber-200',
   },
 ] as const
@@ -55,7 +55,7 @@ export function ArcadeHub() {
           </Link>
         ))}
       </div>
-      <p className="flex items-start gap-2 text-sm text-white/55"><Keyboard className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> Keyboard and mobile controls are built in. Personal bests currently live only in your browser; competitive leaderboards, artist game-use opt-in, and more levels are planned for the next phase.</p>
+      <p className="flex items-start gap-2 text-sm text-white/55"><Keyboard className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> Keyboard and mobile controls are built in. Personal bests currently live only in your browser; competitive leaderboards, artist game-use opt-in, and more adventures are planned for the next phase.</p>
       <Link href="/music" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold hover:bg-white/10"><Music2 className="h-4 w-4" /> Browse music on Tourify <ArrowRight className="h-4 w-4" /></Link>
     </div>
   )
