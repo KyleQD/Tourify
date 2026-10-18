@@ -260,6 +260,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
               <p className="line-clamp-2 text-base font-bold leading-tight">{hero?.title || (loading ? "Finding today's soundtrack…" : "Your next favorite awaits")}</p>
               <p className="mt-1 truncate text-xs text-white/55">{hero?.artist_name || "Explore new music on Flow"}</p>
               {hero?.genre ? <span className="mt-2 inline-block rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/75">{hero.genre}</span> : null}
+               {hero && <Link href={"/music/tracks/" + encodeURIComponent(hero.id)} className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-violet-200 hover:text-white">Explore the track <ChevronRight className="h-3.5 w-3.5" /></Link>}
             </div>
           </div>
 
