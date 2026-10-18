@@ -12,7 +12,7 @@ import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX 
 import {
   DJ_GRAVITY, DJ_JUMP_SPEED, DJ_RECORDS_NEEDED, DJ_RUN_SPEED,
   DJ_VIEW_HEIGHT, DJ_VIEW_WIDTH, DJ_WORLD_WIDTH,
-  intersects, portalOpen, calculateDJRunScore, canDJJump, getDJDistrict, type DJDistrict, type Rect,
+  intersects, portalOpen, calculateDJRunScore, canDJJump, getDJDistrict, type Rect,
 } from '@/lib/arcade/dj-quest-level'
 
 type Phase = 'ready' | 'playing' | 'paused' | 'won' | 'gameover'
@@ -45,7 +45,7 @@ export function DJQuestGame() {
   const [routeMapOpen, setRouteMapOpen] = useState(false)
   const chapter = getDJChapter(chapterId)
   const lastHudTickRef = useRef(0)
-  const districtRef = useRef<DJDistrict>('record-row')
+  const landmarkRef = useRef('')
   const [phase, setPhase] = useState<Phase>('ready')
   const [hud, setHud] = useState({ records: 0, lives: 3 })
   const [hint, setHint] = useState('Collect records, jump over club security, and reach Studio 54.')
@@ -82,7 +82,7 @@ export function DJQuestGame() {
     cameraRef.current = 0
     lastInfoRef.current = false
     lastHudTickRef.current = 0
-    districtRef.current = 'record-row'
+    landmarkRef.current = ''
     setProgressPercent(0)
     setHud({ records: 0, lives: 3 })
     setWinScore(null)
@@ -198,10 +198,10 @@ export function DJQuestGame() {
 
       const checkpoint = getDJChapterCheckpoint(scene, h.x)
       if (checkpoint > h.checkpoint) h.checkpoint = checkpoint
-      const nextDistrict = getDJDistrict(h.x)
-      if (nextDistrict !== districtRef.current) {
-        districtRef.current = nextDistrict
-        setHint('Now exploring ' + getDJChapterDistrictLabel(scene, h.x) + '!')
+      const landmark = getDJChapterDistrictLabel(scene, h.x)
+      if (landmark !== landmarkRef.current) {
+        landmarkRef.current = landmark
+        setHint('Now exploring ' + landmark + '!')
       }
       if (worldTimeRef.current - lastHudTickRef.current > 0.15) {
         lastHudTickRef.current = worldTimeRef.current
