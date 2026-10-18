@@ -19,6 +19,9 @@ export function isSafePublicMusicHref(value: string): boolean {
     // No protocol-relative, backslash, userinfo, URL fragments or traversal.
     if (value.startsWith("/") && !value.startsWith("//")) {
       if (value.includes("#") || /%2f|%5c|%25/i.test(value)) return false
+      const rawSegments = decodeURIComponent(value.split("?")[0]).split("/")
+      // WHATWG URL normalizes dot segments, so examine the raw path first.
+      if (rawSegments.some(segment => segment === "." || segment === "..")) return false
       const url = new URL(value, "https://flow.invalid")
       if (url.origin !== "https://flow.invalid" || url.pathname.includes("..")) return false
       const segments = decodeURIComponent(url.pathname).split("/")
