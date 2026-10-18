@@ -161,7 +161,12 @@ export function MusicDiscoveryHub() {
   }, [])
 
   const catalog = useMemo(() => uniquePlayableTracks([...trending, ...recent]), [trending, recent])
-  const daily = useMemo(() => pickDailyTrack(catalog, dailyDate), [catalog, dailyDate])
+  // Match the homepage Jukebox's deterministic fallback candidate window.
+  // Once editorial scheduling is available, both screens must read the same approved slot.
+  const daily = useMemo(() => pickDailyTrack(
+    uniquePlayableTracks([...recent.slice(0, 50), ...trending.slice(0, 35)]),
+    dailyDate
+  ), [recent, trending, dailyDate])
   const spotlight = useMemo(() =>
     catalog.find((track) => track.id === params.get("track")) || daily,
   [catalog, params, daily])
