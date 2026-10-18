@@ -62,6 +62,8 @@ export const musicUniversePublicRelationSchema = z.object({
   destination: z.object({
     href: musicUniversePublicHrefSchema,
     label: z.string().trim().min(1).max(180),
+    // Public Work cards must expire even when cached by a consumer.
+    expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
   }).strict(),
   provenance: z.object({
     sourceSystem: musicUniverseSourceSystemSchema,
