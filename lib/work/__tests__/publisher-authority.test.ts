@@ -16,7 +16,7 @@ const entitled = {
   subscriptionStatus: 'active',
   periodEndsAt: '2026-11-18T12:00:00Z',
 }
-const hiringPlans = [{ priceId: 'price_approved_artist_plus', activeListingLimit: 3 }]
+const hiringPlans = [{ priceId: 'price_approved_artist_plus', allowedAccountTypes: ['artist'], activeListingLimit: 3 }]
 const input = {
   accountId: 'artist-account-1',
   accountType: 'artist',
@@ -75,6 +75,10 @@ describe('protected professional employer publishing authority', () => {
     expect(canPublishWorkOpportunity(paidJob, evaluateProtectedWorkAuthority({ ...input, canManageHiring: false }))).toEqual({
       allowed: false, reason: 'HIRING_PERMISSION_REQUIRED',
     })
+  })
+
+  it('does not allow an artist to claim a venue-only plan', () => {
+    expect(evaluateProtectedWorkAuthority({ ...input, hiringPlans: [{ ...hiringPlans[0], allowedAccountTypes: ['venue'] }] }).hasPaidPostingEntitlement).toBe(false)
   })
 
   it('requires a known, correctly configured hiring plan, never a user provided tier label', () => {
