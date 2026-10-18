@@ -5,6 +5,13 @@ import { toPublicArtistWorkOpportunity, type PublicWorkOpportunity } from '@/lib
 export const dynamic = 'force-dynamic'
 
 type Cursor = { createdAt: string; id: string }
+type ArtistCandidateRow = Record<string, unknown> & {
+  id: string
+  created_at: string
+  poster_profile_id: string | null
+  posted_by: string | null
+  posted_by_type: string | null
+}
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i
 
 function parseCursor(encoded: string | null): Cursor | null {
@@ -79,7 +86,9 @@ export async function GET(request: NextRequest) {
 
     const { data: rows, error } = await query
     if (error) throw error
-    const sourceRows = rows ?? []
+    // The generated database types may lag behind additive job-board migrations.
+    // This narrow read-model type is confined to this preview route.
+    const sourceRows = (rows ?? []) as unknown as ArtistCandidateRow[]
     const profileIds = [...new Set(
       sourceRows.map((row) => row.poster_profile_id).filter((value): value is string => typeof value === 'string')
     )]
