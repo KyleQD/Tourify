@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DJ_ENEMIES, DJ_PLATFORMS, DJ_RECORDS, DJ_RECORDS_NEEDED, DJ_WORLD_WIDTH,
-  getCheckpoint, intersects, portalOpen, calculateDJRunScore,
+  getCheckpoint, intersects, portalOpen, calculateDJRunScore, canDJJump, getDJDistrict, DJ_DISTRICT_LABELS,
 } from '@/lib/arcade/dj-quest-level'
 
 describe('DJ Odyssey game mechanics', () => {
@@ -30,4 +30,20 @@ describe('DJ Odyssey game mechanics', () => {
     expect(calculateDJRunScore(-100, Infinity, NaN, Number.POSITIVE_INFINITY)).toBe(2500)
   })
 
+  it('allows buffered inputs on landing and coyote jumps just after leaving a ledge', () => {
+    expect(canDJJump(10, 9.98, 9.99)).toBe(true)
+    expect(canDJJump(10, 9.9, 9.86)).toBe(true)
+    expect(canDJJump(10, 9.87, 9.99)).toBe(false)
+    expect(canDJJump(10, 9.99, 9.8)).toBe(false)
+    expect(canDJJump(10, Number.NEGATIVE_INFINITY, 9.99)).toBe(false)
+    expect(canDJJump(10, 10.01, 10)).toBe(false)
+  })
+  it('divides the existing level into three recognisable districts', () => {
+    expect(getDJDistrict(0)).toBe('record-row')
+    expect(getDJDistrict(1019)).toBe('record-row')
+    expect(getDJDistrict(1020)).toBe('subway-beats')
+    expect(getDJDistrict(2200)).toBe('disco-mile')
+    expect(getDJDistrict(NaN)).toBe('record-row')
+    expect(Object.keys(DJ_DISTRICT_LABELS)).toHaveLength(3)
+  })
 })
