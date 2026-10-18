@@ -117,6 +117,114 @@ FOR EACH ROW EXECUTE FUNCTION private.apply_work_employer_review_event();
 -- has NO client EXECUTE grant and never trusts a client-provided actor.
 REVOKE ALL ON FUNCTION private.apply_work_employer_review_event() FROM PUBLIC, anon, authenticated;
 
+-- Every billing assignment is an immutable, service-only event. A trigger
+-- revalidates the account owner, active Stripe period, and explicit price tier
+-- while holding the subscription row lock in the SAME DB transaction.
+CREATE TABLE IF NOT EXISTS public.work_hiring_entitlement_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+  stripe_subscription_id text NOT NULL REFERENCES public.subscriptions(stripe_subscription_id)
+    ON UPDATE CASCADE ON DELETE RESTRICT,
+  billing_admin_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  decision text NOT NULL CHECK (decision IN ('grant', 'revoke')),
+  reason text NOT NULL CHECK (char_length(btrim(reason)) >= 10),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION private.apply_work_hiring_entitlement_event()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog
+AS $
+DECLARE
+  v_owner_user_id uuid;
+  v_account_type text;
+  v_is_active boolean;
+  v_subscription_owner uuid;
+  v_subscription_status text;
+  v_price_id text;
+  v_period_end timestamptz;
+  v_rows integer;
+BEGIN
+  -- Even a revocation must target the current account/subscription pair.
+  IF NEW.decision = 'revoke' THEN
+    UPDATE public.work_hiring_entitlements SET
+      revoked_at = NEW.created_at,
+      revoked_reason = NEW.reason,
+      updated_at = NEW.created_at
+    WHERE stripe_subscription_id = NEW.stripe_subscription_id
+      AND account_id = NEW.account_id
+      AND revoked_at IS NULL;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    IF v_rows <> 1 THEN
+      RAISE EXCEPTION 'No active hiring entitlement matches this account/subscription';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  SELECT owner_user_id, account_type, is_active
+  INTO v_owner_user_id, v_account_type, v_is_active
+  FROM public.accounts
+  WHERE id = NEW.account_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_is_active IS DISTINCT FROM true OR
+     v_account_type NOT IN ('artist', 'venue', 'organization') THEN
+    RAISE EXCEPTION 'Hiring entitlement requires an active professional account';
+  END IF;
+
+  SELECT user_id, status, stripe_price_id, current_period_end
+  INTO v_subscription_owner, v_subscription_status, v_price_id, v_period_end
+  FROM public.subscriptions
+  WHERE stripe_subscription_id = NEW.stripe_subscription_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_subscription_owner IS DISTINCT FROM v_owner_user_id
+     OR v_subscription_status <> 'active'
+     OR v_period_end IS NULL OR v_period_end <= NEW.created_at THEN
+    RAISE EXCEPTION 'Subscription owner, status or paid period is not eligible';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.work_hiring_plans
+    WHERE stripe_price_id = v_price_id AND enabled = true
+      AND v_account_type = ANY (allowed_account_types)
+      AND active_listing_limit > 0
+  ) THEN
+    RAISE EXCEPTION 'Subscription price is not authorized for employer hiring';
+  END IF;
+
+  INSERT INTO public.work_hiring_entitlements (
+    account_id, stripe_subscription_id, granted_at, revoked_at, revoked_reason,
+    created_at, updated_at
+  ) VALUES (
+    NEW.account_id, NEW.stripe_subscription_id, NEW.created_at, NULL, NULL,
+    NEW.created_at, NEW.created_at
+  )
+  ON CONFLICT (stripe_subscription_id) DO UPDATE SET
+    account_id = EXCLUDED.account_id,
+    granted_at = EXCLUDED.granted_at,
+    revoked_at = NULL,
+    revoked_reason = NULL,
+    updated_at = EXCLUDED.updated_at
+  WHERE public.work_hiring_entitlements.revoked_at IS NOT NULL;
+
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  IF v_rows <> 1 THEN
+    RAISE EXCEPTION 'Subscription is already assigned to an active employer';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+CREATE TRIGGER work_hiring_entitlement_events_apply
+AFTER INSERT ON public.work_hiring_entitlement_events
+FOR EACH ROW EXECUTE FUNCTION private.apply_work_hiring_entitlement_event();
+
+REVOKE ALL ON FUNCTION private.apply_work_hiring_entitlement_event()
+  FROM PUBLIC, anon, authenticated;
+
 CREATE INDEX IF NOT EXISTS work_employer_approvals_active_idx
   ON public.work_employer_approvals(account_id, expires_at)
   WHERE status='approved' AND revoked_at IS NULL;
@@ -130,11 +238,13 @@ ALTER TABLE public.work_employer_approvals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_hiring_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_hiring_entitlements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.work_employer_review_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_hiring_entitlement_events ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.work_employer_approvals FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.work_hiring_plans FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.work_hiring_entitlements FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.work_employer_review_events FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.work_hiring_entitlement_events FROM PUBLIC, anon, authenticated;
 
 -- Service-role access is server-only. Never expose SUPABASE_SERVICE_ROLE_KEY
 -- or these records to a browser/Next public environment variable.
@@ -142,8 +252,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.work_employer_approvals TO servic
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.work_hiring_plans TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.work_hiring_entitlements TO service_role;
 GRANT SELECT, INSERT ON public.work_employer_review_events TO service_role;
+GRANT SELECT, INSERT ON public.work_hiring_entitlement_events TO service_role;
 GRANT USAGE ON SCHEMA private TO service_role;
 GRANT EXECUTE ON FUNCTION private.apply_work_employer_review_event() TO service_role;
+GRANT EXECUTE ON FUNCTION private.apply_work_hiring_entitlement_event() TO service_role;
 
 COMMIT;
 
