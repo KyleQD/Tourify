@@ -22,6 +22,7 @@ export interface BeatDeckOriginalSong {
   key: string
   motif: readonly number[]
   progression: readonly number[]
+  chordMinor: readonly boolean[]
   tint: readonly [string, string, string]
 }
 
@@ -31,21 +32,21 @@ export const BEAT_DECK_ORIGINALS: readonly BeatDeckOriginalSong[] = [
     genre: 'Synthwave · Electro', description: 'Midnight arpeggios, analog bass and neon-lit drums.',
     bpm: 120, duration: 60, stage: 'neon-city', key: 'A minor',
     motif: [0, 3, 7, 12, 7, 3, 10, 7, 0, 3, 7, 15, 12, 10, 7, 3],
-    progression: [45, 41, 43, 40], tint: ['#080d29', '#482259', '#ee74b7'],
+    progression: [45, 41, 43, 40], chordMinor: [true, false, false, true], tint: ['#080d29', '#482259', '#ee74b7'],
   },
   {
     id: 'original:festival-lights', title: 'Festival Lights',
     genre: 'Festival House · Electro', description: 'An arena-sized four-on-the-floor, rising chords and festival leads.',
     bpm: 128, duration: 60, stage: 'festival', key: 'D minor',
     motif: [0, 7, 10, 12, 10, 7, 5, 3, 0, 5, 7, 12, 15, 12, 10, 7],
-    progression: [38, 34, 36, 33], tint: ['#0a143e', '#365eb2', '#fcd34d'],
+    progression: [38, 34, 36, 33], chordMinor: [true, false, false, true], tint: ['#0a143e', '#365eb2', '#fcd34d'],
   },
   {
     id: 'original:coastal-frequency', title: 'Coastal Frequency',
     genre: 'Nu Disco · Sunset Funk', description: 'Warm Rhodes-style chords, a bouncy bassline and a sunset groove.',
     bpm: 100, duration: 60, stage: 'underground', key: 'C major',
     motif: [0, 4, 7, 11, 12, 7, 4, 2, 0, 4, 9, 12, 11, 7, 4, 2],
-    progression: [36, 41, 33, 43], tint: ['#10344f', '#ab668b', '#ffd19d'],
+    progression: [36, 41, 33, 43], chordMinor: [false, false, true, false], tint: ['#10344f', '#ab668b', '#ffd19d'],
   },
 ] as const
 
