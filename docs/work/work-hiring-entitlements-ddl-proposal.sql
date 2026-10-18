@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS public.work_employer_approvals (
   approval_type text NOT NULL DEFAULT 'employer' CHECK (approval_type = 'employer'),
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'revoked')),
   approved_by uuid REFERENCES auth.users(id) ON DELETE RESTRICT,
+  -- Snapshot of exact reviewed professional identity, never self-editable badge.
+  reviewed_profile_id uuid,
+  reviewed_account_type text,
+  reviewed_profile_table text,
   approved_at timestamptz,
   expires_at timestamptz,
   revoked_at timestamptz,
@@ -27,7 +31,9 @@ CREATE TABLE IF NOT EXISTS public.work_employer_approvals (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT work_employer_approvals_one_per_account UNIQUE(account_id, approval_type),
   CONSTRAINT work_employer_approved_reviewer_required
-    CHECK (status <> 'approved' OR (approved_by IS NOT NULL AND approved_at IS NOT NULL AND revoked_at IS NULL)),
+    CHECK (status <> 'approved' OR (approved_by IS NOT NULL AND approved_at IS NOT NULL AND revoked_at IS NULL
+      AND reviewed_profile_id IS NOT NULL AND reviewed_account_type IS NOT NULL
+      AND reviewed_profile_table IS NOT NULL)),
   CONSTRAINT work_employer_revocation_consistent
     CHECK (status <> 'revoked' OR revoked_at IS NOT NULL)
 );
@@ -88,11 +94,13 @@ BEGIN
   END IF;
 
   INSERT INTO public.work_employer_approvals (
-    account_id, approval_type, status, approved_by, approved_at,
-    expires_at, revoked_at, updated_at
+    account_id, approval_type, status, approved_by,
+    reviewed_profile_id, reviewed_account_type, reviewed_profile_table,
+    approved_at, expires_at, revoked_at, updated_at
   ) VALUES (
-    NEW.account_id, 'employer', NEW.decision, 
+    NEW.account_id, 'employer', NEW.decision,
     CASE WHEN NEW.decision = 'approved' THEN NEW.reviewer_user_id ELSE NULL END,
+    v_profile_id, v_account_type, v_profile_table,
     CASE WHEN NEW.decision = 'approved' THEN NEW.created_at ELSE NULL END,
     CASE WHEN NEW.decision = 'approved' THEN NEW.expires_at ELSE NULL END,
     CASE WHEN NEW.decision = 'revoked' THEN NEW.created_at ELSE NULL END,
@@ -101,6 +109,9 @@ BEGIN
   ON CONFLICT (account_id, approval_type) DO UPDATE SET
     status = EXCLUDED.status,
     approved_by = EXCLUDED.approved_by,
+    reviewed_profile_id = EXCLUDED.reviewed_profile_id,
+    reviewed_account_type = EXCLUDED.reviewed_account_type,
+    reviewed_profile_table = EXCLUDED.reviewed_profile_table,
     approved_at = EXCLUDED.approved_at,
     expires_at = EXCLUDED.expires_at,
     revoked_at = EXCLUDED.revoked_at,
