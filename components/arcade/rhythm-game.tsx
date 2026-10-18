@@ -41,6 +41,7 @@ export function RhythmGame() {
   const practiceContextRef = useRef<AudioContext | null>(null)
   const lastBeatIndexRef = useRef(-1)
   const generationRef = useRef(0)
+  const roundIdRef = useRef('practice:normal')
   const phaseRef = useRef<Phase>('idle')
   const notesRef = useRef<BeatNote[]>([])
   const handledRef = useRef(new Set<number>())
@@ -125,8 +126,8 @@ export function RhythmGame() {
 
   useEffect(() => {
     if (phase !== 'finished') return
-    setPersonalBest(savePersonalBest('beat-deck', selected + ':' + difficulty, resultsRef.current.score))
-  }, [phase, selected, difficulty])
+    setPersonalBest(savePersonalBest('beat-deck', roundIdRef.current, resultsRef.current.score))
+  }, [phase])
 
   useEffect(() => () => {
     generationRef.current++
@@ -148,6 +149,7 @@ export function RhythmGame() {
     }
 
     reset()
+    roundIdRef.current = selected + ':' + difficulty
     const generation = generationRef.current
     const track = tracks.find(t => t.id === selected)
     const length = track
