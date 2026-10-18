@@ -11,6 +11,7 @@ import type { ActingContext } from '@/lib/auth/acting-context'
 import { canPublishWorkOpportunity, classifyWorkPosting } from '../../opportunity-publication-policy'
 
 const mockedServiceClient = vi.mocked(createServiceRoleClient)
+const accountFilterCalls: Array<[string, unknown]> = []
 const now = new Date()
 const tomorrow = new Date(now.getTime() + 86400000 * 30).toISOString()
 const yesterday = new Date(now.getTime() - 86400000).toISOString()
@@ -47,10 +48,13 @@ const baseData: Record<TableName, Record<string, unknown>[]> = {
   }],
 }
 
-function mockQuery(result: { data: unknown; error: null | { message: string } }) {
+function mockQuery(result: { data: unknown; error: null | { message: string } }, table?: string) {
   const builder: Record<string, any> = {}
   for (const operation of ['select', 'eq', 'in', 'is']) {
-    builder[operation] = () => builder
+    builder[operation] = (field?: string, value?: unknown) => {
+      if (table === 'accounts' && operation === 'eq') accountFilterCalls.push([field ?? '', value])
+      return builder
+    }
   }
   builder.maybeSingle = async () => ({
     data: Array.isArray(result.data) ? (result.data as unknown[])[0] ?? null : result.data,
@@ -66,7 +70,7 @@ function setup(rows: Partial<typeof baseData> = {}, rpcAllowed = true) {
   mockedServiceClient.mockReturnValue({
     from: (table: string) => {
       if (!(table in data)) throw new Error('Unexpected table ' + table)
-      return mockQuery({ data: data[table as TableName], error: null })
+      return mockQuery({ data: data[table as TableName], error: null }, table)
     },
   } as any)
   const actor: ActingContext = {
@@ -83,12 +87,13 @@ function setup(rows: Partial<typeof baseData> = {}, rpcAllowed = true) {
 const paid = classifyWorkPosting({ jobType: 'one_time', paymentType: 'paid', paymentAmount: 125 })
 
 describe('server-only protected Work publishing authority', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks(); accountFilterCalls.length = 0 })
 
   it('resolves an exact account-scoped Stripe entitlement and hiring permission', async () => {
     const actor = setup()
     const result = await resolveProtectedWorkPublisherAuthority(actor, 2)
     expect(result.accountId).toBe(accountId)
+    expect(accountFilterCalls).toContainEqual(['profile_table', 'artist_profiles'])
     expect(result.authority).toMatchObject({
       accountType: 'artist', isVerifiedEmployer: true,
       hasPaidPostingEntitlement: true, canManageHiring: true,
