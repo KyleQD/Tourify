@@ -121,6 +121,7 @@ export function DJQuestGame() {
     if (!ctx) return
     let frame = 0
     let previous = 0
+    let drawnPhase: Phase | null = null
     function step(dt: number) {
       const h = heroRef.current
       worldTimeRef.current += dt
@@ -314,7 +315,11 @@ export function DJQuestGame() {
       const delta = previous ? Math.min((now - previous) / 1000, 0.033) : 0
       previous = now
       if (phaseRef.current === 'playing') step(delta)
-      draw()
+      // Render on demand while paused, finished or game over so the animation
+      // does not waste GPU time rebuilding a static level every frame.
+      const current = phaseRef.current
+      if (current === 'playing' || current !== drawnPhase) draw()
+      drawnPhase = current
       frame = requestAnimationFrame(loop)
     }
     frame = requestAnimationFrame(loop)
