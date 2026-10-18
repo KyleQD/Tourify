@@ -126,7 +126,7 @@ export function MusicDetailExperience({
                   {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   {playing ? "Pause" : item.accessMode === "paid" ? "Listen if eligible" : "Play now"}
                 </button>
-                <button type="button" onClick={saveToLibrary} disabled={saving || item.accessMode === "paid"}
+                <button type="button" onClick={saveToLibrary} disabled={saving}
                   className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-3 text-xs font-semibold hover:bg-white/20 disabled:opacity-40"><Heart className="h-4 w-4" />Save</button>
                 <button type="button" onClick={() => ctx?.addToQueue(trackFromItem(item))}
                   disabled={!ctx || !item.hasStream} className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-3 text-xs font-semibold hover:bg-white/20 disabled:opacity-40">
