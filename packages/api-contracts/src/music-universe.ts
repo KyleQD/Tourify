@@ -26,7 +26,13 @@ export function isSafePublicMusicHref(value: string): boolean {
       if (url.origin !== "https://flow.invalid" || url.pathname.includes("..")) return false
       const segments = decodeURIComponent(url.pathname).split("/")
       if (segments.some(segment => segment === "." || segment === "..")) return false
-      return true
+      // Public content destinations only, never /admin, /api, /settings, etc.
+      const publicSurfaces = new Set([
+        "news", "blog", "jobs", "work", "artists", "artist",
+        "venues", "venue", "events", "music", "profile",
+        "discover", "press", "stories"
+      ])
+      return publicSurfaces.has(segments[1] || "")
     }
     const url = new URL(value)
     return url.protocol === "https:" && Boolean(url.hostname) &&
