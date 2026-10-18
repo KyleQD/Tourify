@@ -1,4 +1,5 @@
--- Tourify Protected Audio / Arcade fan-use rights: PROPOSAL ONLY (2026-10-18)
+-- Renamed product: Flow File (.flow). Filename retains legacy TPA label solely to avoid link breakage.
+-- Flow File (.flow) / Arcade fan-use rights: PROPOSAL ONLY (2026-10-18)
 -- DO NOT run against any environment until canonical DB project, backup,
 -- outstanding rights-schema divergence, and consent text are signed off.
 -- Deliberately stored under docs/, not supabase/migrations/.
