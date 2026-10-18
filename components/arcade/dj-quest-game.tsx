@@ -434,18 +434,32 @@ export function DJQuestGame() {
         <Link href="/arcade" className="inline-flex items-center gap-2 text-sm text-pink-200 hover:text-white"><ArrowLeft className="h-4 w-4" /> Arcade</Link>
         <span className="rounded-full border border-amber-400/30 bg-amber-300/10 px-3 py-1 text-xs font-bold tracking-wider text-amber-200">ORIGINAL RETRO PLATFORMER</span>
       </div>
-      <h2 className="text-2xl font-black tracking-tight sm:text-3xl">DJ Odyssey: Road to Studio 54</h2>
-      <p className="text-sm text-white/70">Our DJ is running late! Collect at least {DJ_RECORDS_NEEDED} vinyl records, leap over sound systems, avoid velvet-rope bouncers and disco ghosts, and enter the club.</p>
+      <h2 className="text-2xl font-black tracking-tight sm:text-3xl">DJ Odyssey: World Tour</h2>
+      <p className="text-sm text-white/70">Travel through legendary nightlife cities, collect {DJ_RECORDS_NEEDED} vinyl records, dodge themed enemies and unlock the destination DJ booth. Each trip is an original, fantastical side-scrolling collage—not an accurate street route.</p>
+      <div className="space-y-3" aria-label="Choose a world tour chapter">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-black uppercase tracking-[0.15em] text-amber-200">Pick your destination · 5 playable chapters</h3><span className="text-xs text-white/55">{phase === 'playing' ? 'Pause before switching chapters' : 'Choose any destination to begin'}</span></div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {DJ_CHAPTERS.map(option => <button type="button" key={option.id} onClick={() => changeChapter(option.id)}
+            disabled={phase === 'playing'} aria-pressed={chapterId === option.id}
+            className={'min-h-[122px] min-w-0 rounded-2xl border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50 ' + (chapterId === option.id ? 'border-amber-300 bg-amber-200/15' : 'border-white/15 bg-white/5 hover:border-white/40')}
+            style={{ borderTopColor: option.accent }}>
+            <span className="block text-[10px] font-black tracking-[0.12em] text-white/55">{option.city} · {option.country}</span>
+            <span className="mt-2 block text-sm font-black leading-tight text-white">{option.name}</span>
+            <span className="mt-2 block text-[11px] leading-snug text-white/70">{option.genre}</span>
+          </button>)}
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm"><span className="font-black" style={{ color: chapter.accent }}>{chapter.tagline}</span><p className="mt-1 leading-relaxed text-white/75">{chapter.description}</p></div>
+      </div>
       <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-white/85">
         <span className="flex items-center gap-1.5 text-amber-200">◉ {hud.records} / {DJ_RECORDS_NEEDED} records</span>
         <span className="flex items-center gap-1.5 text-pink-200"><Heart className="h-4 w-4" /> {hud.lives} lives</span>
         <span className="text-emerald-200">Best: {personalBest.toLocaleString()} <span className="text-white/50">(this device)</span></span>
         <span className="ml-auto text-xs text-white/55">A/D or ←/→ move · W/Space/↑ jump</span>
       </div>
-      <div className="flex items-center justify-between gap-3 text-xs text-white/70"><span className="font-black uppercase tracking-wider text-fuchsia-200">Now playing · {DJ_DISTRICT_LABELS[district]}</span><span>Route · {progressPercent}%</span></div>
-      <div role="progressbar" aria-label="Progress to Studio 54" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} className="h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-sky-400 to-amber-300 transition-[width] duration-150 motion-reduce:transition-none" style={{ width: progressPercent + '%' }} /></div>
+      <div className="flex items-center justify-between gap-3 text-xs text-white/70"><span className="font-black uppercase tracking-wider text-fuchsia-200">On the way · {getDJChapterDistrictLabel(chapter, heroRef.current.x)}</span><span>Route · {progressPercent}%</span></div>
+      <div role="progressbar" aria-label={'Progress to ' + chapter.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} className="h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-sky-400 to-amber-300 transition-[width] duration-150 motion-reduce:transition-none" style={{ width: progressPercent + '%' }} /></div>
       <div className="overflow-hidden rounded-2xl border-2 border-fuchsia-400/30 bg-[#100d2d]">
-        <canvas ref={canvasRef} width={DJ_VIEW_WIDTH} height={DJ_VIEW_HEIGHT} className="block aspect-[820/420] w-full" aria-label="Side-scrolling retro game with a DJ hero, floating vinyl records, bouncer, speaker and disco-ghost enemies, and the Studio 54 entrance at the far right." />
+        <canvas ref={canvasRef} width={DJ_VIEW_WIDTH} height={DJ_VIEW_HEIGHT} className="block aspect-[820/420] w-full" aria-label={'DJ Odyssey world tour in ' + chapter.city + ': jump between platforms, collect records, avoid enemies, and reach ' + chapter.name + '.'} />
       </div>
       <p className="min-h-5 text-sm font-semibold text-fuchsia-200" role="status" aria-live="polite">{hint}</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -472,9 +486,9 @@ export function DJQuestGame() {
         </div>
       </div>
       {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! Records collected: {hud.records}. Final score: <strong>{(winScore || 0).toLocaleString()}</strong>. Your bonus DJ set is unlocked below.</div>}
-      {phase === 'won' && <DJBoothFinale />}
+      {phase === 'won' && <DJBoothFinale venueName={chapter.name} />}
       <p className="text-xs text-white/60">Movement assist: jump briefly after leaving a platform or press jump just before landing. Collect vinyl to open the final door.</p>
-      <p className="text-xs text-white/45">Made with original vector pixel art and sound effects. Retro platform mechanics are genre-inspired; no Nintendo characters, music, or artwork are used. Studio 54 is a thematic destination, not an official partnership.</p>
+      <p className="text-xs text-white/45">A fictional, stylized music adventure featuring real venue names for cultural reference only. We are not affiliated with, sponsored by, or endorsed by Studio 54, Whisky a Go Go, Amnesia, fabric or Tresor. All artwork and sound effects are original; route distances and landmarks are imaginative, not geographical navigation.</p>
     </section>
   )
 }
