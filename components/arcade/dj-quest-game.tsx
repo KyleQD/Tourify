@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
+import { DJBoothFinale } from '@/components/arcade/dj-booth-finale'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import {
   DJ_ENEMIES, DJ_GRAVITY, DJ_JUMP_SPEED, DJ_PLATFORMS, DJ_RECORDS,
@@ -451,7 +452,8 @@ export function DJQuestGame() {
           </button>
         </div>
       </div>
-      {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! The DJ booth is yours. Records collected: {hud.records}. Final score: <strong>{(winScore || 0).toLocaleString()}</strong>. Can you beat your personal record?</div>}
+      {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! Records collected: {hud.records}. Final score: <strong>{(winScore || 0).toLocaleString()}</strong>. Your bonus DJ set is unlocked below.</div>}
+      {phase === 'won' && <DJBoothFinale />}
       <p className="text-xs text-white/60">Movement assist: jump briefly after leaving a platform or press jump just before landing. Collect vinyl to open the final door.</p>
       <p className="text-xs text-white/45">Made with original vector pixel art and sound effects. Retro platform mechanics are genre-inspired; no Nintendo characters, music, or artwork are used. Studio 54 is a thematic destination, not an official partnership.</p>
     </section>
