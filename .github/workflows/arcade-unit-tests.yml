@@ -1,4 +1,4 @@
-name: Arcade Unit Tests
+name: Arcade + Guestlist Games Unit Tests
 
 on:
   pull_request:
@@ -6,6 +6,9 @@ on:
       - 'app/arcade/**'
       - 'app/api/arcade/**'
       - 'components/arcade/**'
+      - 'components/dashboard/dashboard-feed.tsx'
+      - 'components/dashboard/dashboard-page-client.tsx'
+      - 'lib/feed/guestlist-games.ts'
       - 'lib/arcade/**'
       - 'lib/music/stream-policy.ts'
       - 'app/api/music/stream/route.ts'
@@ -18,6 +21,9 @@ on:
       - 'app/arcade/**'
       - 'app/api/arcade/**'
       - 'components/arcade/**'
+      - 'components/dashboard/dashboard-feed.tsx'
+      - 'components/dashboard/dashboard-page-client.tsx'
+      - 'lib/feed/guestlist-games.ts'
       - 'lib/arcade/**'
       - 'lib/music/stream-policy.ts'
       - 'app/api/music/stream/route.ts'
@@ -46,5 +52,5 @@ jobs:
       # Do not overwrite the committed package-lock or force-upgrade dependencies here.
       - name: Install dependencies with existing peer-compatibility constraints
         run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund --package-lock=false
-      - name: Test original arcade game rules
-        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts __tests__/arcade/stream-policy.test.ts __tests__/arcade/stage-director.test.ts __tests__/arcade/dj-mixer.test.ts __tests__/arcade/rhythm-input.test.ts __tests__/arcade/dj-world-tour.test.ts __tests__/arcade/dj-world-events.test.ts
+      - name: Test Arcade gameplay and Guestlist Games placement
+        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts __tests__/arcade/stream-policy.test.ts __tests__/arcade/stage-director.test.ts __tests__/arcade/dj-mixer.test.ts __tests__/arcade/rhythm-input.test.ts __tests__/arcade/dj-world-tour.test.ts __tests__/arcade/dj-world-events.test.ts __tests__/arcade/guestlist-games.test.ts
