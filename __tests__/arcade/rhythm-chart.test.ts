@@ -22,4 +22,13 @@ describe('Beat Deck practice chart', () => {
     expect(judgeTiming(-0.12)).toBe('good')
     expect(judgeTiming(0.3)).toBe('miss')
   })
+  it('increases note density across difficulties without losing determinism', () => {
+    const easy = createPracticeChart(110, 30, 'same', 'easy')
+    const normal = createPracticeChart(110, 30, 'same', 'normal')
+    const hard = createPracticeChart(110, 30, 'same', 'hard')
+    expect(easy.length).toBeLessThan(normal.length)
+    expect(normal.length).toBeLessThan(hard.length)
+    expect(createPracticeChart(110, 30, 'same', 'hard')).toEqual(hard)
+  })
+
 })
