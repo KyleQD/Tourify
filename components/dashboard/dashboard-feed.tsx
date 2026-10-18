@@ -123,6 +123,10 @@ interface Comment {
   }
 }
 
+// Rollout kill switch: set NEXT_PUBLIC_GUESTLIST_GAMES_ENABLED=false and redeploy.
+// Enabled by default on this unmerged development branch for preview QA.
+const GUESTLIST_GAMES_ENABLED = process.env.NEXT_PUBLIC_GUESTLIST_GAMES_ENABLED !== 'false'
+
 function getProfileUrl(profile: PostData['profiles']) {
   if (profile?.account_context?.profile_path) return profile.account_context.profile_path
   if (!profile?.username) return '/profile/user'
@@ -666,7 +670,7 @@ export function DashboardFeed() {
               Your Posts
             </TabsTrigger>
           </TabsList>
-          {activeTab !== 'personal' && (
+          {GUESTLIST_GAMES_ENABLED && activeTab !== 'personal' && (
             <div className="mt-3 flex flex-wrap items-center justify-end gap-2 text-xs text-white/65">
               <label htmlFor="guestlist-games-frequency" className="font-semibold text-fuchsia-100">🎮 Guestlist Games</label>
               <select id="guestlist-games-frequency" value={guestlistFrequency}
@@ -1046,8 +1050,8 @@ export function DashboardFeed() {
                   </motion.div>
                   {(() => {
                     const afterPost = index + 1
-                    const game = getGuestlistGameSlot(afterPost, activeTab, guestlistFrequency)
-                    const discovery = getGuestlistDiscoveryModule(afterPost, guestlistFrequency !== 'off' && activeTab !== 'personal')
+                    const game = getGuestlistGameSlot(afterPost, activeTab, GUESTLIST_GAMES_ENABLED ? guestlistFrequency : 'off')
+                    const discovery = getGuestlistDiscoveryModule(afterPost, GUESTLIST_GAMES_ENABLED && guestlistFrequency !== 'off' && activeTab !== 'personal')
                     return (
                       <>
                         {discovery && <FeedDiscoveryRail posts={posts} mode={discovery} />}
