@@ -38,6 +38,7 @@ export function RhythmGame() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const practiceContextRef = useRef<AudioContext | null>(null)
   const lastBeatIndexRef = useRef(-1)
+  const generationRef = useRef(0)
   const phaseRef = useRef<Phase>('idle')
   const notesRef = useRef<BeatNote[]>([])
   const handledRef = useRef(new Set<number>())
@@ -75,6 +76,7 @@ export function RhythmGame() {
   }
 
   const reset = () => {
+    generationRef.current++
     stopAudio()
     notesRef.current = []
     handledRef.current = new Set()
@@ -110,6 +112,7 @@ export function RhythmGame() {
   }, [selected, tempo])
 
   useEffect(() => () => {
+    generationRef.current++
     stopAudio()
     void practiceContextRef.current?.close()
   }, [])
@@ -128,6 +131,7 @@ export function RhythmGame() {
     }
 
     reset()
+    const generation = generationRef.current
     const track = tracks.find(t => t.id === selected)
     const length = track
       ? Math.min(240, Math.max(8, track.previewMode === 'clip'
@@ -143,6 +147,7 @@ export function RhythmGame() {
           cache: 'no-store',
         })
         const data = await response.json()
+        if (generation !== generationRef.current) return
         if (!response.ok || typeof data.url !== 'string') {
           throw new Error(response.status === 401 || response.status === 403
             ? 'You do not have playback access to this track.' : 'The track is not available for streaming.')
@@ -161,7 +166,9 @@ export function RhythmGame() {
         audio.onended = () => { frozenTimeRef.current = audio.currentTime; updatePhase('finished'); setFeedback('Set complete!') }
         audio.onerror = () => { setError('Stream stopped. Choose Practice or another track.'); frozenTimeRef.current = audio.currentTime; updatePhase('paused') }
         await audio.play()
+        if (generation !== generationRef.current) { stopAudio(); return }
       } catch (caught) {
+        if (generation !== generationRef.current) return
         stopAudio()
         setError(caught instanceof Error ? caught.message : 'Could not start playback.')
         updatePhase('idle')
@@ -349,8 +356,8 @@ export function RhythmGame() {
             {tracks.map(track => <option value={track.id} key={track.id}>{track.title}{track.genre ? ' · ' + track.genre : ''}</option>)}
           </select>
         </label>
-        <label className="text-xs font-medium text-white/80">Chart tempo (BPM)
-          <input type="number" min={65} max={200} step={5} value={tempo} onChange={e => setTempo(Math.max(65, Math.min(200, Number(e.target.value) || 110)))} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white" />
+        <label className="text-xs font-medium text-white/80">Chart tempo · <strong className="text-fuchsia-200">{tempo} BPM</strong>
+          <input type="range" min={65} max={200} step={5} value={tempo} onChange={e => setTempo(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-fuchsia-400" />
         </label>
       </div>
       <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
