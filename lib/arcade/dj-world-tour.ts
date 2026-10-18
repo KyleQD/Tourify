@@ -160,5 +160,29 @@ export function buildDJChapterWorld(chapter: DJChapter): DJChapterWorld {
   return { platforms, records, enemies }
 }
 
+/** Respawn locations follow actual ground segments in each chapter. */
+export function getDJChapterCheckpoint(chapter: DJChapter, position: number): number {
+  let checkpoint = 54
+  if (!Number.isFinite(position)) return checkpoint
+  for (const ground of chapter.ground.slice(1)) {
+    if (position > ground.x + 28) checkpoint = Math.round(ground.x + 32)
+  }
+  return checkpoint
+}
+
+export function getDJChapterDistrictLabel(chapter: DJChapter, x: number): string {
+  if (chapter.id === 'studio54') {
+    if (x >= 2200) return 'Disco Mile'
+    if (x >= 1020) return 'Subway Beats'
+    return 'Record Row'
+  }
+  const safeX = Number.isFinite(x) ? Math.max(0, x) : 0
+  let label = chapter.scenery[0]?.name || chapter.city
+  for (const landmark of chapter.scenery) {
+    if (safeX >= landmark.x) label = landmark.name
+  }
+  return label
+}
+
 export const DJ_CHAPTER_WORLDS: Record<DJChapterId, DJChapterWorld> =
   Object.fromEntries(DJ_CHAPTERS.map(chapter => [chapter.id, buildDJChapterWorld(chapter)])) as Record<DJChapterId, DJChapterWorld>
