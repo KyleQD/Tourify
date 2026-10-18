@@ -212,3 +212,27 @@ Potential next development slices: new local landmark gameplay interactions (wha
 - **Stage progression:** a win shows the next venue and counts down ten seconds. Selecting **Stay and mix in the DJ booth**, or interacting with the booth, cancels the automatic transition. Selecting **Next stop** immediately switches to a fresh playable next chapter. Auto-progression wraps EOS back to Studio 54, restores next chapter's local best, and brings the next canvas into view. Paused/hidden tabs do not auto-advance.
 - Beat Deck's playable highway and keypads now appear before track, tempo, difficulty, calibration and stage settings on the full `/arcade/beat-deck` route.
 - **Remaining:** manual desktop/mobile route playthrough; verify auto/stop countdown with DJ booth, notes and keyboard focus; ensure no score inflation or duplicate vinyl from checkpoint/restart; audit personal best preservation. The draft PR should not ship without final Vercel READY and mobile feedback.
+
+## October 18 — Beat Deck LIVE: three original one-minute tracks + concert UI
+
+**Implemented on the existing unmerged Arcade development branch:**
+- `lib/arcade/beat-deck-originals.ts` — first-party album catalog, musical arrangement data, deterministic four-lane scored charts, stable MIDI-derived lead pitches and automatic next-track rotation. The tracks have **exactly 60.0s** of musical timeline; chart targets directly correspond to the audible lead-note step and are not randomly generated.
+- `lib/arcade/beat-deck-audio.ts` — original procedural Web Audio instrument arrangement engine. A look-ahead scheduler creates actual synthesized kick/snare/hi-hats, bass, chord changes, lead arpeggios, and transitions with a gentle compressor and level limits. This is **music performed in real time**, not downloadable WAV stems, ripped songs, external licensed masters or a single metronome click.
+  - **Midnight Circuit** — 120 BPM, A minor, synthwave/electro; Neon Skyline visual.
+  - **Festival Lights** — 128 BPM, D minor, festival house/electro; Festival Main Stage visual.
+  - **Coastal Frequency** — 100 BPM, C major, nu disco/sunset funk; Underground Club lighting.
+- `components/arcade/rhythm-game.tsx` now defaults to Midnight Circuit for new visitors, offers all three original tracks as full-size album cards and in native track selection, with original song tempo **locked** so the live sound and game chart cannot diverge. Original sound transport, game timer and scored note chart all use the same `AudioContext.currentTime` clock; Pause/Resume reset both together; resetting/selecting another track releases voices/timers and retains the old permission-checked artist track path. Creator tracks are still authorized via `/api/music/stream`; original tracks are first-party and require no streaming entitlement.
+- Concert graphics use original track-specific palette, luminous 3D-like lane borders, responsive speakers, digital frequency bars, detailed note blocks, and a new **Beat Deck LIVE** now-playing scoreboard. The full rhythm highway and touch pads remain **above** track cards and settings.
+- On finishing an original track, a new scored results panel offers **Next set**, switching to the next song *without autoplay*; the listener must choose Start. The third track wraps back to the first.
+- `__tests__/arcade/beat-deck-originals.test.ts` checks all three distinct original IDs, exact 60s time, stage mapping, easy/normal/hard charts, audio-step/note synchronization, finite note counts, deterministic chart data, and cyclic next-track order. Added to `.github/workflows/arcade-unit-tests.yml`.
+
+**Required browser QA before release:**
+1. Load /arcade/beat-deck: default Midnight Circuit shows a 1:00 duration immediately. Explicit Start plays actual musical drums, bass, chords and melody; verify left/right or keyboard tapping matches bright chart line with no audible drift after 60 seconds.
+2. Complete each original one-minute song at Easy/Normal/Hard; note judgements, perfect-window calibration, score, no-double-scoring and correct 60s completion. Verify device-local best score keys.
+3. Switch songs via album cards and native selector, inspect color/theme and tempo lock, check pause/resume after 15s and after 50s, background tab pause, and stale audio cleanup on switching and unmount.
+4. Verify beat-master volume at headphone settings and low-power mobile browser performance, source cleanup, consent-to-sound after pressing Start, reduced-motion effects, touch pad size/contrast and screen reader labels.
+5. Ensure practice metronome and creator-authorized audio still work, and that unauthorized media cannot be played through the new song path.
+6. Test Next set after score completion, loop Coastal → Midnight, no automatic browser audio, and on the already implemented Guestlist Games feed break verify that silent 20s mini remains separate from the full 60s song collection.
+7. Check that the final branch tip is **Vercel READY** and all Arcade unit CI passes. No production merge until manual QA and branch reconciliation.
+
+**Licensing:** All melodies, chords, drums and synth sounds in these three examples are composed from original programmatic notes; no third-party artwork, recordings, samples, stems or lyrics were incorporated. Composed synth arrangement is a functional prototype, not a mastered studio recording.
