@@ -51,7 +51,9 @@ export class OriginalBeatDeckPlayer {
     await this.context.resume()
     if (this.context.state !== 'running') throw new Error('Audio is unavailable on this device')
     const now = this.context.currentTime
-    this.startAt = now + 0.07 - this.pausedAt
+    // Fresh starts get a short buffer for browser scheduling; resumes do not
+    // rewind the chart clock by 70ms during a timing-sensitive rhythm game.
+    this.startAt = now + (this.pausedAt === 0 ? 0.07 : 0) - this.pausedAt
     this.nextStep = Math.max(0, Math.ceil((this.pausedAt - 0.00001) / songStepSeconds(this.song)))
     this.master = this.context.createGain()
     this.master.gain.setValueAtTime(0.0001, now)
