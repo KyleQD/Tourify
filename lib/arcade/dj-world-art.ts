@@ -26,6 +26,25 @@ export function drawDJChapterScenery(
     }
     ctx.fillStyle = '#ffe1a0'
     ctx.beginPath(); ctx.arc(664, 80, 41, 0, Math.PI * 2); ctx.fill()
+  } else if (chapter.id === 'eos') {
+    // Santa Barbara coast at dusk: fictionalized American Riviera layering.
+    // Shoreline and mountains are scenic silhouettes, not geographic data.
+    ctx.fillStyle = '#ffdaa2'
+    ctx.beginPath(); ctx.arc(670, 106, 44, 0, Math.PI * 2); ctx.fill()
+    ctx.fillStyle = '#3a5877'
+    ctx.beginPath(); ctx.moveTo(0, 258)
+    for (let x = 0; x <= width + 40; x += 40) {
+      ctx.lineTo(x, 164 + 28 * Math.sin(x / 90) + 16 * Math.sin(x / 40))
+    }
+    ctx.lineTo(width, 287); ctx.lineTo(0, 287); ctx.fill()
+    const ocean = ctx.createLinearGradient(0, 248, 0, 365)
+    ocean.addColorStop(0, '#499fc1'); ocean.addColorStop(1, '#244e8c')
+    ctx.fillStyle = ocean; ctx.fillRect(0, 264, width, 102)
+    ctx.fillStyle = '#ffeac894'
+    for (let i = 0; i < 16; i++) {
+      const x = ((i * 94 - cam * 0.13) % (width + 130) + width + 130) % (width + 130)
+      ctx.fillRect(x, 278 + (i % 5) * 16, 20 + i % 4 * 10, 2)
+    }
   } else if (chapter.id === 'whisky') {
     // Sunset Strip sunset and hill silhouettes.
     ctx.fillStyle = '#f9ad6073'
@@ -189,6 +208,97 @@ export function drawDJChapterScenery(
           drawRect(x, 241, 28, 96, i % 2 ? '#777b81' : '#87898d')
           drawRect(x + 7, 265 + (i % 3) * 13, 12, 8, i % 2 ? '#f472b6' : '#38bdf8')
         }
+        break
+      }
+      case 'wharf': {
+        // Fantasy pier with timber supports and a white/red-roofed sea shop.
+        drawRect(-125, 283, 250, 12, '#ab7152')
+        for (let i = 0; i < 8; i++) drawRect(-113 + i * 32, 295, 10, 51, '#735144')
+        drawRect(-62, 212, 123, 71, '#fff2db')
+        ctx.fillStyle = '#b8675a'
+        ctx.beginPath(); ctx.moveTo(-72, 214); ctx.lineTo(0, 177)
+        ctx.lineTo(70, 214); ctx.closePath(); ctx.fill()
+        for (let i = 0; i < 3; i++) {
+          drawRect(-45 + i * 35, 234, 21, 30, '#417b9c')
+          drawRect(-43 + i * 35, 236, 17, 3, '#dbeafe')
+        }
+        ctx.strokeStyle = '#ffead9'; ctx.lineWidth = 3
+        ctx.beginPath(); ctx.moveTo(-125, 282); ctx.lineTo(125, 282); ctx.stroke()
+        break
+      }
+      case 'coast': {
+        // Cabana, striped beach umbrellas and shore palms.
+        drawRect(-120, 319, 240, 23, '#e5bb8f')
+        for (let i = 0; i < 3; i++) {
+          const px = -83 + i * 78
+          drawRect(px, 249, 4, 70, '#8e6b5a')
+          ctx.fillStyle = i % 2 ? '#fba6a0' : '#ffe2ba'
+          ctx.beginPath(); ctx.moveTo(px - 35, 268)
+          ctx.quadraticCurveTo(px + 2, 204, px + 38, 268); ctx.fill()
+          drawRect(px - 23, 316, 42, 3, '#fff4da')
+        }
+        break
+      }
+      case 'red-roofs': {
+        // Generic downtown Spanish Colonial Revival-inspired rooftops.
+        for (let i = 0; i < 4; i++) {
+          const bx = -113 + i * 58
+          const by = 232 + (i % 2) * 21
+          drawRect(bx, by, 57, 336 - by, i % 2 ? '#fff3de' : '#f5e5d3')
+          ctx.fillStyle = '#b85e50'
+          ctx.beginPath(); ctx.moveTo(bx - 4, by)
+          ctx.lineTo(bx + 28, by - 25); ctx.lineTo(bx + 62, by)
+          ctx.closePath(); ctx.fill()
+          drawRect(bx + 18, by + 32, 13, 29, '#497b9d')
+          ctx.strokeStyle = '#fff6ee'; ctx.lineWidth = 2
+          ctx.strokeRect(bx + 18, by + 32, 13, 29)
+        }
+        break
+      }
+      case 'courthouse': {
+        // Inspired by the city's Spanish Colonial Revival courthouse tower.
+        drawRect(-112, 259, 224, 84, '#fff2de')
+        drawRect(-39, 164, 78, 175, '#f5e6d2')
+        drawRect(-45, 157, 90, 13, '#bc6b5c')
+        ctx.fillStyle = '#c9765a'
+        ctx.beginPath(); ctx.moveTo(-48, 158)
+        ctx.lineTo(0, 121); ctx.lineTo(48, 158); ctx.fill()
+        for (const dx of [-24, 13]) {
+          drawRect(dx, 180, 13, 29, '#376688')
+          drawRect(dx, 242, 13, 20, '#376688')
+        }
+        ctx.fillStyle = '#fdf5e6'
+        ctx.beginPath(); ctx.arc(0, 226, 19, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = '#48758b'; ctx.lineWidth = 3
+        ctx.beginPath(); ctx.arc(0, 226, 19, 0, Math.PI * 2)
+        ctx.moveTo(0, 226); ctx.lineTo(0, 214)
+        ctx.moveTo(0, 226); ctx.lineTo(10, 231); ctx.stroke()
+        for (let i = 0; i < 4; i++) drawRect(-92 + i * 50, 291, 21, 34, '#45758b')
+        break
+      }
+      case 'patio': {
+        // Original garden-party finale art; not a replica of EOS branding.
+        drawRect(-113, 239, 226, 102, '#f6e8db')
+        drawRect(-118, 220, 236, 22, '#db8697')
+        for (const dx of [-90, 86]) {
+          drawRect(dx, 233, 8, 94, '#4e8e79')
+          ctx.fillStyle = '#2b8968'
+          for (let i = 0; i < 3; i++) {
+            ctx.beginPath(); ctx.arc(dx + (i - 1) * 15, 238 - i * 14, 19, 0, Math.PI * 2); ctx.fill()
+          }
+        }
+        ctx.strokeStyle = '#ffebca'; ctx.lineWidth = 2
+        ctx.beginPath(); ctx.moveTo(-118, 215)
+        ctx.quadraticCurveTo(0, 239, 116, 215); ctx.stroke()
+        ctx.fillStyle = '#f6daab'
+        for (let i = 0; i < 7; i++) {
+          ctx.beginPath(); ctx.arc(-101 + i * 34, 223 + 5 * Math.sin(i), 4, 0, Math.PI * 2); ctx.fill()
+        }
+        ctx.fillStyle = '#ca8ebf'
+        ctx.beginPath(); ctx.arc(0, 204, 21, 0, Math.PI * 2); ctx.fill()
+        ctx.strokeStyle = '#f7e9ff'; ctx.lineWidth = 2
+        ctx.beginPath(); ctx.moveTo(-15, 194); ctx.lineTo(14, 213)
+        ctx.moveTo(-15, 212); ctx.lineTo(14, 194); ctx.stroke()
         break
       }
       case 'warehouse': {
