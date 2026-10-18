@@ -248,19 +248,21 @@ export function DJQuestGame() {
     }
     function draw() {
       if (!ctx) return
+      const scene = chapterRef.current
+      const world = DJ_CHAPTER_WORLDS[scene.id]
       const time = worldTimeRef.current
       const cam = cameraRef.current
       const zone = getDJDistrict(heroRef.current.x)
-      const palette = zone === 'record-row'
-        ? ['#100b2c', '#261340', '#4e205b']
-        : zone === 'subway-beats'
-          ? ['#0b1a30', '#19364b', '#33546f']
-          : ['#1c0b36', '#50204e', '#714156']
+      const palette = scene.id === 'studio54'
+        ? zone === 'record-row' ? ['#100b2c', '#261340', '#4e205b']
+          : zone === 'subway-beats' ? ['#0b1a30', '#19364b', '#33546f']
+            : ['#1c0b36', '#50204e', '#714156']
+        : scene.backdrop
       const background = ctx.createLinearGradient(0, 0, 0, DJ_VIEW_HEIGHT)
       background.addColorStop(0, palette[0]); background.addColorStop(0.65, palette[1]); background.addColorStop(1, palette[2])
       ctx.fillStyle = background; ctx.fillRect(0, 0, DJ_VIEW_WIDTH, DJ_VIEW_HEIGHT)
-      // Handmade nighttime club skyline. No borrowed game sprites, logos or assets.
-      for (let i = 0; i < 30; i++) {
+      // NYC / Sunset Strip skyline; other destinations have original island/city art.
+      if (scene.id === 'studio54' || scene.id === 'whisky') for (let i = 0; i < 30; i++) {
         const bx = (i * 132 - cam * 0.32) % (DJ_WORLD_WIDTH * 0.46)
         const height = 90 + (i * 53 % 138)
         ctx.fillStyle = i % 3 === 0 ? '#251c48' : '#1c1a40'
@@ -269,8 +271,9 @@ export function DJQuestGame() {
         for (let row = 0; row < 4; row++) for (let col = 0; col < 3; col++)
           if ((row + col + i) % 3 !== 0) ctx.fillRect(bx + 12 + col * 28, 376 - height + row * 26, 9, 11)
       }
-      // Original marquees, positioned within the continuous club-city level.
-      for (const sign of [
+      drawDJChapterScenery(ctx, scene, cam, time, DJ_VIEW_WIDTH)
+      // NYC chapter's original signs; other cities show landmark names.
+      if (scene.id === 'studio54') for (const sign of [
         { x: 320, label: 'RECORD ROW', accent: '#f472b6' },
         { x: 1440, label: 'SUBWAY BEATS', accent: '#38bdf8' },
         { x: 2610, label: 'DISCO MILE', accent: '#fbbf24' },
@@ -290,7 +293,7 @@ export function DJQuestGame() {
         ctx.fill()
       }
 
-      for (const p of DJ_PLATFORMS) {
+      for (const p of world.platforms) {
         const x = p.x - cam
         if (x + p.w < 0 || x > DJ_VIEW_WIDTH) continue
         ctx.fillStyle = '#31254b'; ctx.fillRect(x, p.y, p.w, p.h)
@@ -313,7 +316,7 @@ export function DJQuestGame() {
         ctx.restore()
       })
 
-      DJ_ENEMIES.forEach((enemy, index) => {
+      world.enemies.forEach((enemy, index) => {
         if (defeatedRef.current.has(index)) return
         const x = enemy.x + Math.sin(time * enemy.speed + index) * enemy.patrol - cam
         if (x < -70 || x > DJ_VIEW_WIDTH + 50) return
@@ -339,15 +342,15 @@ export function DJQuestGame() {
         ctx.restore()
       })
 
-      // Studio 54 finish line — original marquee illustration, no trademarked logo artwork.
+      // Fictional illustrative arrival gate; no venue logos or facade copies.
       const goalX = DJ_WORLD_WIDTH - 148 - cam
       ctx.fillStyle = '#1b1430'; ctx.fillRect(goalX, 210, 135, 155)
       ctx.shadowColor = portalOpen(heroRef.current.records) ? '#fbbf24' : '#a78bfa'; ctx.shadowBlur = 18
       ctx.strokeStyle = portalOpen(heroRef.current.records) ? '#fbbf24' : '#a78bfa'
       ctx.lineWidth = 6; ctx.strokeRect(goalX, 210, 135, 155); ctx.shadowBlur = 0
       ctx.fillStyle = '#fef3c7'; ctx.font = 'bold 21px monospace'; ctx.textAlign = 'center'
-      ctx.fillText('STUDIO', goalX + 67, 244)
-      ctx.font = 'bold 45px monospace'; ctx.fillText('54', goalX + 67, 289)
+      ctx.fillText(scene.gateName, goalX + 67, 244, 125)
+      ctx.font = scene.id === 'studio54' ? 'bold 45px monospace' : 'bold 26px monospace'; ctx.fillText(scene.gateSubtitle, goalX + 67, 289, 125)
       ctx.fillStyle = '#e879f9'; ctx.fillRect(goalX + 30, 317, 75, 48)
       ctx.fillStyle = '#100b2c'; ctx.fillRect(goalX + 34, 322, 67, 43)
 
@@ -371,11 +374,11 @@ export function DJQuestGame() {
       ctx.fillText('VINYL ' + heroRef.current.records + '/' + DJ_RECORDS_NEEDED, 19, 28)
       ctx.fillStyle = '#fb7185'; ctx.fillText('♥'.repeat(Math.max(0, heroRef.current.lives)), 222, 28)
       ctx.textAlign = 'right'; ctx.fillStyle = '#e9d5ff'
-      ctx.fillText('TO STUDIO 54  ' + Math.max(0, Math.floor((DJ_WORLD_WIDTH - heroRef.current.x) / 10)) + 'm', DJ_VIEW_WIDTH - 20, 28)
+      ctx.fillText('TO ' + scene.name.toUpperCase() + '  ' + Math.max(0, Math.floor((DJ_WORLD_WIDTH - heroRef.current.x) / 10)) + 'm', DJ_VIEW_WIDTH - 20, 28, 560)
       if (phaseRef.current !== 'playing') {
         ctx.fillStyle = '#09071abb'; ctx.fillRect(0, 43, DJ_VIEW_WIDTH, 377)
         ctx.textAlign = 'center'; ctx.fillStyle = '#faf5ff'; ctx.font = 'bold 40px monospace'
-        ctx.fillText(phaseRef.current === 'won' ? 'STUDIO 54! ✦' : phaseRef.current === 'gameover' ? 'GAME OVER' : phaseRef.current === 'paused' ? 'PAUSED' : 'DJ ODYSSEY', DJ_VIEW_WIDTH / 2, 168)
+        ctx.fillText(phaseRef.current === 'won' ? scene.name.toUpperCase() + '! ✦' : phaseRef.current === 'gameover' ? 'GAME OVER' : phaseRef.current === 'paused' ? 'PAUSED' : 'DJ ODYSSEY', DJ_VIEW_WIDTH / 2, 168, DJ_VIEW_WIDTH - 70)
         ctx.font = '17px monospace'; ctx.fillStyle = '#f5d0fe'
         ctx.fillText(phaseRef.current === 'won' ? 'YOU MADE THE GUEST LIST!' : 'COLLECT RECORDS • DODGE BOUNCERS', DJ_VIEW_WIDTH / 2, 212)
       }
