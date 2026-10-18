@@ -116,7 +116,7 @@ export function GuestlistGameCard({ game, frequency, onFrequencyChange }: Guestl
                     <div className="absolute right-9 top-4 h-10 w-10 rounded-full bg-amber-200/80" />
                     <div className="absolute inset-x-0 bottom-0 h-9 bg-[#25578d]" />
                     <div className="absolute inset-x-0 bottom-8 h-5 bg-[#e6b886]" />
-                    <div className="absolute bottom-13 left-9 h-12 w-9 rounded-t-lg border-2 border-pink-200 bg-fuchsia-500 text-center text-xs font-black leading-[44px]">DJ</div>
+                    <div className="absolute bottom-12 left-9 h-12 w-9 rounded-t-lg border-2 border-pink-200 bg-fuchsia-500 text-center text-xs font-black leading-[44px]">DJ</div>
                     <div className="absolute bottom-12 right-[38%] text-3xl">💿</div>
                     <div className="absolute bottom-12 right-[20%] text-3xl">🌊</div>
                     <div className="absolute left-3 top-3 rounded-full bg-black/30 px-2 py-1 text-[10px] font-bold">SANTA BARBARA → EOS</div>
