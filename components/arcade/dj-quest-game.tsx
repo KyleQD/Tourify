@@ -35,11 +35,15 @@ export function DJQuestGame() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const mutedRef = useRef(false)
   const lastInfoRef = useRef(false)
+  const lastHudTickRef = useRef(0)
+  const districtRef = useRef<DJDistrict>('record-row')
   const [phase, setPhase] = useState<Phase>('ready')
   const [hud, setHud] = useState({ records: 0, lives: 3 })
   const [hint, setHint] = useState('Collect records, jump over club security, and reach Studio 54.')
   const [muted, setMuted] = useState(false)
   const [winScore, setWinScore] = useState<number | null>(null)
+  const [progressPercent, setProgressPercent] = useState(0)
+  const [district, setDistrict] = useState<DJDistrict>('record-row')
   const [personalBest, setPersonalBest] = useState(0)
 
   useEffect(() => { setPersonalBest(readPersonalBest('dj-odyssey', 'first-level')) }, [])
@@ -67,6 +71,10 @@ export function DJQuestGame() {
     worldTimeRef.current = 0
     cameraRef.current = 0
     lastInfoRef.current = false
+    lastHudTickRef.current = 0
+    districtRef.current = 'record-row'
+    setDistrict('record-row')
+    setProgressPercent(0)
     setHud({ records: 0, lives: 3 })
     setWinScore(null)
     setHint('Collect records and take the dance floor by storm!')
@@ -169,6 +177,16 @@ export function DJQuestGame() {
 
       const checkpoint = getCheckpoint(h.x)
       if (checkpoint > h.checkpoint) h.checkpoint = checkpoint
+      const nextDistrict = getDJDistrict(h.x)
+      if (nextDistrict !== districtRef.current) {
+        districtRef.current = nextDistrict
+        setDistrict(nextDistrict)
+        setHint('Now spinning through ' + DJ_DISTRICT_LABELS[nextDistrict] + '!')
+      }
+      if (worldTimeRef.current - lastHudTickRef.current > 0.15) {
+        lastHudTickRef.current = worldTimeRef.current
+        setProgressPercent(Math.min(100, Math.max(0, Math.round(100 * h.x / (DJ_WORLD_WIDTH - 140)))))
+      }
 
       DJ_RECORDS.forEach((record, index) => {
         if (collectedRef.current.has(index)) return
@@ -180,17 +198,21 @@ export function DJQuestGame() {
           if (h.records === DJ_RECORDS_NEEDED) setHint('The guest list is ready! Get to Studio 54.')
         }
       })
-      DJ_ENEMIES.forEach((enemy, index) => {
-        if (defeatedRef.current.has(index)) return
+      // Respawn stops collision simulation immediately; a fatal collision
+      // must not simultaneously trigger the level's win portal.
+      const damaged = DJ_ENEMIES.some((enemy, index) => {
+        if (defeatedRef.current.has(index)) return false
         const enemyX = enemy.x + Math.sin(worldTimeRef.current * enemy.speed + index) * enemy.patrol
         const enemyRect = { x: enemyX, y: enemy.y, w: enemy.w, h: enemy.h }
-        if (!intersects(h, enemyRect) || worldTimeRef.current < h.invulnerableUntil) return
+        if (!intersects(h, enemyRect) || worldTimeRef.current < h.invulnerableUntil) return false
         if (beforeBottom <= enemy.y + 12 && h.vy > 70) {
           defeatedRef.current.add(index); h.vy = -355; h.grounded = false; fx(560, 0.15)
-        } else {
-          loseLifeFnRef.current()
+          return false
         }
+        loseLifeFnRef.current()
+        return true
       })
+      if (damaged) return
 
       if (h.x > DJ_WORLD_WIDTH - 170) {
         if (portalOpen(h.records)) {
@@ -211,8 +233,14 @@ export function DJQuestGame() {
       if (!ctx) return
       const time = worldTimeRef.current
       const cam = cameraRef.current
+      const zone = getDJDistrict(heroRef.current.x)
+      const palette = zone === 'record-row'
+        ? ['#100b2c', '#261340', '#4e205b']
+        : zone === 'subway-beats'
+          ? ['#0b1a30', '#19364b', '#33546f']
+          : ['#1c0b36', '#50204e', '#714156']
       const background = ctx.createLinearGradient(0, 0, 0, DJ_VIEW_HEIGHT)
-      background.addColorStop(0, '#100b2c'); background.addColorStop(0.65, '#261340'); background.addColorStop(1, '#4e205b')
+      background.addColorStop(0, palette[0]); background.addColorStop(0.65, palette[1]); background.addColorStop(1, palette[2])
       ctx.fillStyle = background; ctx.fillRect(0, 0, DJ_VIEW_WIDTH, DJ_VIEW_HEIGHT)
       // Handmade nighttime club skyline. No borrowed game sprites, logos or assets.
       for (let i = 0; i < 30; i++) {
@@ -223,6 +251,19 @@ export function DJQuestGame() {
         ctx.fillStyle = i % 2 ? '#f472b655' : '#38bdf866'
         for (let row = 0; row < 4; row++) for (let col = 0; col < 3; col++)
           if ((row + col + i) % 3 !== 0) ctx.fillRect(bx + 12 + col * 28, 376 - height + row * 26, 9, 11)
+      }
+      // Original marquees, positioned within the continuous club-city level.
+      for (const sign of [
+        { x: 320, label: 'RECORD ROW', accent: '#f472b6' },
+        { x: 1440, label: 'SUBWAY BEATS', accent: '#38bdf8' },
+        { x: 2610, label: 'DISCO MILE', accent: '#fbbf24' },
+      ]) {
+        const sx = sign.x - cam
+        if (sx < -240 || sx > DJ_VIEW_WIDTH + 240) continue
+        ctx.fillStyle = '#140c30'; ctx.fillRect(sx - 116, 106, 232, 45)
+        ctx.strokeStyle = sign.accent; ctx.lineWidth = 3; ctx.strokeRect(sx - 116, 106, 232, 45)
+        ctx.fillStyle = sign.accent; ctx.textAlign = 'center'; ctx.font = 'bold 20px monospace'
+        ctx.fillText(sign.label, sx, 135)
       }
       ctx.fillStyle = '#a78bfa13'
       for (let i = 0; i < 7; i++) {
@@ -381,6 +422,8 @@ export function DJQuestGame() {
         <span className="text-emerald-200">Best: {personalBest.toLocaleString()} <span className="text-white/50">(this device)</span></span>
         <span className="ml-auto text-xs text-white/55">A/D or ←/→ move · W/Space/↑ jump</span>
       </div>
+      <div className="flex items-center justify-between gap-3 text-xs text-white/70"><span className="font-black uppercase tracking-wider text-fuchsia-200">Now playing · {DJ_DISTRICT_LABELS[district]}</span><span>Route · {progressPercent}%</span></div>
+      <div role="progressbar" aria-label="Progress to Studio 54" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} className="h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-sky-400 to-amber-300 transition-[width] duration-150 motion-reduce:transition-none" style={{ width: progressPercent + '%' }} /></div>
       <div className="overflow-hidden rounded-2xl border-2 border-fuchsia-400/30 bg-[#100d2d]">
         <canvas ref={canvasRef} width={DJ_VIEW_WIDTH} height={DJ_VIEW_HEIGHT} className="block aspect-[820/420] w-full" aria-label="Side-scrolling retro game with a DJ hero, floating vinyl records, bouncer, speaker and disco-ghost enemies, and the Studio 54 entrance at the far right." />
       </div>
@@ -409,6 +452,7 @@ export function DJQuestGame() {
         </div>
       </div>
       {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! The DJ booth is yours. Records collected: {hud.records}. Final score: <strong>{(winScore || 0).toLocaleString()}</strong>. Can you beat your personal record?</div>}
+      <p className="text-xs text-white/60">Movement assist: jump briefly after leaving a platform or press jump just before landing. Collect vinyl to open the final door.</p>
       <p className="text-xs text-white/45">Made with original vector pixel art and sound effects. Retro platform mechanics are genre-inspired; no Nintendo characters, music, or artwork are used. Studio 54 is a thematic destination, not an official partnership.</p>
     </section>
   )
