@@ -184,3 +184,23 @@ Status: changes committed to draft branch, **browser gameplay verification requi
 6. Keep PR #17 draft, no merge or production deployment without approval and QA; avoid unrelated music/Flow File infrastructure work in Arcade implementation.
 
 Potential next development slices: new local landmark gameplay interactions (wharf jumping hazard, record-store bonuses, red-roof platforms), original location-themed synth pattern per chapter, mobile controller improvements, save/load checkpoints and art polish. All are **future work**, not represented as shipped.
+
+## EOS Santa Barbara — location mechanics implementation (2026-10-18)
+
+### Added on Arcade draft branch (not production)
+- `lib/arcade/dj-world-events.ts`: typed per-chapter event catalog with four EOS-only event objects, pure rules for descending launch-pad collision, moving surf rectangle, and collectible record-crate collision. Other five chapters have no added hazards. No DB changes.
+- `lib/arcade/dj-world-feature-art.ts`: procedurally illustrated striped launch pad, surf wave, crate with vinyl, and string-lit patio/disco-ball finish. The drawing uses only first-party geometric Canvas primitives.
+- `components/arcade/dj-quest-game.tsx`: wharf launch pad triggers high jump when landing from above; moving beach-wave collision costs one life only outside respawn invulnerability; record-store crate grants **+1 vinyl and 500 score points**, only once per run; checkpoints preserve the crate collected state; reset/chapter-switch clear it. The bonus is added to the local final score. A small HUD badge reports bonus points and EOS hints explain the new mechanics.
+- `components/arcade/dj-chapter-route-map.tsx`: in-game EOS route overlays side-quest markers and explains gameplay versus real geography.
+- `lib/arcade/dj-mixer.ts` / `components/arcade/dj-booth-finale.tsx`: original EOS-only two-deck sunset synth (Coastal Bass + Sunset Keys). Other clubs retain the original Bassline/Starlight sequences and controls. This is not sample/stem mixing and does not require `.flow` audio.
+- `__tests__/arcade/dj-world-events.test.ts`: verifies chapter isolation, finite wave geometry, launch collision guards and one bonus-crate definition. Wired into Arcade CI alongside expanded `dj-mixer.test.ts`.
+
+### Manual playthrough required
+- Verify the player can reach the wharf launch pad on the upper platform and spring on descending contact; no continuous unwanted bouncing, clipping through platforms or out-of-view softlock.
+- Verify wave motion is visible and dodgeable with left/right/jump on keyboard and touch; a collision costs exactly one life, checkpoint and invulnerability work.
+- Verify State Street crate can be reached from ground; grants exactly one vinyl and +500 bonus on first collision; death/respawn cannot duplicate it; replay resets it.
+- Verify the route map feature markers align with the game's fictional coordinates and remain legible on 320px mobile widths.
+- Complete EOS with nine vinyl or more; trigger venue-specific sunset synth booth; two-deck play/scratch/pause/crossfade with proper autoplay handling and audio cleanup.
+- Verify all five other chapters retain their original mechanics, theme, best score keys, sound and endings.
+- Run final-tip Vercel TypeScript/build and Arcade CI before release. Do not rely on earlier intermediate READY builds.
+- Explicitly note no connection/endorsement by EOS Lounge and that place names/landmarks are cultural references.
