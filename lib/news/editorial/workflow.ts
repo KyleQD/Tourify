@@ -5,6 +5,8 @@ export type EditorialActorRole = 'submitter' | 'reviewer' | 'editor'
 export interface EditorialTransition {
   action: EditorialAction
   actorId: string
+  /** Canonical user ID recorded at original submission, set by trusted server. */
+  submitterId: string
   actorRole: EditorialActorRole
   notes?: string
   at: string
@@ -46,12 +48,14 @@ export function transitionEditorialStatus(
 ): EditorialDecision {
   const next = ALLOWED[current]?.[input.action]
   if (!next) throw new Error('Invalid editorial transition')
-  if (!input.actorId.trim() || !Number.isFinite(Date.parse(input.at))) {
+  if (!input.actorId.trim() || !input.submitterId.trim() ||
+      !Number.isFinite(Date.parse(input.at))) {
     throw new Error('Invalid editorial actor or timestamp')
   }
 
   if (input.action === 'withdraw') {
-    if (input.actorRole !== 'submitter' && input.actorRole !== 'editor') {
+    if (input.actorRole !== 'editor' &&
+        (input.actorRole !== 'submitter' || input.actorId !== input.submitterId)) {
       throw new Error('Not permitted to withdraw submission')
     }
   } else if (input.action === 'start_review') {
@@ -60,6 +64,11 @@ export function transitionEditorialStatus(
     }
   } else if (input.actorRole !== 'editor') {
     throw new Error('Editor permission required')
+  }
+
+  if (['approve', 'reject'].includes(input.action) &&
+      input.actorId === input.submitterId) {
+    throw new Error('Conflict of interest: self-review is prohibited')
   }
 
   const notes = input.notes?.trim() || ''
