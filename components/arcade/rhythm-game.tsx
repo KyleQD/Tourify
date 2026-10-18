@@ -34,6 +34,8 @@ export function RhythmGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sectionRef = useRef<HTMLElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const practiceContextRef = useRef<AudioContext | null>(null)
+  const lastBeatIndexRef = useRef(-1)
   const phaseRef = useRef<Phase>('idle')
   const notesRef = useRef<BeatNote[]>([])
   const handledRef = useRef(new Set<number>())
@@ -74,6 +76,7 @@ export function RhythmGame() {
     stopAudio()
     notesRef.current = []
     handledRef.current = new Set()
+    lastBeatIndexRef.current = -1
     resultsRef.current = initialResults()
     frozenTimeRef.current = 0
     setResults(initialResults())
@@ -106,6 +109,7 @@ export function RhythmGame() {
 
   useEffect(() => () => {
     stopAudio()
+    void practiceContextRef.current?.close()
   }, [])
 
   const start = async () => {
@@ -154,6 +158,10 @@ export function RhythmGame() {
         return
       }
     } else {
+      try {
+        if (window.AudioContext && !practiceContextRef.current) practiceContextRef.current = new window.AudioContext()
+        void practiceContextRef.current?.resume().catch(() => {})
+      } catch { /* The note highway remains playable without audio */ }
       wallStartRef.current = performance.now()
     }
     updatePhase('playing')
@@ -218,6 +226,24 @@ export function RhythmGame() {
     const draw = () => {
       const t = getTime()
       if (phaseRef.current === 'playing') {
+        // Original oscillator beat for practice mode; no external songs or samples.
+        if (!audioRef.current && practiceContextRef.current?.state === 'running') {
+          const index = Math.floor(t * tempo / 60)
+          if (index > lastBeatIndexRef.current) {
+            lastBeatIndexRef.current = index
+            const audioCtx = practiceContextRef.current
+            const tone = audioCtx.createOscillator()
+            const volume = audioCtx.createGain()
+            const downbeat = index % 4 === 0
+            tone.type = downbeat ? 'sine' : 'triangle'
+            tone.frequency.setValueAtTime(downbeat ? 104 : 390, audioCtx.currentTime)
+            tone.frequency.exponentialRampToValueAtTime(downbeat ? 66 : 260, audioCtx.currentTime + 0.065)
+            volume.gain.setValueAtTime(downbeat ? 0.085 : 0.024, audioCtx.currentTime)
+            volume.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.085)
+            tone.connect(volume); volume.connect(audioCtx.destination)
+            tone.start(); tone.stop(audioCtx.currentTime + 0.09)
+          }
+        }
         let newlyMissed = 0
         for (const n of notesRef.current) {
           if (n.at + 0.18 < t && !handledRef.current.has(n.id)) {
@@ -309,7 +335,7 @@ export function RhythmGame() {
       <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
         <label className="text-xs font-medium text-white/80">Choose your track
           <select value={selected} disabled={phase === 'loading'} onChange={e => setSelected(e.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
-            <option value="practice">🎛️ Original synth-free practice beat · 30s</option>
+            <option value="practice">🎛️ Original synth practice beat · 30s</option>
             {tracks.map(track => <option value={track.id} key={track.id}>{track.title}{track.genre ? ' · ' + track.genre : ''}</option>)}
           </select>
         </label>
