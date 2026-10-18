@@ -7,7 +7,7 @@ import { z } from "zod"
  */
 export const musicUniverseEntityKindSchema = z.enum([
   "artist", "person", "professional", "release", "recording",
-  "venue", "event", "organization", "news_story", "work_opportunity",
+  "venue", "event", "organization", "service", "news_story", "work_opportunity",
 ])
 
 const publicIdentifierSchema = z.string().min(1).max(128)
@@ -84,8 +84,8 @@ export const musicUniversePublicRelationSchema = z.object({
     professionalConsent: z.enum(["not_applicable", "opted_in"]),
   }).strict(),
 }).strict().superRefine((link, ctx) => {
-  const professional = link.subject.kind === "professional" ||
-    link.object.kind === "professional" ||
+  const professional = ["professional", "person"].includes(link.subject.kind) ||
+    ["professional", "person"].includes(link.object.kind) ||
     link.relationship === "credited_on"
   if (professional && link.disclosure.professionalConsent !== "opted_in") {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Professional credit requires explicit public disclosure" })
