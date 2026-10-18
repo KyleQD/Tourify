@@ -9,6 +9,9 @@ export interface ProtectedEmployerApproval {
   accountId: string
   status: 'approved' | 'pending' | 'revoked' | 'rejected'
   approvalType: 'employer'
+  reviewedProfileId: string
+  reviewedAccountType: string
+  reviewedProfileTable: string
   approvedAt: string | null
   expiresAt?: string | null
   revokedAt?: string | null
@@ -34,6 +37,8 @@ export interface WorkHiringPlan {
 export interface ProtectedAuthorityInput {
   accountId: string
   accountType: string
+  profileId: string
+  profileTable: string
   canManageHiring: boolean
   approvals: readonly ProtectedEmployerApproval[]
   entitlements: readonly ProtectedWorkEntitlement[]
@@ -58,6 +63,9 @@ export function evaluateProtectedWorkAuthority(input: ProtectedAuthorityInput): 
   const isApproved = input.approvals.some((a) =>
     a.accountId === input.accountId &&
     a.approvalType === 'employer' &&
+    a.reviewedProfileId === input.profileId &&
+    a.reviewedAccountType === input.accountType &&
+    a.reviewedProfileTable === input.profileTable &&
     a.status === 'approved' &&
     !a.revokedAt &&
     Boolean(a.approvedAt && Number.isFinite(Date.parse(a.approvedAt)) && Date.parse(a.approvedAt) <= now.getTime()) &&
