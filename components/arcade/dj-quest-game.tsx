@@ -8,13 +8,13 @@ import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX 
 import {
   DJ_ENEMIES, DJ_GRAVITY, DJ_JUMP_SPEED, DJ_PLATFORMS, DJ_RECORDS,
   DJ_RECORDS_NEEDED, DJ_RUN_SPEED, DJ_VIEW_HEIGHT, DJ_VIEW_WIDTH, DJ_WORLD_WIDTH,
-  getCheckpoint, intersects, portalOpen, calculateDJRunScore, type Rect,
+  getCheckpoint, intersects, portalOpen, calculateDJRunScore, canDJJump, getDJDistrict, DJ_DISTRICT_LABELS, type DJDistrict, type Rect,
 } from '@/lib/arcade/dj-quest-level'
 
 type Phase = 'ready' | 'playing' | 'paused' | 'won' | 'gameover'
-interface Hero extends Rect { vy: number; grounded: boolean; lives: number; records: number; checkpoint: number; invulnerableUntil: number }
+interface Hero extends Rect { vy: number; grounded: boolean; lastGroundedAt: number; lives: number; records: number; checkpoint: number; invulnerableUntil: number }
 const startHero = (): Hero => ({
-  x: 54, y: 260, w: 28, h: 39, vy: 0, grounded: false, lives: 3,
+  x: 54, y: 260, w: 28, h: 39, vy: 0, grounded: false, lastGroundedAt: Number.NEGATIVE_INFINITY, lives: 3,
   records: 0, checkpoint: 54, invulnerableUntil: 0,
 })
 const baseRecords = () => new Set<number>()
@@ -27,7 +27,7 @@ export function DJQuestGame() {
   const heroRef = useRef<Hero>(startHero())
   const phaseRef = useRef<Phase>('ready')
   const heldRef = useRef(new Set<string>())
-  const jumpQueuedRef = useRef(false)
+  const jumpQueuedAtRef = useRef(Number.NEGATIVE_INFINITY)
   const collectedRef = useRef(baseRecords())
   const defeatedRef = useRef(baseEnemies())
   const worldTimeRef = useRef(0)
@@ -63,7 +63,7 @@ export function DJQuestGame() {
     collectedRef.current = baseRecords()
     defeatedRef.current = baseEnemies()
     heldRef.current.clear()
-    jumpQueuedRef.current = false
+    jumpQueuedAtRef.current = Number.NEGATIVE_INFINITY
     worldTimeRef.current = 0
     cameraRef.current = 0
     lastInfoRef.current = false
@@ -96,7 +96,7 @@ export function DJQuestGame() {
       const k = event.key.toLowerCase()
       if (['arrowleft', 'arrowright', 'arrowup', 'a', 'd', 'w', ' '].includes(k)) {
         event.preventDefault()
-        if (!event.repeat && ['arrowup', 'w', ' '].includes(k)) jumpQueuedRef.current = true
+        if (!event.repeat && phaseRef.current === 'playing' && ['arrowup', 'w', ' '].includes(k)) jumpQueuedAtRef.current = worldTimeRef.current
         heldRef.current.add(k)
       }
       if (k === 'escape' && !event.repeat) pauseFnRef.current()
@@ -134,12 +134,14 @@ export function DJQuestGame() {
       const movingLeft = heldRef.current.has('arrowleft') || heldRef.current.has('a')
       const movingRight = heldRef.current.has('arrowright') || heldRef.current.has('d')
       const dx = (Number(movingRight) - Number(movingLeft)) * DJ_RUN_SPEED
-      if (jumpQueuedRef.current && h.grounded) {
+      if (h.grounded) h.lastGroundedAt = worldTimeRef.current
+      if (canDJJump(worldTimeRef.current, h.lastGroundedAt, jumpQueuedAtRef.current)) {
         h.vy = DJ_JUMP_SPEED
         h.grounded = false
+        h.lastGroundedAt = Number.NEGATIVE_INFINITY
+        jumpQueuedAtRef.current = Number.NEGATIVE_INFINITY
         fx(340)
       }
-      jumpQueuedRef.current = false
       const beforeBottom = h.y + h.h
       h.x = Math.max(0, Math.min(DJ_WORLD_WIDTH - h.w, h.x + dx * dt))
       h.vy += DJ_GRAVITY * dt
@@ -151,6 +153,17 @@ export function DJQuestGame() {
           h.y + h.h >= platform.y &&
           h.x + h.w > platform.x + 4 && h.x < platform.x + platform.w - 4
         if (touchesTop) { h.y = platform.y - h.h; h.vy = 0; h.grounded = true }
+      }
+      if (h.grounded) {
+        h.lastGroundedAt = worldTimeRef.current
+        if (canDJJump(worldTimeRef.current, h.lastGroundedAt, jumpQueuedAtRef.current)) {
+          h.vy = DJ_JUMP_SPEED
+          h.y -= 1
+          h.grounded = false
+          h.lastGroundedAt = Number.NEGATIVE_INFINITY
+          jumpQueuedAtRef.current = Number.NEGATIVE_INFINITY
+          fx(340)
+        }
       }
       if (h.y > DJ_VIEW_HEIGHT + 100) { loseLifeFnRef.current(); return }
 
@@ -317,6 +330,8 @@ export function DJQuestGame() {
       h.lives--; setHud({ records: h.records, lives: h.lives })
       if (h.lives <= 0) { setGamePhase('gameover'); setHint('The club security got you! Restart for another try.'); return }
       h.x = h.checkpoint; h.y = 230; h.vy = 0; h.grounded = false
+      h.lastGroundedAt = Number.NEGATIVE_INFINITY
+      jumpQueuedAtRef.current = Number.NEGATIVE_INFINITY
       h.invulnerableUntil = worldTimeRef.current + 1.4
       heldRef.current.clear(); setHint('Back at the checkpoint. Keep spinning!')
     }
@@ -378,7 +393,7 @@ export function DJQuestGame() {
           <button type="button" {...pointerDirection('arrowright')} disabled={phase !== 'playing'}
             className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl border border-white/20 bg-white/10 disabled:opacity-35 active:bg-pink-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Move right"><ArrowRight className="h-6 w-6" /></button>
-          <button type="button" onPointerDown={e => { e.preventDefault(); jumpQueuedRef.current = true }}
+          <button type="button" onPointerDown={e => { e.preventDefault(); if (phaseRef.current === 'playing') jumpQueuedAtRef.current = worldTimeRef.current }}
             disabled={phase !== 'playing'} className="flex h-14 min-w-[92px] touch-none items-center justify-center rounded-2xl bg-sky-500 px-4 font-black disabled:opacity-35 active:bg-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             aria-label="Jump">↑ JUMP</button>
         </div>
