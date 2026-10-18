@@ -47,4 +47,4 @@ jobs:
       - name: Install dependencies with existing peer-compatibility constraints
         run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund --package-lock=false
       - name: Test original arcade game rules
-        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts __tests__/arcade/stream-policy.test.ts __tests__/arcade/stage-director.test.ts __tests__/arcade/dj-mixer.test.ts __tests__/arcade/rhythm-input.test.ts __tests__/arcade/dj-world-tour.test.ts
+        run: ./node_modules/.bin/vitest run __tests__/arcade/dj-quest-level.test.ts __tests__/arcade/rhythm-chart.test.ts __tests__/arcade/personal-best.test.ts __tests__/arcade/tracks-route.test.ts __tests__/arcade/stream-policy.test.ts __tests__/arcade/stage-director.test.ts __tests__/arcade/dj-mixer.test.ts __tests__/arcade/rhythm-input.test.ts __tests__/arcade/dj-world-tour.test.ts __tests__/arcade/dj-world-events.test.ts
