@@ -58,11 +58,11 @@ export function GuestlistGameCard({ game, frequency, onFrequencyChange }: Guestl
       setRotationSeconds(null)
       return
     }
-    const interval = window.setTimeout(() => {
-      if (typeof document !== 'undefined' && document.hidden) return
-      setRotationSeconds(seconds => seconds === null ? null : seconds - 1)
-    }, 1000)
-    return () => window.clearTimeout(interval)
+    const interval = window.setTimeout(() => setRotationSeconds(seconds => seconds === null ? null : seconds - 1), 1000)
+    const pauseOnHidden = () => { if (document.hidden) setRotationSeconds(null) }
+    document.addEventListener('visibilitychange', pauseOnHidden)
+    if (document.hidden) setRotationSeconds(null)
+    return () => { window.clearTimeout(interval); document.removeEventListener('visibilitychange', pauseOnHidden) }
   }, [rotationSeconds, nextGame])
 
   const cycleNow = () => {
