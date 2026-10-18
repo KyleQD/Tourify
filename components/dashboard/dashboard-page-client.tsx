@@ -14,6 +14,7 @@ import { BrandLoadingScreen } from '@/components/ui/brand-loading-screen'
 import { EnhancedAccountCards } from '@/components/dashboard/enhanced-account-cards'
 import { DashboardFeed } from '@/components/dashboard/dashboard-feed'
 import { FeedSceneHeader } from '@/components/feed/feed-scene-header'
+import { FeedArcadeTeaser } from '@/components/arcade/feed-arcade-teaser'
 import { QuickPostCreator } from '@/components/dashboard/quick-post-creator'
 import { UnifiedActivityFeed } from '@/components/dashboard/unified-activity-feed'
 import { EnhancedQuickActions } from '@/components/dashboard/enhanced-quick-actions'
@@ -411,6 +412,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
             {/* Center Column - Activity Feed */}
             <div className="lg:col-span-6 space-y-6">
               <FeedSceneHeader />
+              <FeedArcadeTeaser />
               <QuickPostCreator />
 
               {/* Write for Press — artist active account only */}
