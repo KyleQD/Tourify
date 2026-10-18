@@ -8,12 +8,13 @@ import {
  * Landmarks are compressed and rearranged for play, NOT geographic directions,
  * and no venue artwork, recordings or official endorsement is implied.
  */
-export type DJChapterId = 'studio54' | 'whisky' | 'amnesia' | 'fabric' | 'tresor'
+export type DJChapterId = 'studio54' | 'whisky' | 'amnesia' | 'fabric' | 'tresor' | 'eos'
 export type DJLandmarkKind =
   | 'skyline' | 'billboards' | 'palm' | 'hills' | 'sunset'
   | 'cove' | 'islet' | 'old-town' | 'salt-flats'
   | 'bridge' | 'clocktower' | 'tube'
   | 'tower' | 'wall' | 'warehouse'
+  | 'wharf' | 'red-roofs' | 'courthouse' | 'coast' | 'patio'
 
 export interface DJLandmark {
   x: number
@@ -107,6 +108,28 @@ export const DJ_CHAPTERS: readonly DJChapter[] = [
       { x: 0, y: 365, w: 820, h: 55 }, { x: 900, y: 365, w: 560, h: 55 },
       { x: 1545, y: 365, w: 590, h: 55 }, { x: 2220, y: 365, w: 1000, h: 55 },
     ], platformShift: 10, recordShift: -8, enemyShift: 15,
+  },
+  {
+    id: 'eos', name: 'EOS Lounge', city: 'Santa Barbara', country: 'USA',
+    genre: 'Coastal house and disco',
+    description: 'A fantasy coastal run along the American Riviera: Stearns Wharf, palms, red-tile rooftops, the Santa Barbara courthouse and downtown dance streets before an EOS-inspired patio encore.',
+    tagline: 'SANTA BARBARA SUNSET SESSIONS', gateName: 'EOS', gateSubtitle: 'LOUNGE',
+    backdrop: ['#153256', '#d77b75', '#f8b983'], accent: '#f9a8d4',
+    scenery: [
+      { x: 180, name: 'Stearns Wharf', kind: 'wharf' },
+      { x: 700, name: 'East Beach', kind: 'coast' },
+      { x: 1200, name: 'State Street', kind: 'red-roofs' },
+      { x: 1720, name: 'Courthouse Tower', kind: 'courthouse' },
+      { x: 2260, name: 'The Funk Zone', kind: 'red-roofs' },
+      { x: 2790, name: 'Patio Encore', kind: 'patio' },
+    ],
+    ground: [
+      { x: 0, y: 365, w: 805, h: 55 },
+      { x: 885, y: 365, w: 625, h: 55 },
+      { x: 1590, y: 365, w: 640, h: 55 },
+      { x: 2315, y: 365, w: 905, h: 55 },
+    ],
+    platformShift: -5, recordShift: 6, enemyShift: 11,
   },
   {
     id: 'tresor', name: 'Tresor Berlin', city: 'Berlin', country: 'Germany',
