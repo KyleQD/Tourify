@@ -26,6 +26,8 @@ import { getTheme, JUKEBOX_THEMES } from "@/lib/jukebox/visual-themes"
 import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 import { PlayerSocialActions } from "@/components/jukebox/player-actions"
 import { pickDailyTrack, uniquePlayableTracks } from "@/lib/jukebox/home-discovery"
+import { secretCompanionTrack } from "@/lib/jukebox/discovery-extras"
+import { JukeboxDiscoveryPlayground } from "@/components/jukebox/discovery-playground"
 
 interface JukeboxPlayerProps {
   className?: string
@@ -80,6 +82,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
   const [loadFailed, setLoadFailed] = useState(false)
   const [mode, setMode] = useState<DiscoveryMode>("for-you")
   const [showSkins, setShowSkins] = useState(false)
+  const [secretRevealed, setSecretRevealed] = useState(false)
   // The daily seed is UTC so every visitor shares the same calendar boundary.
   const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10))
 
@@ -116,6 +119,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
   const theme = getTheme(ctx?.state.visualTheme || "default")
   const pool = useMemo(() => uniquePlayableTracks([...recent, ...trending]), [recent, trending])
   const daily = useMemo(() => pickDailyTrack(pool, day), [pool, day])
+  const secret = useMemo(() => secretCompanionTrack(pool, daily), [pool, daily])
   const recommendations = useMemo(() => {
     const likedIds = new Set(favorites.map((track) => track.id))
     const genres = new Set(favorites.map((track) => track.genre?.toLowerCase()).filter(Boolean))
@@ -136,6 +140,8 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
   const heroIsCurrent = Boolean(nowPlaying && hero?.id === nowPlaying.id)
   const duration = ctx?.state.duration || 0
   const progress = heroIsCurrent ? ctx?.state.currentTime || 0 : 0
+  useEffect(() => { setSecretRevealed(false) }, [day, daily?.id])
+
   const visibleTracks = mode === "trending"
     ? trending.filter((track) => track.id !== daily?.id).slice(0, 3)
     : recommendations.slice(0, 3)
@@ -311,6 +317,31 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
           )}
         </div>
 
+        {secret && (
+          <div className="space-y-2 rounded-2xl border border-fuchsia-300/15 bg-fuchsia-400/[0.06] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-bold text-white">
+                  <Sparkles className="h-3.5 w-3.5 text-fuchsia-300" /> Secret B-Side
+                </p>
+                <p className="text-[10px] text-white/50">A hidden companion discovery for today's pick</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSecretRevealed((value) => !value)}
+                aria-expanded={secretRevealed}
+                className="shrink-0 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-white/20"
+              >{secretRevealed ? "Hide" : "Reveal"}</button>
+            </div>
+            {secretRevealed ? (
+              <>
+                <TrackRow track={secret.track} label={secret.reason} onPlay={play} />
+                <p className="text-[10px] text-white/40">Companion discovery, not necessarily the original record's B-side.</p>
+              </>
+            ) : null}
+          </div>
+        )}
+
         <div className="space-y-2">
           <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/20 p-1" role="group" aria-label="Discovery category">
             <button
@@ -350,6 +381,8 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
           </span>
           <ChevronRight className="h-4 w-4 text-white/50 transition group-hover:translate-x-1" aria-hidden="true" />
         </button>
+
+        <JukeboxDiscoveryPlayground tracks={pool} theme={theme} onPlay={play} />
 
         <nav className="grid grid-cols-3 gap-1 border-t border-white/10 pt-3" aria-label="Jukebox collections">
           <button type="button" onClick={() => ctx?.setExpanded(true, "favorites")} className="flex flex-col items-center gap-1 rounded-lg p-2 text-[10px] text-white/60 hover:bg-white/10 hover:text-white"><Heart className="h-4 w-4" />Liked</button>

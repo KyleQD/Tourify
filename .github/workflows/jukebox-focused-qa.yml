@@ -1,0 +1,39 @@
+name: Jukebox Focused QA
+
+on:
+  push:
+    branches:
+      - feat/jukebox-discovery-playground-20261018
+  pull_request:
+    branches:
+      - main
+      - feat/home-jukebox-discovery-skins-20261018
+    paths:
+      - 'components/jukebox/**'
+      - 'components/dashboard/jukebox-player.tsx'
+      - 'lib/jukebox/**'
+      - '__tests__/jukebox/**'
+      - '.github/workflows/jukebox-focused-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Typecheck and Jukebox unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Focused tests
+        run: npx vitest run __tests__/jukebox/home-discovery.test.ts __tests__/jukebox/discovery-extras.test.ts
