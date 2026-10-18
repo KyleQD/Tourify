@@ -36,8 +36,9 @@ A playable Tourify Arcade is now included on the same feature branch:
 - DJ Odyssey: original club-themed vinyl-collecting retro platformer.
 - Arcade hub and feed shortcuts.
 - Gameplay details, QA and artist licensing caveats: [ARCADE-HANDOFF.md](ARCADE-HANDOFF.md).
+- Music-protection foundation, five-minute Arcade URL change and rights migration proposal: [TPA-FOUNDATION.md](TPA-FOUNDATION.md) and [TPA-ARCADE-RIGHTS-PROPOSED.sql](TPA-ARCADE-RIGHTS-PROPOSED.sql).
 
-This is **not yet a full fan-wide music game**: artist-approved interactive soundtrack usage requires a separate, explicit opt-in and rights-cleared charting. Scores are local to the game session. The PR remains draft until testing and branch reconciliation.
+This is **not yet a full fan-wide music game**: artist-approved interactive soundtrack usage requires a separate, explicit opt-in and rights-cleared charting. Personal-best scores are stored on each browser only and are not verified leaderboards. The PR remains draft until testing and branch reconciliation.
 
 ## Workstreams and execution order
 
