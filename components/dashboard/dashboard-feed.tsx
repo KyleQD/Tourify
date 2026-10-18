@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
+import { FeedDiscoveryRail } from '@/components/feed/feed-discovery-rail'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -644,6 +645,7 @@ export function DashboardFeed() {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6 space-y-4">
+            <FeedDiscoveryRail posts={posts} mode="highlights" />
             <AnimatePresence>
               {posts.length > 0 ? (
                 posts.map((post, index) => {
@@ -652,14 +654,19 @@ export function DashboardFeed() {
                     : null
 
                   return (
+                  <Fragment key={post.id}>
                   <motion.div
-                    key={post.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: Math.min(index * 0.04, 0.28) }}
                   >
-                    <Card className="bg-white/5 border-white/10 hover:border-white/20 transition-colors">
+                    <Card className={post.event_preview
+                      ? "group relative overflow-hidden rounded-[24px] border border-rose-400/20 bg-gradient-to-br from-rose-500/10 via-white/5 to-purple-500/10 shadow-[0_10px_32px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-rose-300/35 hover:shadow-[0_14px_38px_rgba(100,30,70,0.14)]"
+                      : musicTrack
+                        ? "group relative overflow-hidden rounded-[24px] border border-violet-400/20 bg-gradient-to-br from-violet-500/10 via-white/5 to-sky-500/10 shadow-[0_10px_32px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-violet-300/35 hover:shadow-[0_14px_38px_rgba(70,40,120,0.16)]"
+                        : "group relative overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.025] shadow-[0_10px_32px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-fuchsia-300/25 hover:shadow-[0_14px_38px_rgba(70,40,120,0.14)]"
+                    }>
                       <CardContent className="p-4">
                         {/* Post Header */}
                         <div className="flex items-start gap-3 mb-3">
@@ -1002,6 +1009,10 @@ export function DashboardFeed() {
                       </CardContent>
                     </Card>
                   </motion.div>
+                  {index === 2 && <FeedDiscoveryRail posts={posts} mode="events" />}
+                  {index === 5 && <FeedDiscoveryRail posts={posts} mode="music" />}
+                  {index === 9 && <FeedDiscoveryRail posts={posts} mode="artists" />}
+                  </Fragment>
                   )
                 })
               ) : (
