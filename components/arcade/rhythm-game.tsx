@@ -559,13 +559,33 @@ export function RhythmGame() {
     <section ref={sectionRef} tabIndex={-1} className="space-y-5 rounded-3xl border border-fuchsia-400/20 bg-[#100d22] p-4 text-white outline-none sm:p-6" aria-label="Beat Deck rhythm game">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href="/arcade" className="inline-flex items-center gap-2 text-sm text-fuchsia-200 hover:text-white"><ArrowLeft className="h-4 w-4" /> Arcade</Link>
-        <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-400/10 px-3 py-1 text-xs font-semibold text-fuchsia-200"><Disc3 className="h-3.5 w-3.5" /> BEAT DECK · PRACTICE CHART</span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-300/30 bg-fuchsia-400/10 px-3 py-1 text-xs font-semibold text-fuchsia-100"><Disc3 className="h-3.5 w-3.5" /> BEAT DECK · ORIGINAL MUSIC EXPERIENCE</span>
       </div>
       <div>
-        <h2 className="text-2xl font-black sm:text-3xl">Hit the beat. Own the stage.</h2>
+        <h2 className="text-3xl font-black tracking-tight sm:text-4xl">Beat Deck <span className="text-fuchsia-300">LIVE</span></h2>
         <p className="mt-1 text-xs text-slate-300">D F J K or tap the lanes. Press Start set to play; customize the setlist and stage below.</p>
       </div>
 
+      <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-gradient-to-r from-[#1a193d] to-[#25154a] px-4 py-3">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-32 w-32 rounded-full bg-fuchsia-400/15 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/20"
+              style={{ background: selectedOriginal ? 'linear-gradient(130deg, ' + selectedOriginal.tint.join(',') + ')' : 'linear-gradient(130deg,#312e81,#db2777)' }}>
+              <Waves className="h-6 w-6 text-white" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-fuchsia-200">{selectedOriginal ? 'NOW PLAYING · ORIGINAL 60s MIX' : 'ON THE DECK · PRACTICE / CREATOR TRACK'}</span>
+              <p className="truncate text-lg font-black text-white">{selectedOriginal?.title || (selected === 'practice' ? 'Synth Practice Beat' : tracks.find(track => track.id === selected)?.title || 'Choose a track')}</p>
+              <p className="text-xs text-white/70">{selectedOriginal ? selectedOriginal.genre + ' · ' + selectedOriginal.key : 'Beat Deck original gameplay chart'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedOriginal && <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1.5 text-xs font-bold text-amber-100">{selectedOriginal.bpm} BPM</span>}
+            <span className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1.5 text-xs font-bold text-white">{Math.floor(elapsed / 60).toString().padStart(2, '0')}:{Math.floor(elapsed % 60).toString().padStart(2, '0')} / {Math.floor(durationRef.current / 60).toString().padStart(2, '0')}:{Math.floor(durationRef.current % 60).toString().padStart(2, '0')}</span>
+          </div>
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 sm:text-sm" aria-live="polite">
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-fuchsia-200">{results.score.toLocaleString()}</span>Score</div>
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-sky-200">{results.combo}×</span>Combo</div>
@@ -573,7 +593,7 @@ export function RhythmGame() {
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-emerald-200">{personalBest.toLocaleString()}</span>Best · this device</div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fuchsia-400/15 bg-fuchsia-500/5 px-3 py-2 text-sm"><span className="font-bold text-fuchsia-200">SHOW STATUS · {getShowTier(results.combo)}</span><span className="text-xs text-white/60">Build a streak for brighter stage effects</span></div>
-      <div className="overflow-hidden rounded-2xl border border-white/10">
+      <div className="overflow-hidden rounded-2xl border-2 border-fuchsia-300/25 bg-[#060716] shadow-[0_12px_44px_rgba(50,10,75,0.45)]">
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block aspect-[760/360] w-full" aria-label="Rhythm highway: four falling note lanes, from left to right D F J K" />
       </div>
 
@@ -624,17 +644,47 @@ export function RhythmGame() {
           <button type="button" onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 px-4 hover:bg-white/10"><RotateCcw className="h-4 w-4" /> Reset</button>
         </div>
       </div>
+      <div className="space-y-3" aria-label="Original one-minute Beat Deck songs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.12em] text-amber-200"><Sparkles className="h-4 w-4" /> Three original 60-second tracks</h3>
+          <span className="text-xs text-white/55">Select a track to switch its sounds, beat map and light show</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {BEAT_DECK_ORIGINALS.map(song => (
+            <button type="button" key={song.id} onClick={() => selectSong(song.id)} aria-pressed={selected === song.id}
+              disabled={phase === 'loading'} className={'group relative min-w-0 overflow-hidden rounded-2xl border-2 p-3 text-left transition-transform motion-safe:hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-50 ' +
+              (selected === song.id ? 'border-amber-300 shadow-[0_0_0_2px_rgba(251,191,36,.18)]' : 'border-white/20 hover:border-white/50')}>
+              <span className="pointer-events-none absolute inset-0 opacity-90" style={{ background: 'linear-gradient(145deg, ' + song.tint.join(',') + ')' }} />
+              <span className="relative flex h-14 items-end gap-1 overflow-hidden rounded-lg bg-black/20 px-3 pb-2" aria-hidden="true">
+                {Array.from({ length: 17 }, (_, index) => (
+                  <span key={index} className="w-full rounded-full bg-white/65"
+                    style={{ height: (8 + (index * 13 + song.bpm) % 29) + 'px', opacity: 0.45 + index % 3 * .16 }} />
+                ))}
+              </span>
+              <span className="relative mt-2 block text-[10px] font-bold uppercase tracking-widest text-white/75">{song.genre}</span>
+              <span className="relative mt-0.5 block text-base font-black text-white">{song.title}</span>
+              <span className="relative mt-1 flex items-center justify-between text-xs font-semibold text-white/85"><span>{song.bpm} BPM · {song.key}</span><span>1:00</span></span>
+              {selected === song.id && <span className="relative mt-2 block text-[10px] font-black uppercase tracking-wider text-amber-200">◆ Selected · Ready to play</span>}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs leading-relaxed text-white/60">Original, procedurally synthesized instrumentals: drums, bass, chords and lead melody. Every target note follows the same musical clock. No external samples or streaming permissions required.</p>
+      </div>
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4" aria-label="Beat Deck set and stage settings">
         <h3 className="text-sm font-black uppercase tracking-[0.12em] text-fuchsia-200">Setlist & stage settings</h3>
       <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
         <label className="text-xs font-medium text-white/80">Choose your track
-          <select value={selected} disabled={phase === 'loading'} onChange={e => setSelected(e.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
-            <option value="practice">🎛️ Original synth practice beat · 30s</option>
+          <select value={selected} disabled={phase === 'loading'} onChange={e => selectSong(e.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
+            <optgroup label="Original 60-second Beat Deck tracks">
+              {BEAT_DECK_ORIGINALS.map(song => <option key={song.id} value={song.id}>{song.title} · {song.bpm} BPM · 1:00</option>)}
+            </optgroup>
+            <option value="practice">🎛️ Classic practice beat · 30s</option>
             {tracks.map(track => <option value={track.id} key={track.id}>{track.title}{track.genre ? ' · ' + track.genre : ''}</option>)}
           </select>
         </label>
-        <label className="text-xs font-medium text-white/80">Chart tempo · <strong className="text-fuchsia-200">{tempo} BPM</strong>
-          <input type="range" min={65} max={200} step={5} value={tempo} onChange={e => setTempo(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-fuchsia-400" />
+        <label className="text-xs font-medium text-white/80">{selectedOriginal ? 'Original song tempo (locked)' : 'Chart tempo'} · <strong className="text-fuchsia-200">{tempo} BPM</strong>
+          <input type="range" min={65} max={200} step={5} value={tempo} disabled={Boolean(selectedOriginal)} onChange={e => setTempo(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-fuchsia-400 disabled:opacity-45" />
+          {selectedOriginal && <span className="mt-1 block text-[11px] text-white/55">The tempo stays fixed so notes match the actual music.</span>}
         </label>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -657,11 +707,11 @@ export function RhythmGame() {
         </label>
         <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} className="h-4 w-4 accent-fuchsia-400" /> Calm stage lighting</label>
       </div>
-      <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
+      <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />The three original 60-second songs work offline after the page loads. For published artist tracks: {catalogMessage}. Artist uploads still use permission-checked streaming.</p>
 
       </div>
       {phase === 'finished' && <p className="rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/10 p-4 text-sm">Set finished! Best combo: <strong>{results.bestCombo}×</strong> · Good: <strong>{results.good}</strong> · Missed: <strong>{results.missed}</strong>. Try a faster tempo or a new track.</p>}
-      <p className="text-xs leading-relaxed text-white/45"><Volume2 className="mr-1 inline h-3.5 w-3.5" />Music starts only after you tap Start. Pause stops the track. This is an original rhythm-game prototype; it contains no Guitar Hero assets or note charts.</p>
+      <p className="text-xs leading-relaxed text-white/45"><Volume2 className="mr-1 inline h-3.5 w-3.5" />Sound begins only after Start. Pause stops the music and chart clock together. The three original tracks are synthesized live, not recordings or copyrighted samples; external artist songs retain entitlement checks.</p>
     </section>
   )
 }
