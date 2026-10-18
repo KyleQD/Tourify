@@ -3,6 +3,7 @@ import {
   getGuestlistGameSlot,
   getGuestlistDiscoveryModule,
   parseGuestlistFrequency,
+  getNextGuestlistGame,
   type GuestlistFrequency,
 } from '@/lib/feed/guestlist-games'
 
@@ -65,4 +66,10 @@ describe('Guestlist Games feed placement', () => {
     expect(parseGuestlistFrequency('every-post')).toBe('normal')
     expect(parseGuestlistFrequency(null)).toBe('normal')
   })
+  it('cycles between the two embedded games without introducing new feed posts', () => {
+    expect(getNextGuestlistGame('beat-deck')).toBe('dj-odyssey')
+    expect(getNextGuestlistGame('dj-odyssey')).toBe('beat-deck')
+    expect(getNextGuestlistGame(getNextGuestlistGame('beat-deck'))).toBe('beat-deck')
+  })
+
 })
