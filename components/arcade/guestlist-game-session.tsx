@@ -108,6 +108,7 @@ export function GuestlistGameSession({ game, onExit, onFinished, onNext, nextGam
   }
 
   const reset = () => {
+    onStay()
     elapsedBaseRef.current = 0
     elapsedRef.current = 0
     scoreRef.current = 0
