@@ -113,6 +113,19 @@ async function findPublicRow(supabase: SupabaseClient, id: string): Promise<{
   return null
 }
 
+/** Resolve an actual release-typed catalog row, even if a music_tracks view omits type. */
+export async function getPublicReleaseItem(id: string): Promise<PublicMusicItem | null> {
+  if (!isValidMusicId(id)) return null
+  const supabase = await createClient()
+  const { data, error } = await isPublicQuery(
+    supabase.from("artist_music").select("*").eq("id", id)
+      .in("type", ["album", "ep", "mixtape"])
+  ).maybeSingle()
+  if (!data || error) return null
+  const artist = await artistByOwner(supabase, String(data.user_id || ""))
+  return toPublicMusicItem(data as Record<string, any>, artist)
+}
+
 export async function getPublicMusicItem(id: string): Promise<PublicMusicItem | null> {
   if (!isValidMusicId(id)) return null
   const supabase = await createClient()
