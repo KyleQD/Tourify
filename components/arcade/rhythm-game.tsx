@@ -453,6 +453,26 @@ export function RhythmGame() {
         ctx.fillStyle = '#ffffff90'; ctx.fillRect(x + 33, y - 6, 94, 4)
       }
 
+      // Every registered keyboard/touch press illuminates its hit receptor,
+      // even when timing is early, late or there is no note to score.
+      for (let lane = 0; lane < 4; lane++) {
+        const x = 46 + lane * 175
+        const held = pressedLanesRef.current.has(lane as Lane)
+        const flashing = laneFlashUntilRef.current[lane] > performance.now()
+        if (!held && !flashing) continue
+        ctx.save()
+        ctx.fillStyle = colors[lane] + (held ? '70' : '35')
+        ctx.fillRect(x + 3, HIT_LINE - 14, 154, 39)
+        ctx.strokeStyle = colors[lane]
+        ctx.lineWidth = held ? 5 : 3
+        ctx.strokeRect(x + 4, HIT_LINE - 14, 152, 36)
+        ctx.fillStyle = '#ffffff'
+        ctx.textAlign = 'center'
+        ctx.font = 'bold 17px sans-serif'
+        ctx.fillText(LANE_KEYS[lane].toUpperCase() + ' ✓', x + 80, HIT_LINE - 25)
+        ctx.restore()
+      }
+
       if (phaseRef.current !== 'playing') {
         ctx.fillStyle = '#02061777'; ctx.fillRect(0, 0, WIDTH, HEIGHT - 44)
         ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff'
@@ -481,7 +501,7 @@ export function RhythmGame() {
       </div>
       <div>
         <h2 className="text-2xl font-black sm:text-3xl">Hit the beat. Own the stage.</h2>
-        <p className="mt-1 text-sm text-slate-300">Four lanes. D F J K on keyboard, or tap the lane pads below. Practice patterns are tempo-based, not automatically transcribed from audio.</p>
+        <p className="mt-1 text-sm text-slate-300">Four lanes. D F J K on keyboard, or tap the lane pads below. <strong className="text-fuchsia-200">A pressed lane now lights up even without a perfect hit.</strong> Practice patterns are tempo-based, not automatically transcribed from audio.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
@@ -528,10 +548,43 @@ export function RhythmGame() {
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} className="block aspect-[760/360] w-full" aria-label="Rhythm highway: four falling note lanes, from left to right D F J K" />
       </div>
 
-      <div className="grid grid-cols-4 gap-2" role="group" aria-label="Tap or press a lane when a note reaches the line">
-        {LANE_KEYS.map((key, lane) => <button key={key} type="button" onPointerDown={e => { e.preventDefault(); hitLane(lane as Lane) }}
-          disabled={phase !== 'playing'} className="min-h-14 touch-manipulation rounded-2xl border-2 border-white/20 bg-white/10 text-lg font-black text-white transition-transform active:scale-95 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
-          style={{ borderColor: colors[lane] }} aria-label={'Hit lane ' + key.toUpperCase()}>{key.toUpperCase()}</button>)}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs" role="status" aria-live="polite">
+          <span className={phase === 'playing' ? 'font-bold text-emerald-200' : 'font-medium text-white/60'}>
+            {phase === 'playing' ? '● KEYBOARD ACTIVE · D F J K' : '○ KEYBOARD STANDBY · press Start set'}
+          </span>
+          <span className="font-medium text-fuchsia-200">Last recognized: {lastRegisteredKey || '—'}</span>
+        </div>
+        <div className="grid grid-cols-4 gap-2" role="group" aria-label="Rhythm hit pads: D, F, J and K">
+          {LANE_KEYS.map((key, lane) => {
+            const index = lane as Lane
+            const isHeld = heldLanes.includes(index)
+            return <button key={key} type="button"
+              onPointerDown={event => {
+                if (phaseRef.current !== 'playing') return
+                event.preventDefault()
+                event.currentTarget.setPointerCapture(event.pointerId)
+                updateLanePressed(index, true)
+                hitLane(index)
+              }}
+              onPointerUp={() => updateLanePressed(index, false)}
+              onPointerCancel={() => updateLanePressed(index, false)}
+              onLostPointerCapture={() => updateLanePressed(index, false)}
+              onClick={event => {
+                // Enter/Space can activate a focused pad for keyboard users.
+                // Pointer input was already handled above; do not double-score.
+                if (event.detail === 0 && phaseRef.current === 'playing') hitLane(index)
+              }}
+              disabled={phase !== 'playing'} aria-keyshortcuts={key.toUpperCase()}
+              aria-pressed={isHeld}
+              className={'min-h-16 touch-none rounded-2xl border-2 text-lg font-black transition-[background-color,box-shadow,transform] duration-75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40 ' + (isHeld ? 'scale-[1.035] bg-white/25 text-white' : 'bg-white/10 text-white active:scale-95')}
+              style={{ borderColor: colors[lane], boxShadow: isHeld ? '0 0 0 3px ' + colors[lane] + '66, 0 0 24px ' + colors[lane] + '88' : undefined }}
+              aria-label={'Hit lane ' + key.toUpperCase()}>
+              <span className="block">{key.toUpperCase()}</span>
+              <span className="block text-[10px] font-bold uppercase tracking-wide">{isHeld ? 'PRESSED ✓' : 'TAP / KEY'}</span>
+            </button>
+          })}
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span aria-live="polite" className="min-w-0 text-sm font-bold text-fuchsia-200">{error || feedback} <span className="ml-2 text-xs font-normal text-white/50">{Math.floor(elapsed)}s / {Math.ceil(durationRef.current)}s</span></span>
