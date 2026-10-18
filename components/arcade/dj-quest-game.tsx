@@ -9,9 +9,9 @@ import { DJ_CHAPTERS, DJ_CHAPTER_WORLDS, getDJChapter, getDJChapterCheckpoint, g
 import { drawDJChapterScenery } from '@/lib/arcade/dj-world-art'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import {
-  DJ_ENEMIES, DJ_GRAVITY, DJ_JUMP_SPEED, DJ_PLATFORMS, DJ_RECORDS,
-  DJ_RECORDS_NEEDED, DJ_RUN_SPEED, DJ_VIEW_HEIGHT, DJ_VIEW_WIDTH, DJ_WORLD_WIDTH,
-  getCheckpoint, intersects, portalOpen, calculateDJRunScore, canDJJump, getDJDistrict, DJ_DISTRICT_LABELS, type DJDistrict, type Rect,
+  DJ_GRAVITY, DJ_JUMP_SPEED, DJ_RECORDS_NEEDED, DJ_RUN_SPEED,
+  DJ_VIEW_HEIGHT, DJ_VIEW_WIDTH, DJ_WORLD_WIDTH,
+  intersects, portalOpen, calculateDJRunScore, canDJJump, getDJDistrict, type DJDistrict, type Rect,
 } from '@/lib/arcade/dj-quest-level'
 
 type Phase = 'ready' | 'playing' | 'paused' | 'won' | 'gameover'
@@ -50,7 +50,6 @@ export function DJQuestGame() {
   const [muted, setMuted] = useState(false)
   const [winScore, setWinScore] = useState<number | null>(null)
   const [progressPercent, setProgressPercent] = useState(0)
-  const [district, setDistrict] = useState<DJDistrict>('record-row')
   const [personalBest, setPersonalBest] = useState(0)
 
   useEffect(() => { setPersonalBest(readPersonalBest('dj-odyssey', 'first-level')) }, [])
@@ -82,7 +81,6 @@ export function DJQuestGame() {
     lastInfoRef.current = false
     lastHudTickRef.current = 0
     districtRef.current = 'record-row'
-    setDistrict('record-row')
     setProgressPercent(0)
     setHud({ records: 0, lives: 3 })
     setWinScore(null)
@@ -200,7 +198,6 @@ export function DJQuestGame() {
       const nextDistrict = getDJDistrict(h.x)
       if (nextDistrict !== districtRef.current) {
         districtRef.current = nextDistrict
-        setDistrict(nextDistrict)
         setHint('Now exploring ' + getDJChapterDistrictLabel(scene, h.x) + '!')
       }
       if (worldTimeRef.current - lastHudTickRef.current > 0.15) {
