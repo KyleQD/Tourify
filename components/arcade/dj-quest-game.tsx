@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
 import { DJBoothFinale } from '@/components/arcade/dj-booth-finale'
+import { DJChapterRouteMap } from '@/components/arcade/dj-chapter-route-map'
 import { DJ_CHAPTERS, DJ_CHAPTER_WORLDS, getDJChapter, getDJChapterCheckpoint, getDJChapterDistrictLabel, type DJChapterId } from '@/lib/arcade/dj-world-tour'
 import { drawDJChapterScenery } from '@/lib/arcade/dj-world-art'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
@@ -41,6 +42,7 @@ export function DJQuestGame() {
   const chapterRef = useRef(DJ_CHAPTERS[0])
   const sceneRevisionRef = useRef(0)
   const [chapterId, setChapterId] = useState<DJChapterId>('studio54')
+  const [routeMapOpen, setRouteMapOpen] = useState(false)
   const chapter = getDJChapter(chapterId)
   const lastHudTickRef = useRef(0)
   const districtRef = useRef<DJDistrict>('record-row')
@@ -91,6 +93,7 @@ export function DJQuestGame() {
     if (phaseRef.current === 'playing') return
     chapterRef.current = getDJChapter(id)
     setChapterId(id)
+    setRouteMapOpen(id === 'eos')
     restart()
     setPersonalBest(readPersonalBest('dj-odyssey', scoreKey(id)))
     setHint(chapterRef.current.description)
@@ -438,8 +441,8 @@ export function DJQuestGame() {
       <h2 className="text-2xl font-black tracking-tight sm:text-3xl">DJ Odyssey: World Tour</h2>
       <p className="text-sm text-white/70">Travel through legendary nightlife cities, collect {DJ_RECORDS_NEEDED} vinyl records, dodge themed enemies and unlock the destination DJ booth. Each trip is an original, fantastical side-scrolling collage—not an accurate street route.</p>
       <div className="space-y-3" aria-label="Choose a world tour chapter">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-black uppercase tracking-[0.15em] text-amber-200">Pick your destination · 5 playable chapters</h3><span className="text-xs text-white/55">{phase === 'playing' ? 'Pause before switching chapters' : 'Choose any destination to begin'}</span></div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-black uppercase tracking-[0.15em] text-amber-200">Pick your destination · 6 playable chapters</h3><span className="text-xs text-white/55">{phase === 'playing' ? 'Pause before switching chapters' : 'Choose any destination to begin'}</span></div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
           {DJ_CHAPTERS.map(option => <button type="button" key={option.id} onClick={() => changeChapter(option.id)}
             disabled={phase === 'playing'} aria-pressed={chapterId === option.id}
             className={'min-h-[122px] min-w-0 rounded-2xl border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50 ' + (chapterId === option.id ? 'border-amber-300 bg-amber-200/15' : 'border-white/15 bg-white/5 hover:border-white/40')}
@@ -450,6 +453,11 @@ export function DJQuestGame() {
           </button>)}
         </div>
         <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm"><span className="font-black" style={{ color: chapter.accent }}>{chapter.tagline}</span><p className="mt-1 leading-relaxed text-white/75">{chapter.description}</p></div>
+        <button type="button" onClick={() => setRouteMapOpen(value => !value)} aria-expanded={routeMapOpen}
+          className="min-h-11 rounded-xl border border-white/20 px-4 py-2 text-left text-sm font-semibold text-sky-100 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+          {routeMapOpen ? '▾ Hide chapter map' : '▸ Explore chapter map'} · {chapter.scenery.length} landmarks
+        </button>
+        {routeMapOpen && <DJChapterRouteMap chapter={chapter} progressPercent={progressPercent} />}
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm font-bold text-white/85">
         <span className="flex items-center gap-1.5 text-amber-200">◉ {hud.records} / {DJ_RECORDS_NEEDED} records</span>
@@ -489,7 +497,7 @@ export function DJQuestGame() {
       {phase === 'won' && <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-amber-100">🎉 You made it! Records collected: {hud.records}. Final score: <strong>{(winScore || 0).toLocaleString()}</strong>. Your bonus DJ set is unlocked below.</div>}
       {phase === 'won' && <DJBoothFinale venueName={chapter.name} />}
       <p className="text-xs text-white/60">Movement assist: jump briefly after leaving a platform or press jump just before landing. Collect vinyl to open the final door.</p>
-      <p className="text-xs text-white/45">A fictional, stylized music adventure featuring real venue names for cultural reference only. We are not affiliated with, sponsored by, or endorsed by Studio 54, Whisky a Go Go, Amnesia, fabric or Tresor. All artwork and sound effects are original; route distances and landmarks are imaginative, not geographical navigation.</p>
+      <p className="text-xs text-white/45">A fictional, stylized music adventure featuring real venue names for cultural reference only. We are not affiliated with, sponsored by, or endorsed by Studio 54, Whisky a Go Go, Amnesia, fabric, Tresor or EOS Lounge. All artwork and sound effects are original; route distances and landmarks are imaginative, not geographical navigation.</p>
     </section>
   )
 }
