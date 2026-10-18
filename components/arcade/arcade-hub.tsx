@@ -6,20 +6,20 @@ const games = [
     href: '/arcade/beat-deck',
     eyebrow: 'RHYTHM · KEYBOARD / TOUCH',
     title: 'Beat Deck',
-    description: 'Drop into a four-lane rhythm highway. Time your hits to a beat chart and play your own eligible Tourify tracks.',
+    description: 'Perform across three reactive concert stages. Hit notes, build combos, and practice with your own eligible Tourify tracks.',
     icon: Disc3,
     accent: 'from-fuchsia-500/30 via-purple-600/25 to-indigo-900/40',
-    tags: ['D F J K', 'Music streams', 'Combos'],
+    tags: ['3 stages', 'Combo crowd', 'Touch + keys'], 
     color: 'text-pink-200',
   },
   {
     href: '/arcade/dj-quest',
     eyebrow: 'PLATFORMER · RETRO / TOUCH',
     title: 'DJ Odyssey',
-    description: 'Run, jump, collect vinyl and dodge club security on the road to Studio 54.',
+    description: 'Cross three neon districts, collect vinyl, leap past club security, and unlock a playable two-deck DJ booth.',
     icon: Gamepad2,
     accent: 'from-amber-400/25 via-rose-500/20 to-fuchsia-900/40',
-    tags: ['Vinyl pickups', 'Club enemies', 'Studio 54'],
+    tags: ['3 districts', 'Jump assist', 'DJ booth finale'], 
     color: 'text-amber-200',
   },
 ] as const
@@ -55,7 +55,7 @@ export function ArcadeHub() {
           </Link>
         ))}
       </div>
-      <p className="flex items-start gap-2 text-sm text-white/55"><Keyboard className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> Keyboard and mobile controls are built in. Scores currently live in the game session; competitive leaderboards, artist game-use opt-in, and more levels are planned for the next phase.</p>
+      <p className="flex items-start gap-2 text-sm text-white/55"><Keyboard className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> Keyboard and mobile controls are built in. Personal bests currently live only in your browser; competitive leaderboards, artist game-use opt-in, and more levels are planned for the next phase.</p>
       <Link href="/music" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold hover:bg-white/10"><Music2 className="h-4 w-4" /> Browse music on Tourify <ArrowRight className="h-4 w-4" /></Link>
     </div>
   )
