@@ -8,6 +8,8 @@ import { DJBoothFinale } from '@/components/arcade/dj-booth-finale'
 import { DJChapterRouteMap } from '@/components/arcade/dj-chapter-route-map'
 import { DJ_CHAPTERS, DJ_CHAPTER_WORLDS, getDJChapter, getDJChapterCheckpoint, getDJChapterDistrictLabel, type DJChapterId } from '@/lib/arcade/dj-world-tour'
 import { drawDJChapterScenery } from '@/lib/arcade/dj-world-art'
+import { getDJWorldFeatures, canLaunchDJHero, hitsDJRecordCrate, hitsDJSurf } from '@/lib/arcade/dj-world-events'
+import { drawDJWorldFeatures } from '@/lib/arcade/dj-world-feature-art'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import {
   DJ_GRAVITY, DJ_JUMP_SPEED, DJ_RECORDS_NEEDED, DJ_RUN_SPEED,
@@ -34,6 +36,8 @@ export function DJQuestGame() {
   const jumpQueuedAtRef = useRef(Number.NEGATIVE_INFINITY)
   const collectedRef = useRef(baseRecords())
   const defeatedRef = useRef(baseEnemies())
+  const collectedFeaturesRef = useRef(new Set<string>())
+  const bonusPointsRef = useRef(0)
   const worldTimeRef = useRef(0)
   const cameraRef = useRef(0)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -51,6 +55,7 @@ export function DJQuestGame() {
   const [hint, setHint] = useState('Collect records, jump over club security, and reach Studio 54.')
   const [muted, setMuted] = useState(false)
   const [winScore, setWinScore] = useState<number | null>(null)
+  const [bonusPoints, setBonusPoints] = useState(0)
   const [progressPercent, setProgressPercent] = useState(0)
   const [personalBest, setPersonalBest] = useState(0)
 
@@ -76,6 +81,9 @@ export function DJQuestGame() {
     heroRef.current = startHero()
     collectedRef.current = baseRecords()
     defeatedRef.current = baseEnemies()
+    collectedFeaturesRef.current = new Set()
+    bonusPointsRef.current = 0
+    setBonusPoints(0)
     heldRef.current.clear()
     jumpQueuedAtRef.current = Number.NEGATIVE_INFINITY
     worldTimeRef.current = 0
@@ -159,6 +167,7 @@ export function DJQuestGame() {
       const h = heroRef.current
       const scene = chapterRef.current
       const world = DJ_CHAPTER_WORLDS[scene.id]
+      const features = getDJWorldFeatures(scene.id)
       worldTimeRef.current += dt
       const movingLeft = heldRef.current.has('arrowleft') || heldRef.current.has('a')
       const movingRight = heldRef.current.has('arrowright') || heldRef.current.has('d')
@@ -194,6 +203,18 @@ export function DJQuestGame() {
           fx(340)
         }
       }
+      // EOS Wharf spring: only when landing from above.
+      for (const feature of features) {
+        if (feature.kind !== 'launch-pad' || !canLaunchDJHero(h, beforeBottom, h.vy, feature)) continue
+        h.y = feature.y - h.h - 2
+        h.vy = feature.strength
+        h.grounded = false
+        h.lastGroundedAt = Number.NEGATIVE_INFINITY
+        jumpQueuedAtRef.current = Number.NEGATIVE_INFINITY
+        setHint('WHARF BOOST! Chase those high vinyl records.')
+        fx(920, 0.13)
+        break
+      }
       if (h.y > DJ_VIEW_HEIGHT + 100) { loseLifeFnRef.current(); return }
 
       const checkpoint = getDJChapterCheckpoint(scene, h.x)
@@ -218,6 +239,19 @@ export function DJQuestGame() {
           if (h.records === DJ_RECORDS_NEEDED) setHint('The guest list is ready! Reach ' + scene.name + '!')
         }
       })
+      // EOS record crate: one extra vinyl + 500 encore points, once per run.
+      // A checkpoint respawn doesn't restore this one-time collectible.
+      for (const feature of features) {
+        if (feature.kind !== 'record-crate' || collectedFeaturesRef.current.has(feature.id)) continue
+        if (!hitsDJRecordCrate(h, feature)) continue
+        collectedFeaturesRef.current.add(feature.id)
+        h.records += 1
+        bonusPointsRef.current += feature.points
+        setBonusPoints(bonusPointsRef.current)
+        setHud({ records: h.records, lives: h.lives })
+        setHint('STATE STREET RECORD FIND! +1 vinyl and +' + feature.points + ' encore points!')
+        fx(1020, 0.18)
+      }
       // Respawn stops collision simulation immediately; a fatal collision
       // must not simultaneously trigger the level's win portal.
       const damaged = world.enemies.some((enemy, index) => {
@@ -234,9 +268,17 @@ export function DJQuestGame() {
       })
       if (damaged) return
 
+      // EOS moving surf takes one life, respecting respawn invulnerability.
+      if (worldTimeRef.current >= h.invulnerableUntil && features.some(feature =>
+        hitsDJSurf(h, feature, worldTimeRef.current)
+      )) {
+        loseLifeFnRef.current()
+        return
+      }
+
       if (h.x > DJ_WORLD_WIDTH - 170) {
         if (portalOpen(h.records)) {
-          const score = calculateDJRunScore(h.records, h.lives, defeatedRef.current.size, worldTimeRef.current)
+          const score = calculateDJRunScore(h.records, h.lives, defeatedRef.current.size, worldTimeRef.current) + bonusPointsRef.current
           setWinScore(score)
           setPersonalBest(savePersonalBest('dj-odyssey', scoreKey(scene.id), score))
           setGamePhase('won')
@@ -253,6 +295,7 @@ export function DJQuestGame() {
       if (!ctx) return
       const scene = chapterRef.current
       const world = DJ_CHAPTER_WORLDS[scene.id]
+      const features = getDJWorldFeatures(scene.id)
       const time = worldTimeRef.current
       const cam = cameraRef.current
       const zone = getDJDistrict(heroRef.current.x)
@@ -304,6 +347,7 @@ export function DJQuestGame() {
         ctx.fillStyle = scene.id === 'amnesia' ? '#fce5bb' : '#b163d0'; ctx.fillRect(x + 3, p.y + 8, p.w - 6, 3)
       }
 
+      drawDJWorldFeatures(ctx, features, cam, time, collectedFeaturesRef.current)
       world.records.forEach((record, index) => {
         if (collectedRef.current.has(index)) return
         const x = record.x - cam
@@ -453,6 +497,7 @@ export function DJQuestGame() {
           </button>)}
         </div>
         <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm"><span className="font-black" style={{ color: chapter.accent }}>{chapter.tagline}</span><p className="mt-1 leading-relaxed text-white/75">{chapter.description}</p></div>
+        {chapter.id === 'eos' && <p className="text-xs leading-relaxed text-amber-100/85">Santa Barbara side quests: bounce on the striped wharf spring, leap over the rolling beach wave, discover the golden State Street record crate, and reach the string-lit patio finale!</p>}
         <button type="button" onClick={() => setRouteMapOpen(value => !value)} aria-expanded={routeMapOpen}
           className="min-h-11 rounded-xl border border-white/20 px-4 py-2 text-left text-sm font-semibold text-sky-100 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
           {routeMapOpen ? '▾ Hide chapter map' : '▸ Explore chapter map'} · {chapter.scenery.length} landmarks
@@ -463,6 +508,7 @@ export function DJQuestGame() {
         <span className="flex items-center gap-1.5 text-amber-200">◉ {hud.records} / {DJ_RECORDS_NEEDED} records</span>
         <span className="flex items-center gap-1.5 text-pink-200"><Heart className="h-4 w-4" /> {hud.lives} lives</span>
         <span className="text-emerald-200">Best: {personalBest.toLocaleString()} <span className="text-white/50">(this device)</span></span>
+        {chapter.id === 'eos' && <span className="text-amber-200">Record-store bonus: +{bonusPoints} pts</span>}
         <span className="ml-auto text-xs text-white/55">A/D or ←/→ move · W/Space/↑ jump</span>
       </div>
       <div className="flex items-center justify-between gap-3 text-xs text-white/70"><span className="font-black uppercase tracking-wider text-fuchsia-200">On the way · {getDJChapterDistrictLabel(chapter, heroRef.current.x)}</span><span>Route · {progressPercent}%</span></div>
