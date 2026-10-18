@@ -5,7 +5,7 @@ import { ArrowLeft, Disc3, Headphones, Pause, Play, RotateCcw, Volume2, Waves, S
 import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
-import { BEAT_DECK_ORIGINALS, createOriginalSongChart, getOriginalSong } from '@/lib/arcade/beat-deck-originals'
+import { BEAT_DECK_ORIGINALS, createOriginalSongChart, getOriginalSong, getNextOriginalSong } from '@/lib/arcade/beat-deck-originals'
 import { OriginalBeatDeckPlayer } from '@/lib/arcade/beat-deck-audio'
 import { BEAT_DECK_STAGES, getShowEnergy, getShowTier, type BeatDeckStage } from '@/lib/arcade/stage-director'
 import { laneFromKeyboardEvent, isRhythmEditableTarget, explainUnscoredPress } from '@/lib/arcade/rhythm-input'
@@ -710,7 +710,16 @@ export function RhythmGame() {
       <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />The three original 60-second songs work offline after the page loads. For published artist tracks: {catalogMessage}. Artist uploads still use permission-checked streaming.</p>
 
       </div>
-      {phase === 'finished' && <p className="rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/10 p-4 text-sm">Set finished! Best combo: <strong>{results.bestCombo}×</strong> · Good: <strong>{results.good}</strong> · Missed: <strong>{results.missed}</strong>. Try a faster tempo or a new track.</p>}
+      {phase === 'finished' && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/10 p-4 text-sm">
+        <div><p className="font-black text-white">🎉 Set complete! {selectedOriginal ? selectedOriginal.title + ' · 1:00' : ''}</p>
+          <p className="mt-1 text-fuchsia-100/80">Final score: {results.score.toLocaleString()} · Best combo: {results.bestCombo}× · Perfect: {results.perfect} · Good: {results.good} · Missed: {results.missed}</p>
+          <p className="mt-1 text-xs text-white/60">Finished music never autoplays the next track. Choose another original set whenever you're ready.</p>
+        </div>
+        {selectedOriginal && <button type="button" onClick={() => selectSong(getNextOriginalSong(selectedOriginal.id).id)}
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-amber-300 px-4 text-sm font-black text-slate-950 hover:bg-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+          Next set: {getNextOriginalSong(selectedOriginal.id).title} →
+        </button>}
+      </div>}
       <p className="text-xs leading-relaxed text-white/45"><Volume2 className="mr-1 inline h-3.5 w-3.5" />Sound begins only after Start. Pause stops the music and chart clock together. The three original tracks are synthesized live, not recordings or copyrighted samples; external artist songs retain entitlement checks.</p>
     </section>
   )
