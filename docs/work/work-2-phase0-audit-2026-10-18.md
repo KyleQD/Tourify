@@ -115,3 +115,32 @@ B. Billing: reconcile Stripe paid hiring entitlements to each professional accou
 C. Hiring: wire the trusted policy to artist paid create/edit/reopen/repost and venue/organization publish endpoints, with regression tests.
 D. Discovery: extend v1 endpoint with verified paid jobs only after A–C; then add paginated search and matching.
 E. UI: add Tourify-branded Work 2.0 experience, job-interest opt-in and separate Werk professional view behind feature flags.
+
+## Phase 0 extension — protected publisher groundwork and verification
+**Branch:** `feat/work-foundation-policy-public-contract-20261018` | **Draft PR:** https://github.com/KyleQD/Tourify/pull/20
+
+### New read-only schema evidence
+- `accounts` is keyed by a professional account UUID, has `owner_user_id`, `profile_id`, and `profile_table`. The owner is not the same identifier as a professional employer profile.
+- `subscriptions` is keyed to `user_id` and unique `stripe_subscription_id`, **not** `accounts.id`. A subscription cannot authorize every professional persona owned by the same login.
+- Staging has zero `accounts` rows in the inspected summary, whereas Demo contains artist, venue, organization, and general accounts. Do not infer production-equivalent behavior.
+- Existing `can_manage_hiring(user_id,entity_type,entity_id)` resolves artist, venue, organization ownership and delegated membership. It is `SECURITY DEFINER` in the public schema: audit caller execute grants and argument binding before using it as a public API. Our server resolver supplies the authenticated acting user ID rather than a request field.
+
+### New files in draft PR
+- `docs/work/work-hiring-entitlements-ddl-proposal.sql`: executable-format **SQL DESIGN ONLY**, not a generated or applied migration. Tables hold protected employer approval, permitted Stripe hiring plan prices and one-subscription-to-one-employer bindings. Client roles have no table access and RLS is enabled. Requires predeployment privilege, role, rollback and compatibility review.
+- `lib/work/server/resolve-work-publisher-authority.ts`: server-only runtime reader binding actor context to `accounts.profile_table + profile_id + account_type`, hiring RPC, independently approved employer record, account-specific entitlement, Stripe subscription OWNER/status/price/period and enabled plan. Unwired until the new tables are migrated, populated, and transactional quota is implemented.
+- `lib/work/server/__tests__/resolve-work-publisher-authority.test.ts`: cross-owner subscription tests, missing-approval tests, permission denial, wrong-price denial, account/profile binding and invalid quota scenarios.
+- `vitest.work.config.ts` and `.github/workflows/work-phase0-isolated.yml`: feature-branch-specific test check. Uses `npm ci --legacy-peer-deps --ignore-scripts` as a temporary way to run isolated tests despite pre-existing root dependency peer conflict. This is **not** a shipping dependency fix.
+
+### Test evidence
+- Initial isolated workflow run https://github.com/KyleQD/Tourify/actions/runs/39119915483 **passed 4 files / 30 tests** on the Work branch.
+- A follow-up change to match the underlying profile table and add a matching test has triggered another workflow run. Confirm the latest SHA status before approving the PR.
+- Ordinary CI remains blocked at `npm ci` by `@base-ui/react@1.5.0` / `date-fns@3.6.0`. Vercel has failing deployment checks on the branch. These must be resolved independently.
+
+### Remaining blockers before shipping any paid job route
+1. Review this SQL against Supabase Demo/Staging differences, generate a proper migration with the Supabase CLI in the canonical environment, and verify RLS/grants. The SQL draft intentionally creates **no admin users, approvals or entitlements**.
+2. Independently reviewed/admin-only employer approval workflow with auditable human decisions; never backfill from self-editable profile badges.
+3. Price-to-account entitlement assignment after verified Stripe events, rejecting use of a plan or subscription for another professional employer.
+4. Transactional quota ledger / publish slot claim covering every job source, edit/reopen/repost and concurrent publishing. The resolver's `activeJobCount` argument is NOT a substitute for a locked, trusted quota count.
+5. Wire policy only after all trusted lookups exist, then thoroughly test anonymous, general, free-artist, verified paid, revoked, delegated and concurrency scenarios.
+6. Build new Work UI and linked Werk identity behind flags, with work-content Home feed opt-in off by default.
+
