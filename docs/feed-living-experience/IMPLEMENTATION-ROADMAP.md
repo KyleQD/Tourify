@@ -40,6 +40,21 @@ A playable Tourify Arcade is now included on the same feature branch:
 
 This is **not yet a full fan-wide music game**: artist-approved interactive soundtrack usage requires a separate, explicit opt-in and rights-cleared charting. Personal-best scores are stored on each browser only and are not verified leaderboards. The PR remains draft until testing and branch reconciliation.
 
+## Guestlist Games — inline feed mini-games (2026-10-18)
+
+Product decision: **Guestlist Games** (not "Arcade Moments"). Embedded cards appear among the signed-in dashboard's social posts, while full games remain under **Tourify Arcade**.
+
+Implemented in the draft branch:
+- Two genuinely playable, silent, original mini-games: 20-second Beat Deck and 30-second DJ Odyssey Santa Barbara Sprint. Each lazy-loads after a deliberate Play action; no autoplay, network audio streams or venue-owned music.
+- Organic-post-only insertion after #10 (Beat Deck) and #30 (DJ Odyssey), at most two in a feed view; a "Show fewer" mode shows one after #30 and "Hide" disables all. User preference stored device-locally, visible selector enables restoration.
+- Friends and Discover only. Your Posts never gets games. News and Work remain separate.
+- On existing 20-post cursorless-offset feed pages, game cards do not count as posts or alter offsets. Events/music/artist discovery rails remain, with artist rail moved to post #14 while games are enabled.
+- Auto-pauses mini-games offscreen or when browser tab hides; scoped input does not steal letters from comments. Jukebox music continues because embedded games are silent.
+- Reversible rollout kill switch `NEXT_PUBLIC_GUESTLIST_GAMES_ENABLED=false` (requires redeployment).
+- Vitest placement, tab, frequency and pagination regression tests wired to dedicated expanded Arcade + Guestlist Games CI. No Supabase migrations, fake engagement, server leaderboards or analytics collection.
+
+**Implementation / release specification:** [GUESTLIST-GAMES-HANDOFF.md](GUESTLIST-GAMES-HANDOFF.md). Review its manual browser acceptance gates and the unmerged source branch before release.
+
 ## Workstreams and execution order
 
 ### F01 — Stable integration base (Blocker / P0)
