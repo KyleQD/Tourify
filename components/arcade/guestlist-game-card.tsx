@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ArrowRight, Gamepad2, Music2, Play, Ticket, X } from 'lucide-react'
-import type { GuestlistFrequency, GuestlistGameId } from '@/lib/feed/guestlist-games'
+import { getNextGuestlistGame, type GuestlistFrequency, type GuestlistGameId } from '@/lib/feed/guestlist-games'
 
 const GuestlistGameSession = dynamic(
   () => import('./guestlist-game-session').then(module => module.GuestlistGameSession),
@@ -45,7 +45,7 @@ export function GuestlistGameCard({ game, frequency, onFrequencyChange }: Guestl
   const detail = DETAILS[activeGame]
   const Icon = detail.Icon
 
-  const nextGame = activeGame === 'beat-deck' ? 'dj-odyssey' : 'beat-deck'
+  const nextGame = getNextGuestlistGame(activeGame)
   const nextDetail = DETAILS[nextGame]
 
   // The challenge itself is rendered only after a deliberate Play. A completed
