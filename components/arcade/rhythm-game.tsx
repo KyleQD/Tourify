@@ -501,41 +501,8 @@ export function RhythmGame() {
       </div>
       <div>
         <h2 className="text-2xl font-black sm:text-3xl">Hit the beat. Own the stage.</h2>
-        <p className="mt-1 text-sm text-slate-300">Four lanes. D F J K on keyboard, or tap the lane pads below. <strong className="text-fuchsia-200">A pressed lane now lights up even without a perfect hit.</strong> Practice patterns are tempo-based, not automatically transcribed from audio.</p>
+        <p className="mt-1 text-xs text-slate-300">D F J K or tap the lanes. Press Start set to play; customize the setlist and stage below.</p>
       </div>
-
-      <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
-        <label className="text-xs font-medium text-white/80">Choose your track
-          <select value={selected} disabled={phase === 'loading'} onChange={e => setSelected(e.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
-            <option value="practice">🎛️ Original synth practice beat · 30s</option>
-            {tracks.map(track => <option value={track.id} key={track.id}>{track.title}{track.genre ? ' · ' + track.genre : ''}</option>)}
-          </select>
-        </label>
-        <label className="text-xs font-medium text-white/80">Chart tempo · <strong className="text-fuchsia-200">{tempo} BPM</strong>
-          <input type="range" min={65} max={200} step={5} value={tempo} onChange={e => setTempo(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-fuchsia-400" />
-        </label>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="text-xs font-medium text-white/80">Difficulty
-          <select value={difficulty} onChange={e => setDifficulty(e.target.value as RhythmDifficulty)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base capitalize text-white">
-            <option value="easy">Easy · fewer notes</option>
-            <option value="normal">Normal · quarter notes</option>
-            <option value="hard">Hard · rapid notes</option>
-          </select>
-        </label>
-        <label className="text-xs font-medium text-white/80">Audio calibration: {offsetMs > 0 ? '+' : ''}{offsetMs} ms
-          <input type="range" min={-150} max={150} step={10} value={offsetMs} onChange={e => setOffsetMs(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-sky-400" />
-        </label>
-      </div>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="min-w-[220px] text-xs font-medium text-white/80">Concert venue
-          <select value={stage} onChange={event => setStage(event.target.value as BeatDeckStage)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
-            {BEAT_DECK_STAGES.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
-          </select>
-        </label>
-        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} className="h-4 w-4 accent-fuchsia-400" /> Calm stage lighting</label>
-      </div>
-      <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
 
       <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 sm:text-sm" aria-live="polite">
         <div className="rounded-xl bg-white/5 p-3"><span className="block text-lg font-black text-fuchsia-200">{results.score.toLocaleString()}</span>Score</div>
@@ -594,6 +561,42 @@ export function RhythmGame() {
             : <button type="button" onClick={() => void start()} disabled={phase === 'loading'} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-fuchsia-500 px-4 font-bold text-white hover:bg-fuchsia-400 disabled:opacity-40"><Play className="h-4 w-4" />{phase === 'paused' ? 'Resume' : phase === 'loading' ? 'Loading…' : 'Start set'}</button>}
           <button type="button" onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 px-4 hover:bg-white/10"><RotateCcw className="h-4 w-4" /> Reset</button>
         </div>
+      </div>
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4" aria-label="Beat Deck set and stage settings">
+        <h3 className="text-sm font-black uppercase tracking-[0.12em] text-fuchsia-200">Setlist & stage settings</h3>
+      <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
+        <label className="text-xs font-medium text-white/80">Choose your track
+          <select value={selected} disabled={phase === 'loading'} onChange={e => setSelected(e.target.value)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
+            <option value="practice">🎛️ Original synth practice beat · 30s</option>
+            {tracks.map(track => <option value={track.id} key={track.id}>{track.title}{track.genre ? ' · ' + track.genre : ''}</option>)}
+          </select>
+        </label>
+        <label className="text-xs font-medium text-white/80">Chart tempo · <strong className="text-fuchsia-200">{tempo} BPM</strong>
+          <input type="range" min={65} max={200} step={5} value={tempo} onChange={e => setTempo(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-fuchsia-400" />
+        </label>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="text-xs font-medium text-white/80">Difficulty
+          <select value={difficulty} onChange={e => setDifficulty(e.target.value as RhythmDifficulty)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base capitalize text-white">
+            <option value="easy">Easy · fewer notes</option>
+            <option value="normal">Normal · quarter notes</option>
+            <option value="hard">Hard · rapid notes</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-white/80">Audio calibration: {offsetMs > 0 ? '+' : ''}{offsetMs} ms
+          <input type="range" min={-150} max={150} step={10} value={offsetMs} onChange={e => setOffsetMs(Number(e.target.value))} className="mt-1 block min-h-11 w-full accent-sky-400" />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <label className="min-w-[220px] text-xs font-medium text-white/80">Concert venue
+          <select value={stage} onChange={event => setStage(event.target.value as BeatDeckStage)} className="mt-1 block min-h-11 w-full rounded-xl border border-white/20 bg-[#211a3a] px-3 text-base text-white">
+            {BEAT_DECK_STAGES.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+          </select>
+        </label>
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs text-white/80"><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} className="h-4 w-4 accent-fuchsia-400" /> Calm stage lighting</label>
+      </div>
+      <p className="text-xs text-white/55"><Headphones className="mr-1 inline h-3.5 w-3.5" />{catalogMessage}. Artist-uploaded tracks are played through Tourify’s existing permission-checked streaming service.</p>
+
       </div>
       {phase === 'finished' && <p className="rounded-2xl border border-fuchsia-300/25 bg-fuchsia-400/10 p-4 text-sm">Set finished! Best combo: <strong>{results.bestCombo}×</strong> · Good: <strong>{results.good}</strong> · Missed: <strong>{results.missed}</strong>. Try a faster tempo or a new track.</p>}
       <p className="text-xs leading-relaxed text-white/45"><Volume2 className="mr-1 inline h-3.5 w-3.5" />Music starts only after you tap Start. Pause stops the track. This is an original rhythm-game prototype; it contains no Guitar Hero assets or note charts.</p>
