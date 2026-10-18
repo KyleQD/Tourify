@@ -16,10 +16,10 @@ const games = [
     href: '/arcade/dj-quest',
     eyebrow: 'PLATFORMER · RETRO / TOUCH',
     title: 'DJ Odyssey',
-    description: 'Tour five legendary nightlife destinations—New York, the Sunset Strip, Ibiza, London and Berlin—with original island and cityscapes, vinyl pickups and DJ-booth finales.',
+    description: 'Tour six nightlife destinations—including Ibiza and Santa Barbara’s EOS Lounge—with original coastal and cityscapes, playable landmark maps, vinyl pickups and DJ-booth finales.',
     icon: Gamepad2,
     accent: 'from-amber-400/25 via-rose-500/20 to-fuchsia-900/40',
-    tags: ['5 club chapters', 'Ibiza island', 'DJ booth'],  
+    tags: ['6 club chapters', 'EOS Santa Barbara', 'Route maps'],  
     color: 'text-amber-200',
   },
 ] as const
