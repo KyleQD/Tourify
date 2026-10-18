@@ -75,6 +75,12 @@ export function RhythmGame() {
   const [heldLanes, setHeldLanes] = useState<Lane[]>([])
   const [lastRegisteredKey, setLastRegisteredKey] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const selectedOriginal = getOriginalSong(selected)
+  const selectSong = (songId: string) => {
+    setSelected(songId)
+    const composed = getOriginalSong(songId)
+    if (composed) { setTempo(composed.bpm); setStage(composed.stage) }
+  }
 
   useEffect(() => {
     setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -400,12 +406,13 @@ export function RhythmGame() {
 
       // Scenery stays behind note lanes; stage changes never change score/timing.
       const theme = BEAT_DECK_STAGES.find(option => option.id === stage) || BEAT_DECK_STAGES[0]
+      const authoredSong = getOriginalSong(roundIdRef.current.split(':').slice(0, 2).join(':')) || getOriginalSong(selected)
       const energy = getShowEnergy(resultsRef.current.combo)
       const pulse = reducedMotion ? 0.55 : 0.6 + 0.4 * Math.sin(playbackTime * tempo / 60 * Math.PI * 2)
       const grd = ctx.createLinearGradient(0, 0, 0, HEIGHT)
-      grd.addColorStop(0, theme.sky)
-      grd.addColorStop(0.7, theme.horizon)
-      grd.addColorStop(1, theme.floor)
+      grd.addColorStop(0, authoredSong?.tint[0] || theme.sky)
+      grd.addColorStop(0.67, authoredSong?.tint[1] || theme.horizon)
+      grd.addColorStop(1, authoredSong?.tint[2] || theme.floor)
       ctx.fillStyle = grd
       ctx.fillRect(0, 0, WIDTH, HEIGHT)
 
@@ -452,6 +459,30 @@ export function RhythmGame() {
         ctx.fillRect(x - 2, crowdY + 5, 16, 35)
       }
       ctx.restore()
+      // Concert rig: bass-reactive speakers, stage truss and visualizers.
+      // The bars are deterministic music-position visuals, not microphone input.
+      ctx.save()
+      ctx.globalAlpha = 0.62 + 0.23 * pulse
+      for (const sx of [14, WIDTH - 14]) {
+        ctx.fillStyle = '#090b22'
+        ctx.fillRect(sx - 24, 132, 48, 127)
+        ctx.strokeStyle = theme.light; ctx.lineWidth = 2
+        ctx.strokeRect(sx - 24, 132, 48, 127)
+        for (const radius of [9, 17]) {
+          ctx.beginPath(); ctx.arc(sx, 207, radius + (reducedMotion ? 0 : pulse * 2), 0, 2 * Math.PI)
+          ctx.strokeStyle = radius === 9 ? theme.secondary : '#e2e8f0'
+          ctx.stroke()
+        }
+      }
+      ctx.fillStyle = '#ffffff99'
+      for (let bar = 0; bar < 25; bar++) {
+        const x = 108 + bar * 22
+        const level = 6 + 13 * (0.5 + 0.5 * Math.sin(playbackTime * (3.5 + bar % 3) + bar * 0.8))
+        ctx.globalAlpha = reducedMotion ? 0.22 : 0.18 + energy * 0.16
+        ctx.fillRect(x, 108 - level / 2, 8, level)
+      }
+      ctx.globalAlpha = 1
+      ctx.restore()
       for (let lane = 0; lane < 4; lane++) {
         const x = 46 + lane * 175
         ctx.fillStyle = lane % 2 ? '#05051ab5' : '#05051a9c'
@@ -459,6 +490,9 @@ export function RhythmGame() {
         ctx.strokeStyle = '#ffffff1c'; ctx.strokeRect(x, 20, 160, HEIGHT - 40)
         ctx.font = 'bold 17px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = colors[lane]
         ctx.fillText(LANE_KEYS[lane].toUpperCase(), x + 80, 340)
+        ctx.strokeStyle = colors[lane] + '55'; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.moveTo(x, 24); ctx.lineTo(x - 5, HIT_LINE)
+        ctx.moveTo(x + 160, 24); ctx.lineTo(x + 165, HIT_LINE); ctx.stroke()
       }
 
       for (let b = 0; b < 6; b++) {
@@ -477,7 +511,8 @@ export function RhythmGame() {
         ctx.shadowColor = colors[note.lane]; ctx.shadowBlur = 16
         ctx.fillStyle = colors[note.lane]; ctx.fillRect(x + 23, y - 10, 114, 20)
         ctx.shadowBlur = 0
-        ctx.fillStyle = '#ffffff90'; ctx.fillRect(x + 33, y - 6, 94, 4)
+        ctx.fillStyle = '#ffffffdd'; ctx.fillRect(x + 33, y - 6, 94, 3)
+        ctx.fillStyle = '#ffffff88'; ctx.fillRect(x + 48, y + 3, 64, 2)
       }
 
       // Every registered keyboard/touch press illuminates its hit receptor,
