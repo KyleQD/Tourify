@@ -259,7 +259,8 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
             {NOTE_KEYS.map((key, lane) => (
               <div key={key} className="relative rounded-lg border border-white/10 bg-white/[0.035]">
                 {nearbyNotes.filter(index => noteLane(index) === lane && !handledNotesRef.current.has(index)).map(index => {
-                  const pct = Math.max(0, Math.min(82, 82 + (elapsed - noteTime(index)) / 1300 * 82))
+                  // Note center meets the bright bottom hit line at its scheduled beat.
+                  const pct = Math.max(0, Math.min(74, 74 + (elapsed - noteTime(index)) / 1300 * 74))
                   return <span key={index} className="absolute left-[12%] right-[12%] h-4 rounded-full shadow-lg"
                     style={{ top: pct + '%', backgroundColor: NOTE_COLORS[lane], boxShadow: '0 0 16px ' + NOTE_COLORS[lane] }} />
                 })}
