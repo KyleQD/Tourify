@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Disc3, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react'
-import { DJ_DECK_NOTES, getDJMixLevels } from '@/lib/arcade/dj-mixer'
+import { getDJVenueSet, getDJMixLevels } from '@/lib/arcade/dj-mixer'
 
 type Deck = 'a' | 'b'
 
@@ -12,6 +12,7 @@ type Deck = 'a' | 'b'
  * celebratory toy, not a professional audio mixer.
  */
 export function DJBoothFinale({ venueName = 'Studio 54' }: { venueName?: string }) {
+  const venueSet = getDJVenueSet(venueName)
   const audioRef = useRef<AudioContext | null>(null)
   const playingRef = useRef({ a: false, b: false })
   const crossRef = useRef(50)
@@ -63,8 +64,8 @@ export function DJBoothFinale({ venueName = 'Studio 54' }: { venueName?: string 
       const active = playingRef.current
       if (!active.a && !active.b) return
       const step = beatRef.current++ % 8
-      if (active.a) playTone(ctx, DJ_DECK_NOTES.a[step], 'a')
-      if (active.b) playTone(ctx, DJ_DECK_NOTES.b[step], 'b')
+      if (active.a) playTone(ctx, venueSet.notes.a[step], 'a')
+      if (active.b) playTone(ctx, venueSet.notes.b[step], 'b')
     }, 240)
     return () => {
       window.clearInterval(timer)
@@ -76,12 +77,12 @@ export function DJBoothFinale({ venueName = 'Studio 54' }: { venueName?: string 
   const toggle = async (deck: Deck) => {
     if (playingRef.current[deck]) {
       setPlaying(current => ({ ...current, [deck]: false }))
-      setMessage((deck === 'a' ? 'Bassline' : 'Starlight') + ' deck paused.')
+      setMessage((deck === 'a' ? venueSet.aName : venueSet.bName) + ' deck paused.')
       return
     }
     if (!await activateAudio()) return
     setPlaying(current => ({ ...current, [deck]: true }))
-    setMessage((deck === 'a' ? 'Bassline' : 'Starlight') + ' deck live! Move the crossfader to mix.')
+    setMessage((deck === 'a' ? venueSet.aName : venueSet.bName) + ' deck live! Move the crossfader to mix.')
   }
 
   const scratch = async (deck: Deck) => {
@@ -102,15 +103,15 @@ export function DJBoothFinale({ venueName = 'Studio 54' }: { venueName?: string 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200">Unlocked · {venueName} DJ Booth</p>
-          <h3 className="mt-1 text-xl font-black text-white sm:text-2xl">Play your encore</h3>
+          <h3 className="mt-1 text-xl font-black text-white sm:text-2xl">{venueSet.title}</h3>
         </div>
         <Disc3 aria-hidden="true" className="h-8 w-8 text-fuchsia-300" />
       </div>
       <p className="text-xs text-white/70">Two original synth decks. Start either loop, scratch a vinyl, and blend them with the crossfader. No licensed songs or downloads are used.</p>
       <div className="grid grid-cols-2 gap-3">
         {([
-          { deck: 'a' as const, name: 'Bassline', accent: 'border-pink-400/40 text-pink-100' },
-          { deck: 'b' as const, name: 'Starlight', accent: 'border-sky-400/40 text-sky-100' },
+          { deck: 'a' as const, name: venueSet.aName, accent: 'border-pink-400/40 text-pink-100' },
+          { deck: 'b' as const, name: venueSet.bName, accent: 'border-sky-400/40 text-sky-100' },
         ]).map(({ deck, name, accent }) => (
           <div key={deck} className={'flex flex-col items-center gap-3 rounded-2xl border bg-black/20 p-3 ' + accent}>
             <span className="text-xs font-bold uppercase tracking-wider">Deck {deck.toUpperCase()} · {name}</span>
@@ -133,8 +134,8 @@ export function DJBoothFinale({ venueName = 'Studio 54' }: { venueName?: string 
         <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" /> Crossfader · {crossfader}% toward Deck B</span>
         <input type="range" min={0} max={100} step={1} value={crossfader}
           onChange={event => setCrossfader(Number(event.target.value))}
-          className="mt-3 block h-8 w-full accent-amber-300" aria-label="DJ booth crossfader between Bassline and Starlight" />
-        <span className="flex justify-between text-[11px] text-white/60"><span>Bassline A</span><span>Starlight B</span></span>
+          className="mt-3 block h-8 w-full accent-amber-300" aria-label={'DJ booth crossfader between ' + venueSet.aName + ' and ' + venueSet.bName} />
+        <span className="flex justify-between text-[11px] text-white/60"><span>{venueSet.aName} A</span><span>{venueSet.bName} B</span></span>
       </label>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-fuchsia-100" role="status" aria-live="polite">{message}</p>
