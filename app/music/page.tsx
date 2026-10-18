@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -158,6 +159,18 @@ export default function MusicPage() {
         </div>
         <Badge variant="secondary">{library.length} tracks • {totalLibraryMinutes} min</Badge>
       </div>
+
+      <nav aria-label="Music destinations" className="flex flex-wrap items-center gap-2 rounded-2xl border border-violet-400/20 bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-transparent p-3">
+        <Link href="/music/discover"
+          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-500">
+          <Play className="h-4 w-4" /> Discover new music
+        </Link>
+        <Link href="/dashboard"
+          className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition hover:bg-accent">
+          Open my Jukebox
+        </Link>
+        <span className="ml-auto text-xs text-muted-foreground">Your library stays here. Music discovery is now its own destination.</span>
+      </nav>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Card>
