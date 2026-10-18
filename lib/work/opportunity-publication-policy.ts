@@ -107,6 +107,8 @@ export function canPublishWorkOpportunity(
   if (!authority.canManageHiring)
     return { allowed: false, reason: 'HIRING_PERMISSION_REQUIRED' }
   if (authority.activeJobLimit !== undefined) {
+    if (!Number.isSafeInteger(authority.activeJobCount) || (authority.activeJobCount ?? -1) < 0)
+      return { allowed: false, reason: 'ACTIVE_LISTING_LIMIT_REACHED' }
     if (!Number.isSafeInteger(authority.activeJobLimit) || authority.activeJobLimit < 0)
       return { allowed: false, reason: 'ACTIVE_LISTING_LIMIT_REACHED' }
     if ((authority.activeJobCount ?? 0) >= authority.activeJobLimit)
