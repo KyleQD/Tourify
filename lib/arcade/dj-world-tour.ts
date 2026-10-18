@@ -110,6 +110,22 @@ export const DJ_CHAPTERS: readonly DJChapter[] = [
     ], platformShift: 10, recordShift: -8, enemyShift: 15,
   },
   {
+    id: 'tresor', name: 'Tresor Berlin', city: 'Berlin', country: 'Germany',
+    genre: 'Industrial techno', description: 'Navigate painted walls, rail stations and towering industrial silhouettes before the vault-door finale.',
+    tagline: 'BERLIN TECHNO RUN', gateName: 'TRESOR', gateSubtitle: 'BERLIN',
+    backdrop: ['#0c1722', '#283542', '#50525c'], accent: '#c4b5fd',
+    scenery: [
+      { x: 420, name: 'Berlin TV Tower', kind: 'tower' },
+      { x: 1090, name: 'Street art walls', kind: 'wall' },
+      { x: 1780, name: 'U-Bahn', kind: 'tube' },
+      { x: 2680, name: 'Power station', kind: 'warehouse' },
+    ],
+    ground: [
+      { x: 0, y: 365, w: 800, h: 55 }, { x: 885, y: 365, w: 610, h: 55 },
+      { x: 1580, y: 365, w: 645, h: 55 }, { x: 2310, y: 365, w: 910, h: 55 },
+    ], platformShift: -8, recordShift: 12, enemyShift: -12,
+  },
+  {
     id: 'eos', name: 'EOS Lounge', city: 'Santa Barbara', country: 'USA',
     genre: 'Coastal house and disco',
     description: 'A fantasy coastal run along the American Riviera: Stearns Wharf, palms, red-tile rooftops, the Santa Barbara courthouse and downtown dance streets before an EOS-inspired patio encore.',
@@ -130,22 +146,6 @@ export const DJ_CHAPTERS: readonly DJChapter[] = [
       { x: 2315, y: 365, w: 905, h: 55 },
     ],
     platformShift: -5, recordShift: 6, enemyShift: 11,
-  },
-  {
-    id: 'tresor', name: 'Tresor Berlin', city: 'Berlin', country: 'Germany',
-    genre: 'Industrial techno', description: 'Navigate painted walls, rail stations and towering industrial silhouettes before the vault-door finale.',
-    tagline: 'BERLIN TECHNO RUN', gateName: 'TRESOR', gateSubtitle: 'BERLIN',
-    backdrop: ['#0c1722', '#283542', '#50525c'], accent: '#c4b5fd',
-    scenery: [
-      { x: 420, name: 'Berlin TV Tower', kind: 'tower' },
-      { x: 1090, name: 'Street art walls', kind: 'wall' },
-      { x: 1780, name: 'U-Bahn', kind: 'tube' },
-      { x: 2680, name: 'Power station', kind: 'warehouse' },
-    ],
-    ground: [
-      { x: 0, y: 365, w: 800, h: 55 }, { x: 885, y: 365, w: 610, h: 55 },
-      { x: 1580, y: 365, w: 645, h: 55 }, { x: 2310, y: 365, w: 910, h: 55 },
-    ], platformShift: -8, recordShift: 12, enemyShift: -12,
   },
 ] as const
 
