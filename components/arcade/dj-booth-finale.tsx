@@ -11,7 +11,7 @@ type Deck = 'a' | 'b'
  * copyrighted samples or artist-uploaded masters. Deliberately a small
  * celebratory toy, not a professional audio mixer.
  */
-export function DJBoothFinale() {
+export function DJBoothFinale({ venueName = 'Studio 54' }: { venueName?: string }) {
   const audioRef = useRef<AudioContext | null>(null)
   const playingRef = useRef({ a: false, b: false })
   const crossRef = useRef(50)
@@ -101,7 +101,7 @@ export function DJBoothFinale() {
     <section aria-label="Playable DJ booth finale" className="space-y-4 rounded-2xl border border-amber-300/30 bg-gradient-to-br from-[#30173b] to-[#0e2444] p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200">Unlocked · Studio 54 DJ Booth</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-200">Unlocked · {venueName} DJ Booth</p>
           <h3 className="mt-1 text-xl font-black text-white sm:text-2xl">Play your encore</h3>
         </div>
         <Disc3 aria-hidden="true" className="h-8 w-8 text-fuchsia-300" />
