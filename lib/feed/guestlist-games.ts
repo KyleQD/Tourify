@@ -56,3 +56,8 @@ export function getGuestlistDiscoveryModule(
   if (afterPost === (gamesVisible ? 14 : 10)) return 'artists'
   return null
 }
+
+/** Two bite-sized Guestlist Games rotate in a closed loop after a round. */
+export function getNextGuestlistGame(current: GuestlistGameId): GuestlistGameId {
+  return current === 'beat-deck' ? 'dj-odyssey' : 'beat-deck'
+}
