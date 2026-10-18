@@ -4,7 +4,6 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ArrowRight, Gamepad2, Music2, Play, Ticket, X } from 'lucide-react'
-import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import type { GuestlistFrequency, GuestlistGameId } from '@/lib/feed/guestlist-games'
 
 const GuestlistGameSession = dynamic(
@@ -41,14 +40,12 @@ const DETAILS = {
 
 export function GuestlistGameCard({ game, frequency, onFrequencyChange }: GuestlistGameCardProps) {
   const [started, setStarted] = useState(false)
-  const jukebox = useJukeboxOptional()
   const detail = DETAILS[game]
   const Icon = detail.Icon
 
   const start = () => {
-    // This is an explicit user action. An active jukebox song must not compete
-    // with gameplay; the user can resume it afterwards.
-    if (jukebox?.state.isPlaying) jukebox.pause()
+    // Mini-games are silent. Preserve existing jukebox music and queue;
+    // the full-size games handle their own audio policies separately.
     setStarted(true)
   }
 
@@ -89,7 +86,7 @@ export function GuestlistGameCard({ game, frequency, onFrequencyChange }: Guestl
                 Full adventure <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <p className="text-[11px] leading-relaxed text-white/55">Free mini-game. It only starts when you choose Play, and makes no sound.</p>
+            <p className="text-[11px] leading-relaxed text-white/55">Free mini-game. It only starts when you choose Play, makes no sound, and leaves your jukebox playing.</p>
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
