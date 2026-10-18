@@ -81,3 +81,37 @@
 - Public discovery must not contain application details, contact_email, contact_phone, onboarding documents, or internal staff metadata.
 - Distinct general/Werk visibility and opt-in Home feed status must be enforced.
 - Record rollback strategy, tested PR commit and canonical DB target before release.
+
+## Phase 0 continuation — verified findings (same audit date)
+
+### Employer verification is NOT a trusted publication authority today
+- **Demo and Staging:** `has_column_privilege('authenticated','public.accounts','is_verified','UPDATE') = true`. Both also have account-owner UPDATE policies. Therefore the account-level badge is not independently protected by RLS alone.
+- **Demo:** `verification_requests` owner INSERT policy checks only account ownership; permitted statuses include `approved`. Its only non-internal trigger is an updated-at timestamp trigger. An owner-created row with an approved status is not reliable approval evidence without an additional protected write constraint.
+- **Staging:** `verification_requests` was not found in the inspected schema. It cannot currently be a cross-environment verification dependency.
+- **Subscriptions:** Current Stripe webhook writes `subscriptions.user_id`, `stripe_price_id` and status, but no professional `account_id` mapping. A personal subscription must not authorize an arbitrary artist/venue/org account. An arbitrary active Stripe price ID must not imply a hiring entitlement.
+
+### Additional feature-branch work
+- `lib/work/authoritative-publisher-facts.ts`: protected fact evaluator requires matching professional account grants, a specific allowed paid hiring price, current active billing, unrevoked approval and actual hiring permission. Pure contract only; no live DB sources wired.
+- `lib/work/__tests__/publisher-authority.test.ts`: covers cross-account, unknown plan, expired/revoked billing, revoked approval, listing quota and hiring permission.
+- `app/api/work/v1/opportunities/route.ts`: new opt-in canary, default OFF (`WORK_DISCOVERY_V1_ENABLED !== 'true'` returns 404), uses standard Supabase RLS client and strict allowlisted projection. Supports only unpaid artist collaborations; request for paid jobs returns 501 until protected account-scoped employer+plan grants are delivered. Does **not** alter current `/jobs` experience.
+- `app/api/work/v1/opportunities/__tests__/route.test.ts`: feature flag, restricted query types, malformed request validation and public privacy tests.
+
+### Protected approval / entitlement design — REQUIRED before any paid-job integration
+Implement a vetted, additive migration (after selecting canonical database target) with:
+1. **`work_employer_approvals`:** employer account ID, independent reviewer, status, timestamps and revocation metadata; no authenticated/anon insert/update privileges. Approval lifecycle is service-only after administrative review. Do not backfill from `accounts.is_verified` alone.
+2. **`work_hiring_entitlements`:** employer account ID, canonical Stripe subscription ID, professional product/price mapping, period and revocation; service-only mutations from verified webhooks or reviewed management actions.
+3. **`work_hiring_plans`:** explicitly supported Stripe price IDs and account-type/limit entitlements, managed only by administrators; unrelated purchases NEVER authorize hiring.
+4. Enforce `can_manage_hiring(actor_user_id, entity_type, entity_id)` with the authenticated user determined by server session, not a body-supplied ID. Existing public SECURITY DEFINER RPC must receive its inputs only from trusted API context.
+5. Enforce a transaction/locking strategy for active-listing limits (avoid check-then-create races) and idempotent verified webhook processing.
+6. Verify grants from `anon`, `authenticated`, delegated employer staff, and service-role perspectives. Prefer RLS + default-deny table privileges; no auth-exposed privileged security-definer shortcuts.
+7. Harden legacy `verification_requests` insertion and `accounts.is_verified` mutability through a separate compatibility-tested security migration. Review all existing profile-edit integrations first.
+
+### CI status
+GitHub PR #20 CI and E2E are **failing before tests execute** at `npm ci`: `@base-ui/react@1.5.0` requests optional `date-fns ^4`, root pins `date-fns 3.6.0`. This is a dependency-resolution blocker. Do not claim the Work unit tests have run.
+
+### Immediate next sprint owner sequence
+A. DB/Security: produce protected grant schema and verified mutator flow; remove approval status self-escalation without disrupting account verification.
+B. Billing: reconcile Stripe paid hiring entitlements to each professional account and active subscription; define plan prices and limits.
+C. Hiring: wire the trusted policy to artist paid create/edit/reopen/repost and venue/organization publish endpoints, with regression tests.
+D. Discovery: extend v1 endpoint with verified paid jobs only after A–C; then add paginated search and matching.
+E. UI: add Tourify-branded Work 2.0 experience, job-interest opt-in and separate Werk professional view behind feature flags.
