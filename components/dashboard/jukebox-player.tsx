@@ -25,43 +25,13 @@ import { fetchDiscoverTracks, fetchFavoriteTracks } from "@/lib/services/jukebox
 import { getTheme, JUKEBOX_THEMES } from "@/lib/jukebox/visual-themes"
 import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 import { PlayerSocialActions } from "@/components/jukebox/player-actions"
+import { pickDailyTrack, uniquePlayableTracks } from "@/lib/jukebox/home-discovery"
 
 interface JukeboxPlayerProps {
   className?: string
 }
 
 type DiscoveryMode = "for-you" | "trending"
-
-/**
- * Deterministic daily selection from the same public discovery pool.
- * This is a fallback until an editorially scheduled spotlight API exists.
- * The seeded hash avoids selecting a new random track on every render.
- */
-export function pickDailyTrack(tracks: JukeboxTrack[], day: string): JukeboxTrack | null {
-  if (!tracks.length) return null
-  function score(id: string) {
-    let hash = 2166136261
-    const input = day + ":" + id
-    for (let i = 0; i < input.length; i++) {
-      hash = Math.imul(hash ^ input.charCodeAt(i), 16777619)
-    }
-    return hash >>> 0
-  }
-  return tracks.reduce((best, track) => (
-    score(track.id) < score(best.id) ? track : best
-  ))
-}
-
-function uniquePlayableTracks(tracks: JukeboxTrack[]): JukeboxTrack[] {
-  const seen = new Set<string>()
-  return tracks.filter((track) => {
-    if (!track.id || !track.title || track.access_mode === "paid" || seen.has(track.id)) {
-      return false
-    }
-    seen.add(track.id)
-    return true
-  })
-}
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value < 0) return "0:00"
@@ -114,10 +84,9 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
   const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10))
 
   useEffect(() => {
-    let active = true
     const refreshDay = () => setDay(new Date().toISOString().slice(0, 10))
     const timer = window.setInterval(refreshDay, 60_000)
-    return () => { active = false; window.clearInterval(timer) }
+    return () => window.clearInterval(timer)
   }, [])
 
   useEffect(() => {
