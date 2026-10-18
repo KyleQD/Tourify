@@ -6,12 +6,12 @@ import {
 } from '@/lib/arcade/dj-world-tour'
 
 describe('DJ Odyssey world tour destinations', () => {
-  it('contains five playable, distinct club destinations', () => {
+  it('contains six playable, distinct club destinations', () => {
     expect(DJ_CHAPTERS.map(chapter => chapter.id)).toEqual([
-      'studio54', 'whisky', 'amnesia', 'fabric', 'tresor',
+      'studio54', 'whisky', 'amnesia', 'eos', 'fabric', 'tresor',
     ])
-    expect(new Set(DJ_CHAPTERS.map(chapter => chapter.id)).size).toBe(5)
-    expect(new Set(DJ_CHAPTERS.map(chapter => chapter.backdrop[0])).size).toBe(5)
+    expect(new Set(DJ_CHAPTERS.map(chapter => chapter.id)).size).toBe(6)
+    expect(new Set(DJ_CHAPTERS.map(chapter => chapter.backdrop[0])).size).toBe(6)
     expect(DJ_CHAPTERS.every(c => c.name && c.city && c.country && c.gateName)).toBe(true)
     expect(getDJChapter('does-not-exist').id).toBe('studio54')
   })
@@ -25,6 +25,23 @@ describe('DJ Odyssey world tour destinations', () => {
     expect(ibiza.scenery.some(s => s.kind === 'islet')).toBe(true)
     expect(ibiza.scenery.some(s => s.kind === 'old-town')).toBe(true)
     expect(getDJChapterDistrictLabel(ibiza, 880)).toBe('Es Vedrà')
+  })
+
+  it('adds an original Santa Barbara coastal chapter with its actual cultural landmarks', () => {
+    const santaBarbara = getDJChapter('eos')
+    expect(santaBarbara.city).toBe('Santa Barbara')
+    expect(santaBarbara.name).toBe('EOS Lounge')
+    expect(santaBarbara.gateName).toBe('EOS')
+    expect(santaBarbara.scenery.map(stop => stop.name)).toEqual(expect.arrayContaining([
+      'Stearns Wharf', 'State Street', 'Courthouse Tower', 'The Funk Zone',
+    ]))
+    expect(santaBarbara.scenery.map(stop => stop.kind)).toEqual(expect.arrayContaining([
+      'wharf', 'red-roofs', 'courthouse', 'patio', 'coast',
+    ]))
+    expect(santaBarbara.scenery.every(stop => stop.x > 0 && stop.x < DJ_WORLD_WIDTH)).toBe(true)
+    expect(santaBarbara.scenery.every((stop, index, all) => index === 0 || stop.x > all[index - 1].x)).toBe(true)
+    expect(getDJChapterDistrictLabel(santaBarbara, 1400)).toBe('State Street')
+    expect(getDJChapterDistrictLabel(santaBarbara, 3000)).toBe('Patio Encore')
   })
 
   it('preserves platform physics and keeps gaps within jump travel distance', () => {
