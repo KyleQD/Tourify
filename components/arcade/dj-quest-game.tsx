@@ -578,7 +578,7 @@ export function DJQuestGame() {
             : <span className="text-xs text-amber-100/75">Your DJ booth stays open until you choose another stop.</span>}
         </div>
         {autoAdvance && <p className="text-xs text-amber-100/80">World Tour moves to {nextChapter.name} in {nextLevelCountdown}s. Choose “Stay and mix” to turn off automatic progression.</p>}
-      </div>
+      </div>}
       {phase === 'won' && <div onPointerDownCapture={() => setAutoAdvance(false)} onFocusCapture={() => setAutoAdvance(false)}><DJBoothFinale venueName={chapter.name} /></div>}
       <div className="space-y-3" aria-label="Choose a world tour chapter">
         <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-black uppercase tracking-[0.15em] text-amber-200">Pick your destination · 6 playable chapters</h3><span className="text-xs text-white/55">{phase === 'playing' ? 'Pause before switching chapters' : 'Choose any destination to begin'}</span></div>
