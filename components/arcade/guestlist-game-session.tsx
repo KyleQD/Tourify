@@ -40,16 +40,22 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
   const livesRef = useRef(3)
   const jumpStartedRef = useRef(Number.NEGATIVE_INFINITY)
   const handledNotesRef = useRef(new Set<number>())
+  const laneFlashTimerRef = useRef<number | null>(null)
   const handledObstaclesRef = useRef(new Set<string>())
   const [phase, setPhase] = useState<Phase>('playing')
   const [elapsed, setElapsed] = useState(0)
   const [score, setScore] = useState(0)
   const [combo, setCombo] = useState(0)
+  const [activeLane, setActiveLane] = useState<number | null>(null)
   const [lives, setLives] = useState(3)
   const [feedback, setFeedback] = useState(game === 'beat-deck' ? 'Hit D F J K as notes reach the target!' : 'Jump over the waves and collect records!')
   const [best, setBest] = useState(0)
   const duration = GAME_SECONDS[game] * 1000
   const fullGameUrl = game === 'beat-deck' ? '/arcade/beat-deck' : '/arcade/dj-quest'
+
+  useEffect(() => () => {
+    if (laneFlashTimerRef.current !== null) window.clearTimeout(laneFlashTimerRef.current)
+  }, [])
 
   useEffect(() => {
     try { setBest(Math.max(0, Number(localStorage.getItem(BEST_KEY(game))) || 0)) }
@@ -94,7 +100,7 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
     jumpStartedRef.current = Number.NEGATIVE_INFINITY
     handledNotesRef.current.clear()
     handledObstaclesRef.current.clear()
-    setElapsed(0); setScore(0); setCombo(0); setLives(3)
+    setElapsed(0); setScore(0); setCombo(0); setLives(3); setActiveLane(null)
     setFeedback(game === 'beat-deck' ? 'Follow the falling notes!' : 'Jump over the waves!')
     setPhase('playing')
     rootRef.current?.focus({ preventScroll: true })
@@ -175,6 +181,9 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
 
   const hit = (lane: number) => {
     if (game !== 'beat-deck' || phase !== 'playing') return
+    setActiveLane(lane)
+    if (laneFlashTimerRef.current !== null) window.clearTimeout(laneFlashTimerRef.current)
+    laneFlashTimerRef.current = window.setTimeout(() => setActiveLane(null), 175)
     const t = elapsedRef.current
     const index = Math.max(0, Math.round((t - 1200) / 650))
     const delta = Math.abs(t - noteTime(index))
@@ -263,7 +272,7 @@ export function GuestlistGameSession({ game, onExit }: { game: GuestlistGameId; 
             {NOTE_KEYS.map((key, lane) => (
               <button key={key} type="button" disabled={phase !== 'playing'} aria-label={'Hit ' + key.toUpperCase() + ' rhythm lane'}
                 onPointerDown={event => { event.preventDefault(); hit(lane) }}
-                className="min-h-12 touch-manipulation rounded-xl border-2 bg-white/10 font-black text-white active:bg-white/30 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                className={'min-h-12 touch-manipulation rounded-xl border-2 font-black text-white active:bg-white/30 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white ' + (activeLane === lane ? 'bg-white/35 ring-2 ring-white/80' : 'bg-white/10')}
                 style={{ borderColor: NOTE_COLORS[lane] }}>
                 {key.toUpperCase()}
               </button>
