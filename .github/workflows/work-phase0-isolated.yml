@@ -30,4 +30,4 @@ jobs:
       - name: Install with temporary legacy peer resolution
         run: npm ci --legacy-peer-deps --ignore-scripts
       - name: Run isolated Work foundation tests
-        run: npx --no-install vitest run lib/work/__tests__/opportunity-foundation.test.ts lib/work/__tests__/publisher-authority.test.ts lib/work/server/__tests__/resolve-work-publisher-authority.test.ts app/api/work/v1/opportunities/__tests__/route.test.ts
+        run: npx --no-install vitest run --config vitest.work.config.ts
