@@ -39,6 +39,7 @@ export function DJQuestGame() {
   const mutedRef = useRef(false)
   const lastInfoRef = useRef(false)
   const chapterRef = useRef(DJ_CHAPTERS[0])
+  const sceneRevisionRef = useRef(0)
   const [chapterId, setChapterId] = useState<DJChapterId>('studio54')
   const chapter = getDJChapter(chapterId)
   const lastHudTickRef = useRef(0)
@@ -70,6 +71,7 @@ export function DJQuestGame() {
     oscillator.start(); oscillator.stop(ctx.currentTime + seconds)
   }
   const restart = () => {
+    sceneRevisionRef.current += 1
     heroRef.current = startHero()
     collectedRef.current = baseRecords()
     defeatedRef.current = baseEnemies()
@@ -151,6 +153,7 @@ export function DJQuestGame() {
     let frame = 0
     let previous = 0
     let drawnPhase: Phase | null = null
+    let drawnRevision = -1
     function step(dt: number) {
       const h = heroRef.current
       const scene = chapterRef.current
@@ -296,9 +299,9 @@ export function DJQuestGame() {
       for (const p of world.platforms) {
         const x = p.x - cam
         if (x + p.w < 0 || x > DJ_VIEW_WIDTH) continue
-        ctx.fillStyle = '#31254b'; ctx.fillRect(x, p.y, p.w, p.h)
-        ctx.fillStyle = '#f0abfc'; ctx.fillRect(x, p.y, p.w, 5)
-        ctx.fillStyle = '#b163d0'; ctx.fillRect(x + 3, p.y + 8, p.w - 6, 3)
+        ctx.fillStyle = scene.id === 'amnesia' ? '#b39476' : scene.id === 'whisky' ? '#54344b' : '#31254b'; ctx.fillRect(x, p.y, p.w, p.h)
+        ctx.fillStyle = scene.accent; ctx.fillRect(x, p.y, p.w, 5)
+        ctx.fillStyle = scene.id === 'amnesia' ? '#fce5bb' : '#b163d0'; ctx.fillRect(x + 3, p.y + 8, p.w - 6, 3)
       }
 
       world.records.forEach((record, index) => {
@@ -345,13 +348,13 @@ export function DJQuestGame() {
       // Fictional illustrative arrival gate; no venue logos or facade copies.
       const goalX = DJ_WORLD_WIDTH - 148 - cam
       ctx.fillStyle = '#1b1430'; ctx.fillRect(goalX, 210, 135, 155)
-      ctx.shadowColor = portalOpen(heroRef.current.records) ? '#fbbf24' : '#a78bfa'; ctx.shadowBlur = 18
-      ctx.strokeStyle = portalOpen(heroRef.current.records) ? '#fbbf24' : '#a78bfa'
+      ctx.shadowColor = portalOpen(heroRef.current.records) ? '#fbbf24' : scene.accent; ctx.shadowBlur = 18
+      ctx.strokeStyle = portalOpen(heroRef.current.records) ? '#fbbf24' : scene.accent
       ctx.lineWidth = 6; ctx.strokeRect(goalX, 210, 135, 155); ctx.shadowBlur = 0
       ctx.fillStyle = '#fef3c7'; ctx.font = 'bold 21px monospace'; ctx.textAlign = 'center'
       ctx.fillText(scene.gateName, goalX + 67, 244, 125)
       ctx.font = scene.id === 'studio54' ? 'bold 45px monospace' : 'bold 26px monospace'; ctx.fillText(scene.gateSubtitle, goalX + 67, 289, 125)
-      ctx.fillStyle = '#e879f9'; ctx.fillRect(goalX + 30, 317, 75, 48)
+      ctx.fillStyle = scene.accent; ctx.fillRect(goalX + 30, 317, 75, 48)
       ctx.fillStyle = '#100b2c'; ctx.fillRect(goalX + 34, 322, 67, 43)
 
       const h = heroRef.current
@@ -403,8 +406,9 @@ export function DJQuestGame() {
       // Render on demand while paused, finished or game over so the animation
       // does not waste GPU time rebuilding a static level every frame.
       const current = phaseRef.current
-      if (current === 'playing' || current !== drawnPhase) draw()
+      if (current === 'playing' || current !== drawnPhase || sceneRevisionRef.current !== drawnRevision) draw()
       drawnPhase = current
+      drawnRevision = sceneRevisionRef.current
       frame = requestAnimationFrame(loop)
     }
     frame = requestAnimationFrame(loop)
