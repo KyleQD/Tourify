@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
 import { BEAT_DECK_STAGES, getShowEnergy, getShowTier, type BeatDeckStage } from '@/lib/arcade/stage-director'
+import { laneFromKeyboardEvent, isRhythmEditableTarget, explainUnscoredPress } from '@/lib/arcade/rhythm-input'
 import {
   createPracticeChart,
   findHittableNote,
@@ -51,6 +52,10 @@ export function RhythmGame() {
   const frozenTimeRef = useRef(0)
   const durationRef = useRef(30)
   const hitFnRef = useRef<(lane: Lane) => void>(() => {})
+  const pressFnRef = useRef<(lane: Lane, pressed: boolean) => void>(() => {})
+  const releaseAllFnRef = useRef<() => void>(() => {})
+  const pressedLanesRef = useRef(new Set<Lane>())
+  const laneFlashUntilRef = useRef<number[]>([0, 0, 0, 0])
   const [tracks, setTracks] = useState<EligibleTrack[]>([])
   const [catalogMessage, setCatalogMessage] = useState('Loading eligible music…')
   const [selected, setSelected] = useState('practice')
@@ -64,6 +69,8 @@ export function RhythmGame() {
   const [personalBest, setPersonalBest] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [feedback, setFeedback] = useState('Ready when you are')
+  const [heldLanes, setHeldLanes] = useState<Lane[]>([])
+  const [lastRegisteredKey, setLastRegisteredKey] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -79,6 +86,25 @@ export function RhythmGame() {
   // Positive calibration delays the chart to match a slower audio output device.
   // It never changes playback permissions or the underlying audio.
   const chartTime = useCallback(() => Math.max(0, getTime() - offsetMs / 1000), [getTime, offsetMs])
+
+  const updateLanePressed = (lane: Lane, pressed: boolean) => {
+    const current = pressedLanesRef.current
+    if (pressed) {
+      laneFlashUntilRef.current[lane] = performance.now() + 160
+      if (current.has(lane)) return
+      current.add(lane)
+    } else {
+      if (!current.has(lane)) return
+      current.delete(lane)
+    }
+    setHeldLanes([...current])
+  }
+  const releaseAllLanes = () => {
+    pressedLanesRef.current.clear()
+    setHeldLanes([])
+  }
+  pressFnRef.current = updateLanePressed
+  releaseAllFnRef.current = releaseAllLanes
 
   const stopAudio = () => {
     const audio = audioRef.current
@@ -97,6 +123,9 @@ export function RhythmGame() {
     notesRef.current = []
     handledRef.current = new Set()
     lastBeatIndexRef.current = -1
+    releaseAllLanes()
+    laneFlashUntilRef.current = [0, 0, 0, 0]
+    setLastRegisteredKey(null)
     resultsRef.current = initialResults()
     frozenTimeRef.current = 0
     setResults(initialResults())
@@ -220,6 +249,7 @@ export function RhythmGame() {
 
   const pause = () => {
     if (phaseRef.current !== 'playing') return
+    releaseAllLanes()
     frozenTimeRef.current = getTime()
     audioRef.current?.pause()
     updatePhase('paused')
@@ -227,9 +257,17 @@ export function RhythmGame() {
 
   const hitLane = (lane: Lane) => {
     if (phaseRef.current !== 'playing') return
+    const key = LANE_KEYS[lane].toUpperCase()
+    setLastRegisteredKey(key)
+    laneFlashUntilRef.current[lane] = performance.now() + 175
     const now = chartTime()
     const note = findHittableNote(notesRef.current, handledRef.current, lane, now)
-    if (!note) { setFeedback('Keep watching the beat line'); return }
+    if (!note) {
+      const timing = explainUnscoredPress(notesRef.current, handledRef.current, lane, now)
+      const description = timing === 'early' ? 'too early' : timing === 'late' ? 'too late' : 'no note waiting'
+      setFeedback(key + ' REGISTERED · ' + description + '. Aim for the bright line!')
+      return
+    }
     const judgement = judgeTiming(now - note.at)
     handledRef.current.add(note.id)
     const previous = resultsRef.current
@@ -243,7 +281,7 @@ export function RhythmGame() {
     }
     resultsRef.current = next
     setResults(next)
-    setFeedback(judgement === 'perfect' ? '✦ PERFECT!' : 'NICE!')
+    setFeedback(key + (judgement === 'perfect' ? ' REGISTERED · ✦ PERFECT!' : ' REGISTERED · NICE!'))
   }
   hitFnRef.current = hitLane
 
