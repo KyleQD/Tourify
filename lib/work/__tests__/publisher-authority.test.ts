@@ -6,6 +6,9 @@ const now = new Date('2026-10-18T12:00:00Z')
 const approved = {
   accountId: 'artist-account-1',
   approvalType: 'employer' as const,
+  reviewedProfileId: 'artist1',
+  reviewedAccountType: 'artist',
+  reviewedProfileTable: 'artist_profiles',
   status: 'approved' as const,
   approvedAt: '2026-10-10T12:00:00Z',
 }
@@ -20,6 +23,8 @@ const hiringPlans = [{ priceId: 'price_approved_artist_plus', allowedAccountType
 const input = {
   accountId: 'artist-account-1',
   accountType: 'artist',
+  profileId: 'artist1',
+  profileTable: 'artist_profiles',
   canManageHiring: true,
   approvals: [approved],
   entitlements: [entitled],
@@ -41,6 +46,14 @@ describe('protected professional employer publishing authority', () => {
       activeJobLimit: 3,
     })
     expect(canPublishWorkOpportunity(paidJob, authority)).toEqual({ allowed: true, kind: 'paid_work' })
+  })
+
+  it('invalidates an approval when professional profile or account type changes', () => {
+    expect(evaluateProtectedWorkAuthority({ ...input, profileId: 'another-artist' }).isVerifiedEmployer).toBe(false)
+    expect(evaluateProtectedWorkAuthority({ ...input, accountType: 'venue', profileTable: 'venue_profiles' }).isVerifiedEmployer).toBe(false)
+    expect(evaluateProtectedWorkAuthority({
+      ...input, approvals: [{ ...approved, reviewedProfileTable: 'venue_profiles' }],
+    }).isVerifiedEmployer).toBe(false)
   })
 
   it('never accepts other accounts subscription or employer approval', () => {
