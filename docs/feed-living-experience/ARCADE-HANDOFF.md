@@ -159,3 +159,28 @@ Status: changes committed to draft branch, **browser gameplay verification requi
 - [ ] Expand the different chapter environments with per-destination set-piece mechanics, bespoke enemies, interactive scenery, unique rewards and reviewed original music.
 - [ ] Check any future real venue branding/licensing and independent name/trademark implications with rights counsel before monetized distribution or marketing. Club name use is descriptive/unaffiliated in this prototype.
 - [ ] Add separate world-tour map UI and lore if desirable. Current selector is a list of fictional levels, not a geographic routing tool.
+
+## DJ Odyssey World Tour: EOS Lounge, Santa Barbara — sixth chapter (2026-10-18)
+
+**Ground truth verified from official public sources:**
+- EOS Lounge: `500 Anacapa Street, Santa Barbara, CA 93101`; [official contact](https://www.eoslounge.com/contacteos). Venue advertises multiple dance floors and an outdoor patio (not licensed or partnered).
+- [Visit Santa Barbara's historic landmarks](https://santabarbaraca.com/plan-your-trip/arts-and-culture/historic-landmarks/) and [City of Santa Barbara Stearns Wharf](https://santabarbaraca.gov/things-do/waterfront/about-stearns-wharf) inform original exterior inspiration.
+- The drawn landmark order is **fictional**. The game is not a navigable geographic map, walking itinerary or endorsement. Do not scrape club photos/logos or upload third-party music.
+
+### Changes committed to development branch
+- `lib/arcade/dj-world-tour.ts`: sixth `eos` chapter, original California dusk palette and distinct physics-compatible ground segments (80/80/85px gaps), character-gate name `EOS LOUNGE`, separate `tour:eos` device-local best score; landmark sequence: Stearns Wharf, East Beach, State Street, Courthouse Tower, The Funk Zone, Patio Encore. Original five chapters remain intact and playable.
+- `lib/arcade/dj-world-art.ts`: original parallax American Riviera backdrop, sea/foam, mountain hills, a warm sunset, illustrated pier, beach cabanas, Spanish-style red-roof buildings, courthouse-inspired clock tower and a string-lit garden finale. No borrowed photos, facades, branding, fonts or samples.
+- `components/arcade/dj-chapter-route-map.tsx`: schematic *game-progress* map with progress marker, six landmark labels and a finale pin. Available for **all** chapters, horizontally scrollable with an accessible SVG description on mobile. Map distances are proportional to gameplay X coordinates, **not** real-world coordinates.
+- `components/arcade/dj-quest-game.tsx`: sixth selectable chapter and expandable route map (auto-expands when EOS is selected); landmark announcements follow successive landmarks rather than only two global district thresholds; map progress tracks the chapter.
+- `components/arcade/arcade-hub.tsx` and `app/arcade/dj-quest/page.tsx`: six-chapter discovery copy and metadata.
+- `__tests__/arcade/dj-world-tour.test.ts`: six distinct chapters, EOS landmark types/ordering, route labels, physics gap checks and safe respawn checkpoints.
+
+### Release gates
+1. Confirm final **post-test-fix** Arcade CI succeeds, not only earlier intermediate CI; inspect failing test logs if necessary.
+2. Confirm **final-tip Vercel build READY** including the route map JSX. Previous intermediate Vercel code was built while multiple files were being committed.
+3. Manually play EOS chapter: reach all six landmarks and the EOS portal with nine records; check lives, checkpoints, touch and keyboard movement; finish triggers venue-labelled original-synth DJ booth.
+4. Check game route map at 320px widths (horizontal scrolling and focus), map open/close, active marker, route labels, chapter switching while paused and reset.
+5. Maintain no-endorsement disclaimers and assess any possible name/brand rights issues before public commercialization.
+6. Keep PR #17 draft, no merge or production deployment without approval and QA; avoid unrelated music/Flow File infrastructure work in Arcade implementation.
+
+Potential next development slices: new local landmark gameplay interactions (wharf jumping hazard, record-store bonuses, red-roof platforms), original location-themed synth pattern per chapter, mobile controller improvements, save/load checkpoints and art polish. All are **future work**, not represented as shipped.
