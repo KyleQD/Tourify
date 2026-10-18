@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { readPersonalBest, savePersonalBest } from '@/lib/arcade/personal-best'
 import { DJBoothFinale } from '@/components/arcade/dj-booth-finale'
+import { DJ_CHAPTERS, DJ_CHAPTER_WORLDS, getDJChapter, getDJChapterCheckpoint, getDJChapterDistrictLabel, type DJChapterId } from '@/lib/arcade/dj-world-tour'
+import { drawDJChapterScenery } from '@/lib/arcade/dj-world-art'
 import { ArrowLeft, ArrowRight, Heart, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react'
 import {
   DJ_ENEMIES, DJ_GRAVITY, DJ_JUMP_SPEED, DJ_PLATFORMS, DJ_RECORDS,
@@ -36,6 +38,9 @@ export function DJQuestGame() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const mutedRef = useRef(false)
   const lastInfoRef = useRef(false)
+  const chapterRef = useRef(DJ_CHAPTERS[0])
+  const [chapterId, setChapterId] = useState<DJChapterId>('studio54')
+  const chapter = getDJChapter(chapterId)
   const lastHudTickRef = useRef(0)
   const districtRef = useRef<DJDistrict>('record-row')
   const [phase, setPhase] = useState<Phase>('ready')
@@ -48,6 +53,7 @@ export function DJQuestGame() {
   const [personalBest, setPersonalBest] = useState(0)
 
   useEffect(() => { setPersonalBest(readPersonalBest('dj-odyssey', 'first-level')) }, [])
+  const scoreKey = (id: DJChapterId) => id === 'studio54' ? 'first-level' : 'tour:' + id
 
   const setGamePhase = (next: Phase) => { phaseRef.current = next; setPhase(next) }
   const fx = (pitch: number, seconds = 0.09) => {
@@ -78,8 +84,16 @@ export function DJQuestGame() {
     setProgressPercent(0)
     setHud({ records: 0, lives: 3 })
     setWinScore(null)
-    setHint('Collect records and take the dance floor by storm!')
+    setHint('Collect records and reach ' + chapterRef.current.name + '!')
     setGamePhase('ready')
+  }
+  const changeChapter = (id: DJChapterId) => {
+    if (phaseRef.current === 'playing') return
+    chapterRef.current = getDJChapter(id)
+    setChapterId(id)
+    restart()
+    setPersonalBest(readPersonalBest('dj-odyssey', scoreKey(id)))
+    setHint(chapterRef.current.description)
   }
   const play = () => {
     if (phaseRef.current === 'won' || phaseRef.current === 'gameover') restart()
@@ -139,6 +153,8 @@ export function DJQuestGame() {
     let drawnPhase: Phase | null = null
     function step(dt: number) {
       const h = heroRef.current
+      const scene = chapterRef.current
+      const world = DJ_CHAPTER_WORLDS[scene.id]
       worldTimeRef.current += dt
       const movingLeft = heldRef.current.has('arrowleft') || heldRef.current.has('a')
       const movingRight = heldRef.current.has('arrowright') || heldRef.current.has('d')
@@ -156,7 +172,7 @@ export function DJQuestGame() {
       h.vy += DJ_GRAVITY * dt
       h.y += h.vy * dt
       h.grounded = false
-      for (const platform of DJ_PLATFORMS) {
+      for (const platform of world.platforms) {
         const touchesTop =
           h.vy >= 0 && beforeBottom <= platform.y + 9 &&
           h.y + h.h >= platform.y &&
@@ -176,32 +192,32 @@ export function DJQuestGame() {
       }
       if (h.y > DJ_VIEW_HEIGHT + 100) { loseLifeFnRef.current(); return }
 
-      const checkpoint = getCheckpoint(h.x)
+      const checkpoint = getDJChapterCheckpoint(scene, h.x)
       if (checkpoint > h.checkpoint) h.checkpoint = checkpoint
       const nextDistrict = getDJDistrict(h.x)
       if (nextDistrict !== districtRef.current) {
         districtRef.current = nextDistrict
         setDistrict(nextDistrict)
-        setHint('Now spinning through ' + DJ_DISTRICT_LABELS[nextDistrict] + '!')
+        setHint('Now exploring ' + getDJChapterDistrictLabel(scene, h.x) + '!')
       }
       if (worldTimeRef.current - lastHudTickRef.current > 0.15) {
         lastHudTickRef.current = worldTimeRef.current
         setProgressPercent(Math.min(100, Math.max(0, Math.round(100 * h.x / (DJ_WORLD_WIDTH - 140)))))
       }
 
-      DJ_RECORDS.forEach((record, index) => {
+      world.records.forEach((record, index) => {
         if (collectedRef.current.has(index)) return
         if (Math.abs(h.x + h.w / 2 - record.x) < 23 && Math.abs(h.y + h.h / 2 - record.y) < 31) {
           collectedRef.current.add(index)
           h.records++
           fx(750, 0.14)
           setHud({ records: h.records, lives: h.lives })
-          if (h.records === DJ_RECORDS_NEEDED) setHint('The guest list is ready! Get to Studio 54.')
+          if (h.records === DJ_RECORDS_NEEDED) setHint('The guest list is ready! Reach ' + scene.name + '!')
         }
       })
       // Respawn stops collision simulation immediately; a fatal collision
       // must not simultaneously trigger the level's win portal.
-      const damaged = DJ_ENEMIES.some((enemy, index) => {
+      const damaged = world.enemies.some((enemy, index) => {
         if (defeatedRef.current.has(index)) return false
         const enemyX = enemy.x + Math.sin(worldTimeRef.current * enemy.speed + index) * enemy.patrol
         const enemyRect = { x: enemyX, y: enemy.y, w: enemy.w, h: enemy.h }
@@ -219,9 +235,9 @@ export function DJQuestGame() {
         if (portalOpen(h.records)) {
           const score = calculateDJRunScore(h.records, h.lives, defeatedRef.current.size, worldTimeRef.current)
           setWinScore(score)
-          setPersonalBest(savePersonalBest('dj-odyssey', 'first-level', score))
+          setPersonalBest(savePersonalBest('dj-odyssey', scoreKey(scene.id), score))
           setGamePhase('won')
-          setHint('You made it to Studio 54! The DJ booth is yours. 🎉')
+          setHint('You made it to ' + scene.name + '! The DJ booth is yours. 🎉')
           fx(900, 0.3)
         } else if (!lastInfoRef.current) {
           lastInfoRef.current = true
@@ -282,7 +298,7 @@ export function DJQuestGame() {
         ctx.fillStyle = '#b163d0'; ctx.fillRect(x + 3, p.y + 8, p.w - 6, 3)
       }
 
-      DJ_RECORDS.forEach((record, index) => {
+      world.records.forEach((record, index) => {
         if (collectedRef.current.has(index)) return
         const x = record.x - cam
         if (x < -20 || x > DJ_VIEW_WIDTH + 20) return
