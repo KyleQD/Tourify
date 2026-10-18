@@ -47,11 +47,18 @@ export async function resolveProtectedWorkPublisherAuthority(
   if (!['artist', 'venue', 'organization'].includes(entityType))
     return { accountId: null, authority: denied }
 
+  const profileTable = entityType === 'artist'
+    ? 'artist_profiles'
+    : entityType === 'venue'
+      ? 'venue_profiles'
+      : 'organizer_accounts'
+
   const db = createServiceRoleClient()
   const { data: account, error: accountError } = await db
     .from('accounts')
     .select('id, owner_user_id, profile_id, account_type, is_active')
     .eq('profile_id', actor.profileId)
+    .eq('profile_table', profileTable)
     .eq('account_type', entityType)
     .eq('is_active', true)
     .maybeSingle()
