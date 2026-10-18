@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { decodeNewsIndexCursor, encodeNewsIndexCursor } from '@/lib/news/index/cursor'
 import type { IndexedNewsItem } from '@/lib/news/index/contracts'
 
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient()
+    // Typed public.news_items is introduced by the reviewed M2 SQL; the
+    // generated Database types will be refreshed after migration approval.
+    const supabase = (await createClient()) as unknown as SupabaseClient
     let query = supabase
       .from('news_items')
       .select(PUBLIC_FIELDS)
