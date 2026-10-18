@@ -1,5 +1,6 @@
 import { DJ_WORLD_WIDTH } from '@/lib/arcade/dj-quest-level'
 import type { DJChapter } from '@/lib/arcade/dj-world-tour'
+import { getDJWorldFeatures } from '@/lib/arcade/dj-world-events'
 
 /**
  * Playable-game progress map — diagrammatic, not a geographic map.
@@ -15,6 +16,7 @@ export function DJChapterRouteMap({
   const progress = Number.isFinite(progressPercent) ? Math.max(0, Math.min(100, progressPercent)) : 0
   const px = (x: number) => 58 + (Math.max(0, Math.min(DJ_WORLD_WIDTH, x)) / DJ_WORLD_WIDTH) * 788
   const playerX = 58 + 7.88 * progress
+  const sideQuests = getDJWorldFeatures(chapter.id).filter(feature => feature.kind !== 'patio-lights')
 
   return (
     <figure className="overflow-hidden rounded-2xl border border-white/15 bg-[#111127] p-3 sm:p-4" aria-label={chapter.name + ' gameplay route map'}>
@@ -56,6 +58,15 @@ export function DJChapterRouteMap({
             </text>
           </g>
         })}
+        {sideQuests.map(feature => {
+          const x = px(feature.x)
+          return <g key={feature.id}>
+            <title>{feature.name}</title>
+            <rect x={x - 6} y={66} width={12} height={12} rx={feature.kind === 'surf-hazard' ? 6 : 2}
+              fill={feature.kind === 'surf-hazard' ? '#67e8f9' : '#fbbf24'} stroke="#1e293b" strokeWidth="2" />
+            <path d={'M ' + x + ' 78 L ' + x + ' 83'} stroke="#f8fafc" strokeWidth="1.5" />
+          </g>
+        })}
         <circle cx="846" cy="89" r="12" fill={chapter.accent} stroke="#fff" strokeWidth="3" />
         <text x="846" y="115" textAnchor="middle" fill="#fff" fontSize="12" fontWeight="800">CLUB</text>
         <g transform={'translate(' + playerX + ' 89)'}>
@@ -68,7 +79,9 @@ export function DJChapterRouteMap({
         <span>◆ Your position</span>
         <span>● Inspired landmarks</span>
         <span>★ Final club</span>
+        {sideQuests.length > 0 && <span>■ Gold = spring / bonus · ● Blue = surf obstacle</span>}
       </figcaption>
+      {sideQuests.length > 0 && <p className="mt-2 text-xs leading-relaxed text-amber-100/90">EOS side quests: {sideQuests.map(feature => feature.name).join(' · ')}. Map locations reflect game-world progress, not street positions.</p>}
     </figure>
   )
 }
