@@ -54,10 +54,14 @@ export function composeIndexedNewsFeed(
     if (!available.length) break
 
     // Prefer origins with unfilled slots, but always backfill when missing.
+    // Spread origins throughout the feed rather than rendering source blocks.
+    // Largest positive prefix deficit is chosen at each position.
+    const nextPosition = feed.length + 1
     const wantedOrigins = ORIGINS.filter(origin =>
       originCounts[origin] < targets[origin] && available.some(c => c.origin === origin)
     ).sort((a, b) =>
-      (targets[b] - originCounts[b]) - (targets[a] - originCounts[a]) ||
+      ((targets[b] / limit) * nextPosition - originCounts[b]) -
+      ((targets[a] / limit) * nextPosition - originCounts[a]) ||
       ORIGINS.indexOf(a) - ORIGINS.indexOf(b)
     )
 
