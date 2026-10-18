@@ -55,3 +55,12 @@ export function getCheckpoint(x: number): number {
 export function portalOpen(collected: number): boolean {
   return collected >= DJ_RECORDS_NEEDED
 }
+
+/** Client-side score for a casual local personal best, never a trusted leaderboard. */
+export function calculateDJRunScore(records: number, lives: number, defeated: number, seconds: number): number {
+  const safeRecords = Math.max(0, Math.min(DJ_RECORDS.length, Math.floor(Number.isFinite(records) ? records : 0)))
+  const safeLives = Math.max(0, Math.min(3, Math.floor(Number.isFinite(lives) ? lives : 0)))
+  const safeDefeated = Math.max(0, Math.min(DJ_ENEMIES.length, Math.floor(Number.isFinite(defeated) ? defeated : 0)))
+  const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0)
+  return safeRecords * 100 + safeLives * 350 + safeDefeated * 150 + Math.max(0, Math.round(2500 - safeSeconds * 20))
+}
