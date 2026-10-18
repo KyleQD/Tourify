@@ -331,7 +331,8 @@ export function NavigationSidebar({ user, isOpen, onToggle, roleTheme }: Navigat
             <NavItem item={{ href: "/", icon: Home, label: "Home" }} />
             <NavItem item={{ href: "/dashboard", icon: BarChart3, label: "Dashboard" }} />
             <NavItem item={{ href: "/events", icon: Calendar, label: "Events", badge: 3 }} />
-            <NavItem item={{ href: "/music", icon: Music, label: "Music" }} />
+            <NavItem item={{ href: "/music/discover", icon: Music, label: "Discover Music" }} />
+            <NavItem item={{ href: "/music", icon: Music, label: "My Library" }} />
             <NavItem item={{ href: "/friends", icon: Users, label: "Network" }} />
             <NavItem item={{ href: "/messages", icon: MessageSquare, label: "Messages", badge: 2 }} />
             <NavItem item={{ href: "/bookings", icon: Clock, label: "Bookings", badge: 5 }} />
